@@ -116,3 +116,6 @@ activation: manual
 ---
 ```
 
+![Manual Activation](file:///home/g/antigravity/lessons/1/assets/manual_activation.png)
+
+
