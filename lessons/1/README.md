@@ -111,11 +111,13 @@
 
 ```markdown
 ---
-name: "название_правила"
-activation: manual 
----
-```
+trigger: manual 
 
 ![Manual Activation](file:///home/g/antigravity/lessons/1/assets/manual_activation.png)
+##Запрет на удаление##
+Шаг 1: В правом нижнем углу есть Antigravity-Settings-Advanced Settings. В окне Agent найдите Deny List Terminal Commands
 
 
+Шаг 2: Проверьте синтаксис Deny List. Убедитесь, что после ввода rm в поле Deny List вы нажали Enter или кнопку + Add, чтобы значение сохранилось (на скриншоте оно выглядит как введенный текст в поле, но не как добавленный токен).
+
+Шаг 3: Смена режима (Рекомендуется). Для критических операций лучше сменить Terminal Command Auto Execution - Always Proceed на Request Review. В этом случае агент будет спрашивать разрешение на любую команду, что исключает случайные удаления.

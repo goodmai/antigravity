@@ -1,10 +1,8 @@
 ---
-name: "spanish"
-activation: manual
+trigger: manual
 ---
 
 # Spanish Response Rule
-
 
 ## Description
 This rule ensures that the agent always responds in Spanish to help students practice or test rule priority.
