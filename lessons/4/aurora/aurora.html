@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arctic Phantasmagoria - Aurora Borealis</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #0a0a0b;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-aurora: #4fcf93;
+            --anthropic-crimson: #d94e5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #020406;
+            min-height: 100vh;
+            color: #f1f0ea;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 340px;
+            flex-shrink: 0;
+            background: rgba(10, 15, 25, 0.95);
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-aurora);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 13px;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .control-section {
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .control-section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e8e6dc;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: #05080c;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 10px;
+            border: 1px solid #1a222a;
+            color: var(--anthropic-aurora);
+            text-align: center;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+            color: #b0aea5;
+            margin-bottom: 8px;
+        }
+
+        .slider-container input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: #1a222a;
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: var(--anthropic-aurora);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--anthropic-aurora);
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .button {
+            background: #1a222a;
+            color: #e8e6dc;
+            border: 1px solid #2a323a;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: capitalize;
+        }
+
+        .button:hover {
+            background: #2a323a;
+            border-color: var(--anthropic-aurora);
+            color: var(--anthropic-aurora);
+        }
+
+        .button.active {
+            background: rgba(79, 207, 147, 0.1);
+            border-color: var(--anthropic-aurora);
+            color: var(--anthropic-aurora);
+            box-shadow: 0 0 15px rgba(79, 207, 147, 0.2);
+        }
+
+        .button.primary {
+            background: var(--anthropic-aurora);
+            color: #020406;
+            border: none;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #0a1018 0%, #020406 100%);
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #canvas-container canvas {
+            display: block;
+        }
+
+        .aurora-info {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .aurora-info h2 {
+            font-family: 'Lora', serif;
+            font-size: 18px;
+            color: rgba(255,255,255,0.4);
+            font-weight: 400;
+        }
+
+        .loading {
+            position: absolute;
+            color: var(--anthropic-aurora);
+            font-family: 'Lora', serif;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Arctic Phantasmagoria</h1>
+            <div class="subtitle">A master-level simulation of geomagnetic fluid light. Celestial curtains woven through procedural code.</div>
+
+            <div class="control-section">
+                <h3>Geomagnetic Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="888001" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button" onclick="previousSeed()">← Prev</button>
+                    <button class="button" onclick="nextSeed()">Next →</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Solar Activity</h3>
+                <div class="control-group">
+                    <label>Activity Regulator <span id="solarActivity-value">0.6</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="solarActivity" min="0.1" max="1.5" step="0.05" value="0.6" oninput="updateParam('solarActivity', this.value)">
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Phenomena Presets</h3>
+                <div class="preset-grid">
+                    <button id="preset-classic" class="button active" onclick="setPreset('classic')">Standard</button>
+                    <button id="preset-crimson" class="button" onclick="setPreset('crimson')">Багрецы</button>
+                    <button id="preset-flashes" class="button" onclick="setPreset('flashes')">Сполохи</button>
+                    <button id="preset-ethereal" class="button" onclick="setPreset('ethereal')">Ethereal</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Atmospheric Parameters</h3>
+                <div class="control-group">
+                    <label>Curtain Density <span id="curtainCount-value">60</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="curtainCount" min="20" max="120" step="5" value="60" oninput="updateParam('curtainCount', this.value)">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Vertical Stretch <span id="verticalScale-value">250</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="verticalScale" min="100" max="600" step="10" value="250" oninput="updateParam('verticalScale', this.value)">
+                    </div>
+                </div>
+            </div>
+
+            <button class="button primary" onclick="randomSeedAndUpdate()">New Coordinate Search</button>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">CALIBRATING SPECTRAL FIELD...</div>
+            </div>
+            <div class="aurora-info">
+                <h2 id="current-preset-name">Standard Emission</h2>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 888001,
+            solarActivity: 0.6,
+            curtainCount: 60,
+            verticalScale: 250,
+            preset: 'classic'
+        };
+
+        let ribbons = [];
+        let stars = [];
+
+        function setup() {
+            let container = document.getElementById('canvas-container');
+            let canvas = createCanvas(container.offsetWidth, container.offsetHeight);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function windowResized() {
+            let container = document.getElementById('canvas-container');
+            resizeCanvas(container.offsetWidth, container.offsetHeight);
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            
+            // Background stars
+            stars = [];
+            for(let i=0; i<400; i++) {
+                stars.push({
+                    x: random(width),
+                    y: random(height),
+                    s: random(0.5, 2),
+                    o: random(50, 200)
+                });
+            }
+            
+            ribbons = [];
+            for (let i = 0; i < params.curtainCount; i++) {
+                ribbons.push(new AuroraRibbon(i));
+            }
+        }
+
+        function draw() {
+            background(2, 4, 6);
+            
+            // Draw stars
+            noStroke();
+            for(let s of stars) {
+                fill(255, s.o * (0.8 + 0.2 * sin(frameCount*0.02 + s.x)));
+                ellipse(s.x, s.y, s.s);
+            }
+
+            // Draw Aurora
+            blendMode(ADD);
+            for (let r of ribbons) {
+                r.update();
+                r.display();
+            }
+            blendMode(BLEND);
+        }
+
+        class AuroraRibbon {
+            constructor(index) {
+                this.index = index;
+                this.offset = random(1000);
+                this.xBase = random(width);
+                this.points = 40;
+                this.colorBase = this.getPresetColor();
+            }
+
+            getPresetColor() {
+                if (params.preset === 'crimson') {
+                    return color(random(180, 255), random(20, 60), random(50, 100));
+                } else if (params.preset === 'flashes') {
+                    return color(random(150, 255), random(200, 255), random(100, 200));
+                } else if (params.preset === 'ethereal') {
+                    return color(random(100, 150), random(150, 255), random(255, 255));
+                }
+                // Classic Green
+                return color(random(50, 100), random(200, 255), random(120, 180));
+            }
+
+            update() {
+                // Ribbons recalculate color every time if flashes is on
+                if (params.preset === 'flashes' && random() < 0.05) {
+                    this.colorBase = this.getPresetColor();
+                }
+            }
+
+            display() {
+                let spacing = width / (this.points - 1);
+                let time = frameCount * 0.005 * params.solarActivity;
+                
+                // Noise driven movement
+                let yStart = height * 0.2 + noise(this.index * 0.1, time * 0.5) * height * 0.3;
+                
+                noFill();
+                strokeWeight(2 + params.solarActivity * 3);
+                
+                beginShape();
+                for (let i = 0; i < this.points; i++) {
+                    let nx = i * 0.1;
+                    let nt = time + this.index * 0.05;
+                    
+                    let x = i * spacing;
+                    // Horizontal displacement
+                    let dx = (noise(nx, nt) - 0.5) * 150 * params.solarActivity;
+                    x += dx;
+                    
+                    // Vertical sweep
+                    let h = params.verticalScale * noise(nx * 0.5, nt * 0.7);
+                    
+                    // Opacity falloff at edges
+                    let distFromCenter = abs(i - this.points/2) / (this.points/2);
+                    let baseAlpha = map(distFromCenter, 0, 1, 60, 5) * params.solarActivity;
+                    
+                    // Color variation per preset
+                    let c = this.colorBase;
+                    if (params.preset === 'flashes') {
+                        baseAlpha *= (noise(nt * 4) > 0.6 ? 1.5 : 0.3);
+                    }
+
+                    stroke(red(c), green(c), blue(c), baseAlpha);
+                    
+                    // Draw each vertical segment as a gradient-like line
+                    line(x, yStart, x, yStart + h);
+                }
+                endShape();
+            }
+        }
+
+        function updateParam(id, val) {
+            params[id] = parseFloat(val);
+            document.getElementById(id + '-value').textContent = val;
+            if (id === 'curtainCount') {
+                initializeSystem();
+            }
+        }
+
+        function setPreset(p) {
+            params.preset = p;
+            
+            // UI Update
+            document.querySelectorAll('.preset-grid .button').forEach(b => b.classList.remove('active'));
+            document.getElementById('preset-' + p).classList.add('active');
+            
+            let name = "Standard Emission";
+            if (p === 'crimson') {
+                name = "Багрецы (Oxygen Excitation)";
+                params.solarActivity = 1.2;
+                params.verticalScale = 450;
+            } else if (p === 'flashes') {
+                name = "Сполохи (Ionized Discharge)";
+                params.solarActivity = 1.4;
+                params.verticalScale = 300;
+            } else if (p === 'ethereal') {
+                name = "Ethereal Ghosting";
+                params.solarActivity = 0.3;
+                params.verticalScale = 200;
+            } else {
+                params.solarActivity = 0.6;
+                params.verticalScale = 250;
+            }
+            
+            // Sync sliders
+            document.getElementById('solarActivity').value = params.solarActivity;
+            document.getElementById('solarActivity-value').textContent = params.solarActivity;
+            document.getElementById('verticalScale').value = params.verticalScale;
+            document.getElementById('verticalScale-value').textContent = params.verticalScale;
+            
+            document.getElementById('current-preset-name').textContent = name;
+            
+            initializeSystem();
+        }
+
+        function updateSeed() {
+            let val = parseInt(document.getElementById('seed-input').value);
+            if (!isNaN(val)) {
+                params.seed = val;
+                initializeSystem();
+            }
+        }
+
+        function previousSeed() {
+            params.seed--;
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed++;
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = floor(random(100000, 999999));
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+    </script>
+</body>
+</html>
