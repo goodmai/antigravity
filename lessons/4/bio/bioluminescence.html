@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abyssal Luminance - Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #6a9bcc; /* Replaced orange with a deep sea blue */
+            --anthropic-blue: #2a4b6b;
+            --anthropic-green: #3a7a7a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #050a10 0%, #0a1520 100%);
+            min-height: 100vh;
+            color: #e8e6dc;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(10, 20, 30, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: #6a9bcc;
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #6a9bcc;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: #3feeee;
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: #0a1a2a;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid #1a2a3a;
+            color: #3feeee;
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: #3feeee;
+            box-shadow: 0 0 0 2px rgba(63, 238, 238, 0.1);
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #b0aea5;
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: #1a2a3a;
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3feeee;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #3feeee;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #3feeee;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .button {
+            background: #2a4b6b;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            background: #3a5b7b;
+            box-shadow: 0 0 15px rgba(63, 238, 238, 0.2);
+        }
+
+        .button.secondary { background: #1a2a3a; }
+        .button.tertiary { background: #2a4a4a; }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            max-width: 900px;
+            max-height: 900px;
+            aspect-ratio: 1 / 1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .loading {
+            position: absolute;
+            color: #3feeee;
+            font-family: 'Lora', serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Abyssal Luminance</h1>
+            <div class="subtitle">Deep-sea bioluminescent emergence. A master-level generative algorithm.</div>
+
+            <div class="control-section">
+                <h3>Vessel Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="444222" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">← Prev</button>
+                    <button class="button secondary" onclick="nextSeed()">Next →</button>
+                </div>
+                <button class="button tertiary" onclick="randomSeedAndUpdate()">↻ Deep Search</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Abyssal Parameters</h3>
+                
+                <div class="control-group">
+                    <label>Photophore Density</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleCount" min="200" max="2000" step="50" value="800" oninput="updateParam('particleCount', this.value)">
+                        <span class="value-display" id="particleCount-value">800</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Aquatic Flow Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="flowSpeed" min="0.1" max="2.0" step="0.1" value="0.8" oninput="updateParam('flowSpeed', this.value)">
+                        <span class="value-display" id="flowSpeed-value">0.8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Void Turbulence</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.001" max="0.01" step="0.0005" value="0.004" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.004</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Bioluminescent Pulse</label>
+                    <div class="slider-container">
+                        <input type="range" id="pulseRate" min="0.01" max="0.1" step="0.005" value="0.04" oninput="updateParam('pulseRate', this.value)">
+                        <span class="value-display" id="pulseRate-value">0.04</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Glow Decay</label>
+                    <div class="slider-container">
+                        <input type="range" id="trailFade" min="1" max="50" step="1" value="15" oninput="updateParam('trailFade', this.value)">
+                        <span class="value-display" id="trailFade-value">15</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Operations</h3>
+                <button class="button" onclick="resetParameters()">Re-surface (Reset)</button>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Descending into the abyss...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let params = {
+            seed: 444222,
+            particleCount: 800,
+            flowSpeed: 0.8,
+            noiseScale: 0.004,
+            pulseRate: 0.04,
+            trailFade: 15
+        };
+
+        let defaultParams = {...params};
+        let particles = [];
+        let pg; // Graphics buffer for trails
+
+        function setup() {
+            let canvas = createCanvas(1000, 1000);
+            canvas.parent('canvas-container');
+            pg = createGraphics(width, height);
+            pg.background(0);
+            initializeSystem();
+            document.querySelector('.loading').style.display = 'none';
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            particles = [];
+            for (let i = 0; i < params.particleCount; i++) {
+                particles.push(new Photophore());
+            }
+            pg.background(0);
+            background(0);
+        }
+
+        function draw() {
+            // Semi-transparent background for trails effect on the main canvas
+            // but we'll use a blurred graphics buffer for a more "viscous" feel
+            background(0, params.trailFade);
+            
+            pg.noStroke();
+            
+            for (let p of particles) {
+                p.update();
+                p.display();
+            }
+        }
+
+        class Photophore {
+            constructor() {
+                this.pos = createVector(random(width), random(height));
+                this.vel = createVector(0, 0);
+                this.acc = createVector(0, 0);
+                this.maxSpeed = 2;
+                this.offset = random(1000);
+                this.pulseOffset = random(TWO_PI);
+                
+                // Photophore spectral range (bioluminescent cyans/blues)
+                let r = random(20, 100);
+                let g = random(150, 255);
+                let b = random(200, 255);
+                this.baseColor = color(r, g, b);
+            }
+
+            update() {
+                // Aquatic current flow field using Perlin Noise
+                let angle = noise(this.pos.x * params.noiseScale, this.pos.y * params.noiseScale, frameCount * 0.005) * TWO_PI * 4;
+                let force = p5.Vector.fromAngle(angle);
+                force.mult(0.1);
+                this.acc.add(force);
+
+                this.vel.add(this.acc);
+                this.vel.limit(this.maxSpeed * params.flowSpeed);
+                this.pos.add(this.vel);
+                this.acc.mult(0);
+
+                // Screen wrap
+                if (this.pos.x < 0) this.pos.x = width;
+                if (this.pos.x > width) this.pos.x = 0;
+                if (this.pos.y < 0) this.pos.y = height;
+                if (this.pos.y > height) this.pos.y = 0;
+            }
+
+            display() {
+                // Bioluminescent pulsation
+                let pulse = sin(frameCount * params.pulseRate + this.pulseOffset);
+                let alpha = map(pulse, -1, 1, 50, 255);
+                let size = map(pulse, -1, 1, 2, 8);
+
+                // Glow effect
+                noStroke();
+                fill(red(this.baseColor), green(this.baseColor), blue(this.baseColor), alpha * 0.3);
+                ellipse(this.pos.x, this.pos.y, size * 2.5); // Halo
+                
+                fill(red(this.baseColor), green(this.baseColor), blue(this.baseColor), alpha);
+                ellipse(this.pos.x, this.pos.y, size); // Core
+                
+                // High brightness spark inside
+                if (pulse > 0.8) {
+                    fill(255, 255, 255, alpha * 0.8);
+                    ellipse(this.pos.x, this.pos.y, size * 0.4);
+                }
+            }
+        }
+
+        function updateParam(id, val) {
+            params[id] = parseFloat(val);
+            document.getElementById(id + '-value').textContent = val;
+            if (id === 'particleCount') {
+                initializeSystem();
+            }
+        }
+
+        function updateSeed() {
+            let val = parseInt(document.getElementById('seed-input').value);
+            if (!isNaN(val)) {
+                params.seed = val;
+                initializeSystem();
+            }
+        }
+
+        function previousSeed() {
+            params.seed--;
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed++;
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = floor(random(100000, 999999));
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            for (let key in params) {
+                let el = document.getElementById(key);
+                if (el) {
+                    el.value = params[key];
+                    let valEl = document.getElementById(key + '-value');
+                    if (valEl) valEl.textContent = params[key];
+                }
+            }
+            document.getElementById('seed-input').value = params.seed;
+            initializeSystem();
+        }
+    </script>
+</body>
+</html>
