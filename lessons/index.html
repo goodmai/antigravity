@@ -3,61 +3,318 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Экспресс курс по Антигравити</title>
+    <title>Anti-Gravity Academy | Уроки</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      body {
-        font-family: sans-serif;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        line-height: 1.6;
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
       }
-      h1 {
-        color: #333;
-        border-bottom: 2px solid #333;
-        padding-bottom: 10px;
-      }
-      ul {
-        list-style-type: none;
+
+      * {
+        margin: 0;
         padding: 0;
+        box-sizing: border-box;
       }
-      li {
-        margin: 10px 0;
-        padding: 10px;
-        background: #f4f4f4;
-        border-radius: 5px;
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.5;
+        overflow-x: hidden;
       }
-      a {
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+      }
+
+      header {
+        text-align: center;
+        margin-bottom: 60px;
+      }
+
+      h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        background: linear-gradient(
+          to right,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        letter-spacing: -0.025em;
+      }
+
+      .subtitle {
+        font-size: 1.25rem;
+        color: var(--text-dim);
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .lessons-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+      }
+
+      .lesson-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: 20px;
+        padding: 24px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         text-decoration: none;
-        color: #0066cc;
-        font-weight: bold;
-        font-size: 1.2em;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
       }
-      a:hover {
-        text-decoration: underline;
+
+      .lesson-card:hover {
+        transform: translateY(-8px);
+        border-color: var(--accent-primary);
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.2),
+          0 10px 10px -5px rgba(56, 189, 248, 0.1);
+      }
+
+      .lesson-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(
+          to right,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .lesson-card:hover::before {
+        opacity: 1;
+      }
+
+      .lesson-num {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--accent-primary);
+        text-transform: uppercase;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .lesson-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--text-main);
+      }
+
+      .lesson-desc {
+        font-size: 0.9375rem;
+        color: var(--text-dim);
+        margin-top: auto;
+      }
+
+      .locked {
+        opacity: 0.6;
+        cursor: not-allowed;
+        filter: grayscale(0.5);
+      }
+
+      .locked:hover {
+        transform: none;
+        border-color: var(--glass-border);
+        box-shadow: none;
+      }
+
+      .badge {
+        font-size: 0.625rem;
+        padding: 4px 8px;
+        border-radius: 12px;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+      }
+
+      .badge.coming-soon {
+        background: rgba(148, 163, 184, 0.1);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        color: var(--text-dim);
+      }
+
+      @media (max-width: 640px) {
+        h1 {
+          font-size: 2.5rem;
+        }
+        .container {
+          padding: 20px;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Экспресс курс по Антигравити</h1>
-    <p>Добро пожаловать в обучающий курс. Выберите урок:</p>
-    <ul>
-      <li>
-        <a href="./1/README.md">Урок 1: Режимы агента и переключение</a>
-      </li>
-      <li>
-        <a href="./2/README.md">Урок 2: Обратная связь и Артефакты</a>
-      </li>
-      <li>
-        <a href="./3/README.md">Урок 3: Продвинутые техники — @ Mentions и Workflows</a>
-      </li>
-      <li>
-        <a href="./4/README.md">Урок 4: Навыки Агента (Agent Skills)</a>
-      </li>
-      <li>
-        <a href="./5/README.md">Урок 5: Типовые Скиллы — Функционал и Промпты</a>
-      </li>
-      <!-- Будущие уроки будут добавлены сюда -->
-    </ul>
+    <div class="container">
+      <header>
+        <h1>Anti-Gravity Academy</h1>
+        <p class="subtitle">
+          Мастерство автономных агентов и инженерии будущего
+        </p>
+      </header>
+
+      <section class="lessons-grid">
+        <!-- Урок 1 -->
+        <a href="./1/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 01 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Режимы агента Antigravity</h2>
+          <p class="lesson-desc">
+            Основы работы и переключения между режимами планирования и
+            выполнения.
+          </p>
+        </a>
+
+        <!-- Урок 2 -->
+        <a href="./2/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 02 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Обратная связь и Артефакты</h2>
+          <p class="lesson-desc">
+            Взаимодействие с артефактами и предоставление фидбека в реальном
+            времени.
+          </p>
+        </a>
+
+        <!-- Урок 3 -->
+        <a href="./3/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 03 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">@ Mentions и Workflows</h2>
+          <p class="lesson-desc">
+            Продвинутые техники вызова контекста и автоматизации рутины.
+          </p>
+        </a>
+
+        <!-- Урок 4 -->
+        <a href="./4/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 04 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Навыки Агента (Agent Skills)</h2>
+          <p class="lesson-desc">
+            Создание и использование расширяемых возможностей (Skills).
+          </p>
+        </a>
+
+        <!-- Урок 5 -->
+        <a href="./5/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 05 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Типовые Скиллы</h2>
+          <p class="lesson-desc">
+            Обзор стандартного набора инструментов и эффективных промптов.
+          </p>
+        </a>
+
+        <!-- Урок 6 -->
+        <a href="./6/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 06 <span class="badge">Лабораторная</span>
+          </div>
+          <h2 class="lesson-title">Advanced AI Workflows</h2>
+          <p class="lesson-desc">
+            Практическая работа по созданию автономных систем разработки.
+          </p>
+        </a>
+
+        <!-- Урок 7 -->
+        <a href="./7/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 07 <span class="badge">Лабораторная</span>
+          </div>
+          <h2 class="lesson-title">QA Architect</h2>
+          <p class="lesson-desc">
+            Проектирование систем автоматического контроля качества.
+          </p>
+        </a>
+
+        <!-- Урок 8 -->
+        <a href="./8/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 08 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Агентный Режим и Группы Задач</h2>
+          <p class="lesson-desc">
+            Глубокое погружение во внутреннюю логику планирования (Task Groups).
+          </p>
+        </a>
+
+        <!-- Урок 9 -->
+        <a href="./9/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 09 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Browser Subagent</h2>
+          <p class="lesson-desc">
+            Взаимодействие агента с внешним миром через браузер.
+          </p>
+        </a>
+
+        <!-- Уроки 10-21 (Заглушки) -->
+        <script>
+          const grid = document.querySelector(".lessons-grid");
+          for (let i = 10; i <= 21; i++) {
+            const card = document.createElement("div");
+            card.className = "lesson-card locked";
+            card.innerHTML = `
+                        <div class="lesson-num">Урок ${i} <span class="badge coming-soon">Скоро</span></div>
+                        <h2 class="lesson-title">Тема ${i}</h2>
+                        <p class="lesson-desc">Этот урок находится в разработке. Вернитесь позже за новыми знаниями.</p>
+                    `;
+            grid.appendChild(card);
+          }
+        </script>
+      </section>
+    </div>
   </body>
 </html>
