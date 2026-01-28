@@ -1,1 +1,7 @@
 .agent/rules/
+skills/qaqase/
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
