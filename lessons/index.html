@@ -66,6 +66,7 @@
           var(--accent-primary),
           var(--accent-secondary)
         );
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 1rem;
@@ -300,20 +301,133 @@
           </p>
         </a>
 
-        <!-- Уроки 10-21 (Заглушки) -->
-        <script>
-          const grid = document.querySelector(".lessons-grid");
-          for (let i = 10; i <= 21; i++) {
-            const card = document.createElement("div");
-            card.className = "lesson-card locked";
-            card.innerHTML = `
-                        <div class="lesson-num">Урок ${i} <span class="badge coming-soon">Скоро</span></div>
-                        <h2 class="lesson-title">Тема ${i}</h2>
-                        <p class="lesson-desc">Этот урок находится в разработке. Вернитесь позже за новыми знаниями.</p>
-                    `;
-            grid.appendChild(card);
-          }
-        </script>
+        <!-- Урок 10 -->
+        <a href="./10/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 10 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Model Context Protocol</h2>
+          <p class="lesson-desc">
+            Использование MCP для подключения внешних данных и инструментов.
+          </p>
+        </a>
+
+        <!-- Урок 11 -->
+        <a href="./11/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 11 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Терминал и Безопасность</h2>
+          <p class="lesson-desc">
+            Режимы работы с CLI, списки Allow/Deny и защита от инъекций.
+          </p>
+        </a>
+
+        <!-- Урок 12 -->
+        <a href="./12/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 12 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Автотесты с Playwright</h2>
+          <p class="lesson-desc">
+            Написание E2E тестов и их самовосстановление (Self-Healing).
+          </p>
+        </a>
+
+        <!-- Урок 13 -->
+        <a href="./13/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 13 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Cloud & Firebase</h2>
+          <p class="lesson-desc">
+            Управление облачными ресурсами и деплой приложений.
+          </p>
+        </a>
+
+        <!-- Урок 14 -->
+        <a href="./14/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 14 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Docker & Microservices</h2>
+          <p class="lesson-desc">
+            Оркестрация контейнеров и микросервисная архитектура.
+          </p>
+        </a>
+
+        <!-- Урок 15 -->
+        <a href="./15/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 15 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">CI/CD Pipelines</h2>
+          <p class="lesson-desc">
+            Генерация пайплайнов для GitHub Actions и Google Cloud Build.
+          </p>
+        </a>
+
+        <!-- Урок 16 -->
+        <a href="./16/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 16 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Mobile: Flutter & React Native</h2>
+          <p class="lesson-desc">
+            Разработка кроссплатформенных мобильных приложений.
+          </p>
+        </a>
+
+        <!-- Урок 17 -->
+        <a href="./17/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 17 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Modern Web & Next.js</h2>
+          <p class="lesson-desc">
+            Full-Stack разработка и рефакторинг legacy-кода.
+          </p>
+        </a>
+
+        <!-- Урок 18 -->
+        <a href="./18/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 18 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Рефакторинг кода и AI</h2>
+          <p class="lesson-desc">
+            Стратегии рефакторинга legacy-кода, TDD и примеры промптов.
+          </p>
+        </a>
+
+        <!-- Урок 19 -->
+        <a href="./19/README.md" class="lesson-card">
+          <div class="lesson-num">
+            Урок 19 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Microservices SDLC</h2>
+          <p class="lesson-desc">
+            Полный цикл: от TDD и CI/CD до Agent Review и безопасности.
+          </p>
+        </a>
+
+
+      </section>
+
+      <section id="labs" class="labs-section">
+        <h2 class="section-title">Laboratories & Capstone</h2>
+        <div class="lessons-grid">
+            <!-- Lab 01 -->
+            <a href="../labs/01/README.md" class="lesson-card">
+              <div class="lesson-num">
+                Lab 01 <span class="badge">Capstone</span>
+              </div>
+              <h2 class="lesson-title">TeleDrive Ecosystem</h2>
+              <p class="lesson-desc">
+                Спецификация интеграции Telegram, Obsidian и Google Drive.
+              </p>
+            </a>
+        </div>
       </section>
     </div>
   </body>

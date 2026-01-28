@@ -1,0 +1,6 @@
+total 1000
+drwxrwxr-x 2 g g   4096 Jan 20 17:14 .
+drwxrwxr-x 8 g g   4096 Jan 20 17:14 ..
+-rw-rw-r-- 1 g g 564325 Jan 20 17:12 scr_1768925562.jpg
+-rw-rw-r-- 1 g g 446870 Jan 20 17:14 scr_1768925674.jpg
+Вызов команды: ls -la /home/g/antigravity/.screenshots

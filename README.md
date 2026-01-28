@@ -5,6 +5,7 @@
 ## Обучение (Lessons)
 
 🎓 **[Экспресс курс по Антигравити](./lessons/index.html)** - начните изучение здесь!
+
 - [Урок 1: Режимы агента](./lessons/1/README.md)
 
 ## Управление агентом (Local Control)
@@ -14,16 +15,17 @@
 ### Использование
 
 1. Сделайте скрипт исполняемым:
+
    ```bash
    chmod +x agent_control.sh
    ```
-
 2. Запустите агента:
+
    ```bash
    ./agent_control.sh start
    ```
-
 3. Запустите анализ логов:
+
    ```bash
    ./agent_control.sh analyze
    ```

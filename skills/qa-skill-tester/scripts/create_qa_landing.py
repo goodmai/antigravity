@@ -1,0 +1,52 @@
+def create_landing_page():
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>QA Skill Tester - The Meta-Validator</title>
+        <style>
+            body { font_family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+            header { text-align: center; padding: 50px 0; border-bottom: 1px solid #334155; }
+            h1 { font-size: 3rem; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            .container { max-width: 800px; margin: 0 auto; padding: 40px 0; }
+            .feature { background: #1e293b; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #334155; }
+            .feature h2 { color: #38bdf8; }
+            a { color: #818cf8; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <header>
+            <h1>QA Skill Tester</h1>
+            <p>Automated Quality Assurance for the Agentic Era</p>
+        </header>
+        <div class="container">
+            <div class="feature">
+                <h2>🔍 Automated Test Planning</h2>
+                <p>Generates comprehensive test plans using Gemini "Test Architect" personas.</p>
+            </div>
+            <div class="feature">
+                <h2>📋 Checklist Generation</h2>
+                <p>Creates detailed Excel checklists covering Functional, Security, and Frontend requirements.</p>
+            </div>
+            <div class="feature">
+                <h2>🐞 Bug Reporting</h2>
+                <p>Auto-generates Word documents with structured bug reports and severity classification.</p>
+            </div>
+            <div class="feature">
+                <h2>🧪 Self-Healing Integration</h2>
+                <p>Works seamlessly with <a href="#">Gemini Fixer</a> and other skills.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    with open("qa_skill_landing.html", "w") as f:
+        f.write(html_content.strip())
+    print("✅ Landing Page created: qa_skill_landing.html")
+
+if __name__ == "__main__":
+    create_landing_page()

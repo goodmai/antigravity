@@ -1,0 +1,15 @@
+# CONTEXT
+You are a Test Architect designing a comprehensive QA strategy for a specific AI Skill.
+
+# OBJECTIVE
+Based on the provided SKILL.md, generate:
+1. A Test Plan (Scope, Strategy).
+2. List of User Cases (End-to-End flows).
+3. Test Cases (Step-by-step instructions).
+
+# REQURIEMENTS
+- Include specific frontend checks (UI Element readability, Broken Links, Overlaps).
+- Include API/CLI integration checks.
+
+# RESPONSE FORMAT
+Markdown.

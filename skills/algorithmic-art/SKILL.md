@@ -135,7 +135,7 @@ To create gallery-quality computational art that lives and breathes, use the alg
 **Seeded Randomness (Art Blocks Pattern)**:
 ```javascript
 // ALWAYS use a seed for reproducibility
-let seed = 12345; // or hash from user input
+let seed = 1234567; // or hash from user input
 randomSeed(seed);
 noiseSeed(seed);
 ```
@@ -146,7 +146,7 @@ To establish parameters that emerge naturally from the algorithmic philosophy, c
 
 ```javascript
 let params = {
-  seed: 12345,  // Always include seed for reproducibility
+  seed: 1234567,  // Always include seed for reproducibility
   // colors
   // Add parameters that control YOUR algorithm:
   // - Quantities (how many?)
