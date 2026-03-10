@@ -1,11 +1,15 @@
 # Antigravity Laboratory / Лаборатория Антигравити
 
+[![Deploy static content to Pages](https://github.com/goodmai/antigravity/actions/workflows/static.yml/badge.svg)](https://github.com/goodmai/antigravity/actions/workflows/static.yml)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-blue?logo=github)](https://goodmai.github.io/antigravity/)
+
 ℹ️ **Русский**: Этот репозиторий содержит лабораторные работы по освоению "Антигравити" (Antigravity). Здесь вы найдете примеры, упражнения и инструкции по работе с агентом.
 
 ## Обучение (Lessons)
 
-🎓 **[Экспресс курс по Антигравити](https://goodmai.github.io/antigravity/)** - начните изучение здесь!
-/ **[Lessons Online](https://goodmai.github.io/antigravity/)**
+🚀 **[Экспресс курс по Антигравити (Online)](https://goodmai.github.io/antigravity/)** — интерактивная версия уроков.
+
+### Содержание
 
 - [Урок 1: Режимы агента](./lessons/1/README.md)
 
