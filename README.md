@@ -5,11 +5,14 @@
 
 ℹ️ **Русский**: Этот репозиторий содержит лабораторные работы по освоению "Антигравити" (Antigravity). Здесь вы найдете примеры, упражнения и инструкции по работе с агентом.
 
-## Обучение (Lessons)
+## 🚀 Online Academy
 
-🚀 **[Экспресс курс по Антигравити (Online)](https://goodmai.github.io/antigravity/)** — интерактивная версия уроков.
+Visit the live interactive versions of the lessons:
 
-### Содержание
+- **[Antigravity Express Course](https://goodmai.github.io/antigravity/)** — Start here for the best experience.
+- **[Laboratory Exercises](https://goodmai.github.io/antigravity/labs/01/)** — Practical tasks and capstone projects.
+
+### 📚 Detailed Content
 
 - [Урок 1: Режимы агента](./lessons/1/README.md)
 
