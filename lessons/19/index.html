@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&#x423;&#x440;&#x43E;&#x43A; 19: &#x41A;&#x43E;&#x43C;&#x43F;&#x43B;&#x435;&#x43A;&#x441;&#x43D;&#x44B;&#x439; SDLC &#x41C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x43E;&#x432; &#x441; AI
+&#x410;&#x433;&#x435;&#x43D;&#x442;&#x430;&#x43C;&#x438; | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+      </header>
+      <main>
+        <h1
+        id="&#x443;&#x440;&#x43E;&#x43A;-19-&#x43A;&#x43E;&#x43C;&#x43F;&#x43B;&#x435;&#x43A;&#x441;&#x43D;&#x44B;&#x439;-sdlc-&#x43C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x43E;&#x432;-&#x441;-ai-&#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;&#x43C;&#x438;">&#x423;&#x440;&#x43E;&#x43A;
+        19: &#x41A;&#x43E;&#x43C;&#x43F;&#x43B;&#x435;&#x43A;&#x441;&#x43D;&#x44B;&#x439; SDLC &#x41C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x43E;&#x432; &#x441; AI &#x410;&#x433;&#x435;&#x43D;&#x442;&#x430;&#x43C;&#x438;</h1>
+        <p>&#x412; &#x44D;&#x442;&#x43E;&#x43C; &#x443;&#x440;&#x43E;&#x43A;&#x435; &#x43C;&#x44B; &#x43F;&#x43E;&#x441;&#x442;&#x440;&#x43E;&#x438;&#x43C; <strong>&#x43F;&#x43E;&#x43B;&#x43D;&#x44B;&#x439; &#x43F;&#x440;&#x43E;&#x438;&#x437;&#x432;&#x43E;&#x434;&#x441;&#x442;&#x432;&#x435;&#x43D;&#x43D;&#x44B;&#x439;
+        &#x446;&#x438;&#x43A;&#x43B;</strong> &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x438; &#x43C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x430;. &#x41C;&#x44B; &#x443;&#x439;&#x434;&#x435;&#x43C; &#x43E;&#x442; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x44B;&#x445;
+        &#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;&#x43E;&#x432; &#x43A; &#x440;&#x435;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x43C;&#x443; Enterprise-&#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;, &#x433;&#x434;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x432;&#x44B;&#x441;&#x442;&#x443;&#x43F;&#x430;&#x435;&#x442; &#x43D;&#x435;
+        &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x43A;&#x43E;&#x434;&#x435;&#x440;&#x43E;&#x43C;, &#x430; &#x43E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43E;&#x43C; &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x43E;&#x432;: &#x43E;&#x442; &#x441;&#x43E;&#x433;&#x43B;&#x430;&#x441;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;
+        &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442;&#x43E;&#x432; &#x434;&#x43E; &#x434;&#x435;&#x43F;&#x43B;&#x43E;&#x44F; &#x438; &#x43C;&#x43E;&#x43D;&#x438;&#x442;&#x43E;&#x440;&#x438;&#x43D;&#x433;&#x430;.</p>
+        <p>&#x42D;&#x442;&#x43E;&#x442; &#x443;&#x440;&#x43E;&#x43A; &#x43E;&#x431;&#x44A;&#x435;&#x434;&#x438;&#x43D;&#x44F;&#x435;&#x442; &#x43C;&#x43E;&#x449;&#x44C; <strong>MCP (Model Context
+        Protocol)</strong> &#x438; &#x441;&#x43F;&#x435;&#x446;&#x438;&#x430;&#x43B;&#x438;&#x437;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x43D;&#x44B;&#x445; <strong>Skills</strong>
+        (<code>qaqase</code>, <code>xlsx</code>,
+        <code>swagger</code>).</p>
+        <hr />
+        <h2 id="&#x430;&#x440;&#x445;&#x438;&#x442;&#x435;&#x43A;&#x442;&#x443;&#x440;&#x430;-&#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x430;-the-agentic-way">&#x1F3D7;&#xFE0F; &#x410;&#x440;&#x445;&#x438;&#x442;&#x435;&#x43A;&#x442;&#x443;&#x440;&#x430;
+        &#x41F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x430; (The Agentic Way)</h2>
+        <p>&#x422;&#x440;&#x430;&#x434;&#x438;&#x446;&#x438;&#x43E;&#x43D;&#x43D;&#x44B;&#x439; SDLC &#x43B;&#x438;&#x43D;&#x435;&#x435;&#x43D;. &#x41D;&#x430;&#x448; &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441; &#x2014; &#x44D;&#x442;&#x43E;
+        <strong>&#x418;&#x442;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x430;&#x44F; &#x421;&#x43F;&#x438;&#x440;&#x430;&#x43B;&#x44C;</strong>, &#x433;&#x434;&#x435; &#x43D;&#x430; &#x43A;&#x430;&#x436;&#x434;&#x43E;&#x43C; &#x432;&#x438;&#x442;&#x43A;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;
+        &#x432;&#x430;&#x43B;&#x438;&#x434;&#x438;&#x440;&#x443;&#x435;&#x442; &#x43A;&#x430;&#x447;&#x435;&#x441;&#x442;&#x432;&#x43E;.</p>
+        <p><strong>&#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x430;&#x440;&#x438;&#x439; &#x443;&#x440;&#x43E;&#x43A;&#x430;:</strong></p>
+        <ol type="1">
+        <li><strong>MCP Context7</strong>: &#x414;&#x43E;&#x43B;&#x433;&#x43E;&#x441;&#x440;&#x43E;&#x447;&#x43D;&#x430;&#x44F; &#x43F;&#x430;&#x43C;&#x44F;&#x442;&#x44C;
+        &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;.</li>
+        <li><strong>Skill <code>/qaqase</code></strong>: &#x418;&#x43D;&#x442;&#x435;&#x433;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x441;
+        TMS Qase.io &#x434;&#x43B;&#x44F; &#x443;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x435;&#x43D;&#x438;&#x44F; &#x442;&#x435;&#x441;&#x442;-&#x43A;&#x435;&#x439;&#x441;&#x430;&#x43C;&#x438;.</li>
+        <li><strong>Skill <code>/xlsx</code></strong>: &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;
+        &#x447;&#x435;&#x43A;-&#x43B;&#x438;&#x441;&#x442;&#x43E;&#x432; &#x438; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x43E;&#x432;.</li>
+        <li><strong>Swagger MCP</strong>: &#x420;&#x430;&#x431;&#x43E;&#x442;&#x430; &#x441; OpenAPI
+        &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442;&#x430;&#x43C;&#x438;.</li>
+        <li><strong>Observability Stack</strong>: Prometheus + Grafana
+        &#x434;&#x43B;&#x44F; &#x43C;&#x435;&#x442;&#x440;&#x438;&#x43A;.</li>
+        </ol>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-0-&#x43F;&#x43E;&#x434;&#x433;&#x43E;&#x442;&#x43E;&#x432;&#x43A;&#x430;-environment-skills">&#x1F6E0;&#xFE0F; &#x42D;&#x442;&#x430;&#x43F; 0:
+        &#x41F;&#x43E;&#x434;&#x433;&#x43E;&#x442;&#x43E;&#x432;&#x43A;&#x430; (Environment &amp; Skills)</h2>
+        <p>&#x41F;&#x440;&#x435;&#x436;&#x434;&#x435; &#x447;&#x435;&#x43C; &#x43D;&#x430;&#x43F;&#x438;&#x441;&#x430;&#x442;&#x44C; &#x43F;&#x435;&#x440;&#x432;&#x443;&#x44E; &#x441;&#x442;&#x440;&#x43E;&#x447;&#x43A;&#x443; &#x43A;&#x43E;&#x434;&#x430;, &#x43D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x438;&#x43C;
+        &#x201C;&#x44D;&#x43A;&#x437;&#x43E;&#x441;&#x43A;&#x435;&#x43B;&#x435;&#x442;&#x201D; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;.</p>
+        <h3 id="&#x430;&#x43A;&#x442;&#x438;&#x432;&#x430;&#x446;&#x438;&#x44F;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432;">1. &#x410;&#x43A;&#x442;&#x438;&#x432;&#x430;&#x446;&#x438;&#x44F; &#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432;</h3>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x437;&#x43D;&#x430;&#x442;&#x44C;, &#x43A;&#x430;&#x43A;&#x438;&#x43C;&#x438; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x430;&#x43C;&#x438; &#x43E;&#x43D; &#x432;&#x43B;&#x430;&#x434;&#x435;&#x435;&#x442;.
+        &#x423;&#x431;&#x435;&#x434;&#x438;&#x442;&#x435;&#x441;&#x44C;, &#x447;&#x442;&#x43E; &#x432; <code>.antigravity/config.json</code> (&#x438;&#x43B;&#x438;
+        &#x43C;&#x435;&#x43D;&#x442;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x439; &#x43C;&#x43E;&#x434;&#x435;&#x43B;&#x438; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;) &#x430;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x44B;:</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;skills&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;qaqase&quot;</span><span class="ot">,</span> <span class="st">&quot;xlsx&quot;</span><span class="ot">,</span> <span class="st">&quot;qa-skill-tester&quot;</span><span class="ot">,</span> <span class="st">&quot;security-checker&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mcp&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;context7&quot;</span><span class="ot">,</span> <span class="st">&quot;swagger&quot;</span><span class="ot">,</span> <span class="st">&quot;github&quot;</span><span class="ot">,</span> <span class="st">&quot;postgres&quot;</span><span class="ot">]</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+        <h3 id="&#x43E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44F;-&#x447;&#x435;&#x440;&#x435;&#x437;-docker-compose">2. &#x41E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x447;&#x435;&#x440;&#x435;&#x437;
+        Docker Compose</h3>
+        <p>&#x41C;&#x44B; &#x431;&#x443;&#x434;&#x435;&#x43C; &#x443;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x442;&#x44C; &#x438;&#x43D;&#x444;&#x440;&#x430;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x43E;&#x439; &#x447;&#x435;&#x440;&#x435;&#x437; &#x43F;&#x440;&#x43E;&#x43C;&#x43F;&#x442;&#x44B;.</p>
+        <p><strong>Prompt &#x434;&#x43B;&#x44F; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x438;&#x43D;&#x444;&#x440;&#x430;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x44B;:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x414;&#x435;&#x439;&#x441;&#x442;&#x432;&#x443;&#x439; &#x43A;&#x430;&#x43A; DevOps Engineer. &#x41D;&#x430;&#x43C; &#x43D;&#x443;&#x436;&#x435;&#x43D;
+        <code>docker-compose.yml</code> &#x434;&#x43B;&#x44F; &#x43B;&#x43E;&#x43A;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x439; &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x438;
+        &#x43C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x430; <code>payment-gateway</code>.
+        <strong>&#x421;&#x435;&#x440;&#x432;&#x438;&#x441;&#x44B;</strong>:</p>
+        <ol type="1">
+        <li><code>app</code>: Go 1.22, &#x43F;&#x43E;&#x440;&#x442; 8080.</li>
+        <li><code>db</code>: PostgreSQL 15.</li>
+        <li><code>prometheus</code>: &#x421;&#x431;&#x43E;&#x440; &#x43C;&#x435;&#x442;&#x440;&#x438;&#x43A; &#x441;
+        <code>app:8080/metrics</code>.</li>
+        <li><code>grafana</code>: &#x412;&#x438;&#x437;&#x443;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F; (&#x43F;&#x43E;&#x440;&#x442; 3000).</li>
+        <li><code>swagger-ui</code>: &#x414;&#x43B;&#x44F; &#x43F;&#x440;&#x43E;&#x441;&#x43C;&#x43E;&#x442;&#x440;&#x430; &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442;&#x43E;&#x432;.</li>
+        </ol>
+        <p>&#x421;&#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x439; &#x444;&#x430;&#x439;&#x43B; &#x438; Makefile &#x434;&#x43B;&#x44F; &#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434; <code>up</code>,
+        <code>down</code>, <code>logs</code>.&#x201D;</p>
+        </blockquote>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-1-inception-contract-first">&#x1F4DC; &#x42D;&#x442;&#x430;&#x43F; 1: Inception
+        &amp; Contract-First</h2>
+        <p>&#x41C;&#x44B; &#x43D;&#x435; &#x43F;&#x438;&#x448;&#x435;&#x43C; &#x43A;&#x43E;&#x434; &#x431;&#x438;&#x437;&#x43D;&#x435;&#x441;-&#x43B;&#x43E;&#x433;&#x438;&#x43A;&#x438; &#x431;&#x435;&#x437; &#x443;&#x442;&#x432;&#x435;&#x440;&#x436;&#x434;&#x435;&#x43D;&#x43D;&#x43E;&#x433;&#x43E;
+        &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442;&#x430;.</p>
+        <h3 id="&#x448;&#x430;&#x433;-1.1-&#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;-openapi">&#x428;&#x430;&#x433; 1.1: &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;
+        OpenAPI</h3>
+        <p>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430; &#x43A;&#x430;&#x43A; &#x410;&#x440;&#x445;&#x438;&#x442;&#x435;&#x43A;&#x442;&#x43E;&#x440;&#x430;.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x421;&#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x439; OpenAPI 3.0 &#x441;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x43A;&#x430;&#x446;&#x438;&#x44E; &#x434;&#x43B;&#x44F; &#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x430; &#x43F;&#x43B;&#x430;&#x442;&#x435;&#x436;&#x435;&#x439;.
+        <strong>&#x42D;&#x43D;&#x434;&#x43F;&#x43E;&#x438;&#x43D;&#x442;&#x44B;</strong>:</p>
+        <ul>
+        <li><code>POST /v1/payments</code>: &#x421;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x435; &#x442;&#x440;&#x430;&#x43D;&#x437;&#x430;&#x43A;&#x446;&#x438;&#x438;.</li>
+        <li><code>GET /v1/payments/{id}</code>: &#x421;&#x442;&#x430;&#x442;&#x443;&#x441;.</li>
+        <li><code>POST /v1/payments/{id}/refund</code>: &#x412;&#x43E;&#x437;&#x432;&#x440;&#x430;&#x442;.</li>
+        </ul>
+        <p><strong>&#x422;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;</strong>:</p>
+        <ul>
+        <li>&#x421;&#x442;&#x440;&#x43E;&#x433;&#x430;&#x44F; &#x442;&#x438;&#x43F;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F; &#x441;&#x443;&#x43C;&#x43C; (Money pattern).</li>
+        <li>Idempotency-Key &#x432; &#x437;&#x430;&#x433;&#x43E;&#x43B;&#x43E;&#x432;&#x43A;&#x430;&#x445;.</li>
+        <li>RFC 7807 &#x434;&#x43B;&#x44F; &#x43E;&#x448;&#x438;&#x431;&#x43E;&#x43A;. &#x421;&#x43E;&#x445;&#x440;&#x430;&#x43D;&#x438; &#x432;
+        <code>api/openapi.yaml</code>.&#x201D;</li>
+        </ul>
+        </blockquote>
+        <h3 id="&#x448;&#x430;&#x433;-1.2-&#x432;&#x430;&#x43B;&#x438;&#x434;&#x430;&#x446;&#x438;&#x44F;-&#x447;&#x435;&#x440;&#x435;&#x437;-swagger-mcp">&#x428;&#x430;&#x433; 1.2: &#x412;&#x430;&#x43B;&#x438;&#x434;&#x430;&#x446;&#x438;&#x44F;
+        &#x447;&#x435;&#x440;&#x435;&#x437; Swagger MCP</h3>
+        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x438;&#x43C; &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x43E;&#x43C;, &#x430; &#x43D;&#x435; &#x433;&#x43B;&#x430;&#x437;&#x430;&#x43C;&#x438;.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; Swagger MCP, &#x43F;&#x440;&#x43E;&#x432;&#x430;&#x43B;&#x438;&#x434;&#x438;&#x440;&#x443;&#x439;
+        <code>api/openapi.yaml</code>. &#x41F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44C; &#x43D;&#x430; &#x43D;&#x430;&#x43B;&#x438;&#x447;&#x438;&#x435;
+        <code>operationId</code> &#x434;&#x43B;&#x44F; &#x432;&#x441;&#x435;&#x445; &#x43C;&#x435;&#x442;&#x43E;&#x434;&#x43E;&#x432; &#x438; &#x43D;&#x430;&#x43B;&#x438;&#x447;&#x438;&#x435; &#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;&#x43E;&#x432;
+        (examples) &#x434;&#x43B;&#x44F; &#x432;&#x441;&#x435;&#x445; &#x43F;&#x43E;&#x43B;&#x435;&#x439;.&#x201D;</p>
+        </blockquote>
+        <p>&#x415;&#x441;&#x43B;&#x438; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43D;&#x430;&#x445;&#x43E;&#x434;&#x438;&#x442; &#x43E;&#x448;&#x438;&#x431;&#x43A;&#x438;, &#x43E;&#x43D; &#x441;&#x430;&#x43C; &#x438;&#x445; &#x438;&#x441;&#x43F;&#x440;&#x430;&#x432;&#x438;&#x442;: <em>&#x201C;&#x42F; &#x43D;&#x430;&#x448;&#x435;&#x43B;
+        &#x43F;&#x440;&#x43E;&#x43F;&#x443;&#x449;&#x435;&#x43D;&#x43D;&#x44B;&#x435; &#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;&#x44B; &#x432; &#x43F;&#x43E;&#x43B;&#x435; <code>currency</code>.
+        &#x418;&#x441;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x44E;&#x2026;&#x201D;</em></p>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-2-qa-design-tdd-&#x441;-&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x43C;-qaqase-xlsx">&#x1F9EA;
+        &#x42D;&#x442;&#x430;&#x43F; 2: QA Design &amp; TDD (&#x421; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x43C; Qaqase &amp;
+        XLSX)</h2>
+        <p>&#x414;&#x43E; &#x43D;&#x430;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x44F; &#x43A;&#x43E;&#x434;&#x430; &#x43C;&#x44B; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x435;&#x43C; <strong>&#x410;&#x440;&#x442;&#x435;&#x444;&#x430;&#x43A;&#x442;&#x44B;
+        &#x41A;&#x430;&#x447;&#x435;&#x441;&#x442;&#x432;&#x430;</strong>.</p>
+        <h3 id="&#x448;&#x430;&#x433;-2.1-&#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;-&#x447;&#x435;&#x43A;-&#x43B;&#x438;&#x441;&#x442;&#x430;-xlsx-skill">&#x428;&#x430;&#x433; 2.1:
+        &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x427;&#x435;&#x43A;-&#x43B;&#x438;&#x441;&#x442;&#x430; (XLSX Skill)</h3>
+        <p>&#x41C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; &#x441;&#x43A;&#x438;&#x43B;&#x43B; <code>xlsx</code> &#x434;&#x43B;&#x44F; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x43F;&#x43B;&#x430;&#x43D;&#x430;
+        &#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; &#x43D;&#x430;&#x432;&#x44B;&#x43A; <code>/xlsx</code>, &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439; &#x444;&#x430;&#x439;&#x43B;
+        <code>artifacts/test_plan.xlsx</code>. <strong>&#x41B;&#x438;&#x441;&#x442; 1
+        (Checklist)</strong>:</p>
+        <ul>
+        <li>&#x41A;&#x43E;&#x43B;&#x43E;&#x43D;&#x43A;&#x438;: ID, Scenario, Type (Positive/Negative),
+        Priority.</li>
+        <li>&#x421;&#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x439; 10 &#x441;&#x446;&#x435;&#x43D;&#x430;&#x440;&#x438;&#x435;&#x432; &#x434;&#x43B;&#x44F; &#x43D;&#x430;&#x448;&#x435;&#x433;&#x43E; Payment API (&#x443;&#x441;&#x43F;&#x435;&#x445;,
+        &#x43D;&#x435;&#x434;&#x43E;&#x441;&#x442;&#x430;&#x442;&#x43E;&#x43A; &#x441;&#x440;&#x435;&#x434;&#x441;&#x442;&#x432;, &#x434;&#x443;&#x431;&#x43B;&#x44C; &#x43A;&#x43B;&#x44E;&#x447;&#x430; &#x438;&#x434;&#x435;&#x43C;&#x43F;&#x43E;&#x442;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x441;&#x442;&#x438;, &#x442;&#x430;&#x439;&#x43C;&#x430;&#x443;&#x442;
+        &#x411;&#x414;).&#x201D;</li>
+        </ul>
+        </blockquote>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x441;&#x442; &#x440;&#x435;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; Excel &#x444;&#x430;&#x439;&#x43B;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x43C;&#x43E;&#x436;&#x43D;&#x43E; &#x43E;&#x442;&#x43F;&#x440;&#x430;&#x432;&#x438;&#x442;&#x44C;
+        &#x43C;&#x435;&#x43D;&#x435;&#x434;&#x436;&#x435;&#x440;&#x443;.</p>
+        <h3 id="&#x448;&#x430;&#x433;-2.2-&#x438;&#x43D;&#x442;&#x435;&#x433;&#x440;&#x430;&#x446;&#x438;&#x44F;-&#x441;-qase.io-qaqase-skill">&#x428;&#x430;&#x433; 2.2:
+        &#x418;&#x43D;&#x442;&#x435;&#x433;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x441; Qase.io (Qaqase Skill)</h3>
+        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C; &#x43F;&#x440;&#x435;&#x432;&#x440;&#x430;&#x442;&#x438;&#x43C; &#x447;&#x435;&#x43A;-&#x43B;&#x438;&#x441;&#x442; &#x432; &#x443;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x435;&#x43C;&#x44B;&#x435; &#x442;&#x435;&#x441;&#x442;-&#x43A;&#x435;&#x439;&#x441;&#x44B; &#x432; TMS.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439; &#x441;&#x43A;&#x438;&#x43B;&#x43B; <code>/qaqase</code>.</p>
+        <ol type="1">
+        <li>&#x420;&#x430;&#x441;&#x43F;&#x430;&#x440;&#x441;&#x438; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x43D;&#x44B;&#x439; <code>test_plan.xlsx</code>.</li>
+        <li>&#x421;&#x43A;&#x43E;&#x43D;&#x432;&#x435;&#x440;&#x442;&#x438;&#x440;&#x443;&#x439; &#x441;&#x446;&#x435;&#x43D;&#x430;&#x440;&#x438;&#x438; &#x432; &#x444;&#x43E;&#x440;&#x43C;&#x430;&#x442; &#x441;&#x43E;&#x432;&#x43C;&#x435;&#x441;&#x442;&#x438;&#x43C;&#x44B;&#x439; &#x441; Qase
+        (JSON).</li>
+        <li>&#x418;&#x43C;&#x43F;&#x43E;&#x440;&#x442;&#x438;&#x440;&#x443;&#x439; &#x438;&#x445; &#x432; &#x43B;&#x43E;&#x43A;&#x430;&#x43B;&#x44C;&#x43D;&#x443;&#x44E; &#x431;&#x430;&#x437;&#x443; &#x434;&#x430;&#x43D;&#x43D;&#x44B;&#x445; &#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x430; (&#x447;&#x435;&#x440;&#x435;&#x437;
+        <code>POST /import</code>).</li>
+        <li>(&#x41E;&#x43F;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;) &#x415;&#x441;&#x43B;&#x438; &#x43D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x435;&#x43D; &#x442;&#x43E;&#x43A;&#x435;&#x43D;, &#x43E;&#x442;&#x43F;&#x440;&#x430;&#x432;&#x44C; &#x438;&#x445; &#x432; Cloud Qase
+        API.&#x201D;</li>
+        </ol>
+        </blockquote>
+        <h3 id="&#x448;&#x430;&#x433;-2.3-&#x438;&#x442;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x439;-tdd-red-green-refactor">&#x428;&#x430;&#x433; 2.3:
+        &#x418;&#x442;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x439; TDD (Red-Green-Refactor)</h3>
+        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C;, &#x43A;&#x43E;&#x433;&#x434;&#x430; &#x443; &#x43D;&#x430;&#x441; &#x435;&#x441;&#x442;&#x44C; &#x442;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;, &#x43F;&#x438;&#x448;&#x435;&#x43C; &#x430;&#x432;&#x442;&#x43E;&#x442;&#x435;&#x441;&#x442;&#x44B;.</p>
+        <ol type="1">
+        <li><strong>Red</strong>: <em>&#x201C;&#x41D;&#x430;&#x43F;&#x438;&#x448;&#x438; Go-&#x442;&#x435;&#x441;&#x442; &#x434;&#x43B;&#x44F;
+        <code>POST /payments</code>, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44F;&#x435;&#x442; &#x438;&#x434;&#x435;&#x43C;&#x43F;&#x43E;&#x442;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x441;&#x442;&#x44C;.
+        &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439; <code>testcontainers</code> &#x434;&#x43B;&#x44F; Redis (&#x445;&#x440;&#x430;&#x43D;&#x438;&#x43B;&#x438;&#x449;&#x435;
+        &#x43A;&#x43B;&#x44E;&#x447;&#x435;&#x439;). &#x422;&#x435;&#x441;&#x442; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x443;&#x43F;&#x430;&#x441;&#x442;&#x44C;.&#x201D;</em></li>
+        <li><strong>Green</strong>: <em>&#x201C;&#x420;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x443;&#x439; Middleware &#x434;&#x43B;&#x44F;
+        &#x438;&#x434;&#x435;&#x43C;&#x43F;&#x43E;&#x442;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x441;&#x442;&#x438;. &#x414;&#x43E;&#x431;&#x435;&#x439;&#x441;&#x44F; &#x43F;&#x440;&#x43E;&#x445;&#x43E;&#x436;&#x434;&#x435;&#x43D;&#x438;&#x44F; &#x442;&#x435;&#x441;&#x442;&#x430;.&#x201D;</em></li>
+        </ol>
+        <h3
+        id="&#x448;&#x430;&#x433;-2.4-&#x434;&#x435;&#x442;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x435;-&#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;-&#x444;&#x440;&#x43E;&#x43D;&#x442;&#x435;&#x43D;&#x434;&#x430;-mobile-vs-desktop">&#x428;&#x430;&#x433;
+        2.4: &#x414;&#x435;&#x442;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x435; &#x422;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x424;&#x440;&#x43E;&#x43D;&#x442;&#x435;&#x43D;&#x434;&#x430; (Mobile vs Desktop)</h3>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x438;&#x442;&#x44C; &#x432;&#x435;&#x440;&#x441;&#x442;&#x43A;&#x443; &#x43D;&#x430; &#x440;&#x430;&#x437;&#x43D;&#x44B;&#x445; &#x443;&#x441;&#x442;&#x440;&#x43E;&#x439;&#x441;&#x442;&#x432;&#x430;&#x445;.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439; Playwright &#x434;&#x43B;&#x44F; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x438; UI &#x43A;&#x43E;&#x43C;&#x43F;&#x43E;&#x43D;&#x435;&#x43D;&#x442;&#x430;
+        <code>MomentumChallenge</code>.</p>
+        <ol type="1">
+        <li><strong>Desktop</strong>: &#x41F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44C;, &#x447;&#x442;&#x43E; &#x433;&#x440;&#x430;&#x444;&#x438;&#x43A; &#x43E;&#x442;&#x43E;&#x431;&#x440;&#x430;&#x436;&#x430;&#x435;&#x442;&#x441;&#x44F;
+        &#x441;&#x43F;&#x440;&#x430;&#x432;&#x430; &#x43E;&#x442; &#x444;&#x43E;&#x440;&#x43C;&#x44B; &#x432;&#x432;&#x43E;&#x434;&#x430;.</li>
+        <li><strong>Mobile</strong>: &#x41F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44C;, &#x447;&#x442;&#x43E; &#x433;&#x440;&#x430;&#x444;&#x438;&#x43A; &#x443;&#x445;&#x43E;&#x434;&#x438;&#x442; &#x43F;&#x43E;&#x434;
+        &#x444;&#x43E;&#x440;&#x43C;&#x443; (stack layout).</li>
+        </ol>
+        <p>&#x417;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438; &#x442;&#x435;&#x441;&#x442;&#x44B; &#x441; &#x444;&#x43B;&#x430;&#x433;&#x430;&#x43C;&#x438;:</p>
+        <ul>
+        <li>Desktop:
+        <code>npx playwright test --project=desktop</code></li>
+        <li>Mobile:
+        <code>npx playwright test --project=mobile</code></li>
+        </ul>
+        <p>&#x41F;&#x43E;&#x441;&#x43B;&#x435; &#x43F;&#x440;&#x43E;&#x433;&#x43E;&#x43D;&#x430; &#x441;&#x43E;&#x431;&#x435;&#x440;&#x438; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x44B; &#x438; &#x432;&#x44B;&#x437;&#x43E;&#x432;&#x438; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x430;&#x440;&#x445;&#x438;&#x432;&#x430;&#x446;&#x438;&#x438;:
+        <code>.agent/workflows/artifact-archival.md</code>.&#x201D;_</p>
+        </blockquote>
+        <ol start="3" type="1">
+        <li><strong>Refactor</strong>: <em>&#x201C;&#x41E;&#x43F;&#x442;&#x438;&#x43C;&#x438;&#x437;&#x438;&#x440;&#x443;&#x439; &#x431;&#x43B;&#x43E;&#x43A;&#x438;&#x440;&#x43E;&#x432;&#x43A;&#x438; &#x432;
+        Redis. &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439; Lua-&#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x44B; &#x434;&#x43B;&#x44F; &#x430;&#x442;&#x43E;&#x43C;&#x430;&#x440;&#x43D;&#x43E;&#x441;&#x442;&#x438;.&#x201D;</em></li>
+        </ol>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-3-observability-stack-skill-vs-mcp">&#x1F4CA; &#x42D;&#x442;&#x430;&#x43F; 3:
+        Observability Stack (Skill vs MCP)</h2>
+        <p>&#x41C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; &#x433;&#x438;&#x431;&#x440;&#x438;&#x434;&#x43D;&#x44B;&#x439; &#x43F;&#x43E;&#x434;&#x445;&#x43E;&#x434;. &#x41F;&#x43E;&#x447;&#x435;&#x43C;&#x443;?</p>
+        <ol type="1">
+        <li><strong>Sentry (MCP)</strong>: &#x418;&#x434;&#x435;&#x430;&#x43B;&#x435;&#x43D; &#x434;&#x43B;&#x44F; <em>Runtime</em>
+        &#x43E;&#x442;&#x43B;&#x430;&#x434;&#x43A;&#x438;. &#x410;&#x433;&#x435;&#x43D;&#x442; &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x441;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x44C;: <em>&#x201C;&#x41F;&#x43E;&#x43A;&#x430;&#x436;&#x438; &#x43F;&#x43E;&#x441;&#x43B;&#x435;&#x434;&#x43D;&#x438;&#x435;
+        &#x43E;&#x448;&#x438;&#x431;&#x43A;&#x438;&#x201D;</em> &#x438; &#x43F;&#x43E;&#x43B;&#x443;&#x447;&#x438;&#x442;&#x44C; JSON.</li>
+        <li><strong>Prometheus/Grafana (Skill)</strong>: &#x418;&#x43D;&#x444;&#x440;&#x430;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x430;
+        &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x430;&#x44F;, &#x43F;&#x43E;&#x44D;&#x442;&#x43E;&#x43C;&#x443; &#x43C;&#x44B; &#x437;&#x430;&#x432;&#x43E;&#x440;&#x430;&#x447;&#x438;&#x432;&#x430;&#x435;&#x43C; &#x435;&#x451; &#x432; &#x441;&#x43A;&#x438;&#x43B;&#x43B;
+        <code>/monitoring-stack</code>. MCP &#x437;&#x434;&#x435;&#x441;&#x44C; &#x438;&#x437;&#x431;&#x44B;&#x442;&#x43E;&#x447;&#x435;&#x43D;, &#x442;&#x430;&#x43A; &#x43A;&#x430;&#x43A; &#x43C;&#x44B;
+        &#x43D;&#x435; &#x201C;&#x43E;&#x431;&#x449;&#x430;&#x435;&#x43C;&#x441;&#x44F;&#x201D; &#x441; &#x41F;&#x440;&#x43E;&#x43C;&#x435;&#x442;&#x435;&#x435;&#x43C; &#x44F;&#x437;&#x44B;&#x43A;&#x43E;&#x43C;, &#x43C;&#x44B; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x445;&#x43E;&#x442;&#x438;&#x43C; &#x440;&#x430;&#x437;&#x432;&#x435;&#x440;&#x43D;&#x443;&#x442;&#x44C;
+        &#x434;&#x430;&#x448;&#x431;&#x43E;&#x440;&#x434;&#x44B;.</li>
+        </ol>
+        <h3 id="&#x448;&#x430;&#x433;-3.1-&#x430;&#x43A;&#x442;&#x438;&#x432;&#x430;&#x446;&#x438;&#x44F;-monitoring-stack">&#x428;&#x430;&#x433; 3.1: &#x410;&#x43A;&#x442;&#x438;&#x432;&#x430;&#x446;&#x438;&#x44F;
+        <code>/monitoring-stack</code></h3>
+        <p>&#x42D;&#x442;&#x43E;&#x442; &#x441;&#x43A;&#x438;&#x43B;&#x43B; &#x441;&#x43E;&#x434;&#x435;&#x440;&#x436;&#x438;&#x442; &#x433;&#x43E;&#x442;&#x43E;&#x432;&#x44B;&#x435; &#x43A;&#x43E;&#x43D;&#x444;&#x438;&#x433;&#x438;
+        <code>prometheus.yml</code> &#x438; &#x434;&#x430;&#x448;&#x431;&#x43E;&#x440;&#x434;&#x44B; Grafana &#x434;&#x43B;&#x44F;
+        Go/Python.</p>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439; &#x441;&#x43A;&#x438;&#x43B;&#x43B; <code>/monitoring-stack</code>.</p>
+        <ol type="1">
+        <li>&#x421;&#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x439; <code>docker-compose.monitoring.yml</code>.</li>
+        <li>&#x414;&#x43E;&#x431;&#x430;&#x432;&#x44C; job <code>payment-service</code> &#x432; &#x43A;&#x43E;&#x43D;&#x444;&#x438;&#x433; Prometheus
+        (scrape_interval: 5s).</li>
+        <li>&#x418;&#x43C;&#x43F;&#x43E;&#x440;&#x442;&#x438;&#x440;&#x443;&#x439; &#x434;&#x430;&#x448;&#x431;&#x43E;&#x440;&#x434; &#x2018;Microservices Go&#x2019; &#x432; Grafana.&#x201D;</li>
+        </ol>
+        </blockquote>
+        <h3 id="&#x448;&#x430;&#x433;-3.2-&#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;-&#x43A;&#x43E;&#x434;&#x430;">&#x428;&#x430;&#x433; 3.2:
+        &#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x43A;&#x43E;&#x434;&#x430;</h3>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x414;&#x43E;&#x431;&#x430;&#x432;&#x44C; middleware &#x434;&#x43B;&#x44F; &#x441;&#x431;&#x43E;&#x440;&#x430; RED-&#x43C;&#x435;&#x442;&#x440;&#x438;&#x43A; (Rate, Errors,
+        Duration) &#x432; FastAPI. &#x42D;&#x43A;&#x441;&#x43F;&#x43E;&#x43D;&#x438;&#x440;&#x443;&#x439; <code>/metrics</code>.&#x201D;</p>
+        </blockquote>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-4-cicd-&#x441;-&#x430;&#x433;&#x435;&#x43D;&#x442;&#x43D;&#x44B;&#x43C;-&#x434;&#x435;&#x43F;&#x43B;&#x43E;&#x435;&#x43C;">&#x1F504; &#x42D;&#x442;&#x430;&#x43F; 4: CI/CD &#x441;
+        &#x410;&#x433;&#x435;&#x43D;&#x442;&#x43D;&#x44B;&#x43C; &#x414;&#x435;&#x43F;&#x43B;&#x43E;&#x435;&#x43C;</h2>
+        <p>&#x41C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; GitHub Actions, &#x433;&#x434;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x44B; &#x438;&#x433;&#x440;&#x430;&#x44E;&#x442; &#x430;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x443;&#x44E;
+        &#x440;&#x43E;&#x43B;&#x44C;.</p>
+        <h3 id="&#x448;&#x430;&#x433;-4.1-workflow-&#x444;&#x430;&#x439;&#x43B;">&#x428;&#x430;&#x433; 4.1: Workflow &#x444;&#x430;&#x439;&#x43B;</h3>
+        <p><strong>Prompt:</strong></p>
+        <blockquote>
+        <p>&#x201C;&#x421;&#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x439; <code>.github/workflows/deploy.yml</code>.
+        <strong>Jobs</strong>:</p>
+        <ol type="1">
+        <li><strong>Test</strong>: <code>go test -v ./...</code> &#x441;
+        &#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x435;&#x439; coverage profile.</li>
+        <li><strong>Agent-Review</strong>: &#x418;&#x43C;&#x438;&#x442;&#x430;&#x446;&#x438;&#x44F; &#x440;&#x435;&#x432;&#x44C;&#x44E; (&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F;
+        &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442; <code>review.py</code> &#x438;&#x437; &#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x430;
+        <code>qwen-code-review</code>).</li>
+        <li><strong>Build &amp; Push</strong>: &#x421;&#x431;&#x43E;&#x440;&#x43A;&#x430; Docker
+        &#x43E;&#x431;&#x440;&#x430;&#x437;&#x430;.</li>
+        <li><strong>GitOps</strong>: &#x41E;&#x431;&#x43D;&#x43E;&#x432;&#x43B;&#x435;&#x43D;&#x438;&#x435; &#x43C;&#x430;&#x43D;&#x438;&#x444;&#x435;&#x441;&#x442;&#x43E;&#x432; &#x432; &#x440;&#x435;&#x43F;&#x43E;&#x437;&#x438;&#x442;&#x43E;&#x440;&#x438;&#x438;
+        <code>k8s-config</code> (CD).&#x201D;</li>
+        </ol>
+        </blockquote>
+        <h3 id="&#x448;&#x430;&#x433;-4.2-&#x43E;&#x442;&#x441;&#x43B;&#x435;&#x436;&#x438;&#x432;&#x430;&#x43D;&#x438;&#x435;-&#x442;&#x435;&#x441;&#x442;&#x43E;&#x432;-&#x447;&#x435;&#x440;&#x435;&#x437;-&#x430;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x432;">&#x428;&#x430;&#x433; 4.2:
+        &#x41E;&#x442;&#x441;&#x43B;&#x435;&#x436;&#x438;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x422;&#x435;&#x441;&#x442;&#x43E;&#x432; &#x447;&#x435;&#x440;&#x435;&#x437; &#x410;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x432;</h3>
+        <p>&#x41A;&#x430;&#x43A; &#x43F;&#x43E;&#x43D;&#x44F;&#x442;&#x44C;, &#x43F;&#x43E;&#x447;&#x435;&#x43C;&#x443; &#x442;&#x435;&#x441;&#x442;&#x44B; &#x443;&#x43F;&#x430;&#x43B;&#x438; &#x432; CI?</p>
+        <p><strong>&#x421;&#x446;&#x435;&#x43D;&#x430;&#x440;&#x438;&#x439;</strong>:</p>
+        <ol type="1">
+        <li>CI &#x43F;&#x430;&#x434;&#x430;&#x435;&#x442;.</li>
+        <li>GitHub Action &#x442;&#x440;&#x438;&#x433;&#x433;&#x435;&#x440;&#x438;&#x442; &#x432;&#x435;&#x431;&#x445;&#x443;&#x43A; &#x43A; &#x432;&#x430;&#x448;&#x435;&#x43C;&#x443; &#x43B;&#x43E;&#x43A;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x43C;&#x443; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x443;
+        (&#x438;&#x43B;&#x438; &#x432;&#x44B; &#x441;&#x430;&#x43C;&#x438; &#x43A;&#x43E;&#x43F;&#x438;&#x440;&#x443;&#x435;&#x442;&#x435; &#x43B;&#x43E;&#x433;).</li>
+        <li><strong>Prompt</strong>: <em>&#x201C;&#x41F;&#x440;&#x43E;&#x430;&#x43D;&#x430;&#x43B;&#x438;&#x437;&#x438;&#x440;&#x443;&#x439; &#x44D;&#x442;&#x43E;&#x442; &#x43B;&#x43E;&#x433; &#x43F;&#x430;&#x434;&#x435;&#x43D;&#x438;&#x44F;
+        CI. &#x41D;&#x430;&#x439;&#x434;&#x438; &#x442;&#x435;&#x441;&#x442; <code>TestPayment_Timeout</code>. &#x421;&#x43E;&#x43F;&#x43E;&#x441;&#x442;&#x430;&#x432;&#x44C; &#x441;
+        &#x43A;&#x43E;&#x434;&#x43E;&#x43C; &#x432; <code>payment_service.go</code> &#x438; &#x43F;&#x440;&#x435;&#x434;&#x43B;&#x43E;&#x436;&#x438;
+        &#x444;&#x438;&#x43A;&#x441;.&#x201D;</em></li>
+        </ol>
+        <hr />
+        <h3 id="&#x440;&#x43E;&#x43B;&#x435;&#x432;&#x430;&#x44F;-&#x43C;&#x43E;&#x434;&#x435;&#x43B;&#x44C;-&#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x430;-&#x438;-&#x442;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;">3. &#x420;&#x43E;&#x43B;&#x435;&#x432;&#x430;&#x44F; &#x43C;&#x43E;&#x434;&#x435;&#x43B;&#x44C;:
+        &#x41F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x430; &#x438; &#x422;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;</h3>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x437;&#x43D;&#x430;&#x442;&#x44C; &#x201C;&#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x430; &#x438;&#x433;&#x440;&#x44B;&#x201D;. &#x412; &#x43A;&#x43E;&#x440;&#x43D;&#x435; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x435;&#x43C;
+        <code>.antigravity/rules.md</code>.</p>
+        <p><strong>&#x424;&#x443;&#x43D;&#x43A;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x442;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F; (Developer
+        Stack):</strong></p>
+        <ol type="1">
+        <li><strong>Frontend</strong>: React 18 (Vite), Tailwind CSS,
+        Framer Motion (&#x434;&#x43B;&#x44F; &#x430;&#x43D;&#x438;&#x43C;&#x430;&#x446;&#x438;&#x439; &#x444;&#x438;&#x437;&#x438;&#x43A;&#x438;).</li>
+        <li><strong>Backend</strong>: Python 3.12 (FastAPI), Pydantic
+        V2.</li>
+        <li><strong>Auth</strong>: GitHub OAuth 2.0 (Stateless
+        JWT).</li>
+        <li><strong>Database</strong>: PostgreSQL 16 (PgVector &#x434;&#x43B;&#x44F;
+        &#x440;&#x435;&#x43A;&#x43E;&#x43C;&#x435;&#x43D;&#x434;&#x430;&#x446;&#x438;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;).</li>
+        </ol>
+        <p><strong>&#x41D;&#x435;&#x444;&#x443;&#x43D;&#x43A;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x442;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F; (NFR):</strong></p>
+        <ol type="1">
+        <li><strong>Performance</strong>: &#x420;&#x430;&#x441;&#x447;&#x435;&#x442; &#x444;&#x438;&#x437;&#x438;&#x43A;&#x438; &lt; 50ms.</li>
+        <li><strong>Quality</strong>: Test Coverage &gt; 90% (Backend),
+        &gt; 70% (Frontend).</li>
+        <li><strong>Security</strong>: 0 Critical CVEs, Strict CSP
+        headers.</li>
+        <li><strong>Maintainability</strong>: OpenAPI &#x43A;&#x43E;&#x43D;&#x442;&#x440;&#x430;&#x43A;&#x442;
+        &#x43E;&#x431;&#x44F;&#x437;&#x430;&#x442;&#x435;&#x43B;&#x435;&#x43D; <em>&#x434;&#x43E;</em> &#x43A;&#x43E;&#x434;&#x430;.</li>
+        </ol>
+        <hr />
+        <h2 id="&#x43A;&#x430;&#x441;&#x442;&#x438;&#x43D;&#x433;-&#x430;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x432;-&#x43A;&#x442;&#x43E;-&#x437;&#x430;-&#x447;&#x442;&#x43E;-&#x43E;&#x442;&#x432;&#x435;&#x447;&#x430;&#x435;&#x442;">&#x1F3AD; &#x41A;&#x430;&#x441;&#x442;&#x438;&#x43D;&#x433; &#x410;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x432;:
+        &#x41A;&#x442;&#x43E; &#x437;&#x430; &#x447;&#x442;&#x43E; &#x43E;&#x442;&#x432;&#x435;&#x447;&#x430;&#x435;&#x442;?</h2>
+        <p>&#x412; &#x43D;&#x430;&#x448;&#x435;&#x43C; &#x43E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x435; &#x43A;&#x430;&#x436;&#x434;&#x44B;&#x439; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x438;&#x433;&#x440;&#x430;&#x435;&#x442; &#x441;&#x432;&#x43E;&#x44E; &#x43F;&#x430;&#x440;&#x442;&#x438;&#x44E;, &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F;
+        &#x441;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x438;&#x435; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;:</p>
+        <table>
+        <colgroup>
+        <col style="width: 11%" />
+        <col style="width: 25%" />
+        <col style="width: 15%" />
+        <col style="width: 46%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">&#x420;&#x43E;&#x43B;&#x44C; (Persona)</th>
+        <th style="text-align: left;">&#x410;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x435; &#x421;&#x43A;&#x438;&#x43B;&#x43B;&#x44B;</th>
+        <th style="text-align: left;">MCP &#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x44B;</th>
+        <th style="text-align: left;">&#x417;&#x43E;&#x43D;&#x430; &#x43E;&#x442;&#x432;&#x435;&#x442;&#x441;&#x442;&#x432;&#x435;&#x43D;&#x43D;&#x43E;&#x441;&#x442;&#x438;</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="architect">@architect</span></strong></td>
+        <td style="text-align: left;"><code>swagger</code>,
+        <code>context7</code></td>
+        <td style="text-align: left;"><code>read_resource</code></td>
+        <td style="text-align: left;">&#x41F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435; API, &#x441;&#x445;&#x435;&#x43C;&#x44B; &#x411;&#x414;,
+        &#x432;&#x44B;&#x431;&#x43E;&#x440; &#x441;&#x442;&#x435;&#x43A;&#x430;.</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="developer">@developer</span></strong></td>
+        <td style="text-align: left;"><code>standard_coding</code></td>
+        <td style="text-align: left;"><code>filesystem</code></td>
+        <td style="text-align: left;">&#x41D;&#x430;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435; &#x43A;&#x43E;&#x434;&#x430; (React/Python),
+        &#x440;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F; &#x444;&#x438;&#x447;.</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="qa-suite">@qa-suite</span></strong></td>
+        <td style="text-align: left;"><code>/qaqase</code>,
+        <code>/xlsx</code>, <code>/qa-skill-tester</code></td>
+        <td style="text-align: left;"><code>playwright</code></td>
+        <td style="text-align: left;">&#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x442;&#x435;&#x441;&#x442;-&#x43F;&#x43B;&#x430;&#x43D;&#x43E;&#x432;, E2E &#x442;&#x435;&#x441;&#x442;&#x44B;,
+        &#x431;&#x430;&#x433;-&#x440;&#x435;&#x43F;&#x43E;&#x440;&#x442;&#x44B;.</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="security">@security</span></strong></td>
+        <td
+        style="text-align: left;"><code>/security-checker</code></td>
+        <td style="text-align: left;"><code>sentry</code>,
+        <code>govulncheck</code></td>
+        <td style="text-align: left;">&#x410;&#x443;&#x434;&#x438;&#x442; &#x437;&#x430;&#x432;&#x438;&#x441;&#x438;&#x43C;&#x43E;&#x441;&#x442;&#x435;&#x439;, &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x430;
+        &#x441;&#x435;&#x43A;&#x440;&#x435;&#x442;&#x43E;&#x432;, SAST.</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="devops">@devops</span></strong></td>
+        <td style="text-align: left;"><code>/git-flow</code></td>
+        <td style="text-align: left;"><code>github</code>,
+        <code>docker</code></td>
+        <td style="text-align: left;">CI/CD &#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;&#x44B;, Dockerfile,
+        &#x434;&#x435;&#x43F;&#x43B;&#x43E;&#x439;.</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong><span class="citation"
+        data-cites="reviewer">@reviewer</span></strong></td>
+        <td style="text-align: left;"><code>qwen-code-review</code></td>
+        <td style="text-align: left;"><code>read_file</code></td>
+        <td style="text-align: left;">&#x41A;&#x440;&#x438;&#x442;&#x438;&#x43A;&#x430; &#x43A;&#x43E;&#x434;&#x430;, &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x430; &#x43D;&#x435;&#x439;&#x43C;&#x438;&#x43D;&#x433;&#x430; &#x438;
+        NFR.</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-6-&#x43E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44F;-&#x438;-&#x434;&#x438;&#x440;&#x438;&#x436;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;">&#x1F3B9; &#x42D;&#x442;&#x430;&#x43F; 6:
+        &#x41E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x438; &#x201C;&#x414;&#x438;&#x440;&#x438;&#x436;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x201D;</h2>
+        <p>&#x412; &#x43A;&#x43E;&#x43D;&#x446;&#x435; &#x43C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; <strong>Workflow</strong> &#x434;&#x43B;&#x44F; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;
+        &#x432;&#x441;&#x435;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430; &#x43E;&#x434;&#x43D;&#x43E;&#x439; &#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x43E;&#x439;.</p>
+        <p>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x434;&#x438;&#x43C; &#x444;&#x430;&#x439;&#x43B;
+        <code>.agent/workflows/deploy-local.md</code>:</p>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Full start of the microservice environment</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Check open ports 8080, 3000, 9090.</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>   // turbo</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Run <span class="in">`docker compose up -d postgres prometheus grafana`</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Wait for DB readiness (pg_isready).</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Apply migrations: <span class="in">`go run cmd/migrate/main.go`</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>   // turbo</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ss">5. </span>Run app: <span class="in">`docker compose up -d app`</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="ss">6. </span>Verify health: <span class="in">`curl localhost:8080/health`</span></span></code></pre></div>
+        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C; &#x432;&#x44B; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x43F;&#x438;&#x448;&#x435;&#x442;&#x435; &#x432; &#x447;&#x430;&#x442;: <code>/deploy-local</code>, &#x438;
+        &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x43E;&#x434;&#x43D;&#x438;&#x43C;&#x430;&#x435;&#x442; &#x432;&#x441;&#x451; &#x43E;&#x43A;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x435;.</p>
+        <hr />
+        <h2 id="&#x44D;&#x442;&#x430;&#x43F;-7-grand-unified-workflow-&#x435;&#x434;&#x438;&#x43D;&#x44B;&#x439;-&#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;">&#x1F3BC; &#x42D;&#x442;&#x430;&#x43F;
+        7: Grand Unified Workflow (&#x415;&#x434;&#x438;&#x43D;&#x44B;&#x439; &#x41F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;)</h2>
+        <p>&#x412;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x43B;&#x43E;&#x441;&#x43A;&#x443;&#x442;&#x43D;&#x43E;&#x439; &#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x437;&#x430;&#x446;&#x438;&#x438; &#x43C;&#x44B; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x434;&#x438;&#x43C;
+        <strong>Meta-Workflow</strong> &#x434;&#x43B;&#x44F; &#x43A;&#x43E;&#x43D;&#x43A;&#x440;&#x435;&#x442;&#x43D;&#x43E;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x434;&#x443;&#x43A;&#x442;&#x430;:
+        <strong>&#x201C;Gamified Physics&#x201D;</strong> (&#x41F;&#x440;&#x438;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x435; &#x434;&#x43B;&#x44F; &#x437;&#x430;&#x434;&#x430;&#x447; &#x43F;&#x43E;
+        &#x444;&#x438;&#x437;&#x438;&#x43A;&#x435; &#x43D;&#x430; &#x43C;&#x430;&#x441;&#x441;&#x443; &#x438; &#x441;&#x43A;&#x43E;&#x440;&#x43E;&#x441;&#x442;&#x44C;).</p>
+        <p>&#x421;&#x442;&#x435;&#x43A;:</p>
+        <ul>
+        <li><strong>Web</strong>: React + Tailwind (Gamification
+        UI).</li>
+        <li><strong>API</strong>: Python FastAPI (Physics Engine).</li>
+        <li><strong>DB</strong>: PostgreSQL (User Progress).</li>
+        <li><strong>Auth</strong>: GitHub OAuth.</li>
+        </ul>
+        <p>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x444;&#x430;&#x439;&#x43B;
+        <code>.agent/workflows/physics-release.md</code>. &#x412; &#x44D;&#x442;&#x43E;&#x43C;
+        &#x441;&#x446;&#x435;&#x43D;&#x430;&#x440;&#x438;&#x438; &#x43C;&#x44B; &#x434;&#x43E;&#x431;&#x430;&#x432;&#x43B;&#x44F;&#x435;&#x43C; &#x440;&#x43E;&#x43B;&#x438; <strong>Developer</strong>
+        (&#x440;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F;) &#x438; <strong>Reviewer</strong> (&#x432;&#x430;&#x43B;&#x438;&#x434;&#x430;&#x446;&#x438;&#x44F;).</p>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Full feature lifecycle for Physics App (Mass/Velocity module)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="fu"># 1. Feature Implementation (Developer Phase)</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>@developer Implement &quot;Calculate Momentum&quot; feature</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Create <span class="in">`MomentumService`</span> in <span class="in">`backend/physics/momentum.py`</span>.</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Implement formula $p = m * v$ with unit tests.</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Expose endpoint <span class="in">`POST /api/v1/physics/momentum`</span>.</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Update Frontend: Create <span class="in">`MomentumChallenge`</span> component.</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="fu"># 2. QA &amp; Simulation Phase (Mobile/Desktop)</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>@qa-suite Verify UI Responsiveness</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>// turbo</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Desktop: <span class="in">`npx playwright test --project=chromium --viewport=1920,1080`</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Mobile: <span class="in">`npx playwright test --project=mobile-chrome --viewport=375,667`</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Archive results: <span class="in">`/artifact-archival --path=playwright-report`</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="fu"># 3. Security Audit (Auth Focus)</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>@security-checker Audit GitHub OAuth implementation</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Ensure <span class="in">`CLIENT_SECRET`</span> is not logged.</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Verify state parameter in OAuth flow (CSRF protection).</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="fu"># 4. Code Review (The &quot;Mean Lead&quot; Phase)</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>@reviewer Critically review the changes</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Check variable naming (e.g., use <span class="in">`mass_kg`</span> not just <span class="in">`m`</span>).</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Verify input validation (negative mass shouldn&#39;t be allowed).</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>   // turbo</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>If score &lt; 8/10, request changes (simulate iteration).</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="fu"># 5. Release &amp; Deploy</span></span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>@github Ship it</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Create PR &quot;feat: Add Momentum Calculation&quot;.</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>   // turbo</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Merge if CI passes.</span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Deploy to Staging.</span></code></pre></div>
+        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C;, &#x447;&#x442;&#x43E;&#x431;&#x44B; &#x440;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x444;&#x438;&#x447;&#x443; &#x201C;&#x43F;&#x43E;&#x434; &#x43A;&#x43B;&#x44E;&#x447;&#x201D;, &#x432;&#x44B; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;&#x435;&#x442;&#x435;:</p>
+        <blockquote>
+        <p><strong>/physics-release</strong></p>
+        </blockquote>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x435;&#x440;&#x435;&#x43A;&#x43B;&#x44E;&#x447;&#x430;&#x435;&#x442; &#x448;&#x43B;&#x44F;&#x43F;&#x44B;: &#x441;&#x43D;&#x430;&#x447;&#x430;&#x43B;&#x430; &#x43E;&#x43D;
+        <strong>&#x420;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x447;&#x438;&#x43A;</strong> (&#x43F;&#x438;&#x448;&#x435;&#x442; &#x444;&#x43E;&#x440;&#x43C;&#x443;&#x43B;&#x44B;), &#x43F;&#x43E;&#x442;&#x43E;&#x43C;
+        <strong>QA</strong> (&#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44F;&#x435;&#x442; &#x438;&#x445;), &#x43F;&#x43E;&#x442;&#x43E;&#x43C;
+        <strong>&#x421;&#x435;&#x43A;&#x44C;&#x44E;&#x440;&#x438;&#x442;&#x438;</strong> (&#x441;&#x43C;&#x43E;&#x442;&#x440;&#x438;&#x442; OAuth), &#x438; &#x43D;&#x430;&#x43A;&#x43E;&#x43D;&#x435;&#x446;
+        <strong>&#x420;&#x435;&#x432;&#x44C;&#x44E;&#x435;&#x440;</strong> (&#x440;&#x443;&#x433;&#x430;&#x435;&#x442; &#x441;&#x430;&#x43C; &#x441;&#x435;&#x431;&#x44F; &#x437;&#x430; &#x43F;&#x43B;&#x43E;&#x445;&#x438;&#x435; &#x438;&#x43C;&#x435;&#x43D;&#x430;
+        &#x43F;&#x435;&#x440;&#x435;&#x43C;&#x435;&#x43D;&#x43D;&#x44B;&#x445;).</p>
+        <p>&#x42D;&#x442;&#x43E; &#x438; &#x435;&#x441;&#x442;&#x44C; &#x432;&#x435;&#x440;&#x448;&#x438;&#x43D;&#x430; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x439; &#x430;&#x432;&#x442;&#x43E;&#x43D;&#x43E;&#x43C;&#x438;&#x438;.</p>
+        <hr />
+        <h2 id="&#x437;&#x430;&#x43A;&#x43B;&#x44E;&#x447;&#x435;&#x43D;&#x438;&#x435;">&#x417;&#x430;&#x43A;&#x43B;&#x44E;&#x447;&#x435;&#x43D;&#x438;&#x435;</h2>
+        <p>&#x412;&#x44B; &#x43F;&#x43E;&#x441;&#x442;&#x440;&#x43E;&#x438;&#x43B;&#x438; &#x43D;&#x435; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x201C;&#x43A;&#x43E;&#x434;&#x201D;, &#x430; <strong>&#x417;&#x430;&#x432;&#x43E;&#x434; &#x43F;&#x43E; &#x43F;&#x440;&#x43E;&#x438;&#x437;&#x432;&#x43E;&#x434;&#x441;&#x442;&#x432;&#x443;
+        &#x43A;&#x43E;&#x434;&#x430;</strong>.</p>
+        <ul>
+        <li><strong>Context7</strong> &#x434;&#x435;&#x440;&#x436;&#x438;&#x442; &#x444;&#x43E;&#x43A;&#x443;&#x441;.</li>
+        <li><strong>Qaqase &amp; XLSX</strong> &#x433;&#x430;&#x440;&#x430;&#x43D;&#x442;&#x438;&#x440;&#x443;&#x44E;&#x442; &#x43F;&#x43E;&#x43A;&#x440;&#x44B;&#x442;&#x438;&#x435;
+        &#x442;&#x435;&#x441;&#x442;&#x430;&#x43C;&#x438;.</li>
+        <li><strong>MCP</strong> &#x441;&#x432;&#x44F;&#x437;&#x44B;&#x432;&#x430;&#x44E;&#x442; IDE &#x441; &#x432;&#x43D;&#x435;&#x448;&#x43D;&#x438;&#x43C; &#x43C;&#x438;&#x440;&#x43E;&#x43C; (GitHub,
+        DB).</li>
+        <li><strong>Agents</strong> &#x43F;&#x438;&#x448;&#x443;&#x442;, &#x442;&#x435;&#x441;&#x442;&#x44F;&#x442; &#x438; &#x434;&#x435;&#x43F;&#x43B;&#x43E;&#x44F;&#x442;.</li>
+        </ul>
+        <p>&#x42D;&#x442;&#x43E; &#x438; &#x435;&#x441;&#x442;&#x44C; &#x431;&#x443;&#x434;&#x443;&#x449;&#x435;&#x435; &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x438; SDLC</p>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+  </body>
+</html>

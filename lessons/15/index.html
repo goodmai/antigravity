@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>&#x423;&#x440;&#x43E;&#x43A; 15: CI/CD Pipeline
+Generation | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+      </header>
+      <main>
+        <h1 id="&#x443;&#x440;&#x43E;&#x43A;-15-cicd-pipeline-generation">&#x423;&#x440;&#x43E;&#x43A; 15: CI/CD
+        Pipeline Generation</h1>
+        <p>&#x410;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F; &#x434;&#x43E;&#x441;&#x442;&#x430;&#x432;&#x43A;&#x438; &#x43A;&#x43E;&#x434;&#x430; &#x2014; &#x444;&#x438;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; &#x430;&#x43A;&#x43A;&#x43E;&#x440;&#x434; &#x438;&#x43D;&#x436;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x438;.
+        Antigravity &#x443;&#x43C;&#x435;&#x435;&#x442; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;&#x44B; &#x434;&#x43B;&#x44F; GitHub Actions,
+        GitLab CI &#x438; Cloud Build. &#x422;&#x435;&#x441;&#x43D;&#x43E; &#x441;&#x432;&#x44F;&#x437;&#x430;&#x43D;&#x43E; &#x441; <a
+        href="../12/index.html">&#x423;&#x440;&#x43E;&#x43A;&#x43E;&#x43C; 12</a> (&#x422;&#x435;&#x441;&#x442;&#x44B;) &#x438; <a
+        href="../14/index.html">&#x423;&#x440;&#x43E;&#x43A;&#x43E;&#x43C; 14</a> (Docker).</p>
+        <hr />
+        <h2 id="&#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;-&#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;&#x43E;&#x432;">&#x1F501; &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D;&#x43E;&#x432;</h2>
+        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x437;&#x43D;&#x430;&#x435;&#x442; &#x441;&#x438;&#x43D;&#x442;&#x430;&#x43A;&#x441;&#x438;&#x441; YAML &#x438; &#x43B;&#x443;&#x447;&#x448;&#x438;&#x435; &#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438; CI/CD.</p>
+        <p>&#x421;&#x446;&#x435;&#x43D;&#x430;&#x440;&#x438;&#x439;: <em>&#x201C;&#x41D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x439; CI &#x43F;&#x430;&#x439;&#x43F;&#x43B;&#x430;&#x439;&#x43D; &#x434;&#x43B;&#x44F; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x438; PR&#x201D;</em>.
+        &#x410;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x441;&#x442; <code>.github/workflows/pr-check.yml</code> &#x441;
+        &#x448;&#x430;&#x433;&#x430;&#x43C;&#x438;:</p>
+        <ol type="1">
+        <li><strong>Checkout</strong>: &#x41A;&#x43B;&#x43E;&#x43D;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x440;&#x435;&#x43F;&#x43E;&#x437;&#x438;&#x442;&#x43E;&#x440;&#x438;&#x44F;.</li>
+        <li><strong>Setup</strong>: &#x423;&#x441;&#x442;&#x430;&#x43D;&#x43E;&#x432;&#x43A;&#x430; Node.js/Python/Go &#x441;
+        &#x43A;&#x44D;&#x448;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x43C; &#x437;&#x430;&#x432;&#x438;&#x441;&#x438;&#x43C;&#x43E;&#x441;&#x442;&#x435;&#x439;.</li>
+        <li><strong>Lint &amp; Test</strong>: &#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43E;&#x43A;.</li>
+        <li><strong>Reporting</strong>: &#x41E;&#x442;&#x43F;&#x440;&#x430;&#x432;&#x43A;&#x430; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x43E;&#x432; &#x43E; &#x43F;&#x43E;&#x43A;&#x440;&#x44B;&#x442;&#x438;&#x438;
+        (Codecov).</li>
+        </ol>
+        <hr />
+        <h2 id="keyless-security">&#x1F510; Keyless Security</h2>
+        <p>&#x414;&#x43B;&#x44F; Google Cloud Build &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x438;&#x442; <strong>Workload
+        Identity Federation</strong>. &#x42D;&#x442;&#x43E; &#x441;&#x43E;&#x432;&#x440;&#x435;&#x43C;&#x435;&#x43D;&#x43D;&#x44B;&#x439; &#x441;&#x442;&#x430;&#x43D;&#x434;&#x430;&#x440;&#x442;
+        &#x431;&#x435;&#x437;&#x43E;&#x43F;&#x430;&#x441;&#x43D;&#x43E;&#x441;&#x442;&#x438;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x43F;&#x43E;&#x437;&#x432;&#x43E;&#x43B;&#x44F;&#x435;&#x442; &#x430;&#x443;&#x442;&#x435;&#x43D;&#x442;&#x438;&#x444;&#x438;&#x446;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C;&#x441;&#x44F; &#x432; &#x43E;&#x431;&#x43B;&#x430;&#x43A;&#x435; &#x431;&#x435;&#x437;
+        &#x445;&#x440;&#x430;&#x43D;&#x435;&#x43D;&#x438;&#x44F; &#x434;&#x43E;&#x43B;&#x433;&#x43E;&#x436;&#x438;&#x432;&#x443;&#x449;&#x438;&#x445; &#x43A;&#x43B;&#x44E;&#x447;&#x435;&#x439; JSON &#x432; &#x441;&#x435;&#x43A;&#x440;&#x435;&#x442;&#x430;&#x445; GitHub.</p>
+        <hr />
+        <h2 id="&#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;">&#x1F4DD; &#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;</h2>
+        <ol type="1">
+        <li>&#x41F;&#x43E;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;: <em>&#x201C;&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439; GitHub Action &#x434;&#x43B;&#x44F; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;
+        &#x442;&#x435;&#x441;&#x442;&#x43E;&#x432; &#x43F;&#x440;&#x438; &#x43A;&#x430;&#x436;&#x434;&#x43E;&#x43C; &#x43F;&#x443;&#x448;&#x435; &#x432; &#x432;&#x435;&#x442;&#x43A;&#x443; main&#x201D;</em>.</li>
+        <li>&#x418;&#x437;&#x443;&#x447;&#x438;&#x442;&#x435; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x43D;&#x44B;&#x439; &#x444;&#x430;&#x439;&#x43B; <code>.github/workflows</code>.</li>
+        </ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+  </body>
+</html>
