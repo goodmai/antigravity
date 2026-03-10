@@ -1,0 +1,51 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "jar_analyze_context",
+      "description": "ЭКОНОМНЫЙ ЗАПРОС (O(1)). Выдает архитектуру JAR (манифест, JPMS) и список доступных классов. Используйте для разведки.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jarPath": { "type": "string", "description": "Абсолютный путь к .jar" },
+          "filterPackage": { "type": "string", "description": "Например: 'com.example.service'." }
+        },
+        "required": ["jarPath"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "jar_get_class_info",
+      "description": "СРЕДНИЙ ЗАПРОС (O(1)). Дает полную семантику (AST) одного класса: методы, поля, параметры, аннотации. Используйте перед вызовом генерации кода.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jarPath": { "type": "string" },
+          "targetClass": { "type": "string", "description": "FQN класса, например 'java.lang.String'" },
+          "includePrivate": { "type": "boolean", "description": "True только для дебага (NullPointerException и т.д.). False для имплементации интерфейсов." },
+          "includeAnnotations": { "type": "boolean", "description": "Включает метаданные аннотаций (например, @Service)." }
+        },
+        "required": ["jarPath", "targetClass"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "jar_deep_scan",
+      "description": "ОПАСНО: ДОРОГОЙ ЗАПРОС (O(N)). Выгружает AST массива классов. Использовать СТРОГО с параметром filterPackage, иначе произойдет переполнение контекста агента.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "jarPath": { "type": "string" },
+          "filterPackage": { "type": "string" },
+          "includePrivate": { "type": "boolean" },
+          "includeAnnotations": { "type": "boolean" }
+        },
+        "required": ["jarPath"]
+      }
+    }
+  }
+]
