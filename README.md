@@ -4,7 +4,8 @@
 
 ## Обучение (Lessons)
 
-🎓 **[Экспресс курс по Антигравити](./lessons/index.html)** - начните изучение здесь!
+🎓 **[Экспресс курс по Антигравити](https://goodmai.github.io/antigravity/)** - начните изучение здесь!
+/ **[Lessons Online](https://goodmai.github.io/antigravity/)**
 
 - [Урок 1: Режимы агента](./lessons/1/README.md)
 
@@ -19,11 +20,13 @@
    ```bash
    chmod +x agent_control.sh
    ```
+
 2. Запустите агента:
 
    ```bash
    ./agent_control.sh start
    ```
+
 3. Запустите анализ логов:
 
    ```bash
