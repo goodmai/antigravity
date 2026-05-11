@@ -41,6 +41,8 @@ jobs:
           pandoc-version: "3.1.3"
       - name: Build lessons
         run: python3 scripts/convert_lessons.py
+      - name: Validate progress JS
+        run: node --check lessons/progress.js
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
