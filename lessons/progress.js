@@ -26,11 +26,44 @@
   function applyVisitedBadges() {
     if (load(CONSENT) !== 'yes') return;
     var p = getProgress();
-    document.querySelectorAll('[data-lesson-id]').forEach(function (el) {
+    var cards = document.querySelectorAll('[data-lesson-id]');
+    var total = cards.length;
+    var count = 0;
+
+    cards.forEach(function (el) {
       if (p[el.getAttribute('data-lesson-id')]) {
         el.classList.add('ag-visited');
+        count++;
+      } else {
+        el.classList.remove('ag-visited');
       }
     });
+
+    var counter = document.getElementById('ag-counter');
+    if (counter) {
+      if (count > 0) {
+        counter.textContent = 'Просмотрено: ' + count + ' / ' + total;
+        counter.style.display = 'inline-block';
+      } else {
+        counter.style.display = 'none';
+      }
+    }
+
+    var resetBtn = document.getElementById('ag-reset-btn');
+    if (resetBtn) {
+      resetBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+  }
+
+  function resetProgress() {
+    store(PROGRESS, '{}');
+    document.querySelectorAll('.ag-visited').forEach(function (el) {
+      el.classList.remove('ag-visited');
+    });
+    var counter = document.getElementById('ag-counter');
+    if (counter) counter.style.display = 'none';
+    var resetBtn = document.getElementById('ag-reset-btn');
+    if (resetBtn) resetBtn.style.display = 'none';
   }
 
   function showBanner() {
@@ -89,4 +122,6 @@
     markCurrentLesson();
     applyVisitedBadges();
   });
+
+  window.AgProgress = { reset: resetProgress };
 }());
