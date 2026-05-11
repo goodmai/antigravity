@@ -73,6 +73,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 | 03  | Mentions & Workflows   | [Web](https://goodmai.github.io/antigravity/lessons/3/)                               |
 | 04  | Agent Skills           | [Web](https://goodmai.github.io/antigravity/lessons/4/)                               |
 | 05  | Standard Skills        | [Web](https://goodmai.github.io/antigravity/lessons/5/)                               |
+| 06  | Advanced AI Workflows  | [Web](https://goodmai.github.io/antigravity/lessons/6/) / [MD](./lessons/6/README.md) |
+| 07  | QA Architect           | [Web](https://goodmai.github.io/antigravity/lessons/7/) / [MD](./lessons/7/README.md) |
 | 08  | Task Groups            | [Web](https://goodmai.github.io/antigravity/lessons/8/)                               |
 | 09  | Browser Subagent       | [Web](https://goodmai.github.io/antigravity/lessons/9/)                               |
 | 10  | MCP & Integration      | [Web](https://goodmai.github.io/antigravity/lessons/10/)                              |
@@ -85,6 +87,11 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 | 17  | Modern Web (Next.js)   | [Web](https://goodmai.github.io/antigravity/lessons/17/)                              |
 | 18  | Refactoring & AI       | [Web](https://goodmai.github.io/antigravity/lessons/18/)                              |
 | 19  | Microservices SDLC     | [Web](https://goodmai.github.io/antigravity/lessons/19/)                              |
+| 20  | Prompt Engineering     | [Web](https://goodmai.github.io/antigravity/lessons/20/) / [MD](./lessons/20/README.md) |
+| 21  | Agent Debugging        | [Web](https://goodmai.github.io/antigravity/lessons/21/) / [MD](./lessons/21/README.md) |
+| 22  | Custom MCP Servers     | [Web](https://goodmai.github.io/antigravity/lessons/22/) / [MD](./lessons/22/README.md) |
+| 23  | Multi-Agent Orchestration | [Web](https://goodmai.github.io/antigravity/lessons/23/) / [MD](./lessons/23/README.md) |
+| 24  | Large Codebases        | [Web](https://goodmai.github.io/antigravity/lessons/24/) / [MD](./lessons/24/README.md) |
 
 ---
 
@@ -93,6 +100,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 Practical application of Antigravity power.
 
 - **[Lab 01: TeleDrive Ecosystem](https://goodmai.github.io/antigravity/labs/01/)**: Full-stack integration of Telegram, Obsidian, and Google Drive.
+- **[Lab 02: Antigravity in GitHub Codespaces](https://goodmai.github.io/antigravity/labs/02/)**: devcontainer.json, auto-install, replacing VS Code with Antigravity IDE via OS package.
+- **[Lab 03: Antigravity in Cloud IDEs](https://goodmai.github.io/antigravity/labs/03/)**: Setup in Gitpod, Google Cloud Shell, and Replit. Platform comparison.
 
 ---
 
