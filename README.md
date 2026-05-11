@@ -85,6 +85,11 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 | 17  | Modern Web (Next.js)   | [Web](https://goodmai.github.io/antigravity/lessons/17/)                              |
 | 18  | Refactoring & AI       | [Web](https://goodmai.github.io/antigravity/lessons/18/)                              |
 | 19  | Microservices SDLC     | [Web](https://goodmai.github.io/antigravity/lessons/19/)                              |
+| 20  | Prompt Engineering     | [Web](https://goodmai.github.io/antigravity/lessons/20/) / [MD](./lessons/20/README.md) |
+| 21  | Agent Debugging        | [Web](https://goodmai.github.io/antigravity/lessons/21/) / [MD](./lessons/21/README.md) |
+| 22  | Custom MCP Servers     | [Web](https://goodmai.github.io/antigravity/lessons/22/) / [MD](./lessons/22/README.md) |
+| 23  | Multi-Agent Orchestration | [Web](https://goodmai.github.io/antigravity/lessons/23/) / [MD](./lessons/23/README.md) |
+| 24  | Large Codebases        | [Web](https://goodmai.github.io/antigravity/lessons/24/) / [MD](./lessons/24/README.md) |
 
 ---
 
@@ -93,6 +98,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 Practical application of Antigravity power.
 
 - **[Lab 01: TeleDrive Ecosystem](https://goodmai.github.io/antigravity/labs/01/)**: Full-stack integration of Telegram, Obsidian, and Google Drive.
+- **[Lab 02: Antigravity in GitHub Codespaces](https://goodmai.github.io/antigravity/labs/02/)**: devcontainer.json, auto-install of Gemini CLI, one-click cloud environment.
+- **[Lab 03: Antigravity in Cloud IDEs](https://goodmai.github.io/antigravity/labs/03/)**: Setup via terminal in Gitpod, Google Cloud Shell, and Replit. Platform comparison.
 
 ---
 
