@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import re
 
@@ -81,6 +82,12 @@ def main():
                 # or we can use an absolute path for the template
                 abs_template_path = os.path.abspath(template_path)
                 convert_md_to_html(md_path, html_path, title, abs_template_path)
+
+    # Copy progress.js to labs/ so template's ../progress.js resolves correctly
+    progress_src = os.path.join(base_dir, 'progress.js')
+    if os.path.exists(labs_dir) and os.path.exists(progress_src):
+        shutil.copy2(progress_src, os.path.join(labs_dir, 'progress.js'))
+        print("Copied progress.js to labs/")
 
 if __name__ == "__main__":
     main()

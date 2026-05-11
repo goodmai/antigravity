@@ -180,6 +180,23 @@
         color: var(--text-dim);
       }
 
+      .ag-visited::after {
+        content: "✓";
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.4);
+        color: #4ade80;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 22px;
+        text-align: center;
+      }
+
       @media (max-width: 640px) {
         h1 {
           font-size: 2.5rem;
@@ -201,7 +218,7 @@
 
       <section class="lessons-grid">
         <!-- Урок 1 -->
-        <a href="./1/index.html" class="lesson-card">
+        <a href="./1/index.html" class="lesson-card" data-lesson-id="1">
           <div class="lesson-num">
             Урок 01 <span class="badge">Доступно</span>
           </div>
@@ -213,7 +230,7 @@
         </a>
 
         <!-- Урок 2 -->
-        <a href="./2/index.html" class="lesson-card">
+        <a href="./2/index.html" class="lesson-card" data-lesson-id="2">
           <div class="lesson-num">
             Урок 02 <span class="badge">Доступно</span>
           </div>
@@ -225,7 +242,7 @@
         </a>
 
         <!-- Урок 3 -->
-        <a href="./3/index.html" class="lesson-card">
+        <a href="./3/index.html" class="lesson-card" data-lesson-id="3">
           <div class="lesson-num">
             Урок 03 <span class="badge">Доступно</span>
           </div>
@@ -236,7 +253,7 @@
         </a>
 
         <!-- Урок 4 -->
-        <a href="./4/index.html" class="lesson-card">
+        <a href="./4/index.html" class="lesson-card" data-lesson-id="4">
           <div class="lesson-num">
             Урок 04 <span class="badge">Доступно</span>
           </div>
@@ -247,7 +264,7 @@
         </a>
 
         <!-- Урок 5 -->
-        <a href="./5/index.html" class="lesson-card">
+        <a href="./5/index.html" class="lesson-card" data-lesson-id="5">
           <div class="lesson-num">
             Урок 05 <span class="badge">Доступно</span>
           </div>
@@ -258,7 +275,7 @@
         </a>
 
         <!-- Урок 6 -->
-        <a href="./6/index.html" class="lesson-card">
+        <a href="./6/index.html" class="lesson-card" data-lesson-id="6">
           <div class="lesson-num">
             Урок 06 <span class="badge">Лабораторная</span>
           </div>
@@ -269,7 +286,7 @@
         </a>
 
         <!-- Урок 7 -->
-        <a href="./7/index.html" class="lesson-card">
+        <a href="./7/index.html" class="lesson-card" data-lesson-id="7">
           <div class="lesson-num">
             Урок 07 <span class="badge">Лабораторная</span>
           </div>
@@ -280,7 +297,7 @@
         </a>
 
         <!-- Урок 8 -->
-        <a href="./8/index.html" class="lesson-card">
+        <a href="./8/index.html" class="lesson-card" data-lesson-id="8">
           <div class="lesson-num">
             Урок 08 <span class="badge">Доступно</span>
           </div>
@@ -291,7 +308,7 @@
         </a>
 
         <!-- Урок 9 -->
-        <a href="./9/index.html" class="lesson-card">
+        <a href="./9/index.html" class="lesson-card" data-lesson-id="9">
           <div class="lesson-num">
             Урок 09 <span class="badge">Доступно</span>
           </div>
@@ -302,7 +319,7 @@
         </a>
 
         <!-- Урок 10 -->
-        <a href="./10/index.html" class="lesson-card">
+        <a href="./10/index.html" class="lesson-card" data-lesson-id="10">
           <div class="lesson-num">
             Урок 10 <span class="badge">Доступно</span>
           </div>
@@ -313,7 +330,7 @@
         </a>
 
         <!-- Урок 11 -->
-        <a href="./11/index.html" class="lesson-card">
+        <a href="./11/index.html" class="lesson-card" data-lesson-id="11">
           <div class="lesson-num">
             Урок 11 <span class="badge">Доступно</span>
           </div>
@@ -324,7 +341,7 @@
         </a>
 
         <!-- Урок 12 -->
-        <a href="./12/index.html" class="lesson-card">
+        <a href="./12/index.html" class="lesson-card" data-lesson-id="12">
           <div class="lesson-num">
             Урок 12 <span class="badge">Доступно</span>
           </div>
@@ -335,7 +352,7 @@
         </a>
 
         <!-- Урок 13 -->
-        <a href="./13/index.html" class="lesson-card">
+        <a href="./13/index.html" class="lesson-card" data-lesson-id="13">
           <div class="lesson-num">
             Урок 13 <span class="badge">Доступно</span>
           </div>
@@ -346,7 +363,7 @@
         </a>
 
         <!-- Урок 14 -->
-        <a href="./14/index.html" class="lesson-card">
+        <a href="./14/index.html" class="lesson-card" data-lesson-id="14">
           <div class="lesson-num">
             Урок 14 <span class="badge">Доступно</span>
           </div>
@@ -357,7 +374,7 @@
         </a>
 
         <!-- Урок 15 -->
-        <a href="./15/index.html" class="lesson-card">
+        <a href="./15/index.html" class="lesson-card" data-lesson-id="15">
           <div class="lesson-num">
             Урок 15 <span class="badge">Доступно</span>
           </div>
@@ -368,7 +385,7 @@
         </a>
 
         <!-- Урок 16 -->
-        <a href="./16/index.html" class="lesson-card">
+        <a href="./16/index.html" class="lesson-card" data-lesson-id="16">
           <div class="lesson-num">
             Урок 16 <span class="badge">Доступно</span>
           </div>
@@ -379,7 +396,7 @@
         </a>
 
         <!-- Урок 17 -->
-        <a href="./17/index.html" class="lesson-card">
+        <a href="./17/index.html" class="lesson-card" data-lesson-id="17">
           <div class="lesson-num">
             Урок 17 <span class="badge">Доступно</span>
           </div>
@@ -390,7 +407,7 @@
         </a>
 
         <!-- Урок 18 -->
-        <a href="./18/index.html" class="lesson-card">
+        <a href="./18/index.html" class="lesson-card" data-lesson-id="18">
           <div class="lesson-num">
             Урок 18 <span class="badge">Доступно</span>
           </div>
@@ -401,7 +418,7 @@
         </a>
 
         <!-- Урок 19 -->
-        <a href="./19/index.html" class="lesson-card">
+        <a href="./19/index.html" class="lesson-card" data-lesson-id="19">
           <div class="lesson-num">
             Урок 19 <span class="badge">Доступно</span>
           </div>
@@ -430,5 +447,6 @@
         </div>
       </section>
     </div>
+    <script src="./progress.js"></script>
   </body>
 </html>
