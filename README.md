@@ -73,6 +73,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 | 03  | Mentions & Workflows   | [Web](https://goodmai.github.io/antigravity/lessons/3/)                               |
 | 04  | Agent Skills           | [Web](https://goodmai.github.io/antigravity/lessons/4/)                               |
 | 05  | Standard Skills        | [Web](https://goodmai.github.io/antigravity/lessons/5/)                               |
+| 06  | Advanced AI Workflows  | [Web](https://goodmai.github.io/antigravity/lessons/6/) / [MD](./lessons/6/README.md) |
+| 07  | QA Architect           | [Web](https://goodmai.github.io/antigravity/lessons/7/) / [MD](./lessons/7/README.md) |
 | 08  | Task Groups            | [Web](https://goodmai.github.io/antigravity/lessons/8/)                               |
 | 09  | Browser Subagent       | [Web](https://goodmai.github.io/antigravity/lessons/9/)                               |
 | 10  | MCP & Integration      | [Web](https://goodmai.github.io/antigravity/lessons/10/)                              |

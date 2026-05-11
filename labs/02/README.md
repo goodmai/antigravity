@@ -209,10 +209,135 @@ gh codespace list
 | Машина | 2 CPU / 4 GB RAM | до 32 CPU |
 | Одновременных Codespaces | 2 | 5 |
 
+## Замена VS Code на Antigravity IDE через OS-пакет
+
+Стандартный Codespace открывается в VS Code. Чтобы заменить его на Antigravity IDE (терминальный агент как основная среда разработки), используй OS-пакет в devcontainer:
+
+### Способ 1: Полная замена редактора (JetBrains Gateway / JupyterLab)
+
+В `devcontainer.json` добавь поле `"customizations.codespaces.editor"`:
+
+```json
+{
+  "name": "Antigravity IDE",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+  "customizations": {
+    "codespaces": {
+      "editor": "none"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
+  "postStartCommand": "gemini",
+  "forwardPorts": [8080]
+}
+```
+
+`"editor": "none"` отключает автооткрытие VS Code — Codespace запускается как чистая терминальная среда.
+
+### Способ 2: Установка Antigravity через OS-пакет в setup.sh
+
+```bash
+#!/bin/bash
+# .devcontainer/setup-antigravity-ide.sh
+set -e
+
+echo "=== Installing Antigravity IDE via OS packages ==="
+
+# 1. Системные зависимости через apt (OS package manager)
+sudo apt-get update -qq
+sudo apt-get install -y -qq \
+    pandoc \
+    tmux \
+    htop \
+    jq
+
+# 2. Node.js OS-пакет для Antigravity CLI
+npm install -g @google/gemini-cli
+
+# 3. Настройка Antigravity как IDE по умолчанию в терминале
+mkdir -p ~/.gemini
+cat > ~/.gemini/GEMINI.md << 'EOF'
+# Antigravity IDE — Global Config
+trigger: always
+Ты работаешь как автономный IDE-агент. При старте:
+1. Покажи структуру проекта (tree -L 2)
+2. Предложи план работы на сессию
+EOF
+
+# 4. Настрой bash profile — Antigravity запускается при открытии терминала
+cat >> ~/.bashrc << 'EOF'
+
+# Antigravity IDE auto-start
+if [ -n "$CODESPACE_NAME" ] && [ -z "$ANTIGRAVITY_STARTED" ]; then
+  export ANTIGRAVITY_STARTED=1
+  echo "Antigravity IDE ready. Run: gemini"
+fi
+EOF
+
+# 5. Создай alias для быстрого запуска
+echo 'alias ide="gemini"' >> ~/.bashrc
+echo 'alias ag="gemini"' >> ~/.bashrc
+
+# 6. Сборка академии
+python3 scripts/convert_lessons.py
+
+echo "=== Antigravity IDE installed ==="
+echo "Start with: gemini  (or alias: ide / ag)"
+```
+
+### Способ 3: devcontainer с Antigravity как primary IDE
+
+Полный `devcontainer.json` для Antigravity-first workflow:
+
+```json
+{
+  "name": "Antigravity IDE",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "Antigravity": {
+            "path": "/bin/bash",
+            "args": ["-c", "gemini; exec bash"]
+          }
+        },
+        "terminal.integrated.defaultProfile.linux": "Antigravity"
+      }
+    }
+  },
+  "remoteEnv": {
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
+  },
+  "forwardPorts": [8080]
+}
+```
+
+Здесь VS Code остаётся как оболочка, но **терминал по умолчанию сразу запускает Antigravity** — вместо обычного bash.
+
+### Проверка установки
+
+```bash
+# После открытия Codespace
+gemini --version          # Antigravity CLI установлен
+echo $GEMINI_API_KEY      # ключ доступен из Codespaces Secrets
+ide                       # алиас — запуск Antigravity IDE
+```
+
 ## Результат лабораторной
 
 После выполнения у тебя будет:
-- `devcontainer.json` + `setup.sh` в `.devcontainer/`
-- Codespace с автоустановкой Gemini CLI, Pandoc, зависимостей
-- Antigravity готов к работе сразу после открытия репозитория
+- `devcontainer.json` + `setup-antigravity-ide.sh` в `.devcontainer/`
+- Codespace с автоустановкой Gemini CLI через OS-пакет (`apt` + `npm`)
+- Antigravity запускается автоматически при открытии терминала
+- VS Code заменён / дополнен Antigravity как primary IDE
 - API-ключ безопасно хранится в Codespaces Secrets
