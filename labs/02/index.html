@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Лабораторная работа №2: Antigravity в GitHub Codespaces | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1 id="no2-antigravity-github-codespaces">Лабораторная работа №2: Antigravity в GitHub Codespaces</h1>
+<p>GitHub Codespaces предоставляет полноценную облачную среду разработки прямо в браузере. В этой лабораторной настраиваем готовое рабочее пространство с предустановленным Antigravity: открыл — и уже работаешь.</p>
+<h2 id="github-codespaces">Что такое GitHub Codespaces</h2>
+<p>Codespaces — это контейнер на базе VS Code, запущенный на серверах GitHub. Ты получаешь:
+- Полноценный Linux-терминал
+- VS Code с расширениями
+- Персистентное хранилище (пока не удалишь)
+- До 60 часов бесплатно в месяц (Free план)</p>
+<h2 id="antigravity-codespaces">Быстрый старт: запустить Antigravity в Codespaces</h2>
+<h3 id="1">1. Форкни репозиторий</h3>
+<pre class="highlight"><code>https://github.com/goodmai/antigravity → Fork
+</code></pre>
+
+<h3 id="2-codespaces">2. Открой в Codespaces</h3>
+<pre class="highlight"><code>Репозиторий → зелёная кнопка «Code» → Codespaces → Create codespace on main
+</code></pre>
+
+<p>Через 1-2 минуты откроется VS Code в браузере с уже клонированным репозиторием.</p>
+<h3 id="3">3. Установи зависимости через терминал</h3>
+<p>В открытом терминале Codespace:</p>
+<pre class="highlight"><code class="language-bash"># Проверь Python
+python3 --version   # нужен 3.10+
+
+# Проверь Node.js
+node --version      # нужен 18+
+
+# Установи Pandoc (для сборки уроков)
+sudo apt-get install -y pandoc
+
+# Установи Gemini CLI (основа Antigravity)
+npm install -g @google/gemini-cli
+
+# Проверь установку
+gemini --version
+</code></pre>
+
+<h3 id="4-api-">4. Настрой API-ключ</h3>
+<pre class="highlight"><code class="language-bash"># Создай файл окружения
+echo 'export GEMINI_API_KEY=&quot;your-api-key-here&quot;' &gt;&gt; ~/.bashrc
+source ~/.bashrc
+
+# Или используй Codespaces Secrets (рекомендуется)
+# GitHub → Settings → Codespaces → New secret → GEMINI_API_KEY
+</code></pre>
+
+<h3 id="5-antigravity">5. Настрой глобальные правила Antigravity</h3>
+<pre class="highlight"><code class="language-bash">mkdir -p ~/.gemini
+cat &gt; ~/.gemini/GEMINI.md &lt;&lt; 'EOF'
+# Global Antigravity Rules
+
+## Рабочий язык
+Общайся на русском языке.
+
+## Стиль кода
+- Python: async/await, Pydantic V2, type hints
+- JS/TS: functional style, no var
+EOF
+</code></pre>
+
+<h3 id="6">6. Собери уроки и открой академию локально</h3>
+<pre class="highlight"><code class="language-bash">cd ~/workspace/antigravity
+python3 scripts/convert_lessons.py
+
+# Запусти простой HTTP-сервер
+python3 -m http.server 8080
+</code></pre>
+
+<p>Codespaces автоматически предложит открыть порт 8080 в браузере.</p>
+<h2 id="devcontainerjson">Автоматизация через devcontainer.json</h2>
+<p>Чтобы всё устанавливалось автоматически при создании Codespace:</p>
+<pre class="highlight"><code class="language-bash">mkdir -p .devcontainer
+</code></pre>
+
+<pre class="highlight"><code class="language-json">// .devcontainer/devcontainer.json
+{
+  &quot;name&quot;: &quot;Antigravity Academy&quot;,
+  &quot;image&quot;: &quot;mcr.microsoft.com/devcontainers/python:3.12&quot;,
+  &quot;features&quot;: {
+    &quot;ghcr.io/devcontainers/features/node:1&quot;: {
+      &quot;version&quot;: &quot;20&quot;
+    }
+  },
+  &quot;postCreateCommand&quot;: &quot;bash .devcontainer/setup.sh&quot;,
+  &quot;customizations&quot;: {
+    &quot;vscode&quot;: {
+      &quot;extensions&quot;: [
+        &quot;ms-python.python&quot;,
+        &quot;ms-python.vscode-pylance&quot;,
+        &quot;esbenp.prettier-vscode&quot;,
+        &quot;yzhang.markdown-all-in-one&quot;
+      ],
+      &quot;settings&quot;: {
+        &quot;terminal.integrated.defaultProfile.linux&quot;: &quot;bash&quot;,
+        &quot;python.defaultInterpreterPath&quot;: &quot;/usr/bin/python3&quot;
+      }
+    }
+  },
+  &quot;forwardPorts&quot;: [8080],
+  &quot;portsAttributes&quot;: {
+    &quot;8080&quot;: {
+      &quot;label&quot;: &quot;Antigravity Academy&quot;,
+      &quot;onAutoForward&quot;: &quot;openBrowser&quot;
+    }
+  }
+}
+</code></pre>
+
+<pre class="highlight"><code class="language-bash">#!/bin/bash
+# .devcontainer/setup.sh
+
+set -e
+
+echo &quot;=== Antigravity Codespace Setup ===&quot;
+
+# Pandoc
+sudo apt-get update -qq
+sudo apt-get install -y -qq pandoc
+
+# Gemini CLI
+npm install -g @google/gemini-cli 2&gt;/dev/null || echo &quot;Gemini CLI install skipped&quot;
+
+# Python-зависимости
+pip install --quiet fastmcp requests
+
+# Настройка Antigravity
+mkdir -p ~/.gemini
+if [ ! -f ~/.gemini/GEMINI.md ]; then
+  cp .agent/rules/template-global.md ~/.gemini/GEMINI.md 2&gt;/dev/null || \
+  echo &quot;# Antigravity Global Rules&quot; &gt; ~/.gemini/GEMINI.md
+fi
+
+# Сборка уроков
+python3 scripts/convert_lessons.py
+
+echo &quot;=== Setup complete! ===&quot;
+echo &quot;Run: python3 -m http.server 8080&quot;
+</code></pre>
+
+<pre class="highlight"><code class="language-bash">chmod +x .devcontainer/setup.sh
+</code></pre>
+
+<h2 id="_1">Управление секретами</h2>
+<p>Никогда не храни API-ключи в коде. Используй Codespaces Secrets:</p>
+<pre class="highlight"><code>GitHub.com → Settings → Codespaces → Secrets → New secret
+
+Имя:  GEMINI_API_KEY
+Значение: AI...xxxxxxxx
+Репозиторий: goodmai/antigravity
+</code></pre>
+
+<p>В терминале Codespace секрет автоматически доступен как переменная окружения:</p>
+<pre class="highlight"><code class="language-bash">echo $GEMINI_API_KEY    # проверка
+gemini                  # запуск — ключ подхватится автоматически
+</code></pre>
+
+<h2 id="codespace">Полезные команды в Codespace</h2>
+<pre class="highlight"><code class="language-bash"># Статус Codespace
+gh codespace list
+
+# Остановить (сэкономить часы)
+# Просто закрой вкладку браузера — Codespace засыпает через 30 мин
+
+# Пересоздать с нуля (если сломалось)
+# GitHub → Repository → Code → Codespaces → ⋯ → Delete → Create new
+
+# Скачать файлы
+# VS Code → Explorer → ПКМ на файл → Download
+</code></pre>
+
+<h2 id="_2">Лимиты бесплатного плана</h2>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th>Free</th>
+<th>Pro</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Часов в месяц</td>
+<td>60</td>
+<td>180</td>
+</tr>
+<tr>
+<td>Хранилище</td>
+<td>15 GB</td>
+<td>20 GB</td>
+</tr>
+<tr>
+<td>Машина</td>
+<td>2 CPU / 4 GB RAM</td>
+<td>до 32 CPU</td>
+</tr>
+<tr>
+<td>Одновременных Codespaces</td>
+<td>2</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">Результат лабораторной</h2>
+<p>После выполнения у тебя будет:
+- <code>devcontainer.json</code> + <code>setup.sh</code> в <code>.devcontainer/</code>
+- Codespace с автоустановкой Gemini CLI, Pandoc, зависимостей
+- Antigravity готов к работе сразу после открытия репозитория
+- API-ключ безопасно хранится в Codespaces Secrets</p>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

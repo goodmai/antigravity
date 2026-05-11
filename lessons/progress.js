@@ -23,6 +23,21 @@
     store(PROGRESS, JSON.stringify(p));
   }
 
+  function setBadgeVisited(card) {
+    var badge = card.querySelector('.badge');
+    if (!badge) return;
+    if (!badge.dataset.orig) badge.dataset.orig = badge.textContent;
+    badge.textContent = 'Просмотрено';
+    badge.classList.add('ag-badge-done');
+  }
+
+  function restoreBadge(card) {
+    var badge = card.querySelector('.badge');
+    if (!badge) return;
+    if (badge.dataset.orig) badge.textContent = badge.dataset.orig;
+    badge.classList.remove('ag-badge-done');
+  }
+
   function applyVisitedBadges() {
     if (load(CONSENT) !== 'yes') return;
     var p = getProgress();
@@ -33,9 +48,11 @@
     cards.forEach(function (el) {
       if (p[el.getAttribute('data-lesson-id')]) {
         el.classList.add('ag-visited');
+        setBadgeVisited(el);
         count++;
       } else {
         el.classList.remove('ag-visited');
+        restoreBadge(el);
       }
     });
 
@@ -57,8 +74,9 @@
 
   function resetProgress() {
     store(PROGRESS, '{}');
-    document.querySelectorAll('.ag-visited').forEach(function (el) {
+    document.querySelectorAll('[data-lesson-id]').forEach(function (el) {
       el.classList.remove('ag-visited');
+      restoreBadge(el);
     });
     var counter = document.getElementById('ag-counter');
     if (counter) counter.style.display = 'none';

@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Многоагентная оркестрация | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1 id="_1">Многоагентная оркестрация</h1>
+<p>Один агент решает задачи последовательно. Команда специализированных агентов работает параллельно, каждый в своей зоне ответственности. В этом уроке строим многоагентные системы: от ролевого кастинга до Grand Unified Workflow.</p>
+<h2 id="_2">Почему несколько агентов</h2>
+<pre class="highlight"><code>┌─────────────────────────────────────────────────────┐
+│  Один агент                                         │
+│  Architect → Dev → QA → Security → DevOps           │
+│  Время: 45 мин    Качество: среднее (переключения)  │
+├─────────────────────────────────────────────────────┤
+│  Команда агентов                                    │
+│  Architect ──────────────────────────────┐          │
+│  Developer (×2) ──────────────────┐      │          │
+│  QA ──────────────────────┐       │      │          │
+│  Security ──────────┐     │       │      │          │
+│  DevOps ─────┐      │     │       │      │          │
+│              └──────┴─────┴───────┴──────┘          │
+│  Время: 12 мин    Качество: высокое (специализация) │
+└─────────────────────────────────────────────────────┘
+</code></pre>
+
+<h2 id="_3">Ролевой кастинг</h2>
+<p>Каждый агент определяется своим <code>SKILL.md</code> или правилом в <code>.agent/rules/</code>:</p>
+<h3 id="_4">Архитектор</h3>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/role-architect.md --&gt;
+---
+trigger: model_decision
+---
+Ты — Software Architect. Твои обязанности:
+- Проектировать структуру системы (C4, ADR)
+- Принимать решения о паттернах (не реализовывать)
+- Выдавать артефакты: architecture_decision.md, component_diagram.md
+- НЕ писать production-код, только спецификации
+</code></pre>
+
+<h3 id="_5">Разработчик</h3>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/role-developer.md --&gt;
+---
+trigger: model_decision
+---
+Ты — Backend Developer (Python/FastAPI/Pydantic V2).
+Реализуй строго по спецификации от Архитектора.
+Стиль: async/await, type hints везде, dependency injection.
+Выходные артефакты: изменения в src/, тесты в tests/.
+</code></pre>
+
+<h3 id="qa-">QA-инженер</h3>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/role-qa.md --&gt;
+---
+trigger: model_decision
+---
+Ты — QA Engineer. Работаешь только после Developer.
+Задачи: генерация тест-плана (XLSX), E2E тесты (Playwright),
+проверка покрытия (coverage &gt; 80%).
+Не исправляй код — только фиксируй дефекты в артефакте.
+</code></pre>
+
+<h3 id="security-">Security-ревьюер</h3>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/role-security.md --&gt;
+---
+trigger: model_decision
+---
+Ты — Security Engineer. Проводишь review после Developer.
+Проверяй: OWASP Top 10, IDOR, небезопасные зависимости.
+Выход: security_report.md с [CRITICAL/HIGH/MEDIUM/LOW].
+</code></pre>
+
+<h2 id="_6">Паттерны оркестрации</h2>
+<h3 id="1">1. Последовательный конвейер</h3>
+<p>Каждый агент получает результат предыдущего:</p>
+<pre class="highlight"><code class="language-markdown">// workflow: sequential-pipeline
+
+## Шаг 1: Architect
+Роль: @/.agent/rules/role-architect.md
+Задача: спроектируй API для {FEATURE}
+Выход: артефакт architecture_decision.md → ревью
+
+## Шаг 2: Developer (после апрува Архитектора)
+Роль: @/.agent/rules/role-developer.md
+Входные данные: @/artifacts/architecture_decision.md
+Задача: реализуй согласно спецификации
+
+## Шаг 3: QA + Security (параллельно после Developer)
+QA: генерируй тест-план и E2E тесты
+Security: проверь реализацию на уязвимости
+
+## Шаг 4: DevOps (после QA green + Security clear)
+Задача: обнови CI/CD, docker-compose, мониторинг
+</code></pre>
+
+<h3 id="2">2. Параллельный ревью</h3>
+<p>Несколько агентов проверяют один и тот же результат независимо:</p>
+<pre class="highlight"><code class="language-markdown">// workflow: parallel-review
+
+После реализации фичи запусти одновременно:
+- [ ] QA: тест-план и покрытие
+- [ ] Security: OWASP-ревью
+- [ ] Performance: анализ узких мест (N+1, индексы)
+
+Объедини все отчёты в release_readiness.md
+</code></pre>
+
+<h3 id="3-self-healing">3. Специализированный Self-Healing</h3>
+<pre class="highlight"><code class="language-markdown">// workflow: self-healing-security
+
+loop:
+  Developer → реализует изменения
+  Security → анализирует, выдаёт security_report.md
+  if CRITICAL issues в report:
+    Developer → фиксит по отчёту
+    goto loop
+  else:
+    exit loop → PR ready
+</code></pre>
+
+<h2 id="context-sharing">Context Sharing: Передача данных между агентами</h2>
+<p>Агенты общаются через <strong>артефакты</strong> в <code>.agent/context/</code>:</p>
+<pre class="highlight"><code>.agent/
+└── context/
+    ├── architecture_decision.md   # от Architect
+    ├── api_contract.yaml          # от Architect → читает Developer
+    ├── security_report.md         # от Security → читает Developer
+    └── test_results.md            # от QA → читает DevOps
+</code></pre>
+
+<p>В Workflow используй <code>@/</code> для явных ссылок:</p>
+<pre class="highlight"><code class="language-markdown">Developer читает: @/.agent/context/architecture_decision.md
+Developer пишет: src/, tests/
+Security читает: @/src/
+Security пишет: @/.agent/context/security_report.md
+</code></pre>
+
+<h2 id="grand-unified-workflow">Grand Unified Workflow</h2>
+<p>Пример полного цикла разработки фичи с ролевыми агентами:</p>
+<pre class="highlight"><code class="language-markdown">// workflow: grand-unified-feature
+
+// turbo
+
+## Фаза 0: Инициация
+Создай `.agent/context/feature_spec.md` с описанием задачи
+
+## Фаза 1: Архитектура
+@role: Architect
+Спроектируй компоненты и API-контракт (OpenAPI 3.0)
+→ артефакт: api_contract.yaml
+
+## Фаза 2: Реализация
+@role: Developer
+Реализуй строго по @/.agent/context/api_contract.yaml
+→ изменения в src/
+
+## Фаза 3: Верификация (параллельно)
+@role: QA      → тесты, coverage report
+@role: Security → OWASP review
+
+## Фаза 4: Интеграция
+@role: DevOps
+Обнови: .github/workflows/ci.yml, docker-compose.yml
+Условие: только если QA green &amp;&amp; Security clear
+
+## Фаза 5: Финальный ревью
+Создай RELEASE_NOTES.md со списком изменений
+</code></pre>
+
+<h2 id="_7">Инструментарий для координации</h2>
+<table>
+<thead>
+<tr>
+<th>Инструмент</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.agent/context/</code></td>
+<td>Обмен артефактами между агентами</td>
+</tr>
+<tr>
+<td><code>trigger: model_decision</code></td>
+<td>Агент сам выбирает когда активировать роль</td>
+</tr>
+<tr>
+<td><code>// turbo</code> в Workflow</td>
+<td>Автоматическое выполнение без паузы на ревью</td>
+</tr>
+<tr>
+<td>Pending States</td>
+<td>Явная точка синхронизации между агентами</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_8">Практика</h2>
+<ol>
+<li>Создай три правила в <code>.agent/rules/</code>: <code>role-architect.md</code>, <code>role-developer.md</code>, <code>role-qa.md</code></li>
+<li>Напиши Workflow <code>sequential-pipeline</code> для добавления нового API endpoint</li>
+<li>Запусти и сравни качество результата с одноагентным выполнением той же задачи</li>
+</ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

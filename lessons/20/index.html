@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Промпт-инжиниринг для агентов Antigravity | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1 id="-antigravity">Промпт-инжиниринг для агентов Antigravity</h1>
+<p>Качество результата агента напрямую зависит от того, насколько точно и структурированно сформулирована задача. В этом уроке разбираем техники, которые работают именно в контексте Antigravity: от фреймворков для одного запроса до шаблонов целых Workflows.</p>
+<h2 id="co-star">CO-STAR: Структурированный промпт</h2>
+<p>Фреймворк <strong>CO-STAR</strong> устраняет неоднозначность, разбивая запрос на шесть чётких компонентов:</p>
+<table>
+<thead>
+<tr>
+<th>Компонент</th>
+<th>Описание</th>
+<th>Пример</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>C</strong>ontext</td>
+<td>Фоновая информация</td>
+<td>«FastAPI-сервис с JWT, PostgreSQL»</td>
+</tr>
+<tr>
+<td><strong>O</strong>bjective</td>
+<td>Точная задача</td>
+<td>«Напиши unit-тест для <code>/auth/refresh</code>»</td>
+</tr>
+<tr>
+<td><strong>S</strong>tyle</td>
+<td>Стиль реализации</td>
+<td>«pytest fixtures, без unittest.mock»</td>
+</tr>
+<tr>
+<td><strong>T</strong>one</td>
+<td>Тональность вывода</td>
+<td>«Только код, без объяснений»</td>
+</tr>
+<tr>
+<td><strong>A</strong>udience</td>
+<td>Целевая аудитория</td>
+<td>«Senior Python developer»</td>
+</tr>
+<tr>
+<td><strong>R</strong>esponse</td>
+<td>Формат ответа</td>
+<td>«Один файл <code>test_auth.py</code>»</td>
+</tr>
+</tbody>
+</table>
+<h3 id="skillmd">Применение в SKILL.md</h3>
+<p>CO-STAR особенно эффективен в описании навыков — он становится постоянной инструкцией для каждого вызова:</p>
+<pre class="highlight"><code class="language-yaml">---
+name: api-test-generator
+description: &gt;
+  Контекст: проект на FastAPI, Pydantic V2, async/await, PostgreSQL.
+  Задача: генерировать pytest-тесты для указанных endpoints.
+  Стиль: fixtures в conftest.py, AAA-паттерн (Arrange/Act/Assert).
+  Формат: только код теста, без комментариев.
+---
+</code></pre>
+
+<h2 id="chain-of-thought">Chain-of-Thought: Пошаговое рассуждение</h2>
+<p>Явная просьба «думать вслух» повышает качество на сложных задачах:</p>
+<pre class="highlight"><code>Задача: спроектируй схему БД для мессенджера.
+
+Рассуждай пошагово:
+1. Определи основные сущности (User, Message, Chat, Media)
+2. Выяви связи и кардинальность
+3. Подумай об индексах для частых запросов
+4. Учти масштабирование до 1M пользователей
+5. Только после этого выдай SQL DDL
+</code></pre>
+
+<p>В Antigravity это встраивается в Workflow через явные паузы с артефактом на ревью между шагами.</p>
+<h2 id="few-shot">Few-Shot: Пример как стандарт</h2>
+<p>Один пример в начале инструкции задаёт точный формат вывода:</p>
+<pre class="highlight"><code class="language-markdown">## Пример входа:
+def get_user(id: int): ...
+
+## Пример выхода:
+async def test_get_user_success(client, db_session):
+    user = await create_test_user(db_session)
+    response = await client.get(f&quot;/users/{user.id}&quot;)
+    assert response.status_code == 200
+    assert response.json()[&quot;id&quot;] == user.id
+
+## Теперь сгенерируй тест для:
+def delete_order(order_id: int, user_id: int): ...
+</code></pre>
+
+<p>Агент извлекает паттерн из примера: <code>async</code>, <code>create_test_*</code>, <code>assert status + body</code>.</p>
+<h2 id="role-prompting">Role Prompting: Специализация агента</h2>
+<p>Явная роль сужает пространство поведений модели и активирует нужный стиль мышления:</p>
+<pre class="highlight"><code>Ты — Senior Security Engineer с 10 годами опыта в pentesting.
+Проведи code review на предмет OWASP Top 10.
+Формат: таблица [Уязвимость | Строка | Severity | Рекомендация].
+</code></pre>
+
+<p>В Antigravity роли прописываются в <code>.agent/rules/</code> для постоянной активации без повторного указания:</p>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/security-reviewer.md --&gt;
+---
+trigger: always
+---
+При каждом code review проверяй: SQL-инъекции, XSS, IDOR, небезопасные зависимости (OWASP Top 10).
+</code></pre>
+
+<h2 id="-">Мета-промптинг: Агент пишет промпты для себя</h2>
+<p>Antigravity умеет генерировать собственные SKILL.md — используй это для создания новых навыков:</p>
+<pre class="highlight"><code>Создай SKILL.md для навыка, который:
+- Генерирует OpenAPI 3.0 спецификацию из FastAPI кода
+- Учитывает JWT security schemes и Pydantic V2 схемы
+- Выдаёт YAML без лишних объяснений
+
+Используй CO-STAR структуру в поле description.
+</code></pre>
+
+<h2 id="_1">Управление фокусом через промпт</h2>
+<p>Явно ограничивай область внимания агента — это дешевле полного <code>.antigravityignore</code>:</p>
+<pre class="highlight"><code>Работай только с файлами в src/api/.
+Игнорируй tests/, docs/, migrations/.
+При ссылках на модели используй только src/models/schemas.py.
+</code></pre>
+
+<h2 id="workflow">Шаблон промпта для Workflow</h2>
+<pre class="highlight"><code class="language-markdown">// workflow: feature-implementation
+
+## Контекст
+@/src/api/routes.py
+@/.agent/rules/coding-standards.md
+
+## Задача
+Реализуй: {FEATURE_DESCRIPTION}
+
+## Критерии готовности
+- [ ] Unit-тесты: happy path + edge cases
+- [ ] Нет изменений в несвязанных файлах
+- [ ] Pydantic V2 для всех входных данных
+
+## Шаги
+1. Проанализируй @/src/api/ → артефакт с планом на ревью
+2. После апрува — реализуй
+3. Напиши тесты
+4. Проверь критерии
+</code></pre>
+
+<h2 id="_2">Типичные ошибки</h2>
+<table>
+<thead>
+<tr>
+<th>Ошибка</th>
+<th>Плохо</th>
+<th>Хорошо</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Размытая задача</td>
+<td>«Улучши код»</td>
+<td>«Перепиши <code>X</code> используя async/await»</td>
+</tr>
+<tr>
+<td>Нет формата</td>
+<td>«Объясни архитектуру»</td>
+<td>«Нарисуй Mermaid C4-диаграмму»</td>
+</tr>
+<tr>
+<td>Перегруженность</td>
+<td>10 задач в одном промпте</td>
+<td>1 задача → артефакт → следующая</td>
+</tr>
+<tr>
+<td>Нет контекста</td>
+<td>«Добавь кеширование»</td>
+<td>«Добавь Redis кеш для GET /products, TTL 5 мин»</td>
+</tr>
+<tr>
+<td>Нет критериев</td>
+<td>«Сделай хорошо»</td>
+<td>«Done when: тесты зелёные, coverage &gt; 80%»</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">Практика</h2>
+<p>Возьми любой Workflow из <code>.agent/workflows/</code> и улучши его:
+1. Добавь CO-STAR структуру в заголовок
+2. Добавь few-shot пример ожидаемого результата
+3. Пропиши явные критерии готовности
+4. Назначь роль агенту через <code>trigger: always</code> правило</p>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

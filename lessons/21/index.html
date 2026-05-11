@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Отладка и диагностика агентных задач | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1 id="_1">Отладка и диагностика агентных задач</h1>
+<p>Агент может зависнуть, уйти не в ту сторону или вернуть непонятный результат. В этом уроке разбираем систематический подход к диагностике: как читать артефакты задач, распознавать паттерны ошибок и безопасно восстанавливаться.</p>
+<h2 id="antigravity">Архитектура наблюдаемости в Antigravity</h2>
+<p>Antigravity оставляет три слоя информации о ходе задачи:</p>
+<pre class="highlight"><code>┌─────────────────────────────────────────┐
+│  Task Group (видите в UI)               │
+│  ├── Overarching Goal                   │
+│  ├── Subtasks (зелёные / красные)       │
+│  └── File Pills (изменённые файлы)      │
+├─────────────────────────────────────────┤
+│  Artifacts (артефакты)                  │
+│  ├── implementation_plan.md             │
+│  ├── walkthrough.md                     │
+│  └── error_report.md                    │
+├─────────────────────────────────────────┤
+│  Terminal Output                        │
+│  ├── stdout / stderr инструментов       │
+│  ├── MCP server logs                    │
+│  └── CLI exit codes                     │
+└─────────────────────────────────────────┘
+</code></pre>
+
+<h2 id="_2">Паттерны ошибок и их диагноз</h2>
+<h3 id="1">1. Агент «крутится на месте»</h3>
+<p><strong>Симптом</strong>: подзадачи помечаются и снова сбрасываются, нет прогресса.</p>
+<p><strong>Причины и лечение</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Причина</th>
+<th>Диагноз</th>
+<th>Решение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Нечёткое задание</td>
+<td>В плане артефакта расплывчатые шаги</td>
+<td>Уточни задачу с примером ожидаемого результата</td>
+</tr>
+<tr>
+<td>Противоречивые правила</td>
+<td><code>.agent/rules/</code> конфликтуют между собой</td>
+<td>Проверь <code>trigger: always</code> правила на пересечения</td>
+</tr>
+<tr>
+<td>Зацикленный тест</td>
+<td>Тест всегда падает → агент чинит → снова падает</td>
+<td>Посмотри stdout теста вручную</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-mcp">2. MCP инструмент не отвечает</h3>
+<p><strong>Симптом</strong>: в терминале <code>MCP error: connection refused</code> или <code>timeout</code>.</p>
+<pre class="highlight"><code class="language-bash"># Проверь статус MCP-серверов
+# Settings → MCP Servers → список онлайн/офлайн
+
+# Перезапусти конкретный сервер (пример для GitHub MCP)
+pkill -f &quot;mcp-server-github&quot;
+# Antigravity перезапустит его автоматически при следующем вызове
+</code></pre>
+
+<p><strong>Частые причины</strong>:
+- Сервер требует <code>GITHUB_TOKEN</code> или другой секрет — проверь <code>.env</code>
+- Docker-сервер не запущен: <code>docker ps | grep mcp</code>
+- Порт занят другим процессом: <code>lsof -i :3000</code></p>
+<h3 id="3">3. Агент редактирует не те файлы</h3>
+<p><strong>Симптом</strong>: File Pills показывают изменения в не связанных с задачей файлах.</p>
+<p><strong>Действие</strong>: немедленно нажми «Stop» → проверь git diff → при необходимости откатись:</p>
+<pre class="highlight"><code class="language-bash">git diff --stat          # что изменилось
+git stash                # сохрани изменения для анализа
+git checkout -- .        # откат рабочего дерева
+</code></pre>
+
+<h3 id="4">4. Тесты проходили, потом перестали</h3>
+<p><strong>Симптом</strong>: агент сообщает «тесты зелёные», но при ручном запуске они падают.</p>
+<pre class="highlight"><code class="language-bash"># Запусти тесты самостоятельно, не через агента
+npm test -- --verbose
+pytest -xvs
+
+# Проверь, не мокировал ли агент тест вместо фикса
+git show HEAD:tests/test_feature.py | grep -E &quot;mock|skip|xfail&quot;
+</code></pre>
+
+<h3 id="5">5. Неожиданное удаление или перезапись файлов</h3>
+<p><strong>Симптом</strong>: агент выполнил <code>rm</code> или перезаписал важный файл.</p>
+<pre class="highlight"><code class="language-bash"># Проверь git history
+git log --oneline -10
+git show HEAD --stat
+
+# Восстанови конкретный файл
+git checkout HEAD~1 -- path/to/file.py
+</code></pre>
+
+<h2 id="_3">Стратегия «чистого дерева»</h2>
+<p>Золотое правило: <strong>всегда работай с чистым git tree</strong> перед запуском агента в Turbo-режиме.</p>
+<pre class="highlight"><code class="language-bash">git status                    # убедись, что нет незакоммиченных изменений
+git stash                     # если есть — сохрани
+# Запускай агента...
+git diff                      # после — просмотри всё что изменилось
+git add -p                    # стейджи только нужное
+</code></pre>
+
+<h2 id="pending-states">Использование Pending States для контроля</h2>
+<p>В опасных ситуациях агент переходит в <strong>Pending State</strong> и ждёт подтверждения. Используй это:</p>
+<pre class="highlight"><code class="language-markdown">&lt;!-- .agent/rules/confirm-destructive.md --&gt;
+---
+trigger: always
+---
+Перед выполнением любой деструктивной операции (DROP TABLE, rm -rf, git reset --hard,
+деплой в production) создай артефакт с описанием последствий и дождись явного апрува.
+</code></pre>
+
+<h2 id="_4">Диагностический чеклист</h2>
+<p>Когда что-то идёт не так — пройди по списку:</p>
+<pre class="highlight"><code>□ Прочитай последний артефакт — там описан текущий план
+□ Проверь Terminal Output на exit codes != 0
+□ Убедись, что все нужные MCP-серверы онлайн
+□ Запусти тесты вручную — не полагайся только на отчёт агента
+□ git diff — посмотри реальные изменения, не описание
+□ Если агент явно не справляется — Stop → уточни задачу → рестарт
+</code></pre>
+
+<h2 id="_5">Техники превентивной отладки</h2>
+<p>Лучше предотвратить проблему, чем чинить:</p>
+<pre class="highlight"><code class="language-markdown">// workflow: safe-execution
+
+## Перед началом
+- Сделай git commit &quot;before: {task}&quot; как точку отката
+- Убедись, что тесты проходят ДО изменений
+
+## Критерии остановки
+Если за 3 итерации один и тот же тест всё ещё падает —
+останови задачу и создай артефакт с диагнозом.
+
+## После завершения
+- Запусти полный тестовый прогон вручную
+- Проверь git diff на нежелательные изменения
+</code></pre>
+
+<h2 id="_6">Практика</h2>
+<ol>
+<li>Намеренно создай задачу с нечётким описанием — наблюдай, как агент интерпретирует её</li>
+<li>Отключи один MCP-сервер и запусти задачу, которая его использует — изучи сообщение об ошибке</li>
+<li>Настрой правило <code>confirm-destructive</code> из примера выше и проверь его срабатывание</li>
+</ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>
