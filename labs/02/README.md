@@ -40,11 +40,16 @@ node --version      # нужен 18+
 # Установи Pandoc (для сборки уроков)
 sudo apt-get install -y pandoc
 
-# Установи Gemini CLI (основа Antigravity)
-npm install -g @google/gemini-cli
+# Установи Antigravity IDE через системный пакетный менеджер (Ubuntu/Codespaces)
+sudo add-apt-repository ppa:antigravity/ppa -y
+sudo apt-get update
+sudo apt-get install -y antigravity
+
+# На macOS — через Homebrew:
+# brew install antigravity
 
 # Проверь установку
-gemini --version
+antigravity --version
 ```
 
 ### 4. Настрой API-ключ
@@ -141,8 +146,9 @@ echo "=== Antigravity Codespace Setup ==="
 sudo apt-get update -qq
 sudo apt-get install -y -qq pandoc
 
-# Gemini CLI
-npm install -g @google/gemini-cli 2>/dev/null || echo "Gemini CLI install skipped"
+# Antigravity IDE — установка через APT (OS native package manager)
+sudo add-apt-repository ppa:antigravity/ppa -y -qq 2>/dev/null || true
+sudo apt-get install -y -qq antigravity
 
 # Python-зависимости
 pip install --quiet fastmcp requests
@@ -158,7 +164,7 @@ fi
 python3 scripts/convert_lessons.py
 
 echo "=== Setup complete! ==="
-echo "Run: python3 -m http.server 8080"
+echo "Run: antigravity   (or: python3 -m http.server 8080)"
 ```
 
 ```bash
@@ -181,7 +187,7 @@ GitHub.com → Settings → Codespaces → Secrets → New secret
 
 ```bash
 echo $GEMINI_API_KEY    # проверка
-gemini                  # запуск — ключ подхватится автоматически
+antigravity             # запуск — ключ подхватится автоматически
 ```
 
 ## Полезные команды в Codespace
@@ -230,7 +236,7 @@ gh codespace list
     }
   },
   "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
-  "postStartCommand": "gemini",
+  "postStartCommand": "antigravity",
   "forwardPorts": [8080]
 }
 ```
@@ -254,8 +260,9 @@ sudo apt-get install -y -qq \
     htop \
     jq
 
-# 2. Node.js OS-пакет для Antigravity CLI
-npm install -g @google/gemini-cli
+# 2. Antigravity IDE — установка через APT (OS native package manager)
+sudo add-apt-repository ppa:antigravity/ppa -y -qq
+sudo apt-get install -y -qq antigravity
 
 # 3. Настройка Antigravity как IDE по умолчанию в терминале
 mkdir -p ~/.gemini
@@ -273,19 +280,19 @@ cat >> ~/.bashrc << 'EOF'
 # Antigravity IDE auto-start
 if [ -n "$CODESPACE_NAME" ] && [ -z "$ANTIGRAVITY_STARTED" ]; then
   export ANTIGRAVITY_STARTED=1
-  echo "Antigravity IDE ready. Run: gemini"
+  echo "Antigravity IDE ready. Run: antigravity"
 fi
 EOF
 
 # 5. Создай alias для быстрого запуска
-echo 'alias ide="gemini"' >> ~/.bashrc
-echo 'alias ag="gemini"' >> ~/.bashrc
+echo 'alias ide="antigravity"' >> ~/.bashrc
+echo 'alias ag="antigravity"' >> ~/.bashrc
 
 # 6. Сборка академии
 python3 scripts/convert_lessons.py
 
 echo "=== Antigravity IDE installed ==="
-echo "Start with: gemini  (or alias: ide / ag)"
+echo "Start with: antigravity  (or alias: ide / ag)"
 ```
 
 ### Способ 3: devcontainer с Antigravity как primary IDE
@@ -308,7 +315,7 @@ echo "Start with: gemini  (or alias: ide / ag)"
         "terminal.integrated.profiles.linux": {
           "Antigravity": {
             "path": "/bin/bash",
-            "args": ["-c", "gemini; exec bash"]
+            "args": ["-c", "antigravity; exec bash"]
           }
         },
         "terminal.integrated.defaultProfile.linux": "Antigravity"
@@ -328,7 +335,7 @@ echo "Start with: gemini  (or alias: ide / ag)"
 
 ```bash
 # После открытия Codespace
-gemini --version          # Antigravity CLI установлен
+antigravity --version     # Antigravity IDE установлен
 echo $GEMINI_API_KEY      # ключ доступен из Codespaces Secrets
 ide                       # алиас — запуск Antigravity IDE
 ```
@@ -337,7 +344,7 @@ ide                       # алиас — запуск Antigravity IDE
 
 После выполнения у тебя будет:
 - `devcontainer.json` + `setup-antigravity-ide.sh` в `.devcontainer/`
-- Codespace с автоустановкой Gemini CLI через OS-пакет (`apt` + `npm`)
+- Codespace с автоустановкой Antigravity IDE через OS-пакет (`apt` / `brew`)
 - Antigravity запускается автоматически при открытии терминала
 - VS Code заменён / дополнен Antigravity как primary IDE
 - API-ключ безопасно хранится в Codespaces Secrets
