@@ -180,21 +180,86 @@
         color: var(--text-dim);
       }
 
-      .ag-visited::after {
-        content: "✓";
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: rgba(34, 197, 94, 0.15);
-        border: 1px solid rgba(34, 197, 94, 0.4);
+      .ag-visited {
+        border-color: rgba(34, 197, 94, 0.35);
+        background: linear-gradient(
+          135deg,
+          rgba(34, 197, 94, 0.06) 0%,
+          rgba(30, 41, 59, 0.5) 100%
+        );
+      }
+
+      .ag-visited::before {
+        background: linear-gradient(to right, #4ade80, #22c55e);
+        opacity: 1;
+      }
+
+      .ag-visited:hover {
+        border-color: rgba(34, 197, 94, 0.6);
+        box-shadow:
+          0 20px 25px -5px rgba(0, 0, 0, 0.2),
+          0 10px 10px -5px rgba(34, 197, 94, 0.1);
+      }
+
+      .ag-badge-done {
+        background: rgba(34, 197, 94, 0.15) !important;
+        border-color: rgba(34, 197, 94, 0.4) !important;
+        color: #4ade80 !important;
+      }
+
+      #ag-counter {
+        display: none;
+        font-size: 0.8125rem;
         color: #4ade80;
-        font-size: 13px;
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.25);
+        padding: 4px 14px;
+        border-radius: 20px;
+        margin-top: 14px;
+      }
+
+      .labs-section {
+        margin-top: 60px;
+      }
+
+      .section-title {
+        font-size: 1.5rem;
         font-weight: 700;
-        line-height: 22px;
-        text-align: center;
+        color: var(--text-main);
+        margin-bottom: 24px;
+      }
+
+      .site-footer {
+        margin-top: 60px;
+        padding: 24px 0;
+        border-top: 1px solid var(--glass-border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+
+      .reset-btn {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: 1px solid rgba(248, 113, 113, 0.3);
+        color: #f87171;
+        padding: 6px 16px;
+        border-radius: 20px;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        font-family: inherit;
+        transition: all 0.2s;
+      }
+
+      .reset-btn:hover {
+        background: rgba(248, 113, 113, 0.1);
+        border-color: rgba(248, 113, 113, 0.55);
       }
 
       @media (max-width: 640px) {
@@ -214,6 +279,7 @@
         <p class="subtitle">
           Мастерство автономных агентов и инженерии будущего
         </p>
+        <span id="ag-counter"></span>
       </header>
 
       <section class="lessons-grid">
@@ -428,6 +494,60 @@
           </p>
         </a>
 
+        <!-- Урок 20 -->
+        <a href="./20/index.html" class="lesson-card" data-lesson-id="20">
+          <div class="lesson-num">
+            Урок 20 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Промпт-инжиниринг для агентов</h2>
+          <p class="lesson-desc">
+            CO-STAR, chain-of-thought, few-shot и role prompting в контексте Antigravity Workflows.
+          </p>
+        </a>
+
+        <!-- Урок 21 -->
+        <a href="./21/index.html" class="lesson-card" data-lesson-id="21">
+          <div class="lesson-num">
+            Урок 21 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Отладка агентных задач</h2>
+          <p class="lesson-desc">
+            Диагностика зависших пайплайнов, MCP-ошибок и восстановление через git.
+          </p>
+        </a>
+
+        <!-- Урок 22 -->
+        <a href="./22/index.html" class="lesson-card" data-lesson-id="22">
+          <div class="lesson-num">
+            Урок 22 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Кастомные MCP-серверы</h2>
+          <p class="lesson-desc">
+            Создание собственных MCP-серверов на Python и Node.js, регистрация и отладка.
+          </p>
+        </a>
+
+        <!-- Урок 23 -->
+        <a href="./23/index.html" class="lesson-card" data-lesson-id="23">
+          <div class="lesson-num">
+            Урок 23 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Многоагентная оркестрация</h2>
+          <p class="lesson-desc">
+            Ролевой кастинг, паттерны координации и Grand Unified Workflow для команды агентов.
+          </p>
+        </a>
+
+        <!-- Урок 24 -->
+        <a href="./24/index.html" class="lesson-card" data-lesson-id="24">
+          <div class="lesson-num">
+            Урок 24 <span class="badge">Доступно</span>
+          </div>
+          <h2 class="lesson-title">Большие кодовые базы</h2>
+          <p class="lesson-desc">
+            .antigravityignore, чанкинг, инкрементальный рефакторинг и управление 2M-токенным окном.
+          </p>
+        </a>
 
       </section>
 
@@ -444,8 +564,37 @@
                 Спецификация интеграции Telegram, Obsidian и Google Drive.
               </p>
             </a>
+
+            <!-- Lab 02 -->
+            <a href="../labs/02/index.html" class="lesson-card">
+              <div class="lesson-num">
+                Lab 02 <span class="badge">Лабораторная</span>
+              </div>
+              <h2 class="lesson-title">Antigravity в GitHub Codespaces</h2>
+              <p class="lesson-desc">
+                devcontainer.json, автоустановка Gemini CLI и запуск среды одним кликом из браузера.
+              </p>
+            </a>
+
+            <!-- Lab 03 -->
+            <a href="../labs/03/index.html" class="lesson-card">
+              <div class="lesson-num">
+                Lab 03 <span class="badge">Лабораторная</span>
+              </div>
+              <h2 class="lesson-title">Antigravity в облачных IDE</h2>
+              <p class="lesson-desc">
+                Установка через терминал в Gitpod, Google Cloud Shell и Replit. Сравнение платформ.
+              </p>
+            </a>
         </div>
       </section>
+
+      <footer class="site-footer">
+        <span>Anti-Gravity Academy &copy; 2026</span>
+        <button id="ag-reset-btn" class="reset-btn" onclick="AgProgress.reset()">
+          ↺ Сбросить прогресс
+        </button>
+      </footer>
     </div>
     <script src="./progress.js"></script>
   </body>
