@@ -100,8 +100,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 Practical application of Antigravity power.
 
 - **[Lab 01: TeleDrive Ecosystem](https://goodmai.github.io/antigravity/labs/01/)**: Full-stack integration of Telegram, Obsidian, and Google Drive.
-- **[Lab 02: Antigravity in GitHub Codespaces](https://goodmai.github.io/antigravity/labs/02/)**: devcontainer.json, auto-install, replacing VS Code with Antigravity IDE via OS package.
-- **[Lab 03: Antigravity in Cloud IDEs](https://goodmai.github.io/antigravity/labs/03/)**: Setup in Gitpod, Google Cloud Shell, and Replit. Platform comparison.
+- **[Lab 02: Antigravity in GitHub Codespaces](https://goodmai.github.io/antigravity/labs/02/)**: devcontainer.json, auto-install of Gemini CLI, one-click cloud environment.
+- **[Lab 03: Antigravity in Cloud IDEs](https://goodmai.github.io/antigravity/labs/03/)**: Setup via terminal in Gitpod, Google Cloud Shell, and Replit. Platform comparison.
 
 ---
 
