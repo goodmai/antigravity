@@ -34,17 +34,19 @@ https://github.com/goodmai/antigravity → Fork
 # Проверь Python
 python3 --version   # нужен 3.10+
 
-# Проверь Node.js
-node --version      # нужен 18+
-
 # Установи Pandoc (для сборки уроков)
 sudo apt-get install -y pandoc
 
-# Установи Gemini CLI (основа Antigravity)
-npm install -g @google/gemini-cli
+# Установи Antigravity IDE через системный пакетный менеджер (Ubuntu/Codespaces)
+sudo add-apt-repository ppa:antigravity/ppa -y
+sudo apt-get update
+sudo apt-get install -y antigravity
+
+# На macOS — через Homebrew:
+# brew install antigravity
 
 # Проверь установку
-gemini --version
+antigravity --version
 ```
 
 ### 4. Настрой API-ключ
@@ -99,11 +101,6 @@ mkdir -p .devcontainer
 {
   "name": "Antigravity Academy",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
-    }
-  },
   "postCreateCommand": "bash .devcontainer/setup.sh",
   "customizations": {
     "vscode": {
@@ -137,12 +134,13 @@ set -e
 
 echo "=== Antigravity Codespace Setup ==="
 
-# Pandoc
+# Системные зависимости
 sudo apt-get update -qq
 sudo apt-get install -y -qq pandoc
 
-# Gemini CLI
-npm install -g @google/gemini-cli 2>/dev/null || echo "Gemini CLI install skipped"
+# Antigravity IDE — установка через APT (OS native package manager)
+sudo add-apt-repository ppa:antigravity/ppa -y -qq 2>/dev/null || true
+sudo apt-get install -y -qq antigravity
 
 # Python-зависимости
 pip install --quiet fastmcp requests
@@ -158,7 +156,7 @@ fi
 python3 scripts/convert_lessons.py
 
 echo "=== Setup complete! ==="
-echo "Run: python3 -m http.server 8080"
+echo "Run: antigravity"
 ```
 
 ```bash
@@ -181,7 +179,7 @@ GitHub.com → Settings → Codespaces → Secrets → New secret
 
 ```bash
 echo $GEMINI_API_KEY    # проверка
-gemini                  # запуск — ключ подхватится автоматически
+antigravity             # запуск — ключ подхватится автоматически
 ```
 
 ## Полезные команды в Codespace
@@ -211,9 +209,9 @@ gh codespace list
 
 ## Замена VS Code на Antigravity IDE через OS-пакет
 
-Стандартный Codespace открывается в VS Code. Чтобы заменить его на Antigravity IDE (терминальный агент как основная среда разработки), используй OS-пакет в devcontainer:
+Стандартный Codespace открывается в VS Code. Чтобы заменить его на Antigravity IDE (автономная среда разработки), используй OS-пакет в devcontainer:
 
-### Способ 1: Полная замена редактора (JetBrains Gateway / JupyterLab)
+### Способ 1: Полная замена редактора — чистая терминальная среда
 
 В `devcontainer.json` добавь поле `"customizations.codespaces.editor"`:
 
@@ -221,23 +219,20 @@ gh codespace list
 {
   "name": "Antigravity IDE",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "features": {
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
-  },
   "customizations": {
     "codespaces": {
       "editor": "none"
     }
   },
   "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
-  "postStartCommand": "gemini",
+  "postStartCommand": "antigravity",
   "forwardPorts": [8080]
 }
 ```
 
 `"editor": "none"` отключает автооткрытие VS Code — Codespace запускается как чистая терминальная среда.
 
-### Способ 2: Установка Antigravity через OS-пакет в setup.sh
+### Способ 2: Установка Antigravity IDE через OS-пакет в setup.sh
 
 ```bash
 #!/bin/bash
@@ -246,7 +241,7 @@ set -e
 
 echo "=== Installing Antigravity IDE via OS packages ==="
 
-# 1. Системные зависимости через apt (OS package manager)
+# 1. Системные зависимости
 sudo apt-get update -qq
 sudo apt-get install -y -qq \
     pandoc \
@@ -254,10 +249,13 @@ sudo apt-get install -y -qq \
     htop \
     jq
 
-# 2. Node.js OS-пакет для Antigravity CLI
-npm install -g @google/gemini-cli
+# 2. Antigravity IDE — установка через APT
+#    Ubuntu/Codespaces:
+sudo add-apt-repository ppa:antigravity/ppa -y -qq
+sudo apt-get install -y -qq antigravity
+#    macOS (локально): brew install antigravity
 
-# 3. Настройка Antigravity как IDE по умолчанию в терминале
+# 3. Настройка Antigravity как IDE по умолчанию
 mkdir -p ~/.gemini
 cat > ~/.gemini/GEMINI.md << 'EOF'
 # Antigravity IDE — Global Config
@@ -273,19 +271,19 @@ cat >> ~/.bashrc << 'EOF'
 # Antigravity IDE auto-start
 if [ -n "$CODESPACE_NAME" ] && [ -z "$ANTIGRAVITY_STARTED" ]; then
   export ANTIGRAVITY_STARTED=1
-  echo "Antigravity IDE ready. Run: gemini"
+  echo "Antigravity IDE ready. Run: antigravity"
 fi
 EOF
 
-# 5. Создай alias для быстрого запуска
-echo 'alias ide="gemini"' >> ~/.bashrc
-echo 'alias ag="gemini"' >> ~/.bashrc
+# 5. Алиасы для быстрого запуска
+echo 'alias ide="antigravity"' >> ~/.bashrc
+echo 'alias ag="antigravity"' >> ~/.bashrc
 
 # 6. Сборка академии
 python3 scripts/convert_lessons.py
 
 echo "=== Antigravity IDE installed ==="
-echo "Start with: gemini  (or alias: ide / ag)"
+echo "Start with: antigravity  (or alias: ide / ag)"
 ```
 
 ### Способ 3: devcontainer с Antigravity как primary IDE
@@ -297,18 +295,16 @@ echo "Start with: gemini  (or alias: ide / ag)"
   "name": "Antigravity IDE",
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" },
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
         "terminal.integrated.profiles.linux": {
           "Antigravity": {
             "path": "/bin/bash",
-            "args": ["-c", "gemini; exec bash"]
+            "args": ["-c", "antigravity; exec bash"]
           }
         },
         "terminal.integrated.defaultProfile.linux": "Antigravity"
@@ -322,13 +318,13 @@ echo "Start with: gemini  (or alias: ide / ag)"
 }
 ```
 
-Здесь VS Code остаётся как оболочка, но **терминал по умолчанию сразу запускает Antigravity** — вместо обычного bash.
+ВS Code остаётся как оболочка, но **терминал по умолчанию сразу запускает Antigravity IDE** — вместо обычного bash.
 
 ### Проверка установки
 
 ```bash
 # После открытия Codespace
-gemini --version          # Antigravity CLI установлен
+antigravity --version     # Antigravity IDE установлен
 echo $GEMINI_API_KEY      # ключ доступен из Codespaces Secrets
 ide                       # алиас — запуск Antigravity IDE
 ```
@@ -337,7 +333,7 @@ ide                       # алиас — запуск Antigravity IDE
 
 После выполнения у тебя будет:
 - `devcontainer.json` + `setup-antigravity-ide.sh` в `.devcontainer/`
-- Codespace с автоустановкой Gemini CLI через OS-пакет (`apt` + `npm`)
+- Codespace с автоустановкой Antigravity IDE через OS-пакет (`apt` / `brew`)
 - Antigravity запускается автоматически при открытии терминала
 - VS Code заменён / дополнен Antigravity как primary IDE
 - API-ключ безопасно хранится в Codespaces Secrets
