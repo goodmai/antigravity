@@ -347,3 +347,17 @@ description: Full feature lifecycle for Physics App (Mass/Velocity module)
 - **Agents** пишут, тестят и деплоят.
 
 Это и есть будущее разработки SDLC
+
+
+## Дополнительные инструменты
+
+### Интеграция с различными сервисами
+
+- Slack уведомления
+- Email отчеты
+- Webhook интеграции
+- Custom integrations
+
+## Рекомендуемые источники
+
+1. Integration Patterns Documentation

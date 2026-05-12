@@ -192,3 +192,18 @@ python mcp_tasks.py <<< '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":
 1. Создай MCP-сервер, оборачивающий `git log --oneline -20` как инструмент `get_recent_commits`
 2. Добавь Resource, который читает содержимое `CHANGELOG.md`
 3. Зарегистрируй в `mcp_config.json` и вызови из чата Antigravity командой: «Покажи последние 10 коммитов»
+
+
+## Дополнительные паттерны
+
+### Распределенные системы
+
+- Асинхронная обработка
+- Message queues
+- Event streaming
+- Распределенные транзакции
+
+## Рекомендуемые источники
+
+1. Distributed Systems Design
+2. Microservices Patterns

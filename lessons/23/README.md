@@ -205,3 +205,17 @@ Security пишет: @/.agent/context/security_report.md
 1. Создай три правила в `.agent/rules/`: `role-architect.md`, `role-developer.md`, `role-qa.md`
 2. Напиши Workflow `sequential-pipeline` для добавления нового API endpoint
 3. Запусти и сравни качество результата с одноагентным выполнением той же задачи
+
+
+## Практические решения
+
+### Масштабирование приложений
+
+- Горизонтальное масштабирование
+- Кэширование
+- Оптимизация БД
+- Load balancing
+
+## Рекомендуемые источники
+
+1. Scalability Best Practices

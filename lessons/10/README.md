@@ -121,3 +121,17 @@ grep "MCP Server Connected" ~/.antigravity/logs/agent.log | tail -n 5
 ---
 
 MCP превращает IDE из текстового редактора в консоль управления всей вашей инфраструктурой.
+
+
+## Дополнительные материалы
+
+### Работа с внешними API
+
+- Аутентификация (API Key, OAuth)
+- Rate limiting
+- Error handling
+- Кэширование результатов
+
+## Рекомендуемые источники
+
+1. API Integration Best Practices
