@@ -61,8 +61,6 @@
       <!-- Auth links — hidden when wallet is connected -->
       <a id="nav-btn-login"  href="/antigravity/academy/login.html"
          class="btn btn-outline nav-auth-btn" data-i18n="nav_login">Login</a>
-      <a id="nav-btn-signup" href="/antigravity/academy/signup.html"
-         class="btn btn-primary nav-auth-btn" data-i18n="nav_signup">Sign Up</a>
     </div>
 
   </nav>
