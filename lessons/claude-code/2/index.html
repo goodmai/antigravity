@@ -172,8 +172,14 @@ claude</code></pre>
   }
 }</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Install Claude Code, set your API key, and run <code>claude --help</code> to explore available flags. Create a <code>.claude/settings.json</code> in a test project that allows git commands but denies all destructive bash operations.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to confirm your installation is production-ready:</p>
+<ol>
+  <li><strong>Install and verify.</strong> Run <code>npm install -g @anthropic-ai/claude-code</code>, then export <code>ANTHROPIC_API_KEY</code> and confirm <code>claude --version</code> prints the version. Add the export to your <code>~/.bashrc</code> or <code>~/.zshrc</code> so it persists across sessions.</li>
+  <li><strong>Explore the CLI surface.</strong> Run <code>claude --help</code> and write down at least three flags you would actually use day-to-day (for example <code>--model</code>, <code>--print</code>, <code>--continue</code>). For each, jot a one-line note on when you'd reach for it.</li>
+  <li><strong>Author a project settings file.</strong> Create <code>.claude/settings.json</code> in a test project that allows all <code>git</code> subcommands plus <code>Read</code> and <code>Edit</code>, but denies <code>rm -rf *</code>, <code>git push --force</code>, and any <code>curl … | bash</code> pattern. Start Claude in that project and ask it to run <code>git status</code>; confirm it executes without prompting.</li>
+  <li><strong>Global vs project precedence.</strong> Add a different <code>model</code> setting to <code>~/.claude/settings.json</code> and a competing one to <code>.claude/settings.json</code>. Run <code>/status</code> inside the project and verify the project-level value wins.</li>
+</ol>
       <div class="nav-row">
         <a href="../1/index.html" class="nav-btn">← Previous</a>
         <a href="../3/index.html" class="nav-btn">Next →</a>

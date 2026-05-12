@@ -172,8 +172,14 @@ dist/
 *.lock
 coverage/</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Start a long Claude Code session and run several tasks. Use <code>/status</code> to monitor token usage. When you reach 50% of the context window, use <code>/compact</code> and compare token counts before and after. Write a <code>.claudeignore</code> for a project to exclude build artifacts.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to keep long sessions efficient:</p>
+<ol>
+  <li><strong>Measure compaction.</strong> Start a Claude Code session and run several substantial tasks (reading files, generating code) until <code>/status</code> shows you've used 50% or more of the context window. Run <code>/compact</code>, then check <code>/status</code> again. Note the before/after token counts and what information survived the compression.</li>
+  <li><strong>Write a <code>.claudeignore</code>.</strong> In a real project, add <code>.claudeignore</code> that excludes <code>node_modules/</code>, <code>dist/</code>, <code>coverage/</code>, lockfiles, and large fixture/data directories specific to that project. Confirm Claude no longer reads those paths when you ask "what files are in this project?".</li>
+  <li><strong>Reference vs paste.</strong> Pick a 500-line file. Run the same task twice: once by pasting the entire file into the prompt, and once by saying "look at <code>path/to/file.ts</code>". Compare the token usage between the two approaches — the difference is the cost of bad context hygiene.</li>
+  <li><strong>Tighten CLAUDE.md.</strong> Open your project CLAUDE.md and remove or shorten one section that has become stale or verbose. Measure session start cost (<code>/status</code> on a fresh session) before and after.</li>
+</ol>
       <div class="nav-row">
         <a href="../12/index.html" class="nav-btn">← Previous</a>
         <a href="../14/index.html" class="nav-btn">Next →</a>

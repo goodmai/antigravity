@@ -182,8 +182,14 @@
   <li>Verify the MCP server package is installed: <code>npx -y server-name --version</code></li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Add the official filesystem MCP server to your global Claude settings. Ask Claude to list files in a directory through the MCP tool and compare it to the native Read tool behavior.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to confirm MCP is wired up end-to-end:</p>
+<ol>
+  <li><strong>Connect a filesystem MCP server.</strong> Add the official <code>@modelcontextprotocol/server-filesystem</code> entry to your global <code>~/.claude/settings.json</code>, scoped to a specific directory (e.g., <code>~/Documents</code>). Restart Claude and confirm the MCP tools appear in <code>/mcp</code> output.</li>
+  <li><strong>Compare native vs MCP tools.</strong> In the same session, ask Claude to "list the files in <code>~/Documents</code> using the MCP filesystem tool", then "do the same using the native Read tool". Note the differences — which tool returns directory metadata, which respects <code>.gitignore</code>, which is faster for large trees.</li>
+  <li><strong>Add a second server with secrets.</strong> Add the GitHub MCP server with a <code>GITHUB_TOKEN</code> environment variable. Verify by asking Claude to "list the open issues on my <code>X</code> repository". If it fails, run <code>claude --mcp-debug</code> and trace the startup log to identify the root cause.</li>
+  <li><strong>Scope to a project.</strong> Move the GitHub MCP server from global to project-level <code>.claude/settings.json</code>. Open a different project and confirm the server is <em>not</em> active there. Project-level scoping is the key habit for limiting blast radius.</li>
+</ol>
       <div class="nav-row">
         <a href="../5/index.html" class="nav-btn">← Previous</a>
         <a href="../7/index.html" class="nav-btn">Next →</a>

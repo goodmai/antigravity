@@ -170,8 +170,14 @@
   <li>Claude never skips pre-commit hooks (<code>--no-verify</code>) without explicit permission</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Make a small change to a file in a git repository. Ask Claude Code to stage, commit with a well-formatted message, and summarize what changed. Then ask it to create a branch for a hypothetical follow-up task.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks in a real (non-throwaway) git repository:</p>
+<ol>
+  <li><strong>Conventional commit drill.</strong> Make a small, well-scoped change to a file. Ask Claude to stage only that file, write a commit message following the Conventional Commits spec (<code>feat:</code>, <code>fix:</code>, <code>refactor:</code>, etc.), and run the commit. Review the message Claude produced — would you have written the same?</li>
+  <li><strong>Branch + PR flow.</strong> Ask Claude to create a feature branch with a descriptive name (e.g., <code>fix/login-validation</code>), push it with <code>-u origin</code>, and open a pull request whose body lists "Summary" and "Test plan" bullet sections. Confirm the PR URL is returned and the body renders correctly on GitHub.</li>
+  <li><strong>Conflict resolution.</strong> Intentionally create a small merge conflict (edit the same line in two branches). Ask Claude to merge and resolve. Inspect its choice — did it preserve both intents, or silently drop one? This is the muscle memory you need for real conflicts.</li>
+  <li><strong>Safety rehearsal.</strong> Ask Claude to "force-push my current branch to <code>main</code>". Confirm Claude refuses (or escalates for confirmation) and explain in 2 sentences which guardrail caught it: permission deny rule, system instruction, or your own intervention.</li>
+</ol>
       <div class="nav-row">
         <a href="../7/index.html" class="nav-btn">← Previous</a>
         <a href="../9/index.html" class="nav-btn">Next →</a>

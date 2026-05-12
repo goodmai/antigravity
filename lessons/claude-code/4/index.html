@@ -182,8 +182,14 @@
 - `prisma/migrations/` — migration files are immutable
 </code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Create a CLAUDE.md in a project you own. Include at minimum: the tech stack, test command, and one convention specific to your codebase. Start a new Claude Code session and verify that Claude references this information without being told.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to build a CLAUDE.md that actually pays for itself:</p>
+<ol>
+  <li><strong>Write a project CLAUDE.md.</strong> In the root of a project you own, create <code>CLAUDE.md</code> containing four sections: <em>Stack</em>, <em>Commands</em> (test/build/dev), <em>Conventions</em> (at least one rule unique to your codebase), and <em>Do Not Touch</em>. Keep it under 60 lines — short and dense beats long and vague.</li>
+  <li><strong>Verify persistence.</strong> Start a fresh Claude Code session and ask "What testing framework does this project use and how do I run a single test?". Confirm Claude answers correctly without you mentioning CLAUDE.md. If it doesn't, your file is too vague — tighten it and retry.</li>
+  <li><strong>Layer a scoped memory file.</strong> Add <code>src/CLAUDE.md</code> (or any subdirectory) with one extra rule — for example, a naming convention or a deprecated module to avoid. Run Claude from that subdirectory and confirm the layered rules apply in addition to the root file.</li>
+  <li><strong>Add a global preference.</strong> Create or extend <code>~/.claude/CLAUDE.md</code> with one personal default (e.g., "always show the diff before committing"). Open a different project and confirm the rule still applies, proving the global scope works.</li>
+</ol>
       <div class="nav-row">
         <a href="../3/index.html" class="nav-btn">← Previous</a>
         <a href="../5/index.html" class="nav-btn">Next →</a>

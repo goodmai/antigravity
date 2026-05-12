@@ -181,6 +181,14 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   <li>Integrate with SSO/LDAP for API key provisioning</li>
 </ul>
 
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to lock in the advanced patterns from this lesson before tackling the capstone:</p>
+<ol>
+  <li><strong>Custom MCP server.</strong> Build a minimal MCP server exposing one tool (e.g., <code>deploy_staging(service)</code> that prints a message and returns a fake deployment ID). Register it in your Claude Code settings and invoke it from a session. Confirm the tool appears in <code>/mcp</code> and that input/output flow correctly.</li>
+  <li><strong>Multi-repo orchestrator.</strong> Set up three small local repos (api, sdk, docs). Write an orchestrator that runs Claude in each via the SDK with <code>cwd</code> pointing at the right repo, makes a coordinated change (bump a shared version string), and opens a PR in each. Verify the three PRs reference each other in their descriptions.</li>
+  <li><strong>Enterprise access pattern.</strong> Author a committed <code>.claude/settings.json</code> with team-wide deny rules (no production deploys, no force pushes, no <code>kubectl delete</code>), and a <code>PostToolUse</code> hook that forwards audit lines to a local file standing in for a SIEM. Walk a teammate (or rubber duck) through the configuration and confirm it would block the three most dangerous commands in your environment.</li>
+</ol>
+
 <h2>Capstone Challenge</h2>
 <p>Design and implement a production-ready Claude Code agent that:</p>
 <ol>

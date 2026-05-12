@@ -185,8 +185,14 @@ logger.info({ event: 'agent_complete', task_id, total_tokens, cost_usd });</code
   <li>Test failure paths: API errors, tool failures, context overflow</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Take a simple agent you've built and add: structured logging with duration tracking, exponential backoff retry on API errors, and a token budget that logs a warning at 80% and aborts at 100%. Deploy it as a GitHub Action triggered by a workflow_dispatch event.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks — these are the bare minimum for an agent you'd let near production:</p>
+<ol>
+  <li><strong>Structured logging.</strong> Take an agent you built in lesson 11. Emit JSON logs at four points: <code>agent_start</code>, <code>tool_call</code>, <code>tool_result</code> (with duration_ms), and <code>agent_complete</code> (with total tokens and USD cost). Pipe the output to <code>jq</code> and confirm every event is parseable.</li>
+  <li><strong>Retry with exponential backoff.</strong> Wrap the API call so HTTP 529 (overloaded) and 503 trigger exponential backoff (1s, 2s, 4s) capped at 3 attempts. Other errors fail fast. Test by mocking the SDK to throw 529 twice then succeed — confirm the retries fire and the third attempt returns the result.</li>
+  <li><strong>Token budget.</strong> Add a per-run token budget. Log a warning at 80% consumed and abort cleanly at 100% (no half-completed work). Test with a budget of 5000 tokens against a task that obviously needs more — confirm the warning and abort both fire at the expected thresholds.</li>
+  <li><strong>Deploy as a workflow.</strong> Wrap the hardened agent in a GitHub Actions workflow triggered by <code>workflow_dispatch</code> with an input parameter for the task description. Run it from the Actions UI and confirm logs are visible, secrets are not, and the run exits with the right status code.</li>
+</ol>
       <div class="nav-row">
         <a href="../19/index.html" class="nav-btn">← Previous</a>
         <a href="../21/index.html" class="nav-btn">Next →</a>

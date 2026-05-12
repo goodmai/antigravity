@@ -150,17 +150,14 @@
 
 <h2>Spawning Subagents in Claude Code</h2>
 <p>In Claude Code CLI sessions, you can spawn subagents via the Agent tool. When building with the SDK, you call your own agent function recursively or in parallel:</p>
-<pre><code>import { Promise } from 'node:promise';
-
-const results = await Promise.all([
+<pre><code>const results = await Promise.all([
   runAgent('Review src/auth.js for security issues'),
   runAgent('Review src/payment.js for security issues'),
   runAgent('Review src/api.js for security issues'),
 ]);
 
 const report = await runAgent(
-  `Synthesize these security reviews into a priority list: ${results.join('
-')}`
+  `Synthesize these security reviews into a priority list:\n\n${results.join('\n\n')}`
 );</code></pre>
 
 <h2>Work Isolation Patterns</h2>
@@ -178,8 +175,14 @@ const report = await runAgent(
   <li><strong>Reduce</strong> — summarize multiple outputs into one</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Write an orchestrator that spawns three subagents in parallel, each asked to generate a different approach to solving the same coding problem. Then have a fourth agent evaluate the three approaches and recommend the best one.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to build intuition for the orchestrator + worker pattern:</p>
+<ol>
+  <li><strong>Three-way solution race.</strong> Write an orchestrator that spawns three subagents in parallel, each asked to solve the same coding problem (e.g., "implement an LRU cache in TypeScript") with a different constraint — "use a Map", "use a doubly-linked list", "no external dependencies". Collect all three responses.</li>
+  <li><strong>Judge agent.</strong> Add a fourth agent that receives all three solutions and selects the best one with reasoning. Compare its pick to your own intuition; if you disagree, sharpen the judge's system prompt with explicit scoring criteria (correctness, readability, complexity) and rerun.</li>
+  <li><strong>Isolation via git worktrees.</strong> Repeat the experiment but give each subagent its own git worktree (use <code>git worktree add</code>). Confirm subagents can write files without stepping on each other, and that the orchestrator can diff each worktree to compare outputs.</li>
+  <li><strong>Failure containment.</strong> Make one subagent intentionally fail (throw an error or exceed iteration limit). Verify the orchestrator surfaces the failure but still processes the remaining two — never let one subagent take down the whole pipeline.</li>
+</ol>
       <div class="nav-row">
         <a href="../11/index.html" class="nav-btn">← Previous</a>
         <a href="../13/index.html" class="nav-btn">Next →</a>

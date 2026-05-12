@@ -197,8 +197,14 @@ async function runAgent(task: string) {
     }));
 }</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Build a minimal agent that has one tool: <code>calculate(expression: string)</code> that evaluates a math expression using <code>eval()</code> (in a safe sandbox). Give the agent the task "What is 17 * 23 + sqrt(144)?" and observe the tool use loop.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to internalize the SDK loop:</p>
+<ol>
+  <li><strong>Build a single-tool agent.</strong> Implement an agent with one tool — <code>calculate(expression: string)</code> — that safely evaluates a math expression (use a sandbox like <code>mathjs.evaluate</code>, not raw <code>eval</code>). Give it the task "What is 17 * 23 + sqrt(144)?" and log each iteration of the loop to see how the model arrives at the answer.</li>
+  <li><strong>Add a second tool and observe routing.</strong> Add a <code>get_time(timezone: string)</code> tool. Send the prompt "What is 12 * 12, and what time is it in Tokyo?" — confirm Claude calls both tools in a single turn (or across two turns) and verify the final answer composes both results.</li>
+  <li><strong>Handle a tool error.</strong> Make <code>calculate</code> throw on division by zero. Send "What is 10 / 0?" and confirm the agent receives the error in <code>tool_result.content</code>, recovers gracefully, and returns a useful answer to the user instead of crashing.</li>
+  <li><strong>Add a hard stop.</strong> Cap the loop at 10 iterations and emit a structured warning if reached. Test with a deliberately unsolvable prompt and confirm the safeguard fires — this is the foundation of every production-grade agent.</li>
+</ol>
       <div class="nav-row">
         <a href="../10/index.html" class="nav-btn">← Previous</a>
         <a href="../12/index.html" class="nav-btn">Next →</a>
