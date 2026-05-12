@@ -334,3 +334,28 @@ describe('Disconnect and wallet change', () => {
     expect(getSession()).toBeNull();
   });
 });
+
+// ── 7. Mobile browser detection ──────────────────────────────────────────
+
+describe('Mobile browser detection', () => {
+  it('hasMetaMask returns false on mobile Chrome (no extension support)', () => {
+    // Chrome on mobile does not support extensions — window.ethereum is never injected
+    expect(hasMetaMask(undefined)).toBe(false);
+  });
+
+  it('connectAndSign throws METAMASK_NOT_FOUND on mobile Chrome', async () => {
+    // No ethereum provider on mobile Chrome → must reject, not hang
+    await expect(connectAndSign(undefined)).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
+  });
+
+  it('hasMetaMask returns false when provider lacks isMetaMask flag', () => {
+    // Some mobile wallets inject window.ethereum without marking themselves as MetaMask
+    expect(hasMetaMask({ request: vi.fn() })).toBe(false);
+    expect(hasMetaMask({ isMetaMask: false })).toBe(false);
+  });
+
+  it('connectAndSign throws METAMASK_NOT_FOUND when isMetaMask flag is absent', async () => {
+    const eth = { isMetaMask: false, request: vi.fn() };
+    await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
+  });
+});
