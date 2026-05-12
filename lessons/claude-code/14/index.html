@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prompt Engineering for Claude Code | Claude Code — Daskibo Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 25%),
+          radial-gradient(circle at 80% 80%, rgba(129, 140, 248, 0.05) 0%, transparent 25%);
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container { max-width: 900px; margin: 0 auto; padding: 60px 20px; }
+
+      header { margin-bottom: 40px; border-bottom: 1px solid var(--glass-border); padding-bottom: 20px; }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        transition: opacity 0.2s;
+      }
+      .back-link:hover { opacity: 0.8; }
+
+      .lesson-meta { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+      h1 {
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      h2 { font-size: 1.4rem; font-weight: 700; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--text-main); }
+      h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--text-main); }
+
+      p { margin-bottom: 1.25rem; color: var(--text-dim); }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+        color: var(--accent-primary);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+      pre code { background: none; padding: 0; border: none; font-size: 0.85rem; color: var(--text-main); }
+
+      ul, ol { margin-bottom: 1.25rem; padding-left: 1.5rem; color: var(--text-dim); }
+      li { margin-bottom: 0.5rem; }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding: 12px 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+        background: rgba(56, 189, 248, 0.05);
+        border-radius: 0 8px 8px 0;
+        color: var(--text-dim);
+      }
+
+      table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+      th, td { padding: 10px 14px; text-align: left; border: 1px solid var(--glass-border); color: var(--text-dim); }
+      th { background: var(--card-bg); color: var(--text-main); font-weight: 600; }
+      tr:nth-child(even) td { background: rgba(30, 41, 59, 0.25); }
+
+      .nav-row {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 48px;
+        padding-top: 24px;
+        border-top: 1px solid var(--glass-border);
+        gap: 12px;
+      }
+      .nav-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-decoration: none;
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        color: var(--text-main);
+        transition: border-color 0.2s, transform 0.15s;
+      }
+      .nav-btn:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+      .nav-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+      .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--glass-border); text-align: center; font-size: 0.875rem; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="../../../academy/courses/claude-code/index.html" class="back-link">← Claude Code Course</a>
+      <p class="lesson-meta">Lesson 14 of 21 &nbsp;·&nbsp; Claude Code Course</p>
+    </header>
+    <main>
+<h1>Lesson 14: Prompt Engineering for Claude Code</h1>
+<p>Writing effective prompts for an agentic coding assistant is different from prompting a chat model. Tasks need to be decomposable, instructions need to be precise, and context needs to be focused.</p>
+
+<h2>Task Decomposition</h2>
+<p>Don't ask Claude to do everything in one prompt. Break complex tasks into steps:</p>
+<pre><code># Bad
+&gt; Refactor the entire authentication system to use OAuth 2.0
+
+# Better
+&gt; 1. First, show me the current auth flow in src/auth/
+&gt; 2. Identify which components need to change for OAuth 2.0
+&gt; 3. Start with the login endpoint — refactor just that function</code></pre>
+
+<h2>Chain-of-Thought in CLI</h2>
+<p>Ask Claude to think before acting:</p>
+<pre><code>&gt; Before making any changes, explain your plan for refactoring this function.
+  List the steps you'll take and any risks you see.</code></pre>
+<p>This "plan first" approach surfaces misunderstandings before code is changed.</p>
+
+<h2>Precise Specifications</h2>
+<ul>
+  <li>Name the exact file: <code>src/components/LoginForm.tsx</code>, not "the login form"</li>
+  <li>State the expected outcome: "the function should return null, not throw, on invalid input"</li>
+  <li>Specify constraints: "don't change the function signature" or "keep all existing tests passing"</li>
+</ul>
+
+<h2>Few-Shot Examples</h2>
+<p>Show Claude the pattern you want:</p>
+<pre><code>&gt; I want all API errors handled like this example:
+  try { ... } catch (e) { logger.error(e); return { error: e.message }; }
+  Now apply this pattern to the three endpoints in src/api/users.ts</code></pre>
+
+<h2>Iterative Refinement</h2>
+<p>Treat Claude Code like a pair programmer — review each step and redirect:</p>
+<pre><code>&gt; That looks right but the error message should be user-facing, not technical.
+  Revise just the error strings to be friendly and actionable.</code></pre>
+
+<h2>Practical Exercise</h2>
+<p>Take a complex refactoring task in your codebase. Write a sequence of prompts that accomplish it step by step, with a "plan first" check at the beginning. Compare the quality of results to attempting it in a single prompt.</p>
+      <div class="nav-row">
+        <a href="../13/index.html" class="nav-btn">← Previous</a>
+        <a href="../15/index.html" class="nav-btn">Next →</a>
+      </div>
+    </main>
+    <footer class="footer">
+      Anti-Gravity Academy &copy; 2026 &nbsp;·&nbsp; <a href="../../../academy/courses/claude-code/index.html" style="color: var(--accent-primary); text-decoration: none;">Back to Course</a>
+    </footer>
+  </div>
+</body>
+</html>
