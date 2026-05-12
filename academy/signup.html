@@ -18,19 +18,22 @@
 
   <header class="site-header">
     <nav class="nav">
+      <div class="nav-left"></div>
       <a href="./index.html" class="nav-logo">Daskibo Academy</a>
-      <div class="lang-switcher">
-        <button class="lang-btn" data-lang="en" title="English">🇬🇧</button>
-        <button class="lang-btn" data-lang="ru" title="Русский">🇷🇺</button>
-        <button class="lang-btn" data-lang="es" title="Español">🇪🇸</button>
-        <button class="lang-btn" data-lang="zh" title="中文">🇨🇳</button>
-        <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
-        <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
+      <div class="nav-right">
+        <div class="lang-switcher">
+          <button class="lang-btn" data-lang="en" title="English">🇬🇧</button>
+          <button class="lang-btn" data-lang="ru" title="Русский">🇷🇺</button>
+          <button class="lang-btn" data-lang="es" title="Español">🇪🇸</button>
+          <button class="lang-btn" data-lang="zh" title="中文">🇨🇳</button>
+          <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
+          <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
+        </div>
+        <!-- Theme toggle: icon only -->
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+          <span id="theme-icon">☀️</span>
+        </button>
       </div>
-      <button class="theme-toggle" id="theme-toggle">
-        <span class="icon" id="theme-icon">☀️</span>
-        <span id="theme-label" data-i18n="theme_light">Light</span>
-      </button>
     </nav>
   </header>
 
@@ -58,11 +61,11 @@
         </li>
         <li>
           <span class="step-num">2</span>
-          <span>Click <em>Connect MetaMask</em> — we'll add <strong>Unit Zero Mainnet</strong> (Chain ID 88811, RPC: rpc.unit0.dev) automatically.</span>
+          <span>Click <em>Connect MetaMask</em> — we'll add <strong>Unit Zero Mainnet</strong> (Chain ID 88811, RPC: rpc.unit0.dev) automatically if it's not in your wallet.</span>
         </li>
         <li>
           <span class="step-num">3</span>
-          <span>Sign the ownership message. Your progress and certificate eligibility will be linked to your wallet.</span>
+          <span>Sign the ownership message. Signature is verified locally on your device — not sent to any server.</span>
         </li>
       </ul>
 
@@ -97,24 +100,18 @@
   </footer>
 
   <script src="./js/i18n.js"></script>
-  <script src="./js/web3.js"></script>
+  <script type="module" src="./js/web3.js"></script>
   <script>
+    /* ── Theme init (standalone page, no header.js) ── */
     (function () {
-      var THEME_KEY = 'daskibo_theme';
+      var KEY = 'daskibo_theme';
       function applyTheme(t) {
         document.documentElement.setAttribute('data-theme', t);
-        try { localStorage.setItem(THEME_KEY, t); } catch(e) {}
-        var icon  = document.getElementById('theme-icon');
-        var label = document.getElementById('theme-label');
-        if (icon)  icon.textContent = t === 'dark' ? '☀️' : '🌙';
-        if (label) {
-          label.setAttribute('data-i18n', t === 'dark' ? 'theme_light' : 'theme_dark');
-          if (window.I18n) label.textContent = window.I18n.t(label.getAttribute('data-i18n'));
-        }
+        try { localStorage.setItem(KEY, t); } catch (e) {}
+        var icon = document.getElementById('theme-icon');
+        if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
       }
-      try {
-        applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
-      } catch(e) { applyTheme('dark'); }
+      try { applyTheme(localStorage.getItem(KEY) || 'dark'); } catch (e) { applyTheme('dark'); }
       document.getElementById('theme-toggle').addEventListener('click', function () {
         var cur = document.documentElement.getAttribute('data-theme') || 'dark';
         applyTheme(cur === 'dark' ? 'light' : 'dark');
@@ -122,14 +119,8 @@
       });
     }());
 
-    document.addEventListener('walletConnected', function (e) {
-      var addr = e.detail.address;
-      var display = document.getElementById('wallet-display');
-      var addrEl  = document.getElementById('wallet-addr');
-      if (display && addrEl) {
-        addrEl.textContent = addr.slice(0, 6) + '…' + addr.slice(-4);
-        display.classList.add('visible');
-      }
+    /* ── Post-connect: redirect to academy home ───── */
+    document.addEventListener('walletConnected', function () {
       setTimeout(function () {
         window.location.href = './index.html';
       }, 1800);
