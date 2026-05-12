@@ -1,183 +1,212 @@
 /**
- * Daskibo Academy — Web3 / MetaMask integration
- * Network: Unit Zero Mainnet (Chain ID 88811)
+ * Daskibo Academy — MetaMask DOM integration
+ * ES module. Imports pure logic from web3-core.js, handles DOM, toasts,
+ * provider events, and exposes window.Web3Auth for legacy pages.
  */
-(function (global) {
-  'use strict';
 
-  var UNIT0_CHAIN = {
-    chainId: '0x15AEB',          // 88811 in hex
-    chainName: 'Unit Zero Mainnet',
-    nativeCurrency: { name: 'UNIT0', symbol: 'UNIT0', decimals: 18 },
-    rpcUrls: ['https://rpc.unit0.dev'],
-    blockExplorerUrls: ['https://explorer.unit0.dev'],
-  };
+import {
+  connectAndSign,
+  clearSession,
+  getSession,
+  shortAddress,
+  hasMetaMask,
+  UNIT0_CHAIN_ID_HEX,
+} from './web3-core.js';
 
-  /* Message users sign on login/signup — must be in English per spec */
-  var SIGN_MESSAGE =
-    'I am the owner of this wallet. ' +
-    'I agree to save my progress via cookies and to receive a certificate ' +
-    'upon completion of practical tasks on Daskibo Academy.';
+// ── Toast notification system ─────────────────────────────────────────────
 
-  /* ── helpers ─────────────────────────────────────── */
-  function hasMetaMask() {
-    return typeof window.ethereum !== 'undefined' && window.ethereum.isMetaMask;
+function _toastContainer() {
+  let el = document.getElementById('daskibo-toasts');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'daskibo-toasts';
+    el.className = 'toast-container';
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('aria-atomic', 'false');
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+function showToast(msg, type = 'info', duration = 4500) {
+  const container = _toastContainer();
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.setAttribute('role', 'status');
+  toast.textContent = msg;
+  container.appendChild(toast);
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 350);
+  }, duration);
+}
+
+// ── Error code → human-readable toast ────────────────────────────────────
+
+const ERROR_MESSAGES = {
+  METAMASK_NOT_FOUND:    '🦊 MetaMask not detected. Install it at metamask.io',
+  USER_REJECTED:         'Connection cancelled.',
+  USER_REJECTED_NETWORK: 'Please approve switching to Unit Zero Mainnet in MetaMask.',
+  USER_REJECTED_SIGNING: 'Signature is required to access the academy. Please try again.',
+  NETWORK_UNAVAILABLE:   'Unit Zero network is currently unavailable. Please try again later.',
+  INVALID_SIGNATURE:     'Signature verification failed. Please reconnect.',
+  NO_ACCOUNTS:           'No accounts found — please unlock your MetaMask wallet.',
+};
+
+function _errMsg(err) {
+  return ERROR_MESSAGES[err?.code] || err?.message || 'An unexpected error occurred.';
+}
+
+// ── Auth card helpers ─────────────────────────────────────────────────────
+
+function _showAuthError(msg) {
+  const el = document.getElementById('web3-error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+function _hideAuthError() {
+  const el = document.getElementById('web3-error');
+  if (el) el.style.display = 'none';
+}
+
+// ── Nav wallet pill ───────────────────────────────────────────────────────
+
+function updateNavWallet(address) {
+  const pill     = document.getElementById('nav-wallet-pill');
+  const addrEl   = document.getElementById('nav-wallet-addr');
+  const loginBtn = document.getElementById('nav-btn-login');
+  const signupBtn= document.getElementById('nav-btn-signup');
+
+  if (address) {
+    if (pill)    { pill.style.display = 'flex'; }
+    if (addrEl)  { addrEl.textContent = shortAddress(address); }
+    if (loginBtn)  loginBtn.style.display = 'none';
+    if (signupBtn) signupBtn.style.display = 'none';
+  } else {
+    if (pill)      pill.style.display = 'none';
+    if (loginBtn)  loginBtn.style.display = '';
+    if (signupBtn) signupBtn.style.display = '';
+  }
+}
+
+// ── Provider event handlers ───────────────────────────────────────────────
+
+function _onAccountsChanged(accounts) {
+  if (!accounts || accounts.length === 0) {
+    clearSession();
+    updateNavWallet(null);
+    showToast('Wallet disconnected.', 'warning');
+    document.dispatchEvent(new CustomEvent('walletDisconnected'));
+    return;
+  }
+  const newAddr = accounts[0];
+  const session = getSession();
+  if (session && session.address.toLowerCase() !== newAddr.toLowerCase()) {
+    clearSession();
+    updateNavWallet(null);
+    showToast(
+      `Account changed to ${shortAddress(newAddr)}. Please reconnect to continue.`,
+      'warning', 6000,
+    );
+    document.dispatchEvent(new CustomEvent('walletDisconnected'));
+  }
+}
+
+function _onChainChanged(chainId) {
+  if (chainId.toLowerCase() === UNIT0_CHAIN_ID_HEX.toLowerCase()) {
+    showToast('Switched to Unit Zero Mainnet.', 'success');
+  } else if (getSession()) {
+    showToast('You left Unit Zero Mainnet. Some features may not work.', 'warning', 6000);
+  }
+}
+
+function _onDisconnect() {
+  clearSession();
+  updateNavWallet(null);
+  showToast('Wallet provider disconnected.', 'warning');
+  document.dispatchEvent(new CustomEvent('walletDisconnected'));
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────
+
+function _init() {
+  // Restore wallet state from persisted session
+  const session = getSession();
+  if (session) updateNavWallet(session.address);
+
+  // Attach MetaMask provider event listeners
+  const eth = window.ethereum;
+  if (eth) {
+    eth.on('accountsChanged', _onAccountsChanged);
+    eth.on('chainChanged',    _onChainChanged);
+    eth.on('disconnect',      _onDisconnect);
   }
 
-  function shortAddress(addr) {
-    return addr.slice(0, 6) + '…' + addr.slice(-4);
-  }
-
-  function setSession(addr, sig) {
-    /* progress stored in a cookie (7-day expiry) */
-    var expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-    document.cookie = 'daskibo_wallet=' + encodeURIComponent(addr) + '; expires=' + expires + '; path=/; SameSite=Lax';
-    document.cookie = 'daskibo_sig=' + encodeURIComponent(sig)  + '; expires=' + expires + '; path=/; SameSite=Lax';
-    try {
-      localStorage.setItem('daskibo_wallet', addr);
-      localStorage.setItem('daskibo_sig', sig);
-    } catch (e) {}
-  }
-
-  function getSession() {
-    try {
-      var addr = localStorage.getItem('daskibo_wallet');
-      var sig  = localStorage.getItem('daskibo_sig');
-      if (addr && sig) return { address: addr, sig: sig };
-    } catch (e) {}
-    return null;
-  }
-
-  function clearSession() {
-    var past = 'Thu, 01 Jan 1970 00:00:00 GMT';
-    document.cookie = 'daskibo_wallet=; expires=' + past + '; path=/';
-    document.cookie = 'daskibo_sig=; expires='    + past + '; path=/';
-    try {
-      localStorage.removeItem('daskibo_wallet');
-      localStorage.removeItem('daskibo_sig');
-    } catch (e) {}
-  }
-
-  /* ── network switch ──────────────────────────────── */
-  async function switchToUnit0() {
-    var eth = window.ethereum;
-    try {
-      await eth.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: UNIT0_CHAIN.chainId }],
-      });
-    } catch (err) {
-      /* 4902 = chain not yet added */
-      if (err.code === 4902) {
-        await eth.request({
-          method: 'wallet_addEthereumChain',
-          params: [UNIT0_CHAIN],
-        });
-      } else {
-        throw err;
+  // Wire connect buttons (data-action="connect")
+  document.querySelectorAll('[data-action="connect"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!hasMetaMask()) {
+        const msg = ERROR_MESSAGES.METAMASK_NOT_FOUND;
+        showToast(msg, 'error', 7000);
+        _showAuthError('MetaMask not installed. Visit metamask.io to install.');
+        return;
       }
-    }
-  }
 
-  /* ── core auth flow ──────────────────────────────── */
-  /**
-   * Full connect + switch network + sign message flow.
-   * Returns { address, sig } on success, throws on failure.
-   */
-  async function connectAndSign() {
-    if (!hasMetaMask()) {
-      throw new Error('METAMASK_NOT_FOUND');
-    }
+      _hideAuthError();
+      btn.disabled = true;
+      btn.classList.add('loading');
 
-    /* 1. Request account access */
-    var accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-    var address  = accounts[0];
+      try {
+        const result = await connectAndSign();
 
-    /* 2. Switch / add Unit0 network */
-    await switchToUnit0();
+        // Update nav wallet indicator
+        updateNavWallet(result.address);
+        showToast(`Connected: ${shortAddress(result.address)}`, 'success');
 
-    /* 3. Personal sign */
-    var sig = await window.ethereum.request({
-      method: 'personal_sign',
-      params: [SIGN_MESSAGE, address],
-    });
-
-    /* 4. Persist session */
-    setSession(address, sig);
-
-    return { address: address, sig: sig };
-  }
-
-  /* ── UI helpers ──────────────────────────────────── */
-  function updateWalletUI() {
-    var session = getSession();
-    var btns    = document.querySelectorAll('[data-wallet-status]');
-    btns.forEach(function (el) {
-      if (session) {
-        el.textContent = shortAddress(session.address);
-        el.classList.add('connected');
-      } else {
-        el.textContent = el.dataset.defaultText || 'Connect';
-        el.classList.remove('connected');
-      }
-    });
-  }
-
-  function showError(containerId, msg) {
-    var el = document.getElementById(containerId);
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = 'block';
-  }
-
-  function hideError(containerId) {
-    var el = document.getElementById(containerId);
-    if (el) el.style.display = 'none';
-  }
-
-  /* ── bootstrap ───────────────────────────────────── */
-  document.addEventListener('DOMContentLoaded', function () {
-    updateWalletUI();
-
-    /* Wire any element with data-action="connect" */
-    document.querySelectorAll('[data-action="connect"]').forEach(function (btn) {
-      btn.addEventListener('click', async function () {
-        hideError('web3-error');
-        btn.disabled = true;
-        btn.classList.add('loading');
-        try {
-          var result = await connectAndSign();
-          updateWalletUI();
-          document.dispatchEvent(new CustomEvent('walletConnected', { detail: result }));
-        } catch (err) {
-          var msg = err.message === 'METAMASK_NOT_FOUND'
-            ? (window.I18n ? window.I18n.t('auth_no_metamask') : 'MetaMask not found.')
-            : (err.message || 'Connection failed.');
-          showError('web3-error', msg);
-        } finally {
-          btn.disabled = false;
-          btn.classList.remove('loading');
+        // Update auth card success state (login / signup pages)
+        const display = document.getElementById('wallet-display');
+        const addrEl  = document.getElementById('wallet-addr');
+        if (display && addrEl) {
+          addrEl.textContent = shortAddress(result.address);
+          display.classList.add('visible');
         }
-      });
-    });
 
-    /* Wire logout */
-    document.querySelectorAll('[data-action="logout"]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        clearSession();
-        updateWalletUI();
-        document.dispatchEvent(new CustomEvent('walletDisconnected'));
-      });
+        document.dispatchEvent(new CustomEvent('walletConnected', { detail: result }));
+      } catch (err) {
+        const msg = _errMsg(err);
+        showToast(msg, 'error', 6000);
+        _showAuthError(msg);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
     });
   });
 
-  global.Web3Auth = {
-    hasMetaMask:    hasMetaMask,
-    connectAndSign: connectAndSign,
-    switchToUnit0:  switchToUnit0,
-    getSession:     getSession,
-    clearSession:   clearSession,
-    SIGN_MESSAGE:   SIGN_MESSAGE,
-    UNIT0_CHAIN:    UNIT0_CHAIN,
-  };
-}(window));
+  // Wire logout / nav-disconnect buttons
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[data-action="logout"], #nav-wallet-disconnect')) return;
+    clearSession();
+    updateNavWallet(null);
+    showToast('Disconnected from Daskibo Academy.', 'info');
+    document.dispatchEvent(new CustomEvent('walletDisconnected'));
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _init);
+} else {
+  _init();
+}
+
+// Expose minimal API for any inline page scripts that need it
+window.Web3Auth = {
+  hasMetaMask,
+  connectAndSign,
+  getSession,
+  clearSession,
+  shortAddress,
+  showToast,
+  updateNavWallet,
+};
