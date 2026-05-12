@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Daskibo Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/academy.css" />
+</head>
+<body>
+
+  <!-- Minimal header (no inject to avoid redirect loops) -->
+  <header class="site-header">
+    <nav class="nav">
+      <a href="./index.html" class="nav-logo">Daskibo Academy</a>
+      <!-- Language switcher -->
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="en" title="English">🇬🇧</button>
+        <button class="lang-btn" data-lang="ru" title="Русский">🇷🇺</button>
+        <button class="lang-btn" data-lang="es" title="Español">🇪🇸</button>
+        <button class="lang-btn" data-lang="zh" title="中文">🇨🇳</button>
+        <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
+        <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
+      </div>
+      <!-- Theme toggle -->
+      <button class="theme-toggle" id="theme-toggle">
+        <span class="icon" id="theme-icon">☀️</span>
+        <span id="theme-label" data-i18n="theme_light">Light</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="auth-page">
+    <div class="auth-card">
+      <p class="auth-logo">Daskibo Academy</p>
+      <h1 class="auth-title" data-i18n="auth_login_title">Log In with MetaMask</h1>
+      <p class="auth-sub">Connect your wallet to access your courses and track progress.</p>
+
+      <hr class="auth-divider" />
+
+      <!-- Steps -->
+      <ul class="auth-steps">
+        <li>
+          <span class="step-num">1</span>
+          <span>Connect your MetaMask wallet.</span>
+        </li>
+        <li>
+          <span class="step-num">2</span>
+          <span>We'll switch your network to <strong>Unit Zero Mainnet</strong> (Chain ID 88811).</span>
+        </li>
+        <li>
+          <span class="step-num">3</span>
+          <span>Sign the message below to verify ownership and accept terms.</span>
+        </li>
+      </ul>
+
+      <!-- Sign message preview -->
+      <div class="sign-message-box" id="sign-message-preview">
+        "I am the owner of this wallet. I agree to save my progress via cookies
+        and to receive a certificate upon completion of practical tasks on Daskibo Academy."
+      </div>
+
+      <!-- Connect button -->
+      <button class="btn btn-metamask" data-action="connect" style="width:100%;justify-content:center">
+        🦊 <span data-i18n="auth_connect_metamask">Connect MetaMask</span>
+      </button>
+
+      <!-- Error display -->
+      <div class="web3-error" id="web3-error"></div>
+
+      <!-- Success display -->
+      <div class="wallet-display" id="wallet-display">
+        <span>✅</span>
+        <span class="wallet-addr" id="wallet-addr"></span>
+        <span style="color:var(--muted);font-size:.8rem">connected</span>
+      </div>
+
+      <hr class="auth-divider" />
+      <p class="auth-link">Don't have an account? <a href="./signup.html" data-i18n="nav_signup">Sign Up</a></p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span data-i18n="footer_copy">Daskibo Academy © 2026</span>
+  </footer>
+
+  <script src="./js/i18n.js"></script>
+  <script src="./js/web3.js"></script>
+  <script>
+    /* Theme init */
+    (function () {
+      var THEME_KEY = 'daskibo_theme';
+      function applyTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        try { localStorage.setItem(THEME_KEY, t); } catch(e) {}
+        var icon  = document.getElementById('theme-icon');
+        var label = document.getElementById('theme-label');
+        if (icon)  icon.textContent = t === 'dark' ? '☀️' : '🌙';
+        if (label) {
+          label.setAttribute('data-i18n', t === 'dark' ? 'theme_light' : 'theme_dark');
+          if (window.I18n) label.textContent = window.I18n.t(label.getAttribute('data-i18n'));
+        }
+      }
+      try {
+        applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+      } catch(e) { applyTheme('dark'); }
+      document.getElementById('theme-toggle').addEventListener('click', function () {
+        var cur = document.documentElement.getAttribute('data-theme') || 'dark';
+        applyTheme(cur === 'dark' ? 'light' : 'dark');
+        if (window.I18n) window.I18n.apply(window.I18n.current());
+      });
+    }());
+
+    /* Post-connect: show address and redirect */
+    document.addEventListener('walletConnected', function (e) {
+      var addr = e.detail.address;
+      var display = document.getElementById('wallet-display');
+      var addrEl  = document.getElementById('wallet-addr');
+      if (display && addrEl) {
+        addrEl.textContent = addr.slice(0, 6) + '…' + addr.slice(-4);
+        display.classList.add('visible');
+      }
+      /* Redirect to academy home after short delay */
+      setTimeout(function () {
+        window.location.href = './index.html';
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
