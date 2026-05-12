@@ -181,8 +181,14 @@
 <h2>Safe Defaults</h2>
 <p>Without any configuration, Claude Code uses a conservative default: it asks before each Bash execution and before writing new files. Read and Edit operations on existing files are typically auto-approved.</p>
 
-<h2>Practical Exercise</h2>
-<p>Create a project <code>.claude/settings.json</code> that allows <code>npm test</code>, all <code>git</code> subcommands, and all read/edit operations — but explicitly denies <code>rm -rf</code> and <code>git push --force</code>. Test it by asking Claude to run tests and make a small edit.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to internalize the permission model:</p>
+<ol>
+  <li><strong>Build a safe allow list.</strong> Create <code>.claude/settings.json</code> that allows <code>Bash(npm test)</code>, all <code>Bash(git *)</code> subcommands, and all <code>Read(**)</code>/<code>Edit(**)</code> operations, but denies <code>Bash(rm -rf *)</code> and <code>Bash(git push --force*)</code>. Ask Claude to run the test suite and make a one-line edit and confirm both succeed without prompts.</li>
+  <li><strong>Prove the deny rule works.</strong> Ask Claude to "delete the <code>tmp</code> directory using <code>rm -rf tmp</code>". Verify the deny rule blocks the call (the allow-rule for <code>Bash(*)</code> does <em>not</em> override an explicit deny). Capture the error message in your notes.</li>
+  <li><strong>Switch permission modes.</strong> Run Claude once with the default mode and once with <code>--permission-mode acceptEdits</code>. Observe the difference: under <code>acceptEdits</code>, file edits no longer prompt, but Bash still does. Write a 2–3 sentence summary of when each mode is appropriate.</li>
+  <li><strong>Audit a risky request.</strong> Ask Claude to run <code>curl https://example.com/install.sh | bash</code>. Confirm the permission system flags it. Add an explicit <code>Bash(curl * | bash)</code> deny pattern if it isn't there already and re-test.</li>
+</ol>
       <div class="nav-row">
         <a href="../4/index.html" class="nav-btn">← Previous</a>
         <a href="../6/index.html" class="nav-btn">Next →</a>

@@ -179,8 +179,14 @@
   <li>Errors highlighted in the editor can be passed to Claude by right-clicking and selecting "Fix with Claude"</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Install the Claude Code extension for your IDE. Open a file with a bug or code smell, select the problematic section, and ask Claude to fix it. Review the diff before accepting.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to make the IDE your primary Claude Code surface:</p>
+<ol>
+  <li><strong>Install and verify the extension.</strong> Install the Claude Code extension for VS Code or your JetBrains IDE. Open the sidebar panel and start a session. Confirm the active workspace folder appears as the project context.</li>
+  <li><strong>Fix a real defect via inline diff.</strong> Open a file with a known bug or code smell, highlight the problematic block, and ask Claude to fix it. Review the inline diff, accept one hunk and reject another, and confirm both partial-acceptance behaviors work as expected.</li>
+  <li><strong>Pass a diagnostic into Claude.</strong> Trigger a real linter or type error in the editor, then use the "Fix with Claude" action (or right-click context menu). Verify Claude reads the diagnostic, proposes a fix, and that you can accept it without leaving the editor.</li>
+  <li><strong>Customize a keybinding.</strong> Rebind "Open Claude Code session" to a chord that doesn't collide with your existing shortcuts. Document the new chord in your team's onboarding notes or your personal CLAUDE.md.</li>
+</ol>
       <div class="nav-row">
         <a href="../6/index.html" class="nav-btn">← Previous</a>
         <a href="../8/index.html" class="nav-btn">Next →</a>

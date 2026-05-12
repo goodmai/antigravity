@@ -181,8 +181,14 @@ coverage/
   <li>Use subagents that each focus on one repository, then synthesize results</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>In a large project (or any open-source repo you clone), ask Claude to find all API endpoints without first describing the codebase structure. Observe how it navigates. Then add a targeted hint in your prompt and compare the efficiency.</p>
+<h2>Practical Exercises</h2>
+<p>Pick a real large open-source project (e.g., <code>vercel/next.js</code> or <code>microsoft/vscode</code>) and complete all three tasks:</p>
+<ol>
+  <li><strong>Cold vs hinted search.</strong> Ask Claude "find all HTTP route definitions in this repo" with no other context. Note how many files it reads and how long it takes (use <code>/status</code>). Then retry the same task with a hint like "look for files matching <code>*router*</code> or <code>*routes*</code> first". Compare token cost and time.</li>
+  <li><strong>Tune <code>.claudeignore</code>.</strong> Add <code>.claudeignore</code> entries for the repo's vendor/build directories (e.g., <code>node_modules/</code>, <code>.next/</code>, <code>test-fixtures/</code>, generated docs). Rerun the search task and confirm Claude no longer wastes tokens on those paths.</li>
+  <li><strong>Funnel approach.</strong> Complete a deep exploration in three prompts: (a) "give me a top-level directory map with one sentence per directory", (b) "now zoom into the directory most likely to contain auth logic", (c) "explain the auth entry point in that directory". Track tokens used at each step — you should see steeply diminishing context cost compared to a single "explain the auth system" prompt.</li>
+  <li><strong>Subagent fan-out.</strong> Spawn three subagents, each tasked with summarizing a different directory in parallel. Have an orchestrator combine the summaries. Confirm total wall-clock time is materially lower than doing it sequentially.</li>
+</ol>
       <div class="nav-row">
         <a href="../18/index.html" class="nav-btn">← Previous</a>
         <a href="../20/index.html" class="nav-btn">Next →</a>

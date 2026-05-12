@@ -174,8 +174,14 @@
 <pre><code>&gt; That looks right but the error message should be user-facing, not technical.
   Revise just the error strings to be friendly and actionable.</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Take a complex refactoring task in your codebase. Write a sequence of prompts that accomplish it step by step, with a "plan first" check at the beginning. Compare the quality of results to attempting it in a single prompt.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to feel the impact of disciplined prompting:</p>
+<ol>
+  <li><strong>One-shot vs decomposed.</strong> Pick a real refactoring task (e.g., "convert callbacks to async/await across <code>src/api/</code>"). First, attempt it in a single prompt. Then redo it as a sequence of 3–4 narrower prompts that each name files, expected outcomes, and constraints. Compare the diffs.</li>
+  <li><strong>Plan-first gate.</strong> Prefix the same task with "Before touching any file, output a 5-bullet plan and pause for my approval." Verify Claude waits, refine the plan, then say "proceed". Notice how a 30-second plan review prevents 20 minutes of wrong-direction code.</li>
+  <li><strong>Few-shot pattern matching.</strong> Find three call sites that use an inconsistent error-handling pattern. Show Claude one corrected example, then ask it to apply the same pattern to the other two. Confirm style, error type, and logging match across all three.</li>
+  <li><strong>Iterative refinement.</strong> When the result is 80% right, don't restart — give a targeted follow-up: "Good, but rename the helper to <code>parseUserId</code> and move it above its first caller." Practice this until you stop instinctively re-prompting from scratch.</li>
+</ol>
       <div class="nav-row">
         <a href="../13/index.html" class="nav-btn">← Previous</a>
         <a href="../15/index.html" class="nav-btn">Next →</a>

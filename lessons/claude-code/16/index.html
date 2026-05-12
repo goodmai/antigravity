@@ -164,8 +164,9 @@ jobs:
         run: |
           npm install -g @anthropic-ai/claude-code
           git diff origin/main...HEAD > diff.txt
-          claude --print "Review diff.txt for bugs and security issues. 
-            Exit with code 1 if any critical issues are found."             --permission-mode bypassPermissions</code></pre>
+          claude --print \
+            "Review diff.txt for bugs and security issues. Exit with code 1 if any critical issues are found." \
+            --permission-mode bypassPermissions</code></pre>
 
 <h2>Quality Gates</h2>
 <p>Claude Code can enforce custom quality rules that static analyzers can't:</p>
@@ -176,7 +177,7 @@ jobs:
 </ul>
 
 <h2>Automated Documentation</h2>
-<pre><code>claude --print "Update the CHANGELOG with an entry for the changes in this diff"   --permission-mode acceptEdits</code></pre>
+<pre><code>claude --print "Update the CHANGELOG with an entry for the changes in this diff" --permission-mode acceptEdits</code></pre>
 
 <h2>Cost Management in CI</h2>
 <ul>
@@ -186,8 +187,14 @@ jobs:
   <li>Scope reviews to the diff only, not the entire codebase</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Write a GitHub Actions workflow that runs Claude Code on every PR to check: does the PR include a test for each new function? Have it post a comment with the results and fail the check if any new function is untested.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks in a sandbox repository (don't ship to production on your first try):</p>
+<ol>
+  <li><strong>Headless dry run locally.</strong> On your machine, run <code>claude --print "Summarize the last commit on this branch" --output-format json</code>. Confirm the command exits 0 and the JSON is parseable. This is your CI building block — verify it works before piping it into Actions.</li>
+  <li><strong>Test-coverage gate workflow.</strong> Write a GitHub Actions workflow (<code>.github/workflows/claude-review.yml</code>) that, on every PR: checks out the code, installs Claude Code, computes the diff against the base branch, and asks Claude "List each newly added public function in this diff that does not have a corresponding test. Exit 1 if any are found." Post the result as a PR comment via <code>gh pr comment</code>.</li>
+  <li><strong>Two-model cost split.</strong> Add a second job that uses Haiku for cheap checks (lint summary, commit message format) and Sonnet for the substantive review. Run both on a PR and compare the cost in your Anthropic Console — confirm Haiku is doing the lion's share of calls.</li>
+  <li><strong>Failure UX.</strong> Intentionally open a PR that violates your gate (an untested public function). Confirm: the workflow fails, the comment is posted, and the comment explains exactly which function needs a test. A red check with no explanation is worse than no check at all.</li>
+</ol>
       <div class="nav-row">
         <a href="../15/index.html" class="nav-btn">← Previous</a>
         <a href="../17/index.html" class="nav-btn">Next →</a>

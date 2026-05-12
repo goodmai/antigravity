@@ -186,8 +186,14 @@ and commit. Show me the message before committing.
 <pre><code>/help</code></pre>
 <p>All custom commands appear in the help output alongside built-in commands.</p>
 
-<h2>Practical Exercise</h2>
-<p>Create a project-specific slash command called <code>/changelog</code> that asks Claude to generate a CHANGELOG entry from the git log since the last tag, formatted in Keep a Changelog style. Test it in a repository with recent commits.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to build a small but useful command library:</p>
+<ol>
+  <li><strong>Project-scoped <code>/changelog</code>.</strong> Create <code>.claude/commands/changelog.md</code> that asks Claude to run <code>git log $(git describe --tags --abbrev=0)..HEAD</code> and produce a CHANGELOG entry in Keep a Changelog format (Added / Changed / Fixed / Removed). Test it in a repo with several commits since the last tag.</li>
+  <li><strong>Command with arguments.</strong> Create <code>/fix &lt;issue&gt;</code> at <code>.claude/commands/fix.md</code> using <code>$ARGUMENTS</code>. The prompt should instruct Claude to (a) reproduce the issue, (b) implement a fix, and (c) add a test that fails before the fix and passes after. Test with: <code>/fix login throws when API is down</code>.</li>
+  <li><strong>Global command.</strong> Create <code>~/.claude/commands/review.md</code> that asks Claude to review the staged diff for logic errors, missing validation, and test coverage gaps — citing line numbers. Run <code>/review</code> from two different projects to prove the global scope works.</li>
+  <li><strong>Discoverability check.</strong> Run <code>/help</code> in a session that has access to all three commands and confirm they appear in the listing. If a command is missing, verify it's a <code>.md</code> file with the correct name in the correct directory.</li>
+</ol>
       <div class="nav-row">
         <a href="../9/index.html" class="nav-btn">← Previous</a>
         <a href="../11/index.html" class="nav-btn">Next →</a>

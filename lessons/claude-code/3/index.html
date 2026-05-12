@@ -180,8 +180,14 @@
   <li>Use <code>/clear</code> between unrelated tasks to avoid context bleed</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Open Claude Code in a project you own. Ask it to summarize the project structure, then ask it to find a bug or suggest an improvement. Use <code>/status</code> to see token usage after a few exchanges.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks in a single Claude Code session in a project you own:</p>
+<ol>
+  <li><strong>Project orientation.</strong> Ask Claude to "summarize this project's structure in 5 bullet points, including the tech stack, entry point, and test command." Confirm Claude reads files (not just guesses) by checking that it cites real filenames in the answer.</li>
+  <li><strong>Targeted edit.</strong> Pick one small, well-scoped change — for example "add input validation to the function in <code>src/utils/parse.js</code>" or "rename variable <code>foo</code> to <code>userId</code> in <code>src/auth.js</code>". Give Claude the exact file path and the expected outcome. Review the diff before accepting.</li>
+  <li><strong>Use the slash commands.</strong> Run <code>/status</code> to see token usage so far, then <code>/compact</code> to summarize the conversation, and finally <code>/clear</code> to start fresh. Compare the token count from <code>/status</code> before and after compaction — note the reduction in your own words.</li>
+  <li><strong>Keyboard shortcut drill.</strong> Start a long-running command, press <kbd>Ctrl+C</kbd> to interrupt it, then use the <kbd>Up</kbd> arrow to recall your previous prompt and rephrase it. Practice this loop until it feels automatic.</li>
+</ol>
       <div class="nav-row">
         <a href="../2/index.html" class="nav-btn">← Previous</a>
         <a href="../4/index.html" class="nav-btn">Next →</a>

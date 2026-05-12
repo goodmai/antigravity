@@ -187,8 +187,14 @@ if echo "$CLAUDE_TOOL_INPUT" | grep -q "npm publish"; then
   exit 1
 fi</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Add a Stop hook that writes the timestamp and a summary to a file called <code>.claude/session.log</code> each time Claude finishes a turn. Run a few tasks and inspect the log.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to wire hooks into a real workflow:</p>
+<ol>
+  <li><strong>Session activity log.</strong> Add a <code>Stop</code> hook that appends an ISO timestamp and the current working directory to <code>.claude/session.log</code> each time Claude finishes a turn. Run two or three tasks and inspect the log to confirm the format is grep-friendly.</li>
+  <li><strong>Bash audit trail.</strong> Add a <code>PreToolUse</code> hook matching <code>Bash</code> that logs <code>$CLAUDE_TOOL_INPUT</code> with a timestamp to <code>~/.claude/bash-audit.log</code>. Ask Claude to run several shell commands and confirm every invocation is recorded — this is the foundation of any production audit story.</li>
+  <li><strong>Policy enforcement via blocking hook.</strong> Write a <code>PreToolUse</code> hook that returns exit code 1 when the command contains <code>npm publish</code> or <code>git push --force</code>. Ask Claude to run each of those — confirm the hook blocks the call and Claude reports the failure rather than silently retrying.</li>
+  <li><strong>Desktop notification on completion.</strong> Add a <code>Stop</code> hook that sends a desktop notification (<code>notify-send</code> on Linux, <code>osascript</code> on macOS, <code>BurntToast</code> on Windows). Verify a notification appears when a long task finishes — useful when you walk away while Claude works.</li>
+</ol>
       <div class="nav-row">
         <a href="../8/index.html" class="nav-btn">← Previous</a>
         <a href="../10/index.html" class="nav-btn">Next →</a>

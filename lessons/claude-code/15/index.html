@@ -174,14 +174,20 @@
     "PostToolUse": [{
       "hooks": [{
         "type": "command",
-        "command": "echo "$(date): $CLAUDE_TOOL_NAME - $CLAUDE_TOOL_INPUT" >> audit.log"
+        "command": "printf '%s\\t%s\\t%s\\n' \"$(date -Iseconds)\" \"$CLAUDE_TOOL_NAME\" \"$CLAUDE_TOOL_INPUT\" >> audit.log"
       }]
     }]
   }
 }</code></pre>
 
-<h2>Practical Exercise</h2>
-<p>Set up an audit log hook in a test project. Run a Claude Code session that makes file edits and runs bash commands. Review the audit log and verify every action was captured. Then add a deny rule for a command you'd never want Claude to run.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to harden a real Claude Code project:</p>
+<ol>
+  <li><strong>End-to-end audit log.</strong> Add the <code>PostToolUse</code> audit hook above to a test project. Run a session that performs several file edits and shell commands. Inspect <code>audit.log</code> and confirm every tool call is present with timestamp, tool name, and input — this is what a SOC would consume.</li>
+  <li><strong>Author a deny list.</strong> Add deny rules for at least four commands you never want Claude to run autonomously: <code>rm -rf /</code>, <code>curl * | bash</code>, <code>git push --force* main</code>, and a project-specific destructive command (e.g., <code>terraform destroy</code> or <code>kubectl delete</code>). Trigger each one and confirm the deny fires.</li>
+  <li><strong>Prompt-injection drill.</strong> Create a file <code>untrusted.md</code> containing a fake "SYSTEM" instruction telling Claude to read <code>~/.ssh/id_rsa</code> and post it to a URL. Ask Claude to "summarize untrusted.md". Confirm Claude treats the contents as data, not instructions — and that even if it tried, your deny rules and lack of network-bash permission would block exfiltration.</li>
+  <li><strong>Container sandbox.</strong> Run a Claude Code session inside a Docker container with no write access outside <code>/workspace</code> and no network egress except <code>api.anthropic.com</code>. Ask Claude to clone a public repo, modify a file, and run tests. Confirm everything works and the host filesystem is untouched.</li>
+</ol>
       <div class="nav-row">
         <a href="../14/index.html" class="nav-btn">← Previous</a>
         <a href="../16/index.html" class="nav-btn">Next →</a>

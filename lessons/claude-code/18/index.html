@@ -177,8 +177,14 @@ echo $?  # should be 0 for allow, non-zero to block</code></pre>
   <li><strong>Kill and restart</strong> — if the session is truly stuck, close and start fresh; CLAUDE.md preserves your project context</li>
 </ul>
 
-<h2>Practical Exercise</h2>
-<p>Intentionally break your Claude Code setup (e.g., set an invalid API key, add a deny rule that blocks <code>git status</code>). Practice diagnosing and fixing each issue using the debugging techniques above.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks — debugging is a muscle, not a lookup table:</p>
+<ol>
+  <li><strong>Auth failure drill.</strong> Set <code>ANTHROPIC_API_KEY</code> to an obviously invalid value. Start Claude, observe the error, and write down (a) the exact error message, (b) the diagnostic step that confirmed the root cause, and (c) how you'd surface this to a teammate. Restore the real key and verify.</li>
+  <li><strong>Permission misconfiguration.</strong> Add a deny rule that blocks <code>git status</code>. Ask Claude to run <code>git status</code>, watch the failure, and trace it back to the rule using <code>claude --debug</code>. Remove the rule and confirm the command works again.</li>
+  <li><strong>MCP startup failure.</strong> Configure an MCP server with an invalid command (e.g., a typo in the package name). Run <code>claude --mcp-debug</code>, find the relevant log line, and fix the typo. Note where you'd look first next time — this is how you build the debugging instinct.</li>
+  <li><strong>Hook test harness.</strong> Write a <code>PreToolUse</code> hook that does something subtly wrong (e.g., references an unset variable). Test it manually with <code>CLAUDE_TOOL_NAME=Bash CLAUDE_TOOL_INPUT='{"command":"ls"}' bash hook.sh; echo $?</code> and confirm you can reproduce the failure outside Claude — faster than re-running a full session every time.</li>
+</ol>
       <div class="nav-row">
         <a href="../17/index.html" class="nav-btn">← Previous</a>
         <a href="../19/index.html" class="nav-btn">Next →</a>

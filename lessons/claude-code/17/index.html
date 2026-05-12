@@ -178,8 +178,14 @@
 <h2>Fast Mode</h2>
 <p>Claude Code's <code>/fast</code> toggle switches to an optimized inference mode. Use it for rapid iteration when you don't need maximum quality.</p>
 
-<h2>Practical Exercise</h2>
-<p>Design a two-stage agent pipeline: first use Haiku to classify an incoming task as "simple" or "complex", then route to Sonnet or Opus accordingly. Implement it and test with 5 example tasks, measuring cost versus a single-model approach.</p>
+<h2>Practical Exercises</h2>
+<p>Complete all three tasks to make multi-model routing feel natural:</p>
+<ol>
+  <li><strong>Two-stage classifier + executor.</strong> Build a pipeline where Haiku 4.5 classifies an incoming task as <em>simple</em>, <em>medium</em>, or <em>complex</em> and routes to Haiku, Sonnet 4.6, or Opus 4.7 respectively. Test with 5 realistic tasks (rename a variable, write a unit test, refactor a module, design a schema, plan a migration) and record which model handled each.</li>
+  <li><strong>Cost comparison.</strong> Run the same 5 tasks through a single-model baseline (Opus only). Use Anthropic's Console usage logs (or sum the per-call <code>usage.input_tokens</code> and <code>output_tokens</code> with current pricing) to compute total cost for both runs. Confirm the routed pipeline is materially cheaper without losing correctness.</li>
+  <li><strong>Cache hit measurement.</strong> Enable prompt caching on the system prompt and tool definitions. Run the same task twice in a row and inspect <code>usage.cache_read_input_tokens</code> on the second call. Compute the cache hit rate — you're aiming for &gt;80% on the static prefix.</li>
+  <li><strong>Failure fallback.</strong> Add logic: if Sonnet's response is empty or marked low-confidence, automatically retry on Opus. Trigger it by sending a deliberately ambiguous prompt and confirm the fallback fires exactly once (not in a loop).</li>
+</ol>
       <div class="nav-row">
         <a href="../16/index.html" class="nav-btn">← Previous</a>
         <a href="../18/index.html" class="nav-btn">Next →</a>
