@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daskibo Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/academy.css" />
+</head>
+<body>
+
+  <!-- Header injected by header.js -->
+  <div id="site-header"></div>
+
+  <!-- ── Hero ─────────────────────────────────────── -->
+  <section class="hero">
+    <div class="container">
+      <h1 class="hero-title" data-i18n="hero_title">Daskibo Academy</h1>
+      <p class="hero-subtitle" data-i18n="hero_subtitle">
+        Mastery in AI, Blockchain, Rust &amp; the next frontier of engineering.
+      </p>
+      <div class="hero-actions">
+        <a href="#courses" class="btn btn-primary" data-i18n="nav_courses">Courses</a>
+        <a href="./signup.html" class="btn btn-outline" data-i18n="nav_signup">Sign Up</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Courses ───────────────────────────────────── -->
+  <section class="section" id="courses">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-label">Curriculum</p>
+        <h2 class="section-title" data-i18n="courses_heading">Courses</h2>
+      </div>
+
+      <div class="courses-grid">
+
+        <!-- Antigravity (existing) -->
+        <a href="./courses/antigravity/index.html" class="course-card antigravity">
+          <div class="course-icon">🚀</div>
+          <div class="course-meta">
+            Course 01
+            <span class="badge badge-available" data-i18n="badge_available">Available</span>
+          </div>
+          <h3 class="course-title" data-i18n="course_antigravity_title">Antigravity</h3>
+          <p class="course-desc" data-i18n="course_antigravity_desc">
+            Autonomous AI agents, MCP, multi-agent orchestration and the full SDLC with Antigravity IDE.
+          </p>
+          <div class="course-footer">
+            <span>24 lessons · 3 labs</span>
+          </div>
+        </a>
+
+        <!-- Claude Code -->
+        <a href="./courses/claude-code/index.html" class="course-card claude">
+          <div class="course-icon">🤖</div>
+          <div class="course-meta">
+            Course 02
+            <span class="badge badge-soon" data-i18n="badge_coming_soon">Coming Soon</span>
+          </div>
+          <h3 class="course-title" data-i18n="course_claude_title">Claude Code</h3>
+          <p class="course-desc" data-i18n="course_claude_desc">
+            The definitive course on Claude Code CLI — from first prompt to production-grade agents.
+          </p>
+          <div class="course-footer">
+            <span>21 lessons · 12 labs</span>
+          </div>
+        </a>
+
+        <!-- Rust on Android -->
+        <a href="./courses/rust-android/index.html" class="course-card rust">
+          <div class="course-icon">🦀</div>
+          <div class="course-meta">
+            Course 03
+            <span class="badge badge-soon" data-i18n="badge_coming_soon">Coming Soon</span>
+          </div>
+          <h3 class="course-title" data-i18n="course_rust_title">Rust on Android</h3>
+          <p class="course-desc" data-i18n="course_rust_desc">
+            Build high-performance Android apps with Rust via JNI, NDK and cross-compilation pipelines.
+          </p>
+          <div class="course-footer">
+            <span>18 lessons · 8 labs</span>
+          </div>
+        </a>
+
+        <!-- Web3 Genesis -->
+        <a href="./courses/web3-genesis/index.html" class="course-card web3">
+          <div class="course-icon">⛓️</div>
+          <div class="course-meta">
+            Course 04
+            <span class="badge badge-soon" data-i18n="badge_coming_soon">Coming Soon</span>
+          </div>
+          <h3 class="course-title" data-i18n="course_web3_title">Web3 Genesis</h3>
+          <p class="course-desc" data-i18n="course_web3_desc">
+            Solidity, smart contracts, DeFi protocols and dApp development on EVM-compatible chains.
+          </p>
+          <div class="course-footer">
+            <span>20 lessons · 10 labs</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer injected by header.js -->
+  <div id="site-footer"></div>
+
+  <script src="./js/header.js"></script>
+  <script src="./js/i18n.js"></script>
+  <script src="./js/web3.js"></script>
+</body>
+</html>
