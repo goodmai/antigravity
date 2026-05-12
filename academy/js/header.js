@@ -24,11 +24,11 @@
   var headerHTML = `
 <header class="site-header">
   <nav class="nav">
-    <a href="/academy/index.html" class="nav-logo">Daskibo Academy</a>
+    <a href="/antigravity/academy/index.html" class="nav-logo">Daskibo Academy</a>
 
     <ul class="nav-links">
-      <li><a href="/academy/index.html"    data-i18n="nav_home">Home</a></li>
-      <li><a href="/academy/index.html#courses" data-i18n="nav_courses">Courses</a></li>
+      <li><a href="/antigravity/academy/index.html"    data-i18n="nav_home">Home</a></li>
+      <li><a href="/antigravity/academy/index.html#courses" data-i18n="nav_courses">Courses</a></li>
     </ul>
 
     <!-- Language switcher -->
@@ -48,8 +48,8 @@
     </button>
 
     <!-- Auth buttons -->
-    <a href="/academy/login.html"  class="btn btn-outline"  style="padding:8px 18px;font-size:.875rem" data-i18n="nav_login">Login</a>
-    <a href="/academy/signup.html" class="btn btn-primary" style="padding:8px 18px;font-size:.875rem" data-i18n="nav_signup">Sign Up</a>
+    <a href="/antigravity/academy/login.html"  class="btn btn-outline"  style="padding:8px 18px;font-size:.875rem" data-i18n="nav_login">Login</a>
+    <a href="/antigravity/academy/signup.html" class="btn btn-primary" style="padding:8px 18px;font-size:.875rem" data-i18n="nav_signup">Sign Up</a>
   </nav>
 </header>`;
 

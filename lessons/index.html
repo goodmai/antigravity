@@ -1,71 +1,24 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Anti-Gravity Academy | Уроки</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../academy/css/academy.css" />
     <style>
-      :root {
-        --bg-dark: #020617;
-        --card-bg: rgba(30, 41, 59, 0.5);
-        --accent-primary: #38bdf8;
-        --accent-secondary: #818cf8;
-        --text-main: #f8fafc;
-        --text-dim: #94a3b8;
-        --glass-border: rgba(255, 255, 255, 0.1);
-      }
-
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-
-      body {
-        font-family: "Inter", sans-serif;
-        background-color: var(--bg-dark);
-        background-image:
-          radial-gradient(
-            circle at 20% 20%,
-            rgba(56, 189, 248, 0.05) 0%,
-            transparent 25%
-          ),
-          radial-gradient(
-            circle at 80% 80%,
-            rgba(129, 140, 248, 0.05) 0%,
-            transparent 25%
-          );
-        color: var(--text-main);
-        min-height: 100vh;
-        line-height: 1.5;
-        overflow-x: hidden;
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 40px 20px;
-      }
-
-      header {
+      .lessons-page-hero {
         text-align: center;
         margin-bottom: 60px;
+        padding-top: 40px;
       }
 
-      h1 {
+      .lessons-page-hero h1 {
         font-size: 3.5rem;
         font-weight: 800;
-        background: linear-gradient(
-          to right,
-          var(--accent-primary),
-          var(--accent-secondary)
-        );
+        background: linear-gradient(to right, var(--primary), var(--secondary));
         background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -73,9 +26,9 @@
         letter-spacing: -0.025em;
       }
 
-      .subtitle {
+      .page-subtitle {
         font-size: 1.25rem;
-        color: var(--text-dim);
+        color: var(--muted);
         max-width: 600px;
         margin: 0 auto;
       }
@@ -87,13 +40,13 @@
       }
 
       .lesson-card {
-        background: var(--card-bg);
+        background: var(--card);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid var(--glass-border);
-        border-radius: 20px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
         padding: 24px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all var(--transition);
         text-decoration: none;
         color: inherit;
         display: flex;
@@ -104,7 +57,7 @@
 
       .lesson-card:hover {
         transform: translateY(-8px);
-        border-color: var(--accent-primary);
+        border-color: var(--primary);
         box-shadow:
           0 20px 25px -5px rgba(0, 0, 0, 0.2),
           0 10px 10px -5px rgba(56, 189, 248, 0.1);
@@ -117,23 +70,17 @@
         left: 0;
         width: 100%;
         height: 4px;
-        background: linear-gradient(
-          to right,
-          var(--accent-primary),
-          var(--accent-secondary)
-        );
+        background: linear-gradient(to right, var(--primary), var(--secondary));
         opacity: 0;
-        transition: opacity 0.3s ease;
+        transition: opacity var(--transition);
       }
 
-      .lesson-card:hover::before {
-        opacity: 1;
-      }
+      .lesson-card:hover::before { opacity: 1; }
 
       .lesson-num {
         font-size: 0.875rem;
         font-weight: 600;
-        color: var(--accent-primary);
+        color: var(--primary);
         text-transform: uppercase;
         margin-bottom: 12px;
         display: flex;
@@ -145,25 +92,13 @@
         font-size: 1.25rem;
         font-weight: 600;
         margin-bottom: 8px;
-        color: var(--text-main);
+        color: var(--text);
       }
 
       .lesson-desc {
         font-size: 0.9375rem;
-        color: var(--text-dim);
+        color: var(--muted);
         margin-top: auto;
-      }
-
-      .locked {
-        opacity: 0.6;
-        cursor: not-allowed;
-        filter: grayscale(0.5);
-      }
-
-      .locked:hover {
-        transform: none;
-        border-color: var(--glass-border);
-        box-shadow: none;
       }
 
       .badge {
@@ -177,7 +112,7 @@
       .badge.coming-soon {
         background: rgba(148, 163, 184, 0.1);
         border: 1px solid rgba(148, 163, 184, 0.2);
-        color: var(--text-dim);
+        color: var(--muted);
       }
 
       .ag-visited {
@@ -185,7 +120,7 @@
         background: linear-gradient(
           135deg,
           rgba(34, 197, 94, 0.06) 0%,
-          rgba(30, 41, 59, 0.5) 100%
+          var(--card) 100%
         );
       }
 
@@ -218,28 +153,26 @@
         margin-top: 14px;
       }
 
-      .labs-section {
-        margin-top: 60px;
-      }
+      .labs-section { margin-top: 60px; }
 
       .section-title {
         font-size: 1.5rem;
         font-weight: 700;
-        color: var(--text-main);
+        color: var(--text);
         margin-bottom: 24px;
       }
 
-      .site-footer {
+      .lessons-page-footer {
         margin-top: 60px;
         padding: 24px 0;
-        border-top: 1px solid var(--glass-border);
+        border-top: 1px solid var(--border);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 12px;
         font-size: 0.875rem;
-        color: var(--text-dim);
+        color: var(--muted);
       }
 
       .reset-btn {
@@ -263,20 +196,17 @@
       }
 
       @media (max-width: 640px) {
-        h1 {
-          font-size: 2.5rem;
-        }
-        .container {
-          padding: 20px;
-        }
+        .lessons-page-hero h1 { font-size: 2.5rem; }
       }
     </style>
   </head>
   <body>
+    <div id="site-header"></div>
+
     <div class="container">
-      <header>
+      <header class="lessons-page-hero">
         <h1>Anti-Gravity Academy</h1>
-        <p class="subtitle">
+        <p class="page-subtitle">
           Мастерство автономных агентов и инженерии будущего
         </p>
         <span id="ag-counter"></span>
@@ -548,54 +478,57 @@
             .antigravityignore, чанкинг, инкрементальный рефакторинг и управление 2M-токенным окном.
           </p>
         </a>
-
       </section>
 
       <section id="labs" class="labs-section">
         <h2 class="section-title">Laboratories & Capstone</h2>
         <div class="lessons-grid">
-            <!-- Lab 01 -->
-            <a href="../labs/01/index.html" class="lesson-card">
-              <div class="lesson-num">
-                Lab 01 <span class="badge">Capstone</span>
-              </div>
-              <h2 class="lesson-title">TeleDrive Ecosystem</h2>
-              <p class="lesson-desc">
-                Спецификация интеграции Telegram, Obsidian и Google Drive.
-              </p>
-            </a>
+          <!-- Lab 01 -->
+          <a href="../labs/01/index.html" class="lesson-card">
+            <div class="lesson-num">
+              Lab 01 <span class="badge">Capstone</span>
+            </div>
+            <h2 class="lesson-title">TeleDrive Ecosystem</h2>
+            <p class="lesson-desc">
+              Спецификация интеграции Telegram, Obsidian и Google Drive.
+            </p>
+          </a>
 
-            <!-- Lab 02 -->
-            <a href="../labs/02/index.html" class="lesson-card">
-              <div class="lesson-num">
-                Lab 02 <span class="badge">Лабораторная</span>
-              </div>
-              <h2 class="lesson-title">Antigravity в GitHub Codespaces</h2>
-              <p class="lesson-desc">
-                devcontainer.json, автоустановка Gemini CLI и запуск среды одним кликом из браузера.
-              </p>
-            </a>
+          <!-- Lab 02 -->
+          <a href="../labs/02/index.html" class="lesson-card">
+            <div class="lesson-num">
+              Lab 02 <span class="badge">Лабораторная</span>
+            </div>
+            <h2 class="lesson-title">Antigravity в GitHub Codespaces</h2>
+            <p class="lesson-desc">
+              devcontainer.json, автоустановка и запуск среды одним кликом из браузера.
+            </p>
+          </a>
 
-            <!-- Lab 03 -->
-            <a href="../labs/03/index.html" class="lesson-card">
-              <div class="lesson-num">
-                Lab 03 <span class="badge">Лабораторная</span>
-              </div>
-              <h2 class="lesson-title">Antigravity в облачных IDE</h2>
-              <p class="lesson-desc">
-                Установка через терминал в Gitpod, Google Cloud Shell и Replit. Сравнение платформ.
-              </p>
-            </a>
+          <!-- Lab 03 -->
+          <a href="../labs/03/index.html" class="lesson-card">
+            <div class="lesson-num">
+              Lab 03 <span class="badge">Лабораторная</span>
+            </div>
+            <h2 class="lesson-title">Antigravity в облачных IDE</h2>
+            <p class="lesson-desc">
+              Установка через терминал в Gitpod, Google Cloud Shell и Replit. Сравнение платформ.
+            </p>
+          </a>
         </div>
       </section>
 
-      <footer class="site-footer">
+      <footer class="lessons-page-footer">
         <span>Anti-Gravity Academy &copy; 2026</span>
         <button id="ag-reset-btn" class="reset-btn" onclick="AgProgress.reset()">
           ↺ Сбросить прогресс
         </button>
       </footer>
     </div>
+
+    <div id="site-footer"></div>
+    <script src="../academy/js/header.js"></script>
+    <script src="../academy/js/i18n.js"></script>
     <script src="./progress.js"></script>
   </body>
 </html>
