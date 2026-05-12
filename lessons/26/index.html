@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 2: Развертывание среды на ПК и мобильных устройствах | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1>Урок 2: Развертывание среды на ПК и мобильных устройствах</h1>
+<p>Развертывание ИИ-ассистента возможно в двух независимых средах: полноценный интерфейс командной строки (CLI) для персональных компьютеров и изолированная песочница в виде официального приложения для мобильных устройств.</p>
+<h2>Инсталляция на ПК (macOS и Ubuntu)</h2>
+<p>Инсталляция на десктопные системы обеспечивает максимальный уровень контроля и интеграции в рабочие процессы. Процесс требует наличия среды выполнения Node.js. Установка выполняется с помощью защищенного детерминированного скрипта в терминале:</p>
+<pre><code>curl -fsSL https://claude.ai/install.sh | bash</code></pre>
+<h2>Верификационные команды на ПК</h2>
+<p>Для математически точной валидации успешной инсталляции в терминале необходимо выполнить проверочные команды:</p>
+<pre><code>claude --version     # Проверка версии установленной сборки
+which claude         # Подтверждение корректности системного пути ($PATH)
+claude /login        # Инициация защищенного OAuth-туннеля</code></pre>
+<h2>Инсталляция на мобильных устройствах (iOS и Android)</h2>
+<p>Мобильный клиент позволяет использовать мощности ИИ без сложных настроек терминального окружения (таких как Termux). Процесс установки сведен к базовому алгоритму взаимодействия с официальными маркетплейсами. Архитектура приложения обеспечивает нативный доступ к облачным API Anthropic, автоматически управляя шифрованием данных.</p>
+<h3>iOS</h3>
+<p>Перейдите в App Store, введите в поиск "Claude by Anthropic". Инициируйте загрузку. Требуется iOS 15.0+.</p>
+<h3>Android</h3>
+<p>Откройте Google Play Market. Найдите приложение "Claude". Для предотвращения фишинга убедитесь, что издатель — Anthropic PBC. Нажмите "Установить".</p>
+<h2>Источники для Урока 2</h2>
+  <li>Официальная документация (CLI Setup): https://code.claude.com/docs/setup</li>
+<p>2. Официальная документация (Mobile App): https://support.anthropic.com/en/articles/9450526-claude-for-ios-and-android</p>
+<p>3. Видеоинструкция на YouTube: https://www.youtube.com/watch?v=AJpK3YTTKZ4</p>
+<h2>Практические задания</h2>
+  <li>**Установка Node.js**: На ПК выполните команду установки Node.js, а затем установите CLI-версию Claude через предоставленный bash-скрипт.</li>
+<p>2. **Проверка инсталляции**: На ПК запустите проверочные команды (claude --version, which claude) и задокументируйте результаты вывода терминала.</p>
+<p>3. **Проверка издателя**: На смартфоне найдите официальное приложение Claude в маркетплейсе (App Store / Google Play) и сверьте имя издателя.</p>
+<p>4. **Авторизация**: Пройдите процедуру авторизации в выбранной среде (через команду claude /login на ПК или внутри мобильного приложения).</p>
+<p>5. **Тестовый запрос**: Отправьте первый тестовый запрос (например, "Рассчитай корень из 144") для верификации сетевого соединения с серверами.</p>
+<h2>Ключевые различия окружений</h2>
+| Аспект | CLI (ПК) | Мобильное приложение |
+|--------|----------|-------------------|
+| Контроль | Максимальный | Ограниченный |
+| Доступ к файлам | Полный (с подтверждением) | Только внутри песочницы |
+| Производительность | Высокая | Оптимизирована для мобильных |
+| Безопасность | Зависит от настроек ОС | Полная изоляция (Sandbox) |
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 4: Архитектура памяти и лимиты контекстного окна | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1>Урок 4: Архитектура памяти и лимиты контекстного окна</h1>
+<p>Контекстное окно — это фундаментальное ограничение любой нейросети, определяющее максимальный объем данных, который она может "удержать в голове" за один раз. Модели Claude обладают огромным контекстным окном (до 200 000 токенов).</p>
+<h2>Феномен "Lost in the Middle"</h2>
+<p>Однако существует феномен "потери в середине" (Lost in the Middle). Исследования показывают, что ИИ лучше всего запоминает информацию, поданную в самом начале (эффект первичности) и в самом конце промпта (эффект недавности). Математическая вероятность извлечения факта из середины огромного текста статистически ниже.</p>
+<h2>Визуализация внимания</h2>
+<pre><code>Важность информации по позиции в контексте:
+
+[ВЫСОКАЯ] ─────────────────────────────── [НИЗКАЯ] ─────────────────────── [ВЫСОКАЯ]
+  ↑                                         ↑                                 ↑
+Начало                                    Середина                          Конец
+(Первичность)                             (Забывчивость)                    (Недавность)</code></pre>
+<h2>Стратегии использования контекстного окна</h2>
+<h3>Для закрепления правил на ПК</h3>
+<p>Используется файл конфигурации `CLAUDE.md`. На мобильном устройстве применяется "Инъекция системного промпта" — ручное закрепление правил в первом сообщении чата. Например: "В рамках диалога всегда применяй дедуктивный метод". Модель будет сохранять этот вектор внимания до переполнения окна.</p>
+<h3>Оптимальная структура длинного запроса</h3>
+  <li>**Система/правила** — в начале</li>
+<p>2. **Контекст** — сразу после правил</p>
+<p>3. **Основная задача** — в конце (где максимальное внимание)</p>
+<p>4. **Уточнения** — в самом конце</p>
+<h2>Расчет размера контекста</h2>
+<p>Если контекстное окно составляет 200 000 токенов:</p>
+  <li>Английский текст: ~266 000 слов (коэффициент 0.75)</li>
+  <li>Русский текст: ~500 000 слов (коэффициент 0.4)</li>
+<p>Это эквивалентно 1-2 небольшим романам на английском или 2-3 на русском.</p>
+<h2>Источники для Урока 4</h2>
+  <li>Исследования архитектуры памяти: https://milvus.io/fr/blog/claude-code-memory-memsearch.md</li>
+<p>2. Официальная документация (Context Window): https://docs.anthropic.com/en/docs/about-claude/models</p>
+<h2>Практические задания</h2>
+  <li>**Расчет памяти**: Рассчитайте приблизительный размер контекстного окна в словах, если предел модели составляет 200 000 токенов (коэффициент 0.75 для англ., 0.4 для русского).</li>
+<p>2. **Системное правило**: Запустите новый чат и первым сообщением установите строгое правило: "Каждое сообщение должно заканчиваться символом #".</p>
+<p>3. **Проверка прилипчивости**: Задайте 3 разных вопроса подряд в рамках этого чата и проверьте, сохраняется ли заданное математическое правило.</p>
+<p>4. **Анализ Lost in the Middle**: Изучите феномен "Lost in the Middle" и своими словами опишите, куда лучше помещать важную информацию в длинном запросе.</p>
+<p>5. **Сценарий переполнения**: Составьте сценарий, при котором переполнение контекстного окна приведет к логической ошибке (галлюцинации).</p>
+<h2>Когда контекст переполняется</h2>
+  <li>Модель начинает "забывать" информацию из начала диалога</li>
+  <li>Ответы становятся менее логичными и последовательными</li>
+  <li>Возникают противоречия с ранее установленными правилами</li>
+  <li>Может произойти "галлюцинация" — генерация несуществующей информации</li>
+<h2>Рекомендации по управлению контекстом</h2>
+<p>✅ **Делайте:**</p>
+  <li>Начинайте с самого важного</li>
+  <li>Заканчивайте основным вопросом</li>
+  <li>Используйте команду `/clear` при переходе между темами</li>
+  <li>Сохраняйте критические инструкции в начале</li>
+<p>❌ **Не делайте:**</p>
+  <li>Не помещайте ключевую информацию в середину</li>
+  <li>Не смешивайте несвязанные темы в одном диалоге</li>
+  <li>Не полагайтесь на очень старую информацию из начала длинного чата</li>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

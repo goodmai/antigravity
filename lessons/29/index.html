@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 5: Анализ данных и границы безопасности песочницы | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin-top: 1.5rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1>Урок 5: Анализ данных и границы безопасности песочницы</h1>
+<p>Агент поддерживает мультимодальность — способность обрабатывать не только текстовые векторы, но и визуальные данные (фотографии, графики). Матрица пикселей преобразуется в векторное представление, которое нейросеть анализирует на наличие паттернов.</p>
+<h2>Безопасность: Constitutional AI</h2>
+<p>В архитектуру встроена система Constitutional AI. Любой запрос проходит через фильтры-классификаторы. Если вероятность нарушения "конституции" (этических и логических аксиом) превышает заданный порог, функция активации блокирует ответ.</p>
+<h2>Различия безопасности между платформами</h2>
+<p>Интерфейс мобильного приложения и ПК-версия имеют разные допуски:</p>
+<h3>CLI на ПК (максимальный контроль)</h3>
+  <li>Агент может читать и редактировать файлы вашей системы</li>
+  <li>Требует вашего подтверждения (y/n) для каждой операции</li>
+  <li>Полный доступ к системным ресурсам (с ограничениями)</li>
+  <li>Идеален для разработки и автоматизации</li>
+<h3>Мобильное приложение (строгая изоляция)</h3>
+  <li>Работает в режиме строгой песочницы (Sandbox)</li>
+  <li>Без доступа к файловой системе смартфона</li>
+  <li>Математически безопасна для устройства пользователя</li>
+  <li>Идеальна для конфиденциальности данных</li>
+<h2>Мультимодальные способности</h2>
+<p>Claude может обрабатывать:</p>
+  <li>**Текст** — основной формат</li>
+<p>2. **Изображения** — фотографии, скриншоты, графики</p>
+<p>3. **PDF-документы** — извлечение текста и анализ структуры</p>
+<p>4. **Диаграммы** — распознавание паттернов и связей</p>
+<h2>Процесс анализа изображения</h2>
+<pre><code>Изображение → Токенизация пикселей → Векторное представление 
+             → Анализ паттернов → Извлечение информации
+             → Языковой ответ</code></pre>
+<h2>Этические границы Constitutional AI</h2>
+<p>Модель отказывает в:</p>
+  <li>Помощи с нелегальной деятельностью</li>
+  <li>Генерации контента для дезинформации</li>
+  <li>Созданию вредоносного кода с очевидным назначением</li>
+  <li>Нарушении приватности других лиц</li>
+  <li>Сексуализации несовершеннолетних</li>
+  <li>Подробных инструкций по причинению вреда</li>
+<p>Однако может помочь в:</p>
+  <li>Образовательных целях (понимание уязвимостей)</li>
+  <li>Исторических анализах</li>
+  <li>Безопасности и защите (CTF, пентесты с разрешением)</li>
+<h2>Источники для Урока 5</h2>
+  <li>Официальная документация (Vision): https://docs.anthropic.com/en/docs/vision</li>
+<p>2. Базис безопасности (Constitutional AI): https://www.anthropic.com/index/constitutional-ai</p>
+<h2>Практические задания</h2>
+  <li>**Чтение файла на ПК**: На ПК создайте текстовый файл, попросите Claude (CLI) прочитать его и убедитесь, что система запрашивает подтверждение.</li>
+<p>2. **Анализ графика**: Загрузите скриншот с математическим графиком и попросите ИИ извлечь из него числовые данные в виде списка.</p>
+<p>3. **Тестирование безопасности**: Сформулируйте заведомо некорректный запрос и проанализируйте стандартный ответ фильтра безопасности (Constitutional AI).</p>
+<p>4. **Сравнение архитектур**: Опишите логическими терминами, почему мобильное приложение (песочница) концептуально отличается от CLI на ПК.</p>
+<p>5. **Мультимодальный анализ**: Попросите ИИ перевести текст с фотографии на другой язык, оценив объединение визуального парсинга и перевода.</p>
+<h2>Таблица возможностей по платформе</h2>
+| Функция | CLI (ПК) | Мобильное приложение |
+|---------|----------|-------------------|
+| Анализ текста | ✅ | ✅ |
+| Анализ изображений | ✅ | ✅ |
+| Чтение файлов | ✅ (с подтверждением) | ❌ |
+| Редактирование файлов | ✅ (с подтверждением) | ❌ |
+| Запуск команд | ✅ (с подтверждением) | ❌ |
+| Доступ к интернету | ❌ | ❌ |
+| Локальное хранилище | ✅ | ❌ |
+| Constitutional AI фильтр | ✅ | ✅ |
+<h2>Защита личных данных</h2>
+  <li>**На ПК**: Будьте осторожны при запросе на чтение файлов из ~/ с конфиденциальной информацией</li>
+  <li>**На мобильном**: Приложение не может получить доступ к контактам, фото галереи или файлам — только к тому, что вы явно скопируете в текст</li>
+  <li>**В облаке**: Запросы и ответы обрабатываются безопасно, но не забывайте о приватности</li>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>
