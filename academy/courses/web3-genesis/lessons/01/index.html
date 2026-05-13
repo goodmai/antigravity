@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 01 · ERC-20: Deploy &amp; Transfer — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 01 · ERC-20: Deploy &amp; Transfer</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 01 · sandbox-first</p>
+    <h1>ERC-20: Deploy &amp; Transfer</h1>
+
+    <p>
+      ERC-20 — это самый распространённый стандарт <em>fungible</em>-токенов на
+      EVM-совместимых сетях. Стандарт описывает шесть обязательных функций
+      (<code>totalSupply</code>, <code>balanceOf</code>, <code>transfer</code>,
+      <code>transferFrom</code>, <code>approve</code>, <code>allowance</code>) и
+      два события (<code>Transfer</code>, <code>Approval</code>). В этом уроке мы
+      сосредоточимся на <strong>трёх ключевых механиках</strong>: <em>деплой</em>,
+      <em>передача</em>, <em>чтение баланса</em>. Всё это вы запустите прямо
+      в браузере, без MetaMask, RPC и оплаты газа.
+    </p>
+
+    <div class="note">
+      <strong>Зачем учебная песочница?</strong> Скорость обратной связи решает.
+      Локальный детерминированный симулятор моделирует ровно те инварианты, которые
+      потом проверит реальный контракт: дебет/кредит, неизменность <code>totalSupply</code>,
+      запрет перевода на <code>address(0)</code>, событие <code>Transfer</code>.
+      После того как вы поймёте механику здесь, мы перейдём на <strong>Tenderly
+      Virtual Testnet</strong> в следующих уроках — там RPC, отладчик и реальная
+      виртуальная сеть.
+    </div>
+
+    <h2>1. Минимальная реализация ERC-20</h2>
+    <p>
+      Самый компактный «честный» ERC-20 — это книга балансов <code>mapping(address =&gt; uint256)</code>
+      плюс счётчик предложения <code>totalSupply</code>. Всё остальное (метаданные, события,
+      проверки) — это правила, без которых стандарт перестаёт быть стандартом.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract MinimalERC20 {
+    string  public name;
+    string  public symbol;
+    uint8   public decimals;
+    uint256 public totalSupply;
+
+    mapping(address =&gt; uint256) public balanceOf;
+    mapping(address =&gt; mapping(address =&gt; uint256)) public allowance;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(string memory n, string memory s, uint8 d, uint256 supply) {
+        name = n;
+        symbol = s;
+        decimals = d;
+        totalSupply = supply * 10 ** d;
+        balanceOf[msg.sender] = totalSupply;
+        emit Transfer(address(0), msg.sender, totalSupply);
+    }
+
+    function transfer(address to, uint256 value) external returns (bool) {
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(balanceOf[msg.sender] &gt;= value, "ERC20: transfer amount exceeds balance");
+        unchecked {
+            balanceOf[msg.sender] -= value;
+            balanceOf[to] += value;
+        }
+        emit Transfer(msg.sender, to, value);
+        return true;
+    }
+}</code></pre>
+
+    <p>
+      Обратите внимание на четыре инварианта, которые мы будем проверять во всём
+      курсе: <strong>(1)</strong> <code>totalSupply</code> неизменно после деплоя,
+      <strong>(2)</strong> сумма всех <code>balanceOf</code> равна <code>totalSupply</code>,
+      <strong>(3)</strong> любой движение средств порождает <code>Transfer</code>-event,
+      <strong>(4)</strong> запрет перевода на нулевой адрес.
+    </p>
+
+    <h2>2. Песочница — попробуйте</h2>
+    <p>
+      Ниже — изолированный мини-EVM в браузере. Учётные записи <code>alice</code>,
+      <code>bob</code>, <code>carol</code>, <code>dave</code> уже профинансированы 10 ETH
+      каждая. Задеплойте токен от имени Alice, переведите 100 AGT на Bob, проверьте
+      балансы и событие <code>Transfer</code>.
+    </p>
+
+    <div class="sandbox" data-sandbox="erc20" data-title="Sandbox · ERC-20 Deploy &amp; Transfer"></div>
+
+    <h2>3. Что произошло «под капотом»</h2>
+    <ol>
+      <li><strong>Deploy.</strong> Создаётся адрес контракта (детерминированно от
+      имени деплойера и текущего nonce), <code>totalSupply = initialSupply × 10^decimals</code>
+      зачисляется на <code>balanceOf[deployer]</code>, эмитируется
+      <code>Transfer(address(0), deployer, totalSupply)</code>. Это «mint»-event:
+      ERC-20 не имеет отдельного <code>Mint</code>-события — выпуск выражается
+      переводом «из нулевого адреса».</li>
+      <li><strong>Transfer.</strong> Песочница проверяет два инварианта
+      (<code>to != 0x0</code>, <code>balance &gt;= value</code>), затем атомарно
+      уменьшает <code>balanceOf[from]</code> и увеличивает <code>balanceOf[to]</code>,
+      эмитирует <code>Transfer(from, to, value)</code>. Газовая стоимость списывается
+      с native-баланса отправителя — точно так же, как в настоящей сети.</li>
+      <li><strong>Read views.</strong> <code>balanceOf</code> и <code>totalSupply</code> —
+      это просто чтение из <code>mapping</code> и storage-слота; они бесплатны
+      и не требуют транзакции.</li>
+    </ol>
+
+    <h2>4. Задание</h2>
+    <div class="note cyan">
+      <strong>Попробуйте.</strong> Воспроизведите в песочнице три сценария:
+      <ol>
+        <li>Деплой 1 000 AGT от Alice → проверьте, что у Alice ровно
+        <code>1000 AGT</code>, у Bob <code>0 AGT</code>, у самого контракта тоже <code>0</code>.</li>
+        <li>Перевод 100 AGT Alice → Bob → Carol. Сумма балансов должна остаться
+        <code>1000 AGT</code>.</li>
+        <li>Попробуйте перевести <code>10 000 AGT</code> от Alice. Транзакция должна
+        ревертнуться с сообщением <em>«exceeds balance»</em>. Это — встроенная
+        защита ERC-20 от овердрафта.</li>
+      </ol>
+    </div>
+
+    <h2>5. Куда дальше</h2>
+    <p>
+      Этот же контракт мы развернём на трёх «настоящих» песочницах в следующих уроках:
+    </p>
+    <ul>
+      <li><strong>Lesson 02 — Remix VM:</strong> компиляция <code>solc-js</code> прямо
+      в браузере, деплой в встроенный JavaScript-EVM, инспектор storage.</li>
+      <li><strong>Lesson 03 — Anvil (Foundry):</strong> локальный node, форкинг
+      mainnet, <code>cast call</code>, трейсинг.</li>
+      <li><strong>Lesson 04 — Tenderly Virtual Testnet:</strong> облачный RPC,
+      визуальный отладчик, программное изменение балансов через Simulation API.</li>
+    </ul>
+    <p>
+      Сравнительный анализ всех трёх — в документе
+      <a href="../../sandbox-comparison.md">sandbox-comparison.md</a>.
+    </p>
+
+    <div class="attrib">
+      Песочница на этой странице — детерминированный in-memory симулятор
+      (<code>academy/courses/web3-genesis/assets/sandbox.js</code>), 42 vitest-теста
+      покрывают деплой, передачу, инварианты и события. Тесты запускаются
+      командой <code>npm test</code> из корня репозитория.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/erc20-playground.js"></script>
+</body>
+</html>
