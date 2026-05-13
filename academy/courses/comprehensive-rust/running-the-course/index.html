@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Running the Course — Comprehensive Rust 🦀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../index.html">Comprehensive Rust</a>
+      <span class="sep">/</span>
+      <span>Running the Course</span>
+    </div>
+
+    <p class="lesson-meta">For instructors · meta page</p>
+    <h1>Running the Course</h1>
+    <p>
+      This page is the &quot;control panel&quot; for instructors who want to deliver
+      Comprehensive Rust live. Students can skim it and skip ahead — the
+      teaching content begins on <a href="../day-1/morning/hello-world.html">Day 1 → Hello, World</a>.
+    </p>
+
+    <h2>Cadence</h2>
+    <p>
+      The full curriculum is four teaching days. We recommend splitting them across
+      two calendar weeks (two days a week) so that students have time to absorb
+      ownership, borrowing and traits between sessions. A typical day:
+    </p>
+    <ul>
+      <li><strong>09:00 – 12:00</strong> — morning block with short breaks every 45–60&nbsp;min.</li>
+      <li><strong>12:00 – 13:00</strong> — lunch.</li>
+      <li><strong>13:00 – 16:00</strong> — afternoon block, ending with one larger exercise.</li>
+    </ul>
+    <p>
+      Inside each block reserve at least 30 – 45 minutes for hands-on work. The
+      playground cells on every lesson page double as in-class exercises: students
+      can edit the code, break the assertions on purpose, and ask &quot;why does this
+      compile / not compile?&quot;.
+    </p>
+
+    <h2>Room &amp; tooling</h2>
+    <ul>
+      <li>15 – 25 students keeps Q&amp;A manageable for one instructor.</li>
+      <li>Everyone needs a laptop with a working browser; the playground runs in the cloud, no local toolchain required to follow along.</li>
+      <li>Students who want offline practice should install <code>rustup</code> and use <code>cargo run</code> on the same snippets.</li>
+      <li>Project a clean browser window — the speaker-notes block on each page is for the instructor; show it only when you want to drop into prepared talking points.</li>
+    </ul>
+
+    <h2>Why assertions on every page?</h2>
+    <p>
+      This adaptation adds <code>assert!</code> / <code>assert_eq!</code> calls to every
+      playground cell. The reason is pedagogical:
+    </p>
+    <ul>
+      <li>Students get an immediate <em>pass/fail</em> signal, not just &quot;some output appeared&quot;.</li>
+      <li>Editing the code to break an assertion teaches the difference between a compile error and a runtime panic.</li>
+      <li>Asserting on values forces the lesson to commit to a concrete claim — &quot;<code>let x = 1 + 2; assert_eq!(x, 3);</code>&quot; — which is harder to misread than a bare <code>println!</code>.</li>
+    </ul>
+
+    <div class="playground"
+         data-title="A first taste of the format"
+         data-code='fn main() {
+    // Every lesson on this site ends with a cell like this one.
+    // Click "Run" to execute it against play.rust-lang.org.
+    let greeting = "Hello, Comprehensive Rust!";
+    let length = greeting.len();
+
+    // The assertions below describe what we expect to be true.
+    assert_eq!(length, 25);
+    assert!(greeting.starts_with("Hello"));
+    assert!(greeting.ends_with("Rust!"));
+
+    println!("{greeting} — {length} bytes");
+}'></div>
+
+    <h2>Feedback loop for instructors</h2>
+    <ul>
+      <li>Before the course: walk through every lesson once and run every playground cell.</li>
+      <li>During the course: when several students hit the same compiler error, stop and explain it to the whole room.</li>
+      <li>After the course: file an issue against this repo with anything that confused students — that&apos;s the highest-signal feedback we can get.</li>
+    </ul>
+
+    <div class="lesson-nav">
+      <a href="../index.html">
+        <span class="label">← Back</span>
+        <span class="title">Course index</span>
+      </a>
+      <a class="next" href="../day-1/morning/hello-world.html">
+        <span class="label">Start →</span>
+        <span class="title">Day 1 · Hello, World</span>
+      </a>
+    </div>
+
+    <div class="attrib">
+      Schedule, audience guidance and instructor-prep checklist adapted from the
+      <a href="https://google.github.io/comprehensive-rust/running-the-course.html" target="_blank" rel="noopener">Running the Course</a>
+      chapter of Google&apos;s Comprehensive Rust (Apache 2.0 / CC&nbsp;BY&nbsp;4.0).
+      Wording, the assertion-based playground cells and the rationale section above
+      were written for Daskibo Academy.
+    </div>
+  </div>
+  <script src="../assets/playground.js"></script>
+</body>
+</html>

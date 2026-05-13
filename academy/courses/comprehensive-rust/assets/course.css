@@ -1,0 +1,240 @@
+/* Comprehensive Rust — Daskibo Academy shared styles */
+
+:root {
+  --bg: #020617;
+  --card-bg: rgba(30, 41, 59, 0.5);
+  --accent: #fb923c;
+  --accent-2: #f97316;
+  --rust: #ce422b;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: rgba(255, 255, 255, 0.1);
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(251, 146, 60, 0.06) 0%, transparent 30%),
+    radial-gradient(circle at 85% 90%, rgba(206, 66, 43, 0.05) 0%, transparent 30%);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.65;
+}
+
+.container {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 48px 20px 96px;
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.crumbs a { color: var(--accent); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.crumbs span.sep { opacity: 0.5; }
+
+.lesson-meta {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  background: linear-gradient(to right, var(--accent), var(--rust));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 16px;
+  line-height: 1.15;
+}
+h2 { font-size: 1.45rem; font-weight: 700; margin: 2.2rem 0 0.7rem; color: var(--text); }
+h3 { font-size: 1.15rem; font-weight: 600; margin: 1.6rem 0 0.5rem; color: var(--text); }
+
+p, li { color: var(--text); opacity: 0.92; margin-bottom: 1rem; }
+ul, ol { padding-left: 1.4rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.35rem; }
+
+code {
+  background: rgba(251, 146, 60, 0.1);
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.88em;
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  color: #fed7aa;
+}
+pre code { background: none; border: none; padding: 0; color: inherit; font-size: 0.95em; }
+
+.note {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin: 1.2rem 0;
+}
+.note strong { color: var(--accent); }
+
+.playground {
+  margin: 1.5rem 0 2rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+  overflow: hidden;
+}
+.playground-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(251, 146, 60, 0.08);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+.playground-header .title { color: var(--accent); }
+.playground textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 16px 18px;
+  background: #0b1020;
+  color: #e2e8f0;
+  border: none;
+  outline: none;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  resize: vertical;
+  tab-size: 4;
+}
+.playground-actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(2, 6, 23, 0.5);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(to right, var(--accent), var(--rust));
+  color: white;
+  border-color: transparent;
+}
+.btn-primary:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+.run-status {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-left: auto;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+.run-status.ok { color: var(--ok); }
+.run-status.err { color: var(--err); }
+.run-output {
+  display: none;
+  padding: 14px 18px;
+  background: #060a18;
+  border-top: 1px solid var(--border);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  color: #cbd5e1;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.run-output.show { display: block; }
+.run-output .stderr { color: #fca5a5; }
+
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.lesson-nav a {
+  flex: 1;
+  min-width: 200px;
+  padding: 14px 18px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.lesson-nav a:hover { border-color: var(--accent); transform: translateY(-2px); }
+.lesson-nav .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.lesson-nav .title { display: block; font-weight: 600; margin-top: 4px; }
+.lesson-nav .next { text-align: right; }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 1.5rem 0;
+}
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card h3 { margin-top: 0; }
+.card p { margin-bottom: 0; font-size: 0.92rem; opacity: 0.85; }
+.card .num { font-size: 0.72rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+
+.attrib {
+  margin-top: 64px;
+  padding: 18px 22px;
+  border-radius: 12px;
+  background: rgba(251, 146, 60, 0.05);
+  border: 1px dashed rgba(251, 146, 60, 0.25);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.attrib a { color: var(--accent); }
