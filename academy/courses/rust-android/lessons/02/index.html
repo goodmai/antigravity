@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 02 · Типы и значения — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 02 · Типы и значения</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 02</p>
+    <h1>Типы и значения</h1>
+
+    <p>
+      В Rust каждое значение имеет статический тип, известный на этапе компиляции.
+      Большинство типов выводится автоматически — но именно строгий тип
+      гарантирует, что <code>i32</code> не сложится с <code>u8</code> молча и что
+      <code>String</code> не дойдёт по ABI до Kotlin в виде сырого <code>jbyteArray</code>.
+    </p>
+
+    <h2>Скалярные типы</h2>
+    <ul>
+      <li><strong>Целые:</strong> <code>i8 i16 i32 i64 i128 isize</code> и беззнаковые <code>u8 … usize</code>. По умолчанию литерал <code>1</code> — это <code>i32</code>.</li>
+      <li><strong>С плавающей точкой:</strong> <code>f32</code>, <code>f64</code> (по умолчанию).</li>
+      <li><strong>Bool:</strong> <code>true</code> / <code>false</code>, 1 байт.</li>
+      <li><strong>Char:</strong> 32-битный Unicode scalar value, не байт.</li>
+    </ul>
+
+    <h2>let, mut и shadowing</h2>
+    <p>
+      Все привязки иммутабельны по умолчанию. <code>let mut</code> делает
+      переменную изменяемой. <em>Shadowing</em> — это перепривязка под тем же
+      именем; новый <code>let</code> заводит новое значение, возможно другого типа,
+      не нарушая иммутабельность.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · let, mut, shadowing"
+         data-code='fn main() {
+    let api_level = 34;                 // i32 (по умолчанию)
+    let mut downloads: u64 = 0;
+    downloads += 1_500_000;
+    downloads += 200;
+
+    // Shadowing: тот же `name`, новый тип.
+    let name = "Pixel";
+    let name = name.len(); // теперь usize
+
+    assert_eq!(api_level, 34);
+    assert_eq!(downloads, 1_500_200);
+    assert_eq!(name, 5);
+}'></div>
+
+    <h2>Инференция типов и литералы</h2>
+    <p>
+      Если контекст не даёт компилятору однозначно вывести тип, можно дописать
+      суффикс к литералу (<code>1u8</code>, <code>3.14f32</code>) или указать тип в
+      <code>let</code>. На Android это особенно важно: <code>jint</code> = <code>i32</code>,
+      <code>jlong</code> = <code>i64</code> — несовпадение размеров обнаружится только
+      в рантайме.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · приведение типов"
+         data-code='fn main() {
+    let pixels: u32 = 1920 * 1080;
+    let megapixels = pixels as f32 / 1_000_000.0;
+
+    // Каст из i32 в u8 «обрезает» старшие байты.
+    let truncated = 300_i32 as u8;
+
+    assert_eq!(pixels, 2_073_600);
+    assert!((megapixels - 2.0736).abs() &lt; 1e-4);
+    assert_eq!(truncated, 44); // 300 % 256
+}'></div>
+
+    <h2>Константы и static</h2>
+    <p>
+      <code>const</code> вычисляется на этапе компиляции, не имеет адреса и
+      встраивается в каждое место использования. <code>static</code> имеет фиксированный
+      адрес в памяти; <code>static mut</code> — это <code>unsafe</code>, потому что
+      ломает гарантии borrow-checker'а.
+    </p>
+
+    <pre class="code-block"><code>const MIN_ANDROID_API: u32 = 26;
+static APP_NAME: &amp;str = "RustDroid";</code></pre>
+
+    <div class="note">
+      <strong>Задание:</strong> в первой песочнице добавьте <code>let api_level: u8 = api_level as u8;</code>
+      и убедитесь, что <code>api_level == 34</code>. Затем попробуйте присвоить
+      <code>api_level = 35</code> без <code>mut</code> — компилятор откажется.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch03-02-data-types.html" target="_blank" rel="noopener">The Rust Book · 3.2 Data Types</a></li>
+        <li><a href="https://doc.rust-lang.org/rust-by-example/primitives.html" target="_blank" rel="noopener">Rust by Example · Primitives</a></li>
+        <li><a href="https://google.github.io/comprehensive-rust/types-and-values.html" target="_blank" rel="noopener">Comprehensive Rust · Types and Values</a></li>
+        <li><a href="https://doc.rust-lang.org/reference/types/numeric.html" target="_blank" rel="noopener">Rust Reference · Numeric types</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../01/index.html"><span class="label">← Назад</span><span class="title">Lesson 01 · Hello, World</span></a>
+      <a class="next" href="../03/index.html"><span class="label">Далее →</span><span class="title">Lesson 03 · Control flow</span></a>
+    </div>
+
+    <div class="attrib">
+      Декомпозиция темы взята из <a href="https://google.github.io/comprehensive-rust/types-and-values.html" target="_blank" rel="noopener">Comprehensive Rust by Google</a>
+      (Apache 2.0 / CC BY 4.0). Прозa и playground-ячейки написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

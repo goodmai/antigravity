@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 09 · Foreground Service + Rust — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 09 · Foreground service</span>
+    </div>
+
+    <p class="lesson-meta">Lab 09 · ~90 минут</p>
+    <h1>Lab 09 — Foreground Service + Rust engine</h1>
+
+    <p>
+      Задача: long-running Rust-таска (например, индексирование локальных файлов
+      или peer-to-peer sync), которая переживает kill системы и видна
+      пользователю как уведомление.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Advanced</div></div>
+      <div><div class="k">Время</div><div class="v">~90 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">11, 16, 17</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Activity + Service, Rust-engine с тиком</div></div>
+    </div>
+
+    <h2>AndroidManifest.xml</h2>
+    <pre class="code-block"><code>&lt;uses-permission android:name="android.permission.POST_NOTIFICATIONS"/&gt;
+&lt;uses-permission android:name="android.permission.FOREGROUND_SERVICE"/&gt;
+&lt;uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/&gt;
+
+&lt;service
+    android:name=".SyncService"
+    android:foregroundServiceType="dataSync"
+    android:exported="false"/&gt;</code></pre>
+
+    <h2>Kotlin: сервис-обёртка</h2>
+    <pre class="code-block"><code>class SyncService : Service() {
+    private var engine: SyncEngine? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, buildNotification("Syncing…"))
+        engine = SyncEngine().also { it.start() }
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        engine?.stop()
+        engine = null
+    }
+    override fun onBind(intent: Intent?) = null
+}</code></pre>
+
+    <h2>Rust: бесконечный tick через tokio</h2>
+    <pre class="code-block"><code>use std::sync::Arc;
+use tokio::{runtime::Runtime, sync::Notify, time::{interval, Duration}};
+
+#[derive(uniffi::Object)]
+pub struct SyncEngine {
+    rt: Runtime,
+    stop: Arc&lt;Notify&gt;,
+}
+
+#[uniffi::export]
+impl SyncEngine {
+    #[uniffi::constructor]
+    pub fn new() -&gt; Arc&lt;Self&gt; {
+        Arc::new(Self {
+            rt: Runtime::new().unwrap(),
+            stop: Arc::new(Notify::new()),
+        })
+    }
+
+    pub fn start(self: Arc&lt;Self&gt;) {
+        let stop = self.stop.clone();
+        self.rt.spawn(async move {
+            let mut tick = interval(Duration::from_secs(15));
+            loop {
+                tokio::select! {
+                    _ = tick.tick() =&gt; { do_one_round().await; }
+                    _ = stop.notified() =&gt; break,
+                }
+            }
+        });
+    }
+
+    pub fn stop(&amp;self) { self.stop.notify_waiters(); }
+}
+
+async fn do_one_round() {
+    // здесь: HTTP-sync, IPFS-publish, что угодно.
+    log::info!("tick");
+}</code></pre>
+
+    <h2>Каналы: Rust → Kotlin (events)</h2>
+    <p>
+      Чтобы UI получал прогресс, опишите Kotlin-интерфейс <code>Listener</code> и
+      прокиньте его в Rust. UniFFI поддерживает callback-интерфейсы:
+    </p>
+    <pre class="code-block"><code>#[uniffi::export(with_foreign)]
+pub trait Listener: Send + Sync {
+    fn on_progress(&amp;self, done: u32, total: u32);
+}
+
+#[uniffi::export]
+impl SyncEngine {
+    pub fn set_listener(&amp;self, l: Box&lt;dyn Listener&gt;) { /* store and call */ }
+}</code></pre>
+
+    <h2>Эмуляция логики «оставшихся минут»</h2>
+    <div class="playground"
+         data-title="Sandbox · ETA"
+         data-code='fn eta_seconds(done: u32, total: u32, elapsed_sec: u32) -&gt; Option&lt;u32&gt; {
+    if done == 0 || done &gt;= total { return None; }
+    let rate = elapsed_sec as f64 / done as f64;        // sec/item
+    let left = (total - done) as f64 * rate;
+    Some(left as u32)
+}
+
+fn main() {
+    assert_eq!(eta_seconds(0, 100, 5), None);
+    assert_eq!(eta_seconds(100, 100, 50), None);
+
+    // 50 элементов за 100с → 2с/элемент → осталось 50 элем. → 100с.
+    assert_eq!(eta_seconds(50, 100, 100), Some(100));
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> на Android 14+ для <code>dataSync</code>-сервиса нужен
+      <em>user-visible reason</em>. Покажите в нотификации, что именно синхронизируется,
+      иначе платформа будет резать service в фоне.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/develop/background-work/services/foreground-services" target="_blank" rel="noopener">Android · Foreground services</a></li>
+        <li><a href="https://developer.android.com/develop/background-work/services/fg-service-types" target="_blank" rel="noopener">Foreground service types (Android 14)</a></li>
+        <li><a href="https://docs.rs/tokio/latest/tokio/sync/struct.Notify.html" target="_blank" rel="noopener">tokio::sync::Notify</a></li>
+        <li><a href="https://mozilla.github.io/uniffi-rs/foreign_traits.html" target="_blank" rel="noopener">UniFFI · Foreign trait interfaces</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../08/index.html"><span class="label">← Назад</span><span class="title">Lab 08 · SQLite</span></a>
+      <a class="next" href="../10/index.html"><span class="label">Далее →</span><span class="title">Lab 10 · AGP плагин</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

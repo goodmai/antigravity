@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 14 · Основы JNI — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 14 · Основы JNI</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 14</p>
+    <h1>JNI: сигнатуры, JNIEnv, ссылки</h1>
+
+    <p>
+      JNI (Java Native Interface) — это бинарный контракт между JVM и нативной
+      библиотекой. В Rust его проще всего использовать через крейт
+      <a href="https://docs.rs/jni/latest/jni/" target="_blank" rel="noopener">jni</a>.
+      Главные понятия: <strong>JNIEnv</strong> (контекст текущего потока), <strong>JClass /
+      JObject</strong> (ссылки на Java-классы), <strong>сигнатуры</strong> (mangled-имена
+      и type descriptors).
+    </p>
+
+    <h2>Сигнатура метода</h2>
+    <p>
+      Имя нативной функции должно быть длинным и канонизированным:
+      <code>Java_&lt;package&gt;_&lt;Class&gt;_&lt;method&gt;</code>. Точки заменяются
+      на подчёркивания, <code>$</code> — на <code>_00024</code>.
+    </p>
+
+    <pre class="code-block"><code>// Kotlin:
+package io.daskibo.rust
+
+class Hasher {
+    external fun sha256(input: String): String
+}
+
+// Rust:
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_rust_Hasher_sha256(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    input: jni::objects::JString,
+) -&gt; jni::sys::jstring {
+    let s: String = env.get_string(&amp;input).unwrap().into();
+    let digest = hex::encode(sha2::Sha256::digest(s.as_bytes()));
+    env.new_string(digest).unwrap().into_raw()
+}</code></pre>
+
+    <h2>Type descriptors</h2>
+    <table style="width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.9rem">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th>Java</th><th>JNI</th><th>Rust (jni-crate)</th></tr></thead>
+      <tbody>
+        <tr><td><code>boolean</code></td><td><code>Z</code></td><td><code>jboolean</code> (=<code>u8</code>)</td></tr>
+        <tr><td><code>int</code></td><td><code>I</code></td><td><code>jint</code> (=<code>i32</code>)</td></tr>
+        <tr><td><code>long</code></td><td><code>J</code></td><td><code>jlong</code> (=<code>i64</code>)</td></tr>
+        <tr><td><code>String</code></td><td><code>Ljava/lang/String;</code></td><td><code>JString</code></td></tr>
+        <tr><td><code>byte[]</code></td><td><code>[B</code></td><td><code>JByteArray</code></td></tr>
+        <tr><td><code>int (int) → int</code></td><td><code>(I)I</code></td><td>сигнатура для <code>call_method</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Local vs. Global references</h2>
+    <p>
+      Любой <code>JObject</code>, который вы получили из <code>JNIEnv</code> в
+      рамках JNI-вызова — <strong>локальная ссылка</strong>, она освободится
+      автоматически. Если вы хотите кэшировать объект между вызовами —
+      возьмите <strong>global ref</strong> через <code>env.new_global_ref(&amp;obj)</code>
+      и держите его в <code>OnceCell&lt;GlobalRef&gt;</code>.
+    </p>
+
+    <h2>Эмулируем «JNI mangling» в песочнице</h2>
+    <div class="playground"
+         data-title="Sandbox · построение JNI-имени"
+         data-code='fn jni_name(pkg: &amp;str, cls: &amp;str, method: &amp;str) -&gt; String {
+    let pkg = pkg.replace(&apos;.&apos;, "_");
+    let cls = cls.replace(&apos;.&apos;, "_").replace(&apos;$&apos;, "_00024");
+    format!("Java_{pkg}_{cls}_{method}")
+}
+
+fn main() {
+    assert_eq!(
+        jni_name("io.daskibo.rust", "Hasher", "sha256"),
+        "Java_io_daskibo_rust_Hasher_sha256"
+    );
+    assert_eq!(
+        jni_name("io.example", "Outer$Inner", "ping"),
+        "Java_io_example_Outer_00024Inner_ping"
+    );
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> допишите функцию <code>jni_signature</code>, которая
+      строит type-descriptor из массива параметров и возвращаемого типа,
+      например <code>(Ljava/lang/String;I)V</code> для <code>fn(String, int) → void</code>.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/jniTOC.html" target="_blank" rel="noopener">JNI Specification (Oracle)</a> — каноничный референс.</li>
+        <li><a href="https://docs.rs/jni/latest/jni/" target="_blank" rel="noopener">jni-rs crate docs</a></li>
+        <li><a href="https://developer.android.com/training/articles/perf-jni" target="_blank" rel="noopener">developer.android.com · JNI tips</a></li>
+        <li><a href="https://blog.logrocket.com/calling-rust-from-kotlin-android-jni/" target="_blank" rel="noopener">LogRocket · Calling Rust from Kotlin via JNI</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../13/index.html"><span class="label">← Назад</span><span class="title">Lesson 13 · NDK</span></a>
+      <a class="next" href="../15/index.html"><span class="label">Далее →</span><span class="title">Lesson 15 · .so и Kotlin</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy. JNI mangling следует спецификации Oracle.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

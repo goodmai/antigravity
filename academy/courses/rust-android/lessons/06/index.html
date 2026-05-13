@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 06 · Struct, Enum, Pattern matching — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 06 · Struct &amp; Enum</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 06</p>
+    <h1>Структуры, enum-ы, pattern matching</h1>
+
+    <p>
+      Это «алгебра» Rust: struct'ы — продукт типов (всё одновременно), enum'ы —
+      сумма типов (один из вариантов). Вместе с pattern matching они дают
+      выразительный способ моделировать предметную область — например, состояния
+      экрана или результат сетевого запроса.
+    </p>
+
+    <h2>Struct</h2>
+    <div class="playground"
+         data-title="Sandbox · struct и tuple-struct"
+         data-code='struct Point { x: f32, y: f32 }
+struct Color(u8, u8, u8);
+
+impl Point {
+    fn distance_to(&amp;self, other: &amp;Point) -&gt; f32 {
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    }
+}
+
+fn main() {
+    let a = Point { x: 0.0, y: 0.0 };
+    let b = Point { x: 3.0, y: 4.0 };
+    let red = Color(255, 0, 0);
+
+    assert!((a.distance_to(&amp;b) - 5.0).abs() &lt; 1e-6);
+    assert_eq!(red.0, 255);
+}'></div>
+
+    <h2>Enum с данными</h2>
+    <p>
+      Enum в Rust куда мощнее, чем в Java/Kotlin: каждый вариант может нести
+      собственный набор полей. Это позволяет элегантно описать состояние
+      экрана: <code>Loading</code>, <code>Success(data)</code>, <code>Error(msg)</code>.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · enum + match"
+         data-code='enum UiState {
+    Loading,
+    Success(u32),
+    Error(String),
+}
+
+fn describe(state: &amp;UiState) -&gt; String {
+    match state {
+        UiState::Loading =&gt; "spinner".to_string(),
+        UiState::Success(n) =&gt; format!("got {n} items"),
+        UiState::Error(msg) =&gt; format!("ERR: {msg}"),
+    }
+}
+
+fn main() {
+    assert_eq!(describe(&amp;UiState::Loading), "spinner");
+    assert_eq!(describe(&amp;UiState::Success(42)), "got 42 items");
+    assert_eq!(describe(&amp;UiState::Error("offline".into())), "ERR: offline");
+}'></div>
+
+    <h2>Pattern matching и <code>if let</code></h2>
+    <p>
+      <code>if let</code> — синтаксический сахар, когда вас интересует ровно один
+      вариант. <code>while let</code> крутится, пока шаблон совпадает (удобно
+      при выкачивании из <code>Option&lt;T&gt;</code>-итераторов).
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · if let, destructuring"
+         data-code='fn main() {
+    let push_token: Option&lt;&amp;str&gt; = Some("fcm:abc123");
+
+    if let Some(token) = push_token {
+        assert!(token.starts_with("fcm:"));
+    }
+
+    let pair = (1920, 1080);
+    let (w, h) = pair;
+    assert_eq!(w * h, 2_073_600);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте в <code>UiState</code> вариант
+      <code>Empty</code> и расширьте <code>match</code> в <code>describe</code> —
+      без него компилятор не пропустит код, потому что match exhaustive.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch05-00-structs.html" target="_blank" rel="noopener">The Rust Book · Chapter 5 — Structs</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch06-00-enums.html" target="_blank" rel="noopener">The Rust Book · Chapter 6 — Enums</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch18-00-patterns.html" target="_blank" rel="noopener">The Rust Book · Chapter 18 — Patterns</a></li>
+        <li><a href="https://google.github.io/comprehensive-rust/user-defined-types.html" target="_blank" rel="noopener">Comprehensive Rust · User-Defined Types</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../05/index.html"><span class="label">← Назад</span><span class="title">Lesson 05 · Ownership</span></a>
+      <a class="next" href="../07/index.html"><span class="label">Далее →</span><span class="title">Lesson 07 · Traits &amp; Generics</span></a>
+    </div>
+
+    <div class="attrib">
+      Структура темы вдохновлена <a href="https://google.github.io/comprehensive-rust/user-defined-types.html" target="_blank" rel="noopener">Comprehensive Rust</a> (Apache 2.0 / CC BY 4.0).
+      Текст и playground-ячейки написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

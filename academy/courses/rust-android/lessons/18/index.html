@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 18 · Криптография и сеть — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 18 · Crypto &amp; Network</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 18</p>
+    <h1>Криптография и сетевые запросы</h1>
+
+    <p>
+      Конъюнкция «нативная скорость + memory safety + кросс-платформенный код»
+      делает Rust любимым местом для крипто-стека мобильного приложения.
+      Здесь мы соберём канонический набор: <code>ring</code> / <code>aes-gcm</code>
+      для крипто и <code>reqwest</code> + <code>rustls</code> для HTTPS.
+    </p>
+
+    <h2>Cargo.toml</h2>
+    <pre class="code-block"><code>[dependencies]
+sha2     = "0.10"
+aes-gcm  = "0.10"
+argon2   = "0.5"
+rand     = "0.8"
+reqwest  = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+tokio    = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde    = { version = "1", features = ["derive"] }
+serde_json = "1"</code></pre>
+
+    <p>
+      <strong>Важно:</strong> <code>default-features = false</code> отключает
+      <code>openssl</code> в <code>reqwest</code>. Линковать OpenSSL под Android
+      — головная боль (нужен <code>OPENSSL_DIR</code>). С <code>rustls-tls</code>
+      всё работает «из коробки» — это чисто Rust-реализация TLS.
+    </p>
+
+    <h2>Хеширование</h2>
+    <div class="playground"
+         data-title="Sandbox · SHA-256 на чистом std + sha2 (эмуляция)"
+         data-code='// На play.rust-lang.org sha2 не доступен; имитируем через ручной digest.
+fn sha256_hex(data: &amp;[u8]) -&gt; String {
+    // Демонстрационный: считаем длину + контрольная сумма (НЕ криптография).
+    // В реальном проекте — sha2::Sha256::digest(data).
+    let sum: u32 = data.iter().map(|b| *b as u32).sum();
+    format!("{:0&gt;64x}", sum)
+}
+
+fn main() {
+    let h = sha256_hex(b"hello");
+    assert_eq!(h.len(), 64);
+    assert!(h.ends_with("214")); // 104+101+108+108+111 = 532 = 0x214
+}'></div>
+
+    <h2>AES-GCM шифрование</h2>
+    <pre class="code-block"><code>use aes_gcm::{Aes256Gcm, Key, Nonce, aead::{Aead, KeyInit}};
+use rand::RngCore;
+
+fn encrypt(plain: &amp;[u8], key: &amp;[u8; 32]) -&gt; (Vec&lt;u8&gt;, [u8; 12]) {
+    let cipher = Aes256Gcm::new(Key::&lt;Aes256Gcm&gt;::from_slice(key));
+    let mut nonce_bytes = [0u8; 12];
+    rand::thread_rng().fill_bytes(&amp;mut nonce_bytes);
+    let nonce = Nonce::from_slice(&amp;nonce_bytes);
+    let ct = cipher.encrypt(nonce, plain).unwrap();
+    (ct, nonce_bytes)
+}</code></pre>
+
+    <h2>Async HTTP</h2>
+    <pre class="code-block"><code>#[derive(serde::Deserialize)]
+struct Status { ok: bool }
+
+#[tokio::main]
+async fn fetch() -&gt; anyhow::Result&lt;()&gt; {
+    let s: Status = reqwest::Client::new()
+        .get("https://api.example.com/status")
+        .send().await?
+        .json().await?;
+    log::info!("ok = {}", s.ok);
+    Ok(())
+}</code></pre>
+
+    <h2>Network Security Config на Android 14+</h2>
+    <p>
+      Не забудьте <code>android:usesCleartextTraffic=&quot;false&quot;</code> в манифесте и,
+      если делаете certificate pinning, прокиньте отпечатки в Rust через
+      <code>rustls::client::WebPkiVerifier</code> с кастомным набором roots.
+    </p>
+
+    <div class="note">
+      <strong>Задание:</strong> в реальном проекте добавьте <code>argon2id</code>
+      для деривации ключа AES из мастер-пароля пользователя. См. Lab 12 —
+      Capstone Password Manager.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://docs.rs/sha2/latest/sha2/" target="_blank" rel="noopener">sha2 crate docs</a></li>
+        <li><a href="https://docs.rs/aes-gcm/latest/aes_gcm/" target="_blank" rel="noopener">aes-gcm crate</a> (RustCrypto)</li>
+        <li><a href="https://docs.rs/argon2/latest/argon2/" target="_blank" rel="noopener">argon2 crate</a> — KDF для паролей.</li>
+        <li><a href="https://docs.rs/reqwest/" target="_blank" rel="noopener">reqwest docs</a> и <a href="https://github.com/rustls/rustls" target="_blank" rel="noopener">rustls</a></li>
+        <li><a href="https://briansmith.org/rustdoc/ring/" target="_blank" rel="noopener">ring crate</a> — высокоуровневая крипто-API от BoringSSL.</li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../17/index.html"><span class="label">← Назад</span><span class="title">Lesson 17 · UniFFI</span></a>
+      <a class="next" href="../19/index.html"><span class="label">Далее →</span><span class="title">Lesson 19 · Производительность</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

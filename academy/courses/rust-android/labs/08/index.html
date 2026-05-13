@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 08 · SQLite через rusqlite — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 08 · SQLite</span>
+    </div>
+
+    <p class="lesson-meta">Lab 08 · ~75 минут</p>
+    <h1>Lab 08 — rusqlite и миграции на Android</h1>
+
+    <p>
+      У Android есть свой <code>SQLiteOpenHelper</code>, но если ваше Rust-ядро
+      должно работать кросс-платформенно (iOS, server), правильнее иметь
+      одну реализацию репозитория на Rust. Лаба показывает, как подключить
+      <code>rusqlite</code> с bundled-SQLite (без зависимости от системного
+      <code>libsqlite</code>).
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate+</div></div>
+      <div><div class="k">Время</div><div class="v">~75 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">9, 15, 17</div></div>
+      <div><div class="k">Артефакт</div><div class="v">SQLite-репозиторий, доступный из Kotlin</div></div>
+    </div>
+
+    <h2>Cargo.toml</h2>
+    <pre class="code-block"><code>[dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }    # компилируем sqlite вместе
+uniffi   = { version = "0.27", features = ["build"] }
+thiserror = "1"</code></pre>
+
+    <h2>Создание Repository</h2>
+    <pre class="code-block"><code>use rusqlite::{Connection, params};
+use std::sync::Mutex;
+
+#[derive(uniffi::Error, Debug, thiserror::Error)]
+pub enum DbError {
+    #[error("io: {0}")]   Io(String),
+    #[error("sql: {0}")]  Sql(String),
+}
+impl From&lt;rusqlite::Error&gt; for DbError {
+    fn from(e: rusqlite::Error) -&gt; Self { DbError::Sql(e.to_string()) }
+}
+
+#[derive(uniffi::Object)]
+pub struct Notes { conn: Mutex&lt;Connection&gt; }
+
+#[uniffi::export]
+impl Notes {
+    #[uniffi::constructor]
+    pub fn open(path: String) -&gt; Result&lt;std::sync::Arc&lt;Self&gt;, DbError&gt; {
+        let conn = Connection::open(&amp;path).map_err(DbError::from)?;
+        conn.execute_batch(r#"
+            CREATE TABLE IF NOT EXISTS notes (
+                id    INTEGER PRIMARY KEY AUTOINCREMENT,
+                body  TEXT NOT NULL,
+                ts    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            );
+        "#)?;
+        Ok(std::sync::Arc::new(Self { conn: Mutex::new(conn) }))
+    }
+
+    pub fn add(&amp;self, body: String) -&gt; Result&lt;i64, DbError&gt; {
+        let c = self.conn.lock().unwrap();
+        c.execute("INSERT INTO notes(body) VALUES(?1)", params![body])?;
+        Ok(c.last_insert_rowid())
+    }
+
+    pub fn all(&amp;self) -&gt; Result&lt;Vec&lt;String&gt;, DbError&gt; {
+        let c = self.conn.lock().unwrap();
+        let mut st = c.prepare("SELECT body FROM notes ORDER BY id DESC")?;
+        let rows = st.query_map([], |r| r.get::&lt;_, String&gt;(0))?
+            .filter_map(|r| r.ok()).collect();
+        Ok(rows)
+    }
+}</code></pre>
+
+    <h2>Сборка под Android</h2>
+    <p>
+      Bundled-SQLite внутри <code>rusqlite</code> требует <strong>C-компилятора</strong>
+      для cross-target. <code>cargo-ndk</code> уже подсовывает clang из NDK,
+      поэтому всё работает без дополнительных шагов:
+    </p>
+    <pre class="code-block"><code>cargo ndk -t arm64-v8a -o app/src/main/jniLibs build --release</code></pre>
+
+    <h2>Path на Android</h2>
+    <pre class="code-block"><code>// в Kotlin
+val dbPath = File(filesDir, "notes.db").absolutePath
+val notes = Notes.open(dbPath)
+notes.add("first")
+val all = notes.all()       // List&lt;String&gt;</code></pre>
+
+    <h2>Эмуляция миграций</h2>
+    <div class="playground"
+         data-title="Sandbox · версия схемы из user_version"
+         data-code='fn migrate(current: u32, target: u32) -&gt; Vec&lt;String&gt; {
+    let mut sql = Vec::new();
+    for v in (current + 1)..=target {
+        match v {
+            1 =&gt; sql.push("CREATE TABLE notes(id INTEGER PRIMARY KEY, body TEXT)".to_string()),
+            2 =&gt; sql.push("ALTER TABLE notes ADD COLUMN ts INTEGER DEFAULT 0".to_string()),
+            3 =&gt; sql.push("CREATE INDEX idx_ts ON notes(ts)".to_string()),
+            _ =&gt; {}
+        }
+        sql.push(format!("PRAGMA user_version = {v}"));
+    }
+    sql
+}
+
+fn main() {
+    let plan = migrate(0, 3);
+    assert_eq!(plan.len(), 6);
+    assert!(plan[0].contains("CREATE TABLE"));
+    assert!(plan.last().unwrap().ends_with("3"));
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> добавьте WAL-режим <code>PRAGMA journal_mode = WAL</code>
+      — на Android это даёт надёжность при kill-9 от системы и concurrent-readers.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://docs.rs/rusqlite/latest/rusqlite/" target="_blank" rel="noopener">rusqlite docs</a></li>
+        <li><a href="https://sqlite.org/wal.html" target="_blank" rel="noopener">SQLite · Write-Ahead Logging</a></li>
+        <li><a href="https://docs.rs/sqlx/latest/sqlx/" target="_blank" rel="noopener">sqlx — альтернативный async-стек</a></li>
+        <li><a href="https://github.com/launchbadge/sqlx" target="_blank" rel="noopener">sqlx — GitHub</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../07/index.html"><span class="label">← Назад</span><span class="title">Lab 07 · UniFFI</span></a>
+      <a class="next" href="../09/index.html"><span class="label">Далее →</span><span class="title">Lab 09 · Foreground service</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

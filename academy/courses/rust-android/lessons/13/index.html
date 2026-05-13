@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 13 · Android NDK и toolchain — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 13 · Android NDK</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 13</p>
+    <h1>Android NDK и Rust-toolchain</h1>
+
+    <p>
+      Android поддерживает 4 ABI: <code>arm64-v8a</code>, <code>armeabi-v7a</code>,
+      <code>x86_64</code>, <code>x86</code>. Каждой соответствует Rust target:
+      <code>aarch64-linux-android</code>, <code>armv7-linux-androideabi</code>,
+      <code>x86_64-linux-android</code>, <code>i686-linux-android</code>.
+      Чтобы кросс-компилироваться, нужен <strong>NDK</strong> и линкер из него.
+    </p>
+
+    <h2>Шаги установки</h2>
+    <ol>
+      <li>Android Studio → SDK Manager → SDK Tools → ✅ <strong>NDK (Side by side)</strong> r26 или новее.</li>
+      <li><code>rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android</code>.</li>
+      <li>Установите <a href="https://github.com/bbqsrc/cargo-ndk" target="_blank" rel="noopener">cargo-ndk</a>: <code>cargo install cargo-ndk</code>.</li>
+      <li>Экспортируйте <code>ANDROID_NDK_HOME=~/Android/Sdk/ndk/26.x.x</code>.</li>
+    </ol>
+
+    <h2><code>.cargo/config.toml</code></h2>
+    <p>
+      Чтобы Cargo знал, какой линкер использовать для каждой архитектуры,
+      пропишите конфиг в <code>~/.cargo/config.toml</code> или в корне проекта:
+    </p>
+
+    <pre class="code-block"><code>[target.aarch64-linux-android]
+linker = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+
+[target.armv7-linux-androideabi]
+linker = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang"
+
+[target.x86_64-linux-android]
+linker = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang"</code></pre>
+
+    <p>
+      Число <code>24</code> — это minSdk: NDK поставляется с sysroot'ами для
+      разных уровней. Поставьте такой же <code>minSdk</code> в Android-проекте,
+      чтобы не было «undefined symbol».
+    </p>
+
+    <h2>Сборка одной командой</h2>
+    <pre class="code-block"><code># cargo-ndk прячет всю boilerplate-ку:
+cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 -o ./jniLibs build --release
+
+# В результате получим:
+# jniLibs/arm64-v8a/librustdroid.so
+# jniLibs/armeabi-v7a/librustdroid.so
+# jniLibs/x86_64/librustdroid.so</code></pre>
+
+    <h2>Кросс-аспекты, которые ловят 95% новичков</h2>
+    <ul>
+      <li><strong><code>crate-type = ["cdylib"]</code></strong> в <code>Cargo.toml</code> — иначе нет <code>.so</code>.</li>
+      <li><strong>16 KB page size</strong>. С NDK r27+ нужен флаг <code>-Wl,-z,max-page-size=16384</code>, иначе Pixel 8 с Android 15 откажется грузить <code>.so</code>. См. <a href="https://developer.android.com/guide/practices/page-sizes" target="_blank" rel="noopener">developer.android.com — Page sizes</a>.</li>
+      <li><strong>STL не нужен</strong>: Rust сам по себе self-contained, не подтягивайте <code>c++_shared</code>.</li>
+      <li><strong>API level</strong>: <code>aarch64-linux-android24-clang</code> ≠ <code>aarch64-linux-android21-clang</code> — следите за совместимостью.</li>
+    </ul>
+
+    <p>
+      В песочнице ниже — небольшая «check'я» утилита, которая на host'е
+      имитирует выбор линкера: на устройстве вы запустите это уже как
+      <code>.so</code> через JNI (Lesson 14).
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · подбор линкера по target-triple"
+         data-code='fn linker_for(triple: &amp;str, min_sdk: u32) -&gt; String {
+    let arch = match triple {
+        "aarch64-linux-android" =&gt; "aarch64-linux-android",
+        "armv7-linux-androideabi" =&gt; "armv7a-linux-androideabi",
+        "x86_64-linux-android" =&gt; "x86_64-linux-android",
+        "i686-linux-android" =&gt; "i686-linux-android",
+        _ =&gt; return String::new(),
+    };
+    format!("{arch}{min_sdk}-clang")
+}
+
+fn main() {
+    assert_eq!(linker_for("aarch64-linux-android", 24), "aarch64-linux-android24-clang");
+    assert_eq!(linker_for("armv7-linux-androideabi", 21), "armv7a-linux-androideabi21-clang");
+    assert!(linker_for("wasm32", 24).is_empty());
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> в playground'е расширьте <code>linker_for</code>
+      для <code>riscv64-linux-android</code> — это экспериментальный target, который
+      Google планирует поддержать в NDK r29+.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/ndk/guides" target="_blank" rel="noopener">Android NDK Guides</a></li>
+        <li><a href="https://source.android.com/docs/setup/build/rust/building-rust-modules/overview" target="_blank" rel="noopener">AOSP · Building Rust modules</a></li>
+        <li><a href="https://github.com/bbqsrc/cargo-ndk" target="_blank" rel="noopener">cargo-ndk — GitHub</a></li>
+        <li><a href="https://github.com/mozilla/rust-android-gradle" target="_blank" rel="noopener">mozilla/rust-android-gradle</a></li>
+        <li><a href="https://developer.android.com/guide/practices/page-sizes" target="_blank" rel="noopener">Android · 16 KB page sizes</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../12/index.html"><span class="label">← Назад</span><span class="title">Lesson 12 · Тесты</span></a>
+      <a class="next" href="../14/index.html"><span class="label">Далее →</span><span class="title">Lesson 14 · Основы JNI</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy на основе официальной документации Android NDK и cargo-ndk.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

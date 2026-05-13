@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11 · Threads &amp; async — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 11 · Threads &amp; async</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 11</p>
+    <h1>Многопоточность, channels, async/await</h1>
+
+    <p>
+      На Android вы не имеете права блокировать main-поток, иначе ANR. Rust даёт
+      два инструмента: <strong>OS-потоки</strong> (<code>std::thread</code>) и
+      <strong>async</strong> поверх runtime'а (<code>tokio</code>,
+      <code>async-std</code>, <code>smol</code>). Async на мобильных
+      устройствах — это легковесные таски, которые не сжирают per-thread стек по
+      8 МБ.
+    </p>
+
+    <h2>OS-потоки и channels</h2>
+    <div class="playground"
+         data-title="Sandbox · std::thread + mpsc"
+         data-code='use std::sync::mpsc;
+use std::thread;
+
+fn main() {
+    let (tx, rx) = mpsc::channel::&lt;u32&gt;();
+
+    for i in 1..=5_u32 {
+        let tx = tx.clone();
+        thread::spawn(move || { tx.send(i * i).unwrap(); });
+    }
+    drop(tx); // закрыть «исходный» отправитель
+
+    let sum: u32 = rx.iter().sum();
+    assert_eq!(sum, 1 + 4 + 9 + 16 + 25);
+}'></div>
+
+    <h2>async/await</h2>
+    <p>
+      Функция <code>async fn</code> возвращает <code>Future</code> — value,
+      которое ничего не делает, пока не будет <em>polled</em> ранером
+      (executor'ом). На Android executor — это <code>tokio::runtime::Runtime</code>,
+      созданный единожды при загрузке <code>.so</code>.
+    </p>
+
+    <p>
+      На Playground в режиме <code>edition = 2021</code> async-runtime'ов нет, поэтому
+      демонстрируем сэмулированно: построим <code>Future</code> вручную через
+      executor-в-двух-строчках <code>futures::executor::block_on</code>.
+      В Android-проекте вы напишете <code>#[tokio::main]</code> и забудете об этом.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · async без внешних крейтов"
+         data-code='use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+
+async fn double(x: u32) -&gt; u32 { x * 2 }
+async fn pipeline() -&gt; u32 { double(7).await + double(3).await }
+
+// Минимальный блокирующий executor для демо.
+fn block_on&lt;F: Future&gt;(mut fut: F) -&gt; F::Output {
+    fn noop(_: *const ()) {}
+    fn clone(_: *const ()) -&gt; RawWaker { RawWaker::new(std::ptr::null(), &amp;VT) }
+    static VT: RawWakerVTable = RawWakerVTable::new(clone, noop, noop, noop);
+    let waker = unsafe { Waker::from_raw(RawWaker::new(std::ptr::null(), &amp;VT)) };
+    let mut cx = Context::from_waker(&amp;waker);
+    let mut fut = unsafe { Pin::new_unchecked(&amp;mut fut) };
+    loop {
+        if let Poll::Ready(v) = fut.as_mut().poll(&amp;mut cx) { return v; }
+    }
+}
+
+fn main() {
+    assert_eq!(block_on(pipeline()), 20);
+}'></div>
+
+    <h2>tokio на Android</h2>
+    <pre class="code-block"><code>[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+// в Rust-ядре:
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn run() -&gt; anyhow::Result&lt;()&gt; {
+    let resp = reqwest::get("https://example.com").await?;
+    log::info!("status = {}", resp.status());
+    Ok(())
+}</code></pre>
+
+    <div class="note">
+      <strong>Задание:</strong> измените <code>double</code> на возвращающую
+      <code>u64</code> и убедитесь, что компилятор подсветит несоответствие в
+      <code>pipeline</code>. Это и есть «асинхронность с типами».
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch16-00-concurrency.html" target="_blank" rel="noopener">The Rust Book · Chapter 16 — Concurrency</a></li>
+        <li><a href="https://rust-lang.github.io/async-book/" target="_blank" rel="noopener">Asynchronous Programming in Rust (Async Book)</a></li>
+        <li><a href="https://tokio.rs/tokio/tutorial" target="_blank" rel="noopener">Tokio Tutorial</a></li>
+        <li><a href="https://marabos.nl/atomics/" target="_blank" rel="noopener">Rust Atomics and Locks · Mara Bos</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../10/index.html"><span class="label">← Назад</span><span class="title">Lesson 10 · Smart pointers</span></a>
+      <a class="next" href="../12/index.html"><span class="label">Далее →</span><span class="title">Lesson 12 · Тесты</span></a>
+    </div>
+
+    <div class="attrib">Текст и playground-ячейки написаны для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

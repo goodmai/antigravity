@@ -1,45 +1,137 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rust on Android — Daskibo Academy</title>
+  <title>Rust on Android 🦀 — Daskibo Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/academy.css" />
+  <link rel="stylesheet" href="./assets/course.css" />
 </head>
 <body>
   <div id="site-header"></div>
 
   <div class="container">
-    <div class="placeholder-page">
-      <div class="placeholder-icon">🦀</div>
-      <p style="color:#fb923c;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em">Course 03</p>
-      <h1 class="placeholder-title" data-i18n="course_rust_title">Rust on Android</h1>
-      <p class="placeholder-desc" data-i18n="course_rust_desc">
-        Build high-performance Android apps with Rust via JNI, NDK and cross-compilation pipelines.
-      </p>
+    <div class="crumbs">
+      <a href="../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <span>Rust on Android 🦀</span>
+    </div>
 
-      <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin:8px 0 24px">
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:#fb923c">18</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em" data-i18n="lessons_label">Lessons</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:#fb923c">8</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em" data-i18n="labs_label">Labs</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:#fb923c">~30h</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total</div>
-        </div>
-      </div>
+    <p class="lesson-meta">Course · 21 lessons · 12 labs · Rust 2021 edition · Android NDK r26+</p>
+    <h1>Rust on Android 🦀</h1>
+    <p>
+      Объединённый курс «<strong>Rust on Android</strong>» — путь от первого
+      <code>fn main()</code> до production-grade интеграции Rust в Android-приложение.
+      В курс вошёл материал <em>Comprehensive Rust by Google</em> (фундамент языка) и
+      новые модули по NDK, JNI, UniFFI, безопасности и поставке через AGP / Play Store.
+      Каждый урок содержит редактируемую <strong>Rust Playground</strong>-ячейку
+      с самопроверкой через <code>assert!</code> / <code>assert_eq!</code>, а лабораторные
+      работы дают законченные мини-проекты со ссылками на исходники.
+    </p>
 
-      <span class="badge badge-soon" style="font-size:.875rem;padding:6px 18px" data-i18n="badge_coming_soon">Coming Soon</span>
-      <p class="placeholder-desc" data-i18n="coming_soon_detail">This course is under development. Stay tuned!</p>
+    <div class="note">
+      <strong>Как проходить курс.</strong> Читайте текст — затем запускайте песочницу
+      кнопкой <span class="kbd">▶ Run</span>. Если все assertions проходят — ячейка
+      становится зелёной; иначе Rust-компилятор покажет ошибку. Лабораторные
+      выполняются по шагам и завершаются git-коммитом / APK-сборкой.
+    </div>
 
-      <a href="../../index.html" class="btn btn-outline" style="margin-top:8px">← Back to Academy</a>
+    <div class="module-h">
+      <h2>Модуль I — Фундамент Rust</h2>
+      <span class="module-meta">Lessons 1–7</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/01/index.html"><div class="card-head"><span class="num">Lesson 01</span><span class="badge-mini">core</span></div><h3>Hello, World &amp; Cargo</h3><p>Toolchain, <code>rustup</code>, <code>cargo new</code>, первый бинарь и формат-строки.</p></a>
+      <a class="card" href="./lessons/02/index.html"><div class="card-head"><span class="num">Lesson 02</span><span class="badge-mini">core</span></div><h3>Типы и значения</h3><p>Примитивы, <code>let</code>/<code>mut</code>, вывод типов, числовая арифметика.</p></a>
+      <a class="card" href="./lessons/03/index.html"><div class="card-head"><span class="num">Lesson 03</span><span class="badge-mini">core</span></div><h3>Control flow</h3><p><code>if</code>, <code>match</code>, <code>loop</code>/<code>while</code>/<code>for</code>, ранний возврат.</p></a>
+      <a class="card" href="./lessons/04/index.html"><div class="card-head"><span class="num">Lesson 04</span><span class="badge-mini">core</span></div><h3>Функции и методы</h3><p>Параметры, возврат, методы, ассоциированные функции, замыкания на старте.</p></a>
+      <a class="card" href="./lessons/05/index.html"><div class="card-head"><span class="num">Lesson 05</span><span class="badge-mini">core</span></div><h3>Ownership и borrowing</h3><p>Move-семантика, ссылки, slices, <code>&amp;str</code> vs <code>String</code>.</p></a>
+      <a class="card" href="./lessons/06/index.html"><div class="card-head"><span class="num">Lesson 06</span><span class="badge-mini">core</span></div><h3>Структуры, enum'ы, pattern matching</h3><p>Struct, tuple-struct, enum с данными, exhaustive matching.</p></a>
+      <a class="card" href="./lessons/07/index.html"><div class="card-head"><span class="num">Lesson 07</span><span class="badge-mini">core</span></div><h3>Traits, generics, ошибки</h3><p>Trait-объекты, <code>Result&lt;T,E&gt;</code>, <code>?</code>, <code>thiserror</code>.</p></a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль II — Промежуточный Rust</h2>
+      <span class="module-meta">Lessons 8–12</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/08/index.html"><div class="card-head"><span class="num">Lesson 08</span><span class="badge-mini">std</span></div><h3>Коллекции и итераторы</h3><p><code>Vec</code>, <code>HashMap</code>, ленивые цепочки, <code>collect::&lt;_&gt;()</code>.</p></a>
+      <a class="card" href="./lessons/09/index.html"><div class="card-head"><span class="num">Lesson 09</span><span class="badge-mini">std</span></div><h3>Модули, crates, Cargo</h3><p><code>mod</code>, <code>pub</code>, features, workspaces, <code>Cargo.lock</code>.</p></a>
+      <a class="card" href="./lessons/10/index.html"><div class="card-head"><span class="num">Lesson 10</span><span class="badge-mini">memory</span></div><h3>Smart pointers</h3><p><code>Box</code>, <code>Rc</code>, <code>Arc</code>, <code>RefCell</code>, interior mutability.</p></a>
+      <a class="card" href="./lessons/11/index.html"><div class="card-head"><span class="num">Lesson 11</span><span class="badge-mini">async</span></div><h3>Многопоточность и async</h3><p><code>std::thread</code>, channels, <code>tokio</code>, <code>async/.await</code>.</p></a>
+      <a class="card" href="./lessons/12/index.html"><div class="card-head"><span class="num">Lesson 12</span><span class="badge-mini">qa</span></div><h3>Тесты, benchmarks, doc-tests</h3><p><code>#[test]</code>, integration tests, <code>cargo bench</code>, <code>///</code>-docs.</p></a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль III — Android, NDK и FFI</h2>
+      <span class="module-meta">Lessons 13–16</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/13/index.html"><div class="card-head"><span class="num">Lesson 13</span><span class="badge-mini">ndk</span></div><h3>Android NDK и toolchain</h3><p><code>rustup target add</code>, <code>cargo-ndk</code>, ABIs, <code>~/.cargo/config.toml</code>.</p></a>
+      <a class="card" href="./lessons/14/index.html"><div class="card-head"><span class="num">Lesson 14</span><span class="badge-mini">jni</span></div><h3>Основы JNI</h3><p>Сигнатуры, <code>JNIEnv</code>, <code>JNI_OnLoad</code>, локальные/глобальные ссылки.</p></a>
+      <a class="card" href="./lessons/15/index.html"><div class="card-head"><span class="num">Lesson 15</span><span class="badge-mini">jni</span></div><h3><code>.so</code>-библиотеки и Kotlin</h3><p>Сборка <code>cdylib</code>, <code>System.loadLibrary</code>, <code>external fun</code>.</p></a>
+      <a class="card" href="./lessons/16/index.html"><div class="card-head"><span class="num">Lesson 16</span><span class="badge-mini">jni</span></div><h3>Логирование и panic-safety</h3><p><code>android_logger</code>, <code>catch_unwind</code>, проброс ошибок через FFI.</p></a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль IV — Production Rust на Android</h2>
+      <span class="module-meta">Lessons 17–21</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/17/index.html"><div class="card-head"><span class="num">Lesson 17</span><span class="badge-mini">uniffi</span></div><h3>UniFFI: Kotlin-биндинги</h3><p>UDL, procmacros-биндинги, <code>uniffi-bindgen</code>, async-callbacks.</p></a>
+      <a class="card" href="./lessons/18/index.html"><div class="card-head"><span class="num">Lesson 18</span><span class="badge-mini">net</span></div><h3>Криптография и сеть</h3><p><code>ring</code>, <code>rustls</code>, <code>reqwest</code> поверх <code>tokio</code>.</p></a>
+      <a class="card" href="./lessons/19/index.html"><div class="card-head"><span class="num">Lesson 19</span><span class="badge-mini">perf</span></div><h3>Производительность</h3><p>LTO, PGO, <code>simpleperf</code>, аллокаторы, <code>opt-level</code>.</p></a>
+      <a class="card" href="./lessons/20/index.html"><div class="card-head"><span class="num">Lesson 20</span><span class="badge-mini">sec</span></div><h3>Безопасность и hardening</h3><p>cargo-audit, cargo-deny, fuzzing, <code>#[forbid(unsafe_code)]</code>.</p></a>
+      <a class="card" href="./lessons/21/index.html"><div class="card-head"><span class="num">Lesson 21</span><span class="badge-mini">ship</span></div><h3>Поставка: CI/CD и Play Store</h3><p>AGP-плагин, GitHub Actions matrix-build, AAB, app-bundles.</p></a>
+    </div>
+
+    <div class="module-h">
+      <h2>Лабораторные работы</h2>
+      <span class="module-meta">Labs 1–12 · мини-проекты со ссылками на источники</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./labs/01/index.html"><div class="card-head"><span class="num">Lab 01</span><span class="badge-mini">jni</span></div><h3>Hello Rust JNI</h3><p>Первый вызов Rust-функции из Kotlin Activity.</p></a>
+      <a class="card" href="./labs/02/index.html"><div class="card-head"><span class="num">Lab 02</span><span class="badge-mini">ndk</span></div><h3>Cross-compile CLI для arm64-v8a</h3><p><code>cargo-ndk</code>, <code>adb push</code>, запуск из shell.</p></a>
+      <a class="card" href="./labs/03/index.html"><div class="card-head"><span class="num">Lab 03</span><span class="badge-mini">ui</span></div><h3>Rust-driven Toast</h3><p>Вызов <code>android.widget.Toast</code> из Rust через JNI.</p></a>
+      <a class="card" href="./labs/04/index.html"><div class="card-head"><span class="num">Lab 04</span><span class="badge-mini">crypto</span></div><h3>SHA-256 в Rust</h3><p>Bench Rust vs Kotlin/Java <code>MessageDigest</code> на 10 МБ.</p></a>
+      <a class="card" href="./labs/05/index.html"><div class="card-head"><span class="num">Lab 05</span><span class="badge-mini">media</span></div><h3>Image-processing на Bitmap</h3><p>Greyscale-фильтр через Android Bitmap NDK API.</p></a>
+      <a class="card" href="./labs/06/index.html"><div class="card-head"><span class="num">Lab 06</span><span class="badge-mini">net</span></div><h3>Async-HTTP-клиент</h3><p><code>reqwest</code> + <code>tokio</code> с пробросом результата в UI-поток.</p></a>
+      <a class="card" href="./labs/07/index.html"><div class="card-head"><span class="num">Lab 07</span><span class="badge-mini">uniffi</span></div><h3>UniFFI Note-store</h3><p>Идиоматичные Kotlin-биндинги к Rust-сервису заметок.</p></a>
+      <a class="card" href="./labs/08/index.html"><div class="card-head"><span class="num">Lab 08</span><span class="badge-mini">db</span></div><h3>SQLite через <code>rusqlite</code></h3><p>Кросс-компиляция bundled-sqlite, миграции, репозиторий.</p></a>
+      <a class="card" href="./labs/09/index.html"><div class="card-head"><span class="num">Lab 09</span><span class="badge-mini">bg</span></div><h3>Foreground service + Rust-engine</h3><p>Долгая фоновая задача с уведомлением + Rust-runtime.</p></a>
+      <a class="card" href="./labs/10/index.html"><div class="card-head"><span class="num">Lab 10</span><span class="badge-mini">build</span></div><h3>AGP-плагин для Rust</h3><p><code>rust-android-gradle</code> + <code>cargoBuild</code> task в build.gradle.</p></a>
+      <a class="card" href="./labs/11/index.html"><div class="card-head"><span class="num">Lab 11</span><span class="badge-mini">ops</span></div><h3>Crash-reporting</h3><p>Native breakpad-минидампы → Sentry/Firebase Crashlytics.</p></a>
+      <a class="card" href="./labs/12/index.html"><div class="card-head"><span class="num">Lab 12</span><span class="badge-mini">capstone</span></div><h3>Capstone: Password Manager</h3><p>Rust-ядро (Argon2 + AES-GCM) + Kotlin Compose UI + AAB.</p></a>
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener">The Rust Programming Language</a> — официальная книга Steve Klabnik &amp; Carol Nichols.</li>
+        <li><a href="https://google.github.io/comprehensive-rust/" target="_blank" rel="noopener">Comprehensive Rust by Google</a> — Apache 2.0 / CC BY 4.0, основа для модулей I–II.</li>
+        <li><a href="https://doc.rust-lang.org/rust-by-example/" target="_blank" rel="noopener">Rust by Example</a> — рабочие сниппеты на каждый концепт.</li>
+        <li><a href="https://doc.rust-lang.org/nomicon/" target="_blank" rel="noopener">The Rustonomicon</a> — unsafe Rust, FFI, layout.</li>
+        <li><a href="https://source.android.com/docs/setup/build/rust/building-rust-modules/overview" target="_blank" rel="noopener">Android Rust documentation (AOSP)</a> — официальное руководство Google.</li>
+        <li><a href="https://developer.android.com/ndk/guides" target="_blank" rel="noopener">Android NDK Guides</a> — toolchain, ABIs, Bitmap API.</li>
+        <li><a href="https://mozilla.github.io/uniffi-rs/" target="_blank" rel="noopener">UniFFI User Guide</a> — биндинги Rust↔Kotlin/Swift/Python.</li>
+        <li><a href="https://docs.rs/jni/latest/jni/" target="_blank" rel="noopener">jni-rs crate docs</a> — низкоуровневый JNI API в Rust.</li>
+        <li><a href="https://github.com/bbqsrc/cargo-ndk" target="_blank" rel="noopener">cargo-ndk</a> и <a href="https://github.com/mozilla/rust-android-gradle" target="_blank" rel="noopener">rust-android-gradle</a> — build-pipelines.</li>
+        <li><a href="https://tokio.rs/tokio/tutorial" target="_blank" rel="noopener">Tokio Tutorial</a> — async-runtime.</li>
+        <li><a href="https://rust-lang.github.io/async-book/" target="_blank" rel="noopener">Async Book</a> — теория <code>async/.await</code> и future'ов.</li>
+        <li><a href="https://security.googleblog.com/2021/04/rust-in-android-platform.html" target="_blank" rel="noopener">Rust in the Android platform</a> — пост Google Security Blog.</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Декомпозиция тем и порядок изложения модулей I–II адаптированы из
+      <a href="https://google.github.io/comprehensive-rust/" target="_blank" rel="noopener">Comprehensive Rust by Google</a>
+      (Apache 2.0 / CC BY 4.0). Модули III–IV и все 12 лабораторных написаны
+      специально для Daskibo Academy. Любой пример можно открыть в официальной
+      <a href="https://play.rust-lang.org" target="_blank" rel="noopener">Rust Playground</a>
+      одним кликом.
     </div>
   </div>
 

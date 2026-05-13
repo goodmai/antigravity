@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10 · Smart pointers — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 10 · Smart pointers</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 10</p>
+    <h1>Smart pointers: Box, Rc, Arc, RefCell</h1>
+
+    <p>
+      Когда «обычный» <code>&amp;T</code> не подходит — например, нужно владение
+      shared, или внутренняя мутабельность — на сцену выходят умные указатели.
+      В Android-приложении вы обязательно встретите <code>Arc</code> при передаче
+      состояния между Rust-потоками и async-runtim'ом.
+    </p>
+
+    <h2><code>Box&lt;T&gt;</code> — heap-аллокация и trait-объекты</h2>
+    <div class="playground"
+         data-title="Sandbox · Box и dyn Trait"
+         data-code='trait Filter { fn apply(&amp;self, x: i32) -&gt; i32; }
+struct Add(i32);
+struct Mul(i32);
+impl Filter for Add { fn apply(&amp;self, x: i32) -&gt; i32 { x + self.0 } }
+impl Filter for Mul { fn apply(&amp;self, x: i32) -&gt; i32 { x * self.0 } }
+
+fn main() {
+    let pipeline: Vec&lt;Box&lt;dyn Filter&gt;&gt; = vec![Box::new(Add(3)), Box::new(Mul(4))];
+    let result = pipeline.iter().fold(2_i32, |acc, f| f.apply(acc));
+    // (2 + 3) * 4 = 20
+    assert_eq!(result, 20);
+}'></div>
+
+    <h2><code>Rc</code> vs <code>Arc</code></h2>
+    <p>
+      <code>Rc&lt;T&gt;</code> — счётчик ссылок, single-thread. <code>Arc&lt;T&gt;</code> —
+      atomic, можно делить между потоками. На Android любой long-living
+      объект, доступный из Java-потока и Rust-tokio, — это <code>Arc</code>.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · Arc + clone"
+         data-code='use std::sync::Arc;
+
+fn main() {
+    let shared = Arc::new(String::from("session-token-abc"));
+    let a = Arc::clone(&amp;shared);
+    let b = Arc::clone(&amp;shared);
+
+    assert_eq!(Arc::strong_count(&amp;shared), 3);
+    assert_eq!(a.as_str(), b.as_str());
+    drop(a);
+    assert_eq!(Arc::strong_count(&amp;shared), 2);
+}'></div>
+
+    <h2>Interior mutability: <code>RefCell</code>, <code>Mutex</code></h2>
+    <p>
+      Если вам нужно изменять данные через <code>&amp;T</code>, оберните их в
+      <code>RefCell</code> (single-thread, проверки в рантайме) или
+      <code>Mutex</code>/<code>RwLock</code> (для <code>Arc</code> между потоками).
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · Mutex внутри Arc"
+         data-code='use std::sync::{Arc, Mutex};
+
+fn main() {
+    let counter = Arc::new(Mutex::new(0_u32));
+
+    let h1 = {
+        let c = Arc::clone(&amp;counter);
+        std::thread::spawn(move || { *c.lock().unwrap() += 10; })
+    };
+    let h2 = {
+        let c = Arc::clone(&amp;counter);
+        std::thread::spawn(move || { *c.lock().unwrap() += 5; })
+    };
+    h1.join().unwrap(); h2.join().unwrap();
+
+    assert_eq!(*counter.lock().unwrap(), 15);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> поменяйте <code>Arc&lt;Mutex&lt;u32&gt;&gt;</code> на
+      <code>Rc&lt;RefCell&lt;u32&gt;&gt;</code> — компилятор откажется передавать
+      <code>Rc</code> между потоками: он не <code>Send</code>. Это и есть гарантия
+      thread-safety на уровне типов.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch15-00-smart-pointers.html" target="_blank" rel="noopener">The Rust Book · Chapter 15 — Smart Pointers</a></li>
+        <li><a href="https://doc.rust-lang.org/std/sync/struct.Arc.html" target="_blank" rel="noopener">std::sync::Arc — referenced docs</a></li>
+        <li><a href="https://marabos.nl/atomics/" target="_blank" rel="noopener">Rust Atomics and Locks — Mara Bos</a> (free book).</li>
+        <li><a href="https://doc.rust-lang.org/nomicon/send-and-sync.html" target="_blank" rel="noopener">Rustonomicon · Send и Sync</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../09/index.html"><span class="label">← Назад</span><span class="title">Lesson 09 · Модули</span></a>
+      <a class="next" href="../11/index.html"><span class="label">Далее →</span><span class="title">Lesson 11 · Threads &amp; async</span></a>
+    </div>
+
+    <div class="attrib">Текст и playground-ячейки написаны для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

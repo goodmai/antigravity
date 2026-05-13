@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 05 · Ownership и borrowing — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 05 · Ownership и borrowing</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 05</p>
+    <h1>Ownership, borrowing, slices</h1>
+
+    <p>
+      Главная фишка Rust — модель владения. Три правила, проверяемых компилятором:
+    </p>
+    <ol>
+      <li>У каждого значения ровно один владелец.</li>
+      <li>В один момент — либо одна <code>&amp;mut T</code>-ссылка, либо сколько угодно <code>&amp;T</code>-ссылок.</li>
+      <li>Когда владелец выходит из scope — значение освобождается через <code>Drop</code>.</li>
+    </ol>
+    <p>
+      Эти правила исключают use-after-free, double-free и data race без сборщика
+      мусора. Когда вы будете передавать байты через JNI, именно ownership решит,
+      «кто должен освобождать буфер» — Rust или JVM.
+    </p>
+
+    <h2>Move vs. Copy</h2>
+    <div class="playground"
+         data-title="Sandbox · move-семантика"
+         data-code='fn take(name: String) -&gt; usize {
+    name.len()
+}
+
+fn main() {
+    let s = String::from("Pixel 8 Pro");
+    let n = take(s);
+    // `s` отсюда уже нельзя использовать — оно «уехало» в `take`.
+
+    // А вот числа реализуют Copy и копируются по значению.
+    let api = 34_u32;
+    let api2 = api;
+    let _ = api;            // ok, копия
+
+    assert_eq!(n, 11);
+    assert_eq!(api2, 34);
+}'></div>
+
+    <h2>Заимствование</h2>
+    <p>
+      Чтобы не отдавать владение, передавайте <code>&amp;T</code> (shared) или
+      <code>&amp;mut T</code> (exclusive). Это и есть <em>borrowing</em>. Borrow-checker
+      следит, чтобы не возникло висячих ссылок и параллельной записи.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · &amp;T и &amp;mut T"
+         data-code='fn length_of(s: &amp;str) -&gt; usize {
+    s.len()
+}
+
+fn push_exclamation(s: &amp;mut String) {
+    s.push(&apos;!&apos;);
+}
+
+fn main() {
+    let mut greeting = String::from("Привет");
+    let n = length_of(&amp;greeting);          // &amp;String coerces to &amp;str
+    push_exclamation(&amp;mut greeting);
+
+    assert_eq!(n, 12);                      // 6 кириллических × 2 байта = 12 байт
+    assert!(greeting.ends_with(&apos;!&apos;));
+}'></div>
+
+    <h2>Slices: <code>&amp;str</code> vs <code>String</code></h2>
+    <p>
+      <code>String</code> — кучный, изменяемый, владеет байтами. <code>&amp;str</code> —
+      <em>slice</em>, ссылка на UTF-8 байты без владения. Принято: входные строки
+      — <code>&amp;str</code>, поля структур — <code>String</code>.
+      В JNI на Rust-стороне Java-строка приходит как <code>JString</code> и
+      превращается в <code>&amp;str</code> через <code>env.get_string()</code>.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · slices"
+         data-code='fn first_word(s: &amp;str) -&gt; &amp;str {
+    match s.find(&apos; &apos;) {
+        Some(i) =&gt; &amp;s[..i],
+        None =&gt; s,
+    }
+}
+
+fn main() {
+    assert_eq!(first_word("rust on android"), "rust");
+    assert_eq!(first_word("solo"), "solo");
+
+    let arr = [10, 20, 30, 40, 50];
+    let mid: &amp;[i32] = &amp;arr[1..4];
+    assert_eq!(mid, &amp;[20, 30, 40]);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> попробуйте после <code>take(s)</code> добавить
+      <code>println!("{s}");</code>. Borrow-checker откажет — <code>s</code> уже не
+      владелец. Замените на <code>take(s.clone())</code> — и компилятор будет
+      доволен.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html" target="_blank" rel="noopener">The Rust Book · Chapter 4 — Ownership</a></li>
+        <li><a href="https://google.github.io/comprehensive-rust/references.html" target="_blank" rel="noopener">Comprehensive Rust · References</a></li>
+        <li><a href="https://doc.rust-lang.org/nomicon/aliasing.html" target="_blank" rel="noopener">The Rustonomicon · Aliasing</a></li>
+        <li><a href="https://www.youtube.com/watch?v=8M0QfLUDaaA" target="_blank" rel="noopener">YouTube · Crust of Rust: Ownership &amp; Borrowing (Jon Gjengset)</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../04/index.html"><span class="label">← Назад</span><span class="title">Lesson 04 · Функции</span></a>
+      <a class="next" href="../06/index.html"><span class="label">Далее →</span><span class="title">Lesson 06 · Struct &amp; Enum</span></a>
+    </div>
+
+    <div class="attrib">
+      Тематический план адаптирован из <a href="https://google.github.io/comprehensive-rust/references.html" target="_blank" rel="noopener">Comprehensive Rust</a> (Apache 2.0 / CC BY 4.0).
+      Текст и playground-ячейки написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

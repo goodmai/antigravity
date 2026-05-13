@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 11 · Crash reporting — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 11 · Crash reporting</span>
+    </div>
+
+    <p class="lesson-meta">Lab 11 · ~75 минут</p>
+    <h1>Lab 11 — Crash reporting и symbolication</h1>
+
+    <p>
+      Когда Rust-код в продакшене упадёт (а он упадёт — хотя бы из-за
+      <code>panic!</code> в библиотечном крейте), нужны бэктрейсы с
+      <em>символами</em>, а не <code>0xdeadbeef</code>. Здесь — два пути:
+      <strong>sentry-rust</strong> (быстро, бесплатно до лимита) и
+      <strong>breakpad</strong> (native minidumps, как у Firefox/Chrome).
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Advanced</div></div>
+      <div><div class="k">Время</div><div class="v">~75 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">16, 20</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Sentry-issue с правильным Rust-stacktrace'ом</div></div>
+    </div>
+
+    <h2>Путь A — sentry-rust</h2>
+    <pre class="code-block"><code>[dependencies]
+sentry = { version = "0.34", default-features = false, features = ["backtrace", "contexts", "panic"] }
+sentry-android-trace = "0.2"</code></pre>
+
+    <pre class="code-block"><code>use once_cell::sync::OnceCell;
+
+static _SENTRY: OnceCell&lt;sentry::ClientInitGuard&gt; = OnceCell::new();
+
+#[no_mangle]
+pub extern "system" fn JNI_OnLoad(_vm: jni::JavaVM, _: *mut std::ffi::c_void) -&gt; jni::sys::jint {
+    let guard = sentry::init(("https://YOUR_DSN@sentry.io/123", sentry::ClientOptions {
+        release: sentry::release_name!(),
+        traces_sample_rate: 0.1,
+        ..Default::default()
+    }));
+    let _ = _SENTRY.set(guard);
+    jni::sys::JNI_VERSION_1_6
+}</code></pre>
+
+    <h2>Заливка debug-символов в Sentry</h2>
+    <pre class="code-block"><code>npm i -g @sentry/cli
+
+# в CI после релиз-сборки:
+sentry-cli login --auth-token $SENTRY_AUTH
+sentry-cli debug-files upload \
+    --org daskibo --project rust-android \
+    target/aarch64-linux-android/release/libdaskibo.so</code></pre>
+
+    <h2>Путь B — Google Play native crashes</h2>
+    <p>
+      Play Console сам собирает minidump'ы. Чтобы Crashes показывали Rust-функции,
+      загрузите <strong>debug symbols</strong> вместе с AAB через bundletool:
+    </p>
+    <pre class="code-block"><code>./gradlew bundleRelease
+
+# Внутри AAB положите BUNDLE-METADATA/com.android.tools.build.debugsymbols/*/libdaskibo.so.dbg
+# Подробно: developer.android.com/guide/playcore/app-bundle/native-debug</code></pre>
+
+    <p>
+      Для Rust символы получаются автоматически, если у вас в
+      <code>Cargo.toml</code> стоит <code>[profile.release] debug = true,
+      strip = "none"</code>, а финальный <code>.so</code> уже <code>strip --strip-debug</code>'ается
+      на CI.
+    </p>
+
+    <h2>Симулируем «парсер бэктрейса»</h2>
+    <div class="playground"
+         data-title="Sandbox · вытаскиваем имя функции из строки backtrace"
+         data-code='fn parse_frame(line: &amp;str) -&gt; Option&lt;String&gt; {
+    // пример строки:
+    //  3:      0x7fa3d2e1b4 - my_crate::auth::login::ha7b8c9d0
+    let after_dash = line.split(" - ").nth(1)?;
+    let bare = after_dash.rsplit_once("::").map(|x| x.0).unwrap_or(after_dash);
+    Some(bare.trim().to_string())
+}
+
+fn main() {
+    let line = "  3:      0x7fa3d2e1b4 - my_crate::auth::login::ha7b8c9d0";
+    assert_eq!(parse_frame(line), Some("my_crate::auth::login".to_string()));
+
+    let plain = "no symbol here";
+    assert_eq!(parse_frame(plain), None);
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> подключите <a href="https://docs.rs/log/" target="_blank" rel="noopener">log</a>
+      и <a href="https://docs.rs/sentry-log/" target="_blank" rel="noopener">sentry-log</a> —
+      все <code>log::error!</code> в Rust автоматически уходят как breadcrumbs в Sentry,
+      что упрощает диагностику.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://docs.sentry.io/platforms/rust/" target="_blank" rel="noopener">Sentry · Rust SDK</a></li>
+        <li><a href="https://developer.android.com/guide/playcore/app-bundle/native-debug" target="_blank" rel="noopener">Android · Native debug symbols</a></li>
+        <li><a href="https://chromium.googlesource.com/breakpad/breakpad/" target="_blank" rel="noopener">Breakpad</a> и <a href="https://crates.io/crates/minidumper" target="_blank" rel="noopener">minidumper crate</a></li>
+        <li><a href="https://firebase.google.com/docs/crashlytics/get-started?platform=android" target="_blank" rel="noopener">Firebase Crashlytics</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../10/index.html"><span class="label">← Назад</span><span class="title">Lab 10 · AGP plugin</span></a>
+      <a class="next" href="../12/index.html"><span class="label">Далее →</span><span class="title">Lab 12 · Capstone</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 12 · Тесты и документация — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 12 · Тесты и документация</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 12</p>
+    <h1>Юнит-тесты, doc-tests, бенчмарки</h1>
+
+    <p>
+      Тестирование встроено в язык: <code>cargo test</code> компилирует и
+      запускает все <code>#[test]</code>-функции, doc-test-блоки в комментариях
+      и integration-тесты из <code>tests/</code>. Когда Rust-ядро линкуется в
+      Android — все эти тесты вы прогоняете на host'е до сборки APK, поэтому
+      80% багов ловятся за секунды на CI.
+    </p>
+
+    <h2>Юнит-тест</h2>
+    <pre class="code-block"><code>// src/lib.rs
+pub fn classify(api: u32) -&gt; &amp;'static str {
+    match api { 0..=20 =&gt; "old", _ =&gt; "modern" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_apis() { assert_eq!(classify(15), "old"); }
+
+    #[test]
+    fn modern_apis() { assert_eq!(classify(34), "modern"); }
+}</code></pre>
+
+    <p>
+      <code>cargo test classify::old</code> запустит только нужный тест,
+      <code>cargo test -- --nocapture</code> покажет <code>println!</code>.
+    </p>
+
+    <h2>Test внутри playground</h2>
+    <p>
+      Playground умеет в <code>cargo test</code>-режим: переключите <code>tests: true</code>
+      в payload'е, но для простоты у нас тесты обёрнуты в <code>main</code>.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · тестируем код в main()"
+         data-code='fn sha_prefix_ok(hex: &amp;str) -&gt; bool {
+    hex.len() == 64 &amp;&amp; hex.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+fn main() {
+    // Эмуляция cargo test:
+    assert!( sha_prefix_ok(&amp;"a".repeat(64)) );
+    assert!(!sha_prefix_ok("short"));
+    assert!(!sha_prefix_ok(&amp;"z".repeat(64)));
+}'></div>
+
+    <h2>Doc-tests</h2>
+    <p>
+      Любой <code>///</code>-комментарий с тройными бэктиками — это рабочий
+      пример, который <code>cargo test --doc</code> скомпилирует и выполнит.
+      Документация всегда «свежая», потому что устаревшие примеры падают на CI.
+    </p>
+
+    <pre class="code-block"><code>/// Удваивает число.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!(my_crate::dbl(7), 14);
+/// ```
+pub fn dbl(x: i32) -&gt; i32 { x * 2 }</code></pre>
+
+    <h2>Benchmarks</h2>
+    <p>
+      Stable Rust не имеет встроенных <code>#[bench]</code>, но есть
+      <a href="https://github.com/bheisler/criterion.rs" target="_blank" rel="noopener">criterion.rs</a> —
+      де-факто стандарт. На Android <code>criterion</code> можно запустить на
+      устройстве через <code>cargo dinghy</code>.
+    </p>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте в песочнице ещё один кейс — пустая
+      строка должна возвращать <code>false</code>. Затем перепишите <code>sha_prefix_ok</code>
+      через <code>hex.len() == 64 &amp;&amp; hex.bytes().all(|b| b.is_ascii_hexdigit())</code>
+      и убедитесь, что assertions по-прежнему зелёные.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch11-00-testing.html" target="_blank" rel="noopener">The Rust Book · Chapter 11 — Testing</a></li>
+        <li><a href="https://doc.rust-lang.org/rustdoc/documentation-tests.html" target="_blank" rel="noopener">rustdoc · Documentation tests</a></li>
+        <li><a href="https://bheisler.github.io/criterion.rs/book/" target="_blank" rel="noopener">Criterion.rs User Guide</a></li>
+        <li><a href="https://nexte.st/" target="_blank" rel="noopener">cargo-nextest</a> — быстрый параллельный test-runner.</li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../11/index.html"><span class="label">← Назад</span><span class="title">Lesson 11 · Threads</span></a>
+      <a class="next" href="../13/index.html"><span class="label">Далее →</span><span class="title">Lesson 13 · Android NDK</span></a>
+    </div>
+
+    <div class="attrib">Текст и playground-ячейки написаны для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

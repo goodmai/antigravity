@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 17 · UniFFI — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 17 · UniFFI</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 17</p>
+    <h1>UniFFI: идиоматичные биндинги Rust↔Kotlin</h1>
+
+    <p>
+      Писать JNI вручную — это правильно для понимания, но скучно в продакшене.
+      <strong>UniFFI</strong> (от Mozilla, использовался в Firefox Sync,
+      Mozilla VPN, Glean) автоматически генерирует Kotlin / Swift / Python /
+      Ruby обёртки из вашего Rust API. С 2024 года поддерживается
+      <strong>proc-macro-режим</strong>: больше не нужны UDL-файлы.
+    </p>
+
+    <h2>1. Описание API через атрибуты</h2>
+    <pre class="code-block"><code>// src/lib.rs
+use uniffi::Object;
+
+#[derive(uniffi::Error, Debug, thiserror::Error)]
+pub enum NoteError {
+    #[error("note not found")]
+    NotFound,
+}
+
+#[derive(Object)]
+pub struct NoteStore {
+    inner: std::sync::Mutex&lt;Vec&lt;String&gt;&gt;,
+}
+
+#[uniffi::export]
+impl NoteStore {
+    #[uniffi::constructor]
+    pub fn new() -&gt; std::sync::Arc&lt;Self&gt; {
+        std::sync::Arc::new(Self { inner: Default::default() })
+    }
+
+    pub fn add(&amp;self, body: String) {
+        self.inner.lock().unwrap().push(body);
+    }
+
+    pub fn get(&amp;self, idx: u32) -&gt; Result&lt;String, NoteError&gt; {
+        self.inner.lock().unwrap().get(idx as usize).cloned().ok_or(NoteError::NotFound)
+    }
+
+    pub fn count(&amp;self) -&gt; u32 {
+        self.inner.lock().unwrap().len() as u32
+    }
+}
+
+uniffi::setup_scaffolding!();</code></pre>
+
+    <h2>2. Сборка биндингов</h2>
+<pre class="code-block"><code># build.rs
+fn main() { uniffi::generate_scaffolding("src/note.udl").ok(); }
+
+# затем:
+cargo build --release --target aarch64-linux-android
+uniffi-bindgen generate --library target/aarch64-linux-android/release/libnote.so \
+    --language kotlin --out-dir bindings/</code></pre>
+
+    <p>
+      В <code>bindings/</code> появится Kotlin-файл с такими же типами, как в Rust:
+    </p>
+
+    <pre class="code-block"><code>// bindings/io/daskibo/note/note.kt   (сгенерировано)
+class NoteStore {
+    fun add(body: String)
+    @Throws(NoteException::class)
+    fun `get`(idx: UInt): String
+    fun count(): UInt
+}</code></pre>
+
+    <h2>3. Использование из Kotlin</h2>
+    <pre class="code-block"><code>val store = NoteStore()
+store.add("first note")
+store.add("second note")
+val n = store.`get`(0u)  // "first note"
+val total = store.count() // 2</code></pre>
+
+    <h2>UniFFI vs ручной JNI</h2>
+    <table style="width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.9rem">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th>Аспект</th><th>jni-rs</th><th>UniFFI</th></tr></thead>
+      <tbody>
+        <tr><td>Boilerplate</td><td>много</td><td>почти нет</td></tr>
+        <tr><td>Типы</td><td>ручной маппинг</td><td>auto: <code>String</code>, <code>Vec</code>, enum, <code>Result</code></td></tr>
+        <tr><td>Перфоманс</td><td>максимум</td><td>−5–10% (один уровень обёрток)</td></tr>
+        <tr><td>Multi-platform</td><td>только JVM</td><td>Kotlin + Swift + Python + Ruby</td></tr>
+        <tr><td>async</td><td>сами</td><td>встроенно (с 0.27+)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Эмулируем «генерацию имени Kotlin»</h2>
+    <div class="playground"
+         data-title="Sandbox · snake_case → camelCase, как UniFFI"
+         data-code='fn to_camel(s: &amp;str) -&gt; String {
+    let mut out = String::new();
+    let mut up = false;
+    for c in s.chars() {
+        if c == &apos;_&apos; { up = true; continue; }
+        if up { out.extend(c.to_uppercase()); up = false; }
+        else { out.push(c); }
+    }
+    out
+}
+
+fn main() {
+    assert_eq!(to_camel("add_note"), "addNote");
+    assert_eq!(to_camel("get_by_id"), "getById");
+    assert_eq!(to_camel("count"), "count");
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> допишите <code>to_pascal(&quot;note_store&quot;)</code> →
+      <code>&quot;NoteStore&quot;</code> и проверьте — UniFFI применяет именно это
+      правило к именам типов.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://mozilla.github.io/uniffi-rs/" target="_blank" rel="noopener">UniFFI User Guide</a></li>
+        <li><a href="https://github.com/mozilla/uniffi-rs" target="_blank" rel="noopener">mozilla/uniffi-rs · GitHub</a></li>
+        <li><a href="https://hacks.mozilla.org/2020/04/crossing-the-rust-ffi-frontier-with-protocol-buffers/" target="_blank" rel="noopener">Mozilla Hacks · The Rust FFI frontier</a></li>
+        <li><a href="https://mozilla.github.io/uniffi-rs/futures.html" target="_blank" rel="noopener">UniFFI · Async/await поддержка</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../16/index.html"><span class="label">← Назад</span><span class="title">Lesson 16 · Логи и panic</span></a>
+      <a class="next" href="../18/index.html"><span class="label">Далее →</span><span class="title">Lesson 18 · Криптография</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy. Описание UniFFI следует официальному User Guide Mozilla.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

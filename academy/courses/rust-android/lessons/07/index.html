@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 07 · Traits, Generics, ошибки — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 07 · Traits &amp; Errors</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 07</p>
+    <h1>Traits, Generics, Result&lt;T, E&gt;</h1>
+
+    <p>
+      Trait — это «интерфейс» Rust. Он описывает <em>поведение</em>, а не данные.
+      Generics + traits = выразительные библиотеки без накладных расходов
+      (мономорфизация на этапе компиляции). А <code>Result&lt;T, E&gt;</code> делает
+      ошибки видимыми в сигнатуре — на Android это значит, что ваш JNI-метод
+      никогда не упадёт незаметно.
+    </p>
+
+    <h2>Trait и реализация</h2>
+    <div class="playground"
+         data-title="Sandbox · trait, impl, Display"
+         data-code='use std::fmt;
+
+trait Renderable {
+    fn render(&amp;self) -&gt; String;
+}
+
+struct Button { label: String }
+struct Toggle { on: bool }
+
+impl Renderable for Button {
+    fn render(&amp;self) -&gt; String { format!("[ {} ]", self.label) }
+}
+impl Renderable for Toggle {
+    fn render(&amp;self) -&gt; String {
+        if self.on { "[●]".into() } else { "[ ]".into() }
+    }
+}
+
+impl fmt::Display for Button {
+    fn fmt(&amp;self, f: &amp;mut fmt::Formatter&lt;&apos;_&gt;) -&gt; fmt::Result {
+        write!(f, "Button({})", self.label)
+    }
+}
+
+fn main() {
+    let b = Button { label: "Save".into() };
+    let t = Toggle { on: true };
+    assert_eq!(b.render(), "[ Save ]");
+    assert_eq!(t.render(), "[●]");
+    assert_eq!(format!("{b}"), "Button(Save)");
+}'></div>
+
+    <h2>Generics и trait-bounds</h2>
+    <div class="playground"
+         data-title="Sandbox · generic-функция"
+         data-code='fn largest&lt;T: PartialOrd + Copy&gt;(xs: &amp;[T]) -&gt; T {
+    let mut best = xs[0];
+    for &amp;x in xs {
+        if x &gt; best { best = x; }
+    }
+    best
+}
+
+fn main() {
+    assert_eq!(largest(&amp;[1, 5, 3, 9, 2]), 9);
+    assert!((largest(&amp;[1.5_f32, 0.5, 2.5]) - 2.5).abs() &lt; 1e-6);
+    assert_eq!(largest(&amp;[&apos;a&apos;, &apos;z&apos;, &apos;m&apos;]), &apos;z&apos;);
+}'></div>
+
+    <h2><code>Result</code>, <code>?</code> и кастомные ошибки</h2>
+    <p>
+      В Rust нет исключений в C++/Java-смысле. Любая ошибка — это значение типа
+      <code>Result&lt;T, E&gt;</code>. Оператор <code>?</code> «пробрасывает»
+      ошибку наверх. На границе FFI ошибка обычно превращается в <code>i32</code>-код
+      или <code>JString</code>-сообщение.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · Result и ?"
+         data-code='#[derive(Debug, PartialEq)]
+enum ParseError { Empty, NotNumeric }
+
+fn parse_api(s: &amp;str) -&gt; Result&lt;u32, ParseError&gt; {
+    if s.is_empty() { return Err(ParseError::Empty); }
+    s.parse::&lt;u32&gt;().map_err(|_| ParseError::NotNumeric)
+}
+
+fn double_api(s: &amp;str) -&gt; Result&lt;u32, ParseError&gt; {
+    Ok(parse_api(s)? * 2)
+}
+
+fn main() {
+    assert_eq!(double_api("17"), Ok(34));
+    assert_eq!(double_api(""), Err(ParseError::Empty));
+    assert_eq!(double_api("abc"), Err(ParseError::NotNumeric));
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте трейт <code>Default</code> для
+      <code>Toggle</code> через <code>#[derive(Default)]</code>. Затем создайте
+      <code>Toggle::default()</code> и убедитесь, что <code>on == false</code>.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch10-00-generics.html" target="_blank" rel="noopener">The Rust Book · Chapter 10 — Generics, Traits, Lifetimes</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch09-00-error-handling.html" target="_blank" rel="noopener">The Rust Book · Chapter 9 — Error Handling</a></li>
+        <li><a href="https://docs.rs/thiserror/latest/thiserror/" target="_blank" rel="noopener">thiserror</a> и <a href="https://docs.rs/anyhow/latest/anyhow/" target="_blank" rel="noopener">anyhow</a> — каноничные крейты для ошибок.</li>
+        <li><a href="https://blog.burntsushi.net/rust-error-handling/" target="_blank" rel="noopener">Andrew Gallant · Rust error handling</a> — глубокое погружение.</li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../06/index.html"><span class="label">← Назад</span><span class="title">Lesson 06 · Struct &amp; Enum</span></a>
+      <a class="next" href="../08/index.html"><span class="label">Далее →</span><span class="title">Lesson 08 · Collections</span></a>
+    </div>
+
+    <div class="attrib">
+      Тематический план адаптирован из <a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener">The Rust Book</a>. Текст и playground'ы написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

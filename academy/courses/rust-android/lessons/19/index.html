@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 19 · Производительность — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 19 · Производительность</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 19</p>
+    <h1>Производительность: LTO, аллокаторы, simpleperf</h1>
+
+    <p>
+      Rust по умолчанию строит release-сборку с <code>opt-level=3</code>, но
+      на Android можно выжать ещё:
+    </p>
+
+    <h2>Профиль release</h2>
+    <pre class="code-block"><code>[profile.release]
+opt-level = 3
+lto = "fat"           # link-time optimization, +5-15% perf, +30% время линковки
+codegen-units = 1     # одна codegen-юнита → лучше LTO
+strip = "symbols"     # убрать debug-символы из .so (на Play Store кладите debug отдельно)
+panic = "abort"       # без unwind-таблиц — на Android-сборке резко меньше .so
+overflow-checks = false</code></pre>
+
+    <h2>PGO (Profile-Guided Optimization)</h2>
+    <p>
+      С Rust 1.74+ и LLVM 17 в Android NDK r26+ можно собрать PGO-builds:
+    </p>
+    <pre class="code-block"><code># 1. instrumented build:
+RUSTFLAGS="-Cprofile-generate=/tmp/pgo" cargo ndk -t arm64-v8a build --release
+
+# 2. погонять приложение на устройстве — соберутся .profraw
+
+# 3. слить и пересобрать:
+llvm-profdata merge -o /tmp/pgo/merged.profdata /tmp/pgo/*.profraw
+RUSTFLAGS="-Cprofile-use=/tmp/pgo/merged.profdata" cargo ndk -t arm64-v8a build --release</code></pre>
+
+    <h2>Аллокаторы</h2>
+    <p>
+      Системный <code>libc</code> на Android — <strong>Scudo</strong>: secure,
+      но не самый быстрый. Для CPU-bound сценариев замените на <a href="https://github.com/microsoft/mimalloc" target="_blank" rel="noopener">mimalloc</a>:
+    </p>
+    <pre class="code-block"><code>#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;</code></pre>
+
+    <h2>Профилирование на устройстве: simpleperf</h2>
+    <pre class="code-block"><code>cd $ANDROID_NDK_HOME/simpleperf
+./app_profiler.py -p io.daskibo.password -a .MainActivity \
+    -lib ../../../../path/to/cargo/target/aarch64-linux-android/release/
+./report_html.py</code></pre>
+    <p>
+      На выходе — flame-graph с символами вашей Rust-функции. Без шага
+      <code>-lib</code> simpleperf не найдёт Rust-символы и покажет только
+      <code>libdaskibo.so+0x1234</code>.
+    </p>
+
+    <h2>Маленький бенч на playground'е</h2>
+    <div class="playground"
+         data-title="Sandbox · сравним allocations: Vec::with_capacity vs Vec::new"
+         data-code='use std::time::Instant;
+
+fn fill_default(n: usize) -&gt; Vec&lt;u32&gt; {
+    let mut v: Vec&lt;u32&gt; = Vec::new();
+    for i in 0..n { v.push(i as u32); }
+    v
+}
+
+fn fill_capacity(n: usize) -&gt; Vec&lt;u32&gt; {
+    let mut v: Vec&lt;u32&gt; = Vec::with_capacity(n);
+    for i in 0..n { v.push(i as u32); }
+    v
+}
+
+fn main() {
+    let n = 1_000_000;
+    let t0 = Instant::now(); let _a = fill_default(n);  let d0 = t0.elapsed();
+    let t1 = Instant::now(); let _b = fill_capacity(n); let d1 = t1.elapsed();
+    // capacity-вариант должен быть быстрее (не было реаллокаций).
+    println!("default:  {d0:?}");
+    println!("capacity: {d1:?}");
+    assert!(d1 &lt;= d0 * 2); // конс. проверка: точно не сильно медленнее
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> на устройстве запустите <code>simpleperf record</code>
+      с lock'ом на «маленьком ядре» (<code>--cpu 0</code>) — это полезно для
+      сравнения «honest» single-thread производительности между нативным и
+      Kotlin-вариантом.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://nnethercote.github.io/perf-book/" target="_blank" rel="noopener">The Rust Performance Book — Nicholas Nethercote</a></li>
+        <li><a href="https://doc.rust-lang.org/cargo/reference/profiles.html" target="_blank" rel="noopener">Cargo profiles</a></li>
+        <li><a href="https://developer.android.com/ndk/guides/simpleperf" target="_blank" rel="noopener">Android NDK · simpleperf</a></li>
+        <li><a href="https://doc.rust-lang.org/rustc/profile-guided-optimization.html" target="_blank" rel="noopener">rustc PGO docs</a></li>
+        <li><a href="https://github.com/microsoft/mimalloc" target="_blank" rel="noopener">mimalloc — GitHub</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../18/index.html"><span class="label">← Назад</span><span class="title">Lesson 18 · Crypto</span></a>
+      <a class="next" href="../20/index.html"><span class="label">Далее →</span><span class="title">Lesson 20 · Безопасность</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

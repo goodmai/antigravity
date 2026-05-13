@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 12 · Capstone — Password Manager — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 12 · Capstone — Password Manager</span>
+    </div>
+
+    <p class="lesson-meta">Lab 12 · Capstone · 6–10 часов</p>
+    <h1>Lab 12 — Capstone: Password Manager</h1>
+
+    <p>
+      Финальная capstone-лаба объединяет всё: <strong>Rust-ядро</strong> с
+      Argon2id-деривацией ключа + AES-GCM хранилищем, <strong>UniFFI</strong>-биндинги,
+      <strong>Jetpack Compose</strong>-UI, <strong>BiometricPrompt</strong>
+      разблокировку, AAB-публикацию в Play Console.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Capstone</div></div>
+      <div><div class="k">Время</div><div class="v">6–10 ч (несколько дней)</div></div>
+      <div><div class="k">Уроки</div><div class="v">все 21</div></div>
+      <div><div class="k">Артефакт</div><div class="v">AAB в Internal Track Play Console</div></div>
+    </div>
+
+    <h2>Архитектура</h2>
+    <pre class="code-block"><code>┌──────────────────┐    UniFFI    ┌────────────────────┐
+│  Compose UI      │ ───────────▶ │  Rust vault crate  │
+│  ViewModel/State │   bindings   │  (Argon2 + AES-GCM)│
+└──────────────────┘              └────────────────────┘
+        ▲                                  │
+        │ Biometric unlock                 │ encrypted blob
+        │                                  ▼
+┌──────────────────┐              ┌────────────────────┐
+│  Keystore (HW)   │              │   filesDir/vault.bin│
+└──────────────────┘              └────────────────────┘</code></pre>
+
+    <h2>Rust API (UniFFI proc-macros)</h2>
+    <pre class="code-block"><code>#[derive(uniffi::Object)]
+pub struct Vault { /* … */ }
+
+#[uniffi::export]
+impl Vault {
+    #[uniffi::constructor]
+    pub fn open(path: String, master: String) -&gt; Result&lt;Arc&lt;Self&gt;, VaultError&gt;;
+    pub fn add(&amp;self, label: String, secret: String) -&gt; Result&lt;(), VaultError&gt;;
+    pub fn get(&amp;self, label: String) -&gt; Result&lt;String, VaultError&gt;;
+    pub fn list(&amp;self) -&gt; Vec&lt;String&gt;;
+    pub fn lock(&amp;self);    // zeroize ключа в памяти
+}</code></pre>
+
+    <h2>Криптостек</h2>
+    <ul>
+      <li><strong>Argon2id</strong> (<code>argon2</code> crate) для деривации ключа из пароля:
+        <code>memory_cost = 64 MiB</code>, <code>iterations = 3</code>, <code>parallelism = 1</code>.</li>
+      <li><strong>AES-256-GCM</strong> (<code>aes-gcm</code>) для шифрования каждого секрета,
+        nonce = 12 случайных байт из <code>OsRng</code>.</li>
+      <li><strong>zeroize</strong>: ключ обёрнут в <code>Zeroizing&lt;[u8; 32]&gt;</code>,
+        стирается в памяти при <code>Drop</code>.</li>
+      <li><strong>Constant-time compare</strong> через <code>subtle::ConstantTimeEq</code>.</li>
+    </ul>
+
+    <h2>UI на Compose</h2>
+    <pre class="code-block"><code>@Composable
+fun VaultScreen(vm: VaultViewModel = viewModel()) {
+    val state by vm.state.collectAsState()
+    when (val s = state) {
+        VaultState.Locked   -&gt; LockScreen(onUnlock = vm::unlockWithBiometrics)
+        is VaultState.Open  -&gt; SecretsList(s.labels,
+                                onClick = vm::reveal,
+                                onAdd   = vm::add)
+        is VaultState.Error -&gt; ErrorBanner(s.message)
+    }
+}</code></pre>
+
+    <h2>Biometric unlock</h2>
+    <pre class="code-block"><code>BiometricPrompt(this, mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+    override fun onAuthenticationSucceeded(r: BiometricPrompt.AuthenticationResult) {
+        val masterKey = androidKeyStore.decryptDek(r.cryptoObject)
+        vm.openVault(masterKey)
+    }
+}).authenticate(promptInfo, BiometricPrompt.CryptoObject(cipher))</code></pre>
+
+    <p>
+      <strong>Хитрость:</strong> сам мастер-пароль никогда не покидает enclave —
+      Keystore хранит лишь DEK (data encryption key), а Rust работает с DEK как
+      с непрозрачным <code>[u8; 32]</code>.
+    </p>
+
+    <h2>CI / Release</h2>
+    <p>Используйте workflow из <a href="../../lessons/21/index.html">Lesson 21</a>:</p>
+    <ul>
+      <li><code>cargo audit</code>, <code>cargo deny</code>, <code>cargo test</code></li>
+      <li><code>cargo ndk … build --release</code> для 3 ABI</li>
+      <li><code>./gradlew bundleRelease</code></li>
+      <li><code>upload-google-play</code> action → Internal track</li>
+    </ul>
+
+    <h2>Чек-лист security review</h2>
+    <ul>
+      <li>✅ <code>#![forbid(unsafe_code)]</code> в Rust-ядре.</li>
+      <li>✅ Argon2 params не меньше OWASP recommendations.</li>
+      <li>✅ Nonce уникальный на каждое шифрование.</li>
+      <li>✅ Все ключи в памяти — <code>Zeroizing</code>.</li>
+      <li>✅ Биометрия требует <code>BIOMETRIC_STRONG</code> (Class 3).</li>
+      <li>✅ Backup отключён (<code>android:allowBackup="false"</code>).</li>
+      <li>✅ <code>FLAG_SECURE</code> на экране секретов.</li>
+    </ul>
+
+    <h2>Эмулируем derive_key через Argon2</h2>
+    <div class="playground"
+         data-title="Sandbox · детерминированная деривация (демо, не Argon2)"
+         data-code='// Упрощённый KDF: SHA-256-like 256-битный «ключ» из пароля + соли.
+fn fake_derive_key(password: &amp;str, salt: &amp;[u8]) -&gt; [u8; 32] {
+    let mut out = [0_u8; 32];
+    let bytes = password.as_bytes();
+    for (i, slot) in out.iter_mut().enumerate() {
+        let p = bytes.get(i % bytes.len().max(1)).copied().unwrap_or(0);
+        let s = salt.get(i % salt.len().max(1)).copied().unwrap_or(0);
+        *slot = p ^ s.wrapping_add(i as u8);
+    }
+    out
+}
+
+fn main() {
+    let k1 = fake_derive_key("hunter2", b"saltA");
+    let k2 = fake_derive_key("hunter2", b"saltA");
+    let k3 = fake_derive_key("hunter2", b"saltB");
+
+    assert_eq!(k1, k2, "same input → same key");
+    assert_ne!(k1, k3, "different salt → different key");
+    assert_eq!(k1.len(), 32);
+}'></div>
+
+    <div class="note">
+      <strong>Дисклеймер:</strong> код в playground'е — это <em>демонстрация
+      интерфейса</em>. В production используйте <code>argon2::Argon2::new(...)</code>
+      и НЕ изобретайте свои KDF. См. <a href="https://www.password-hashing.net/" target="_blank" rel="noopener">password-hashing.net</a>.
+    </div>
+
+    <h2>Что сдавать</h2>
+    <ul>
+      <li>Git-репозиторий с README, описывающим архитектуру.</li>
+      <li>Зелёный CI: тесты + cargo audit + сборка AAB.</li>
+      <li>Скриншоты Internal Track в Play Console.</li>
+      <li>Threat model (1 страница) — что защищается, что нет.</li>
+    </ul>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc9106.html" target="_blank" rel="noopener">RFC 9106 — Argon2 specification</a></li>
+        <li><a href="https://owasp.org/www-project-cheat-sheets/cheatsheets/Password_Storage_Cheat_Sheet.html" target="_blank" rel="noopener">OWASP · Password Storage Cheat Sheet</a></li>
+        <li><a href="https://developer.android.com/training/sign-in/biometric-auth" target="_blank" rel="noopener">Android · Biometric authentication</a></li>
+        <li><a href="https://developer.android.com/privacy-and-security/keystore" target="_blank" rel="noopener">Android Keystore system</a></li>
+        <li><a href="https://docs.rs/aes-gcm/latest/aes_gcm/" target="_blank" rel="noopener">aes-gcm crate</a> · <a href="https://docs.rs/argon2/latest/argon2/" target="_blank" rel="noopener">argon2 crate</a> · <a href="https://docs.rs/zeroize/" target="_blank" rel="noopener">zeroize</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../11/index.html"><span class="label">← Назад</span><span class="title">Lab 11 · Crash reporting</span></a>
+      <a class="next" href="../../index.html"><span class="label">Финиш →</span><span class="title">К курсу</span></a>
+    </div>
+
+    <div class="attrib">Capstone написан для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 05 · Image processing на Bitmap — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 05 · Bitmap</span>
+    </div>
+
+    <p class="lesson-meta">Lab 05 · ~75 минут</p>
+    <h1>Lab 05 — Greyscale-фильтр через Android Bitmap NDK</h1>
+
+    <p>
+      Передача Bitmap'ов через JNI «обычным» путём — это <code>byte[]</code>-копия,
+      которая на 4K-картинке съест 30 МБ. У Android есть <strong>Bitmap NDK API</strong>:
+      Rust получает указатель на пиксели <em>напрямую</em>.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate+</div></div>
+      <div><div class="k">Время</div><div class="v">~75 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">15, 16, 19</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Activity, превращающий фото в Ч/Б</div></div>
+    </div>
+
+    <h2>Cargo.toml</h2>
+    <pre class="code-block"><code>[dependencies]
+jni = { version = "0.21", default-features = false }
+ndk-sys = "0.5"             # FFI к NDK
+log = "0.4"
+android_logger = "0.14"</code></pre>
+
+    <h2>Rust</h2>
+    <pre class="code-block"><code>use jni::{JNIEnv, objects::{JClass, JObject}};
+use ndk_sys::{AndroidBitmapInfo, AndroidBitmap_getInfo,
+               AndroidBitmap_lockPixels, AndroidBitmap_unlockPixels,
+               ANDROID_BITMAP_FORMAT_RGBA_8888, ANDROID_BITMAP_RESULT_SUCCESS};
+use std::ffi::c_void;
+
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_img_NativeKt_greyscale(
+    mut env: JNIEnv,
+    _: JClass,
+    bitmap: JObject,
+) {
+    let env_ptr = env.get_raw();
+    let mut info = AndroidBitmapInfo::default();
+    unsafe {
+        if AndroidBitmap_getInfo(env_ptr.cast(), bitmap.as_raw().cast(), &amp;mut info) != ANDROID_BITMAP_RESULT_SUCCESS as i32 {
+            log::error!("getInfo failed"); return;
+        }
+        if info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 as u32 {
+            log::error!("expected RGBA_8888, got {}", info.format); return;
+        }
+
+        let mut ptr: *mut c_void = std::ptr::null_mut();
+        AndroidBitmap_lockPixels(env_ptr.cast(), bitmap.as_raw().cast(), &amp;mut ptr);
+        let pixels = std::slice::from_raw_parts_mut(ptr as *mut u8,
+            (info.stride * info.height) as usize);
+
+        for px in pixels.chunks_exact_mut(4) {
+            // BT.601 luma:
+            let y = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32) as u8;
+            px[0] = y; px[1] = y; px[2] = y; // alpha не трогаем
+        }
+
+        AndroidBitmap_unlockPixels(env_ptr.cast(), bitmap.as_raw().cast());
+    }
+}</code></pre>
+
+    <h2>Kotlin</h2>
+    <pre class="code-block"><code>val bmp = BitmapFactory.decodeResource(resources, R.drawable.sample)
+    .copy(Bitmap.Config.ARGB_8888, true) // mutable!
+
+Native.greyscale(bmp)        // ← мутирует in-place
+
+imageView.setImageBitmap(bmp)</code></pre>
+
+    <h2>Почему это быстрее</h2>
+    <ul>
+      <li>Нет копирования <code>byte[]</code> через JNI (0 KB трафика).</li>
+      <li>Rust работает с raw-памятью под безопасной обёрткой <code>slice::from_raw_parts_mut</code>.</li>
+      <li>LLVM SIMD-векторизует цикл на ARM NEON.</li>
+    </ul>
+
+    <h2>Эмуляция фильтра в playground'е</h2>
+    <div class="playground"
+         data-title="Sandbox · BT.601 luma на одной строке"
+         data-code='fn greyscale_inplace(rgba: &amp;mut [u8]) {
+    for px in rgba.chunks_exact_mut(4) {
+        let y = (0.299 * px[0] as f32 + 0.587 * px[1] as f32 + 0.114 * px[2] as f32) as u8;
+        px[0] = y; px[1] = y; px[2] = y;
+    }
+}
+
+fn main() {
+    let mut row = vec![255_u8, 0, 0, 255,  0, 255, 0, 255,  0, 0, 255, 255];
+    greyscale_inplace(&amp;mut row);
+
+    // Красный пиксель → ~76
+    assert!((row[0] as i32 - 76).abs() &lt;= 1);
+    // Зелёный → ~149
+    assert!((row[4] as i32 - 149).abs() &lt;= 1);
+    // Синий → ~29
+    assert!((row[8] as i32 - 29).abs() &lt;= 1);
+    // Альфа должна остаться нетронутой
+    assert_eq!(row[3], 255);
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> добавьте параметр <code>strength: f32</code> от 0.0 (без
+      эффекта) до 1.0 (полный Ч/Б) и сделайте линейную интерполяцию.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/ndk/reference/group/bitmap" target="_blank" rel="noopener">Android NDK · Bitmap API</a></li>
+        <li><a href="https://docs.rs/ndk-sys/latest/ndk_sys/" target="_blank" rel="noopener">ndk-sys crate</a></li>
+        <li><a href="https://github.com/rust-mobile/ndk" target="_blank" rel="noopener">rust-mobile/ndk repo</a></li>
+        <li><a href="https://en.wikipedia.org/wiki/Rec._601" target="_blank" rel="noopener">BT.601 luma coefficients</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../04/index.html"><span class="label">← Назад</span><span class="title">Lab 04 · SHA-256</span></a>
+      <a class="next" href="../06/index.html"><span class="label">Далее →</span><span class="title">Lab 06 · Async HTTP</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

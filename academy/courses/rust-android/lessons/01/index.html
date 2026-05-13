@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 01 · Hello, World &amp; Cargo — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 01 · Hello, World &amp; Cargo</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 01</p>
+    <h1>Hello, World &amp; Cargo</h1>
+
+    <p>
+      Rust — это компилируемый системный язык без сборщика мусора. Он гарантирует
+      безопасность памяти за счёт правил <em>ownership</em> и <em>borrowing</em>,
+      которые проверяются на этапе компиляции. Программа на Rust компилируется в
+      нативный машинный код — поэтому Rust одинаково хорошо чувствует себя в
+      ядре ОС, в браузерном WebAssembly и внутри Android-приложения через JNI.
+    </p>
+
+    <h2>Что вам даёт Rust</h2>
+    <ul>
+      <li><strong>Memory safety без GC</strong> — ownership и borrow-checker отлавливают use-after-free, double-free и data race в safe-коде.</li>
+      <li><strong>Zero-cost abstractions</strong> — итераторы, generics, trait-объекты компилируются в код, эквивалентный ручному циклу.</li>
+      <li><strong>Errors as values</strong> — <code>Result&lt;T, E&gt;</code> и <code>Option&lt;T&gt;</code> делают ошибку частью типа, а не исключения.</li>
+      <li><strong>Один инструмент</strong> — <code>cargo</code> собирает, тестирует, бенчит, форматирует, публикует.</li>
+    </ul>
+
+    <h2>Toolchain в одну команду</h2>
+    <p>
+      Устанавливать Rust лучше через <code>rustup</code> — это менеджер toolchain'ов,
+      который умеет переключаться между stable / beta / nightly и устанавливать
+      cross-таргеты (нам понадобится <code>aarch64-linux-android</code> в Модуле III).
+    </p>
+<pre class="code-block"><code>curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup default stable
+rustup component add clippy rustfmt
+cargo new hello_rust &amp;&amp; cd hello_rust
+cargo run</code></pre>
+
+    <h2>Минимальная программа</h2>
+    <p>
+      <code>fn main()</code> — точка входа. <code>println!</code> завершается
+      восклицательным знаком, потому что это <em>макрос</em>, а не функция: он
+      раскрывается в цепочку <code>write!</code> в stdout. Все три макроса
+      <code>assert!</code>, <code>assert_eq!</code>, <code>assert_ne!</code>
+      компилируются в <code>if !(…) { panic!() }</code>, поэтому ваша песочница
+      «сама себя» проверит при запуске.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · Hello, World с проверками"
+         data-code='fn main() {
+    let greeting = "Hello, Rust on Android!";
+
+    println!("{greeting}");
+
+    assert_eq!(greeting.len(), 23);
+    assert!(greeting.starts_with("Hello"));
+    assert!(greeting.contains("Android"));
+}'></div>
+
+    <h2>Форматирование строк</h2>
+    <p>
+      Format-строки Rust похожи на Python f-strings: <code>{name}</code> подставляет
+      переменную по имени, <code>{:?}</code> — debug-репрезентация, <code>{:#?}</code> —
+      pretty-print. Тип сам решает, как форматироваться, через trait'ы
+      <code>Display</code> и <code>Debug</code>.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · format! и println!"
+         data-code='fn main() {
+    let device = "Pixel 8";
+    let api_level = 34;
+    let abis = ["arm64-v8a", "armeabi-v7a", "x86_64"];
+
+    let line = format!("{device} (API {api_level}) поддерживает {abis:?}");
+    println!("{line}");
+
+    assert!(line.contains("Pixel 8"));
+    assert!(line.contains("34"));
+    assert_eq!(abis.len(), 3);
+}'></div>
+
+    <h2>Задание</h2>
+    <div class="note">
+      <strong>Попробуйте:</strong> измените <code>23</code> на <code>24</code> в первой
+      песочнице — Rust панично остановит программу с сообщением, в каком файле и
+      строке провалилась проверка. Это базовый цикл TDD на голом языке.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch01-00-getting-started.html" target="_blank" rel="noopener">The Rust Book · Chapter 1 — Getting Started</a></li>
+        <li><a href="https://google.github.io/comprehensive-rust/hello-world.html" target="_blank" rel="noopener">Comprehensive Rust · Hello, World</a></li>
+        <li><a href="https://doc.rust-lang.org/cargo/" target="_blank" rel="noopener">The Cargo Book</a> — каноничный референс по сборщику.</li>
+        <li><a href="https://rustup.rs/" target="_blank" rel="noopener">rustup.rs</a> — установка и переключение toolchain'ов.</li>
+        <li><a href="https://play.rust-lang.org/" target="_blank" rel="noopener">play.rust-lang.org</a> — официальная Playground.</li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../../index.html">
+        <span class="label">← Назад</span>
+        <span class="title">К курсу</span>
+      </a>
+      <a class="next" href="../02/index.html">
+        <span class="label">Далее →</span>
+        <span class="title">Lesson 02 · Типы и значения</span>
+      </a>
+    </div>
+
+    <div class="attrib">
+      Структура урока «Hello, World» адаптирована из соответствующей главы
+      <a href="https://google.github.io/comprehensive-rust/hello-world.html" target="_blank" rel="noopener">Comprehensive Rust by Google</a>
+      (Apache 2.0 / CC BY 4.0). Текст и playground-ячейки написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

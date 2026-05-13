@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 04 · Функции и методы — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 04 · Функции и методы</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 04</p>
+    <h1>Функции, методы и замыкания</h1>
+
+    <p>
+      Функции — единица кода в Rust. Они объявляются <code>fn</code>, имеют
+      типизированные параметры и явный тип возврата. Возврат пишется без
+      <code>return</code> — последнее выражение функции и есть её значение
+      (если строка не оканчивается точкой с запятой).
+    </p>
+
+    <h2>Сигнатуры и возврат</h2>
+    <div class="playground"
+         data-title="Sandbox · функции и возврат"
+         data-code='fn dp_to_px(dp: f32, density: f32) -&gt; i32 {
+    (dp * density).round() as i32
+}
+
+fn is_tablet(dp_width: u32) -&gt; bool {
+    dp_width &gt;= 600
+}
+
+fn main() {
+    assert_eq!(dp_to_px(16.0, 2.625), 42);
+    assert_eq!(dp_to_px(24.0, 3.0), 72);
+    assert!(is_tablet(720));
+    assert!(!is_tablet(411));
+}'></div>
+
+    <h2>Методы и <code>impl</code></h2>
+    <p>
+      Методы привязываются к типу через блок <code>impl</code>. Первый параметр —
+      <code>&amp;self</code> (read-only), <code>&amp;mut self</code> (mutable) или
+      <code>self</code> (move). Функции без <code>self</code> — это
+      <em>ассоциированные функции</em>; принято <code>new()</code> и подобные
+      конструкторы.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · impl, &amp;self, &amp;mut self"
+         data-code='struct Notification {
+    title: String,
+    unread: u32,
+}
+
+impl Notification {
+    fn new(title: &amp;str) -&gt; Self {
+        Self { title: title.into(), unread: 0 }
+    }
+    fn arrive(&amp;mut self) {
+        self.unread += 1;
+    }
+    fn summary(&amp;self) -&gt; String {
+        format!("{}: {}", self.title, self.unread)
+    }
+}
+
+fn main() {
+    let mut n = Notification::new("Inbox");
+    n.arrive();
+    n.arrive();
+    n.arrive();
+    assert_eq!(n.summary(), "Inbox: 3");
+}'></div>
+
+    <h2>Замыкания на старте</h2>
+    <p>
+      Замыкание (<code>|x| x + 1</code>) — анонимная функция, которая может
+      захватывать значения из окружающего scope. На Android замыкания часто
+      используются как «callback'и» из Rust-ядра, например, для нотификации UI.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · closure и map"
+         data-code='fn main() {
+    let bytes_to_kb = |b: u64| -&gt; f64 { b as f64 / 1024.0 };
+
+    let sizes: Vec&lt;u64&gt; = vec![512, 2048, 1_048_576];
+    let kb: Vec&lt;f64&gt; = sizes.iter().copied().map(bytes_to_kb).collect();
+
+    assert_eq!(kb.len(), 3);
+    assert!((kb[0] - 0.5).abs() &lt; 1e-9);
+    assert!((kb[1] - 2.0).abs() &lt; 1e-9);
+    assert!((kb[2] - 1024.0).abs() &lt; 1e-9);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте методу <code>Notification::clear(&amp;mut self)</code>,
+      который сбрасывает <code>unread</code> в 0, и проверьте через <code>assert_eq!</code>.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch03-03-how-functions-work.html" target="_blank" rel="noopener">The Rust Book · 3.3 Functions</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch05-03-method-syntax.html" target="_blank" rel="noopener">The Rust Book · 5.3 Method Syntax</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch13-01-closures.html" target="_blank" rel="noopener">The Rust Book · 13.1 Closures</a></li>
+        <li><a href="https://doc.rust-lang.org/rust-by-example/fn/closures.html" target="_blank" rel="noopener">Rust by Example · Closures</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../03/index.html"><span class="label">← Назад</span><span class="title">Lesson 03 · Control flow</span></a>
+      <a class="next" href="../05/index.html"><span class="label">Далее →</span><span class="title">Lesson 05 · Ownership</span></a>
+    </div>
+
+    <div class="attrib">
+      Декомпозиция темы вдохновлена <a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener">The Rust Book</a>.
+      Текст и playground-ячейки написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

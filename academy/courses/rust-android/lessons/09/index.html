@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 09 · Модули, crates, Cargo — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 09 · Модули, crates, Cargo</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 09</p>
+    <h1>Модули, crates и Cargo</h1>
+
+    <p>
+      В Rust есть три уровня организации кода: <strong>модуль</strong> внутри файла
+      (<code>mod</code>), <strong>crate</strong> — единица компиляции (бинарь или
+      библиотека), и <strong>workspace</strong> — несколько crate'ов с общим
+      <code>Cargo.lock</code>. Для Rust-ядра Android-приложения каноничный
+      приём — workspace из <code>core/</code> (логика) и <code>android/</code>
+      (FFI-обёртка).
+    </p>
+
+    <h2>Модули и видимость</h2>
+    <pre class="code-block"><code>// src/lib.rs
+pub mod auth {
+    pub fn sign_in(token: &amp;str) -&gt; bool { !token.is_empty() }
+    fn hash(_t: &amp;str) -&gt; u64 { 0 }      // приватная
+}
+
+// Использование извне:
+// my_crate::auth::sign_in("abc");</code></pre>
+
+    <div class="playground"
+         data-title="Sandbox · inline-модуль и видимость"
+         data-code='mod auth {
+    pub fn ok(token: &amp;str) -&gt; bool { !token.is_empty() }
+    pub mod jwt {
+        pub fn parts(t: &amp;str) -&gt; usize { t.split(&apos;.&apos;).count() }
+    }
+}
+
+fn main() {
+    assert!(auth::ok("xyz"));
+    assert!(!auth::ok(""));
+    assert_eq!(auth::jwt::parts("aaa.bbb.ccc"), 3);
+}'></div>
+
+    <h2><code>Cargo.toml</code>: зависимости и features</h2>
+    <p>
+      Cargo читает <code>Cargo.toml</code> и резолвит зависимости из crates.io.
+      Используйте <strong>features</strong>, чтобы условно подключать функционал —
+      это позволит собрать одно и то же ядро для Android, iOS и WASM без
+      ifdef-ов.
+    </p>
+
+    <pre class="code-block"><code>[package]
+name = "rustdroid-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]        # cdylib — для .so под Android
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+log   = "0.4"
+
+[features]
+default = []
+android = ["jni", "android_logger"]
+jni      = ["dep:jni"]
+android_logger = ["dep:android_logger"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.21", optional = true }
+android_logger = { version = "0.14", optional = true }</code></pre>
+
+    <h2>Workspace для Rust-Android</h2>
+    <pre class="code-block"><code># Cargo.toml в корне
+[workspace]
+members = ["core", "android-ffi", "ios-ffi"]
+resolver = "2"</code></pre>
+
+    <p>
+      Workspace даёт общую папку <code>target/</code> и одну версию каждого
+      транзитивного крейта — это критично, когда вы линкуете <code>tokio</code>
+      и в <code>core</code>, и в <code>android-ffi</code>: разные версии символов
+      сломают сборку <code>.so</code>.
+    </p>
+
+    <div class="note">
+      <strong>Задание:</strong> в песочнице сделайте <code>auth::jwt::parts</code>
+      приватной, убрав <code>pub</code>. Компилятор уберёт доступ — это
+      «privacy by default» — и assertion упадёт уже на этапе сборки.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch07-00-managing-growing-projects-with-packages-crates-and-modules.html" target="_blank" rel="noopener">The Rust Book · Chapter 7 — Packages, Crates, Modules</a></li>
+        <li><a href="https://doc.rust-lang.org/cargo/reference/workspaces.html" target="_blank" rel="noopener">The Cargo Book · Workspaces</a></li>
+        <li><a href="https://doc.rust-lang.org/cargo/reference/features.html" target="_blank" rel="noopener">The Cargo Book · Features</a></li>
+        <li><a href="https://blog.logrocket.com/rust-workspaces/" target="_blank" rel="noopener">LogRocket · A guide to Rust workspaces</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../08/index.html"><span class="label">← Назад</span><span class="title">Lesson 08 · Collections</span></a>
+      <a class="next" href="../10/index.html"><span class="label">Далее →</span><span class="title">Lesson 10 · Smart pointers</span></a>
+    </div>
+
+    <div class="attrib">Текст и playground-ячейки написаны для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

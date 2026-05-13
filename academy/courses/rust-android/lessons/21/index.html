@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 21 · CI/CD и поставка — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 21 · Поставка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 21</p>
+    <h1>CI/CD, AGP и публикация в Play Store</h1>
+
+    <p>
+      Финальный урок курса — про то, как «обмануть» себя в будущем, автоматизировав
+      всё: сборку <code>.so</code>, прогон тестов, подпись AAB и заливку в Play
+      Console. Мы используем GitHub Actions, потому что у Android Build Tools
+      нет официального Docker-образа от Google, но есть превосходные community-actions.
+    </p>
+
+    <h2>Структура workflow</h2>
+    <pre class="code-block"><code># .github/workflows/release.yml
+name: release
+on:
+  push:
+    tags: ['v*']
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: nttld/setup-ndk@v1
+        with: { ndk-version: r26d }
+      - run: cargo install --locked cargo-ndk
+      - run: cargo audit
+      - run: cargo test --workspace
+      - run: cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 \
+              -o app/src/main/jniLibs build --release
+      - run: ./gradlew bundleRelease
+      - uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_JSON }}
+          packageName: io.daskibo.password
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal</code></pre>
+
+    <h2>AGP-интеграция: <code>rust-android-gradle</code></h2>
+    <p>
+      Если вам не нужен ручной <code>cargo ndk</code>, подключите плагин
+      Mozilla — он зарегистрирует Gradle-task <code>cargoBuild</code>, который
+      запустит cargo для всех ABI'ев в нужный момент.
+    </p>
+
+    <pre class="code-block"><code>// build.gradle.kts (project-level)
+plugins {
+  id("org.mozilla.rust-android-gradle.rust-android") version "0.9.4" apply false
+}
+
+// app/build.gradle.kts
+plugins {
+  id("com.android.application")
+  id("org.mozilla.rust-android-gradle.rust-android")
+}
+
+cargo {
+    module  = "../rust-core"
+    libname = "daskibo"
+    targets = listOf("arm64", "x86_64", "arm")
+    profile = "release"
+}
+
+android {
+    applicationVariants.all {
+        val variant = this
+        tasks.named("merge${variant.name.capitalize()}JniLibFolders") {
+            dependsOn("cargoBuild")
+        }
+    }
+}</code></pre>
+
+    <h2>AAB vs APK</h2>
+    <p>
+      Play Store с 2021 требует <strong>Android App Bundle (AAB)</strong>.
+      Google автоматически нарежет APK под конкретное устройство, и
+      Pixel 8 скачает только <code>arm64-v8a</code>-вариант — пользователю не
+      достанется лишних 6 МБ <code>.so</code>.
+    </p>
+
+    <h2>Сравним размеры builds</h2>
+    <div class="playground"
+         data-title="Sandbox · оценка размера .so по флагам"
+         data-code='fn estimated_so_kb(base_kb: u32, lto: bool, strip: bool, panic_abort: bool) -&gt; u32 {
+    let mut s = base_kb;
+    if lto { s = s * 85 / 100; }       // LTO −15 %
+    if strip { s = s * 60 / 100; }     // strip −40 %
+    if panic_abort { s = s * 90 / 100; } // panic=abort −10 %
+    s
+}
+
+fn main() {
+    let raw = 5000;
+    let prod = estimated_so_kb(raw, true, true, true);
+    // 5000 * 0.85 * 0.60 * 0.90 = ~2295
+    assert!(prod &gt; 2200 &amp;&amp; prod &lt; 2400);
+}'></div>
+
+    <h2>Чек-лист релиза</h2>
+    <ul>
+      <li>✅ <code>cargo audit</code>, <code>cargo deny check</code> зелёные.</li>
+      <li>✅ Unit + integration тесты, doc-tests.</li>
+      <li>✅ Подписанный AAB, ProGuard rules для Kotlin-обёрток UniFFI.</li>
+      <li>✅ Network Security Config + cleartext = false.</li>
+      <li>✅ <code>--release</code>-сборка с LTO + strip.</li>
+      <li>✅ ProGuard map + <code>.so</code> debug-symbols загружены отдельно (Play Console → <em>App bundle explorer</em>).</li>
+      <li>✅ <a href="https://developer.android.com/guide/practices/page-sizes" target="_blank" rel="noopener">16 KB page size</a> поддержан (NDK r27+).</li>
+    </ul>
+
+    <div class="note">
+      <strong>Поздравляем!</strong> Если вы дошли до этой строчки — у вас на руках
+      production-ready Rust-стек для Android. Дальше — Lab 12 (Capstone) и
+      собственные приложения.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://github.com/mozilla/rust-android-gradle" target="_blank" rel="noopener">mozilla/rust-android-gradle</a></li>
+        <li><a href="https://docs.github.com/en/actions/use-cases-and-examples/building-and-testing/building-and-testing-java-with-gradle" target="_blank" rel="noopener">GitHub Actions · Gradle Android</a></li>
+        <li><a href="https://developer.android.com/guide/app-bundle" target="_blank" rel="noopener">Android App Bundle</a></li>
+        <li><a href="https://github.com/r0adkll/upload-google-play" target="_blank" rel="noopener">upload-google-play action</a></li>
+        <li><a href="https://developer.android.com/studio/publish/upload-bundle" target="_blank" rel="noopener">Play Console · Upload bundle</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../20/index.html"><span class="label">← Назад</span><span class="title">Lesson 20 · Безопасность</span></a>
+      <a class="next" href="../../labs/01/index.html"><span class="label">Далее →</span><span class="title">Lab 01 · Hello Rust JNI</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>
