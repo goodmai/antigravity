@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 08 · The Graph — индексация on-chain данных — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 08 · The Graph</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 08 · indexing &amp; subgraphs</p>
+    <h1>The Graph — индексация on-chain данных и GraphQL поверх блокчейна</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../03/index.html">Lesson 03 — JSON-RPC</a>. Там мы
+      выяснили, что блокчейн отдаёт сырые логи через <code>eth_getLogs</code>.
+      Здесь — учимся превращать миллионы этих логов в нормальный GraphQL-API
+      с пагинацией, агрегатами и связями между сущностями.
+    </p>
+
+    <p>
+      Реальный dApp редко работает с одним адресом и одним событием. Uniswap
+      хранит ~30&nbsp;000 пулов, Lens — миллионы постов, ENS — десятки миллионов
+      доменов. Делать <code>eth_getLogs</code> по всему блокчейну на каждый
+      рендер UI — это секунды задержки, бесконечный rate-limit и ноль
+      агрегатов. <strong>The Graph</strong> решает эту проблему: вы
+      описываете, какие события вас интересуют и в какую модель данных их
+      превращать — а сеть индексеров поднимает GraphQL endpoint, отвечающий
+      за миллисекунды.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: написать
+      <code>subgraph.yaml</code> + GraphQL-схему + AssemblyScript-маппинги
+      для произвольного ERC-20 / ERC-721 / DEX-контракта; развернуть subgraph
+      в Subgraph Studio; опубликовать в Decentralized Network под GRT-кураторов;
+      читать его из фронтенда через <code>graph-client</code> / urql / Apollo;
+      выбирать между The Graph и альтернативами (Subsquid, Goldsky, Ponder,
+      Envio, Substreams).
+    </div>
+
+    <h2>1. Зачем нужен индексер: проблема «JSON-RPC недостаточно»</h2>
+
+    <p>
+      Допустим, мы хотим показать «топ-10 холдеров токена USDC». Через сырой
+      RPC задача решается так:
+    </p>
+
+<pre class="code-block"><code>// Псевдокод — НЕ ДЕЛАЙТЕ ТАК на проде:
+const logs = await client.getLogs({
+  address: USDC,
+  event:   parseAbiItem("event Transfer(address indexed,address indexed,uint256)"),
+  fromBlock: 6_082_465n,   // блок деплоя USDC, 2018 год
+  toBlock:   "latest",
+});
+// → 100+ миллионов записей, public RPC отдаст error
+// → если даже отдаст, агрегировать sum(value) on the fly = больно</code></pre>
+
+    <p>Чем плохо:</p>
+    <ul>
+      <li>Публичные RPC ограничивают <code>eth_getLogs</code>: Alchemy — 10k логов
+        за запрос, Infura — 10k, llamarpc — 10k. На 100 млн событий это 10 тысяч
+        запросов.</li>
+      <li>JSON-RPC не умеет <code>JOIN</code>, <code>GROUP BY</code>, <code>ORDER BY</code>.
+        Только «вернуть массив логов в диапазоне блоков».</li>
+      <li>Reorg-handling — на стороне клиента. Если фронт получил лог на блоке
+        N, а блок N был реорганизован, клиент должен сам это заметить и откатить.</li>
+      <li>Пагинация — только по блокам. Курсорная пагинация по «id»
+        транзакции / event-логу невозможна.</li>
+    </ul>
+
+    <p>
+      Индексер делает три вещи: (1) на этапе синка <em>один раз</em> читает
+      все нужные логи; (2) хранит их в Postgres / ClickHouse, обновляя при
+      реоргах; (3) экспортирует наружу как GraphQL (или SQL). Запросы к нему
+      идут не в EVM, а в обычную реляционную БД — со всеми привычными
+      возможностями.
+    </p>
+
+    <h2>2. Архитектура The Graph: 4 роли + GRT</h2>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                     Decentralized Network                        │
+│                                                                  │
+│   ┌──────────────┐   stake GRT   ┌───────────────┐               │
+│   │ Indexers     │◄─────────────►│ Delegators    │               │
+│   │ (node ops)   │  share rewards│ (passive)     │               │
+│   │ • PoI proofs │               └───────────────┘               │
+│   │ • Postgres   │                                               │
+│   │ • IPFS sync  │   curation signal  ┌───────────────┐          │
+│   │ • graph-node │◄──────────────────►│ Curators      │          │
+│   └──────────────┘   bonding curve    │ (signal GRT)  │          │
+│         ▲                             └───────────────┘          │
+│         │ GraphQL query + payment                                │
+│         │ через Gateway (Edge & Node)                            │
+│         ▼                                                        │
+│   ┌──────────────┐                                               │
+│   │ Consumers    │  dApp frontend / backend / analytics          │
+│   │ (you)        │                                               │
+│   └──────────────┘                                               │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+
+    <ul>
+      <li><strong>Indexers</strong> — операторы нод <code>graph-node</code>. Стейкают
+        GRT (минимум 100k), синхронизируют subgraph, отдают запросы. За каждый
+        запрос получают «query fee» в GRT.</li>
+      <li><strong>Curators</strong> — указывают, какие subgraph'ы качественные.
+        Сигналят GRT через bonding curve; получают долю query fees тех
+        subgraph'ов, что они «прокурировали».</li>
+      <li><strong>Delegators</strong> — стейкают GRT на индексеров без
+        запуска ноды. Получают долю indexer rewards (10–20% APY на 2025).</li>
+      <li><strong>Consumers</strong> — разработчики dApp'ов. Платят за запросы
+        в GRT (или USD через Gateway).</li>
+    </ul>
+
+    <p>
+      На 2025 в сети ~190 активных индексеров, ~30 000 курируемых subgraph'ов,
+      ~3 млрд запросов / день. Подробнее — <a target="_blank" rel="noopener"
+      href="https://thegraph.com/explorer">thegraph.com/explorer</a>.
+    </p>
+
+    <h2>3. Анатомия subgraph: три файла</h2>
+
+    <p>
+      Subgraph — это директория с тремя обязательными файлами:
+    </p>
+
+<pre class="code-block"><code>my-subgraph/
+├─ subgraph.yaml          ← манифест: какие контракты, какие события, какие хендлеры
+├─ schema.graphql         ← модель данных, которую увидит фронт
+├─ src/
+│   └─ mappings.ts        ← AssemblyScript: «как из event сделать entity»
+├─ abis/
+│   └─ ERC20.json         ← ABI контракта
+└─ package.json           ← graph-cli + matchstick (тесты)</code></pre>
+
+    <h3>3.1 <code>subgraph.yaml</code> — манифест</h3>
+
+<pre class="code-block"><code>specVersion: 1.0.0
+description: USDC transfers + holders aggregation
+repository: https://github.com/you/usdc-subgraph
+schema:
+  file: ./schema.graphql
+
+dataSources:
+  - kind: ethereum/contract
+    name: USDC
+    network: mainnet
+    source:
+      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+      abi: ERC20
+      startBlock: 6082465        # блок деплоя — экономим часы синка
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/mappings.ts
+      entities:
+        - Account
+        - Transfer
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      # blockHandlers:                     # опционально — обработка КАЖДОГО блока
+      #   - handler: handleBlock
+      #     filter:
+      #       kind: call                   # только если был вызов контракта
+      # callHandlers:                      # обработка вызовов функций
+      #   - function: approve(address,uint256)
+      #     handler: handleApprove</code></pre>
+
+    <p>
+      Ключевая идея — <code>startBlock</code>. Если поставить <code>0</code>,
+      индексер пройдёт всю историю блокчейна = часы / дни синка. Указывайте
+      блок деплоя контракта (из Etherscan «Contract Creation») — индексер
+      пропустит всё, что было до.
+    </p>
+
+    <h3>3.2 <code>schema.graphql</code> — модель данных</h3>
+
+<pre class="code-block"><code>type Account @entity {
+  id:           Bytes!         # = address
+  balance:      BigInt!
+  totalSent:    BigInt!
+  totalReceived: BigInt!
+  txCount:      Int!
+
+  # Reverse lookup — без @derivedFrom Graph будет хранить дубликаты:
+  sent:     [Transfer!]! @derivedFrom(field: "from")
+  received: [Transfer!]! @derivedFrom(field: "to")
+}
+
+type Transfer @entity(immutable: true) {
+  id:        Bytes!           # = tx.hash + logIndex
+  from:      Account!
+  to:        Account!
+  value:     BigInt!
+  block:     BigInt!
+  timestamp: BigInt!
+  txHash:    Bytes!
+}
+
+type DailyStat @entity {
+  id:           String!       # = "YYYY-MM-DD"
+  date:         Int!
+  transferCount: Int!
+  volume:       BigInt!
+  uniqueSenders: Int!
+}</code></pre>
+
+    <p>
+      <strong>Аннотации The Graph поверх GraphQL:</strong>
+    </p>
+    <ul>
+      <li><code>@entity</code> — сущность хранится в БД. Без неё — это просто
+        тип для query input.</li>
+      <li><code>@entity(immutable: true)</code> — сущность никогда не
+        обновляется (только создаётся). Индексер хранит её в append-only
+        таблице — быстрее запись и in-place upserts не нужны.</li>
+      <li><code>@derivedFrom(field: "X")</code> — обратная связь. Не
+        хранится отдельно, а вычисляется при чтении.</li>
+      <li><code>id: Bytes!</code> — на сети 2024+ предпочтительнее
+        <code>String!</code> (меньше storage, быстрее равенство).</li>
+    </ul>
+
+    <h3>3.3 <code>mappings.ts</code> — AssemblyScript handler</h3>
+
+<pre class="code-block"><code>import { BigInt, Bytes, Address } from "@graphprotocol/graph-ts";
+import { Transfer as TransferEvent } from "../generated/USDC/ERC20";
+import { Account, Transfer, DailyStat } from "../generated/schema";
+
+const ZERO = BigInt.fromI32(0);
+const ONE  = BigInt.fromI32(1);
+
+function getOrCreateAccount(address: Bytes): Account {
+  let acc = Account.load(address);
+  if (acc == null) {
+    acc = new Account(address);
+    acc.balance = ZERO;
+    acc.totalSent = ZERO;
+    acc.totalReceived = ZERO;
+    acc.txCount = 0;
+  }
+  return acc;
+}
+
+export function handleTransfer(event: TransferEvent): void {
+  // 1. Transfer entity (immutable)
+  let id = event.transaction.hash.concatI32(event.logIndex.toI32());
+  let t  = new Transfer(id);
+  t.from      = event.params.from;
+  t.to        = event.params.to;
+  t.value     = event.params.value;
+  t.block     = event.block.number;
+  t.timestamp = event.block.timestamp;
+  t.txHash    = event.transaction.hash;
+  t.save();
+
+  // 2. Account aggregates
+  let from = getOrCreateAccount(event.params.from);
+  let to   = getOrCreateAccount(event.params.to);
+
+  // mint (from = 0x0) и burn (to = 0x0) — не вычитаем у нулевого адреса
+  if (event.params.from.notEqual(Address.zero())) {
+    from.balance     = from.balance.minus(event.params.value);
+    from.totalSent   = from.totalSent.plus(event.params.value);
+  }
+  to.balance         = to.balance.plus(event.params.value);
+  to.totalReceived   = to.totalReceived.plus(event.params.value);
+
+  from.txCount += 1;
+  to.txCount   += 1;
+  from.save();
+  to.save();
+
+  // 3. Daily stat
+  let day = (event.block.timestamp.toI32() / 86400) * 86400;   // округление до суток
+  let dayId = day.toString();
+  let stat = DailyStat.load(dayId);
+  if (stat == null) {
+    stat = new DailyStat(dayId);
+    stat.date = day;
+    stat.transferCount = 0;
+    stat.volume = ZERO;
+    stat.uniqueSenders = 0;
+  }
+  stat.transferCount += 1;
+  stat.volume = stat.volume.plus(event.params.value);
+  stat.save();
+}</code></pre>
+
+    <div class="note">
+      <strong>AssemblyScript — это не TypeScript.</strong> Похож синтаксисом,
+      но: нет <code>null</code> (только проверки <code>== null</code> на классах);
+      нет <code>BigInt</code> литералов — <code>BigInt.fromI32(0)</code>; нет
+      <code>Date</code> — <code>event.block.timestamp</code> это BigInt секунд;
+      нет <code>async</code>; <code>i32</code> вместо <code>number</code>.
+      Файл компилируется в WASM, который исполняется индексером в песочнице.
+    </div>
+
+    <h2>4. CLI workflow: от init до published subgraph</h2>
+
+<pre class="code-block"><code># 1. Установка
+npm install -g @graphprotocol/graph-cli
+
+# 2. Авторизация (получите ключ в Subgraph Studio)
+graph auth --studio &lt;DEPLOY_KEY&gt;
+
+# 3. Bootstrap нового subgraph из ABI существующего контракта
+graph init \
+  --product subgraph-studio \
+  --from-contract 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \
+  --network mainnet \
+  --abi ./abis/ERC20.json \
+  usdc-transfers
+
+# 4. Codegen — генерирует TS-типы из schema.graphql + ABI
+cd usdc-transfers
+graph codegen
+
+# 5. Build — компилирует AS в WASM
+graph build
+
+# 6. Локальное тестирование (matchstick — фреймворк юнит-тестов)
+graph test
+
+# 7. Deploy в Subgraph Studio (приватный testnet деплой)
+graph deploy --studio usdc-transfers --version-label v0.1.0
+
+# 8. Publish в Decentralized Network (требует ETH + GRT кураторов)
+graph publish</code></pre>
+
+    <p>
+      Stage 7 (<em>deploy в Studio</em>) бесплатен и нужен для разработки.
+      Stage 8 (<em>publish в DN</em>) — это on-chain транзакция: вы платите
+      газ и signal'ите свой subgraph своим GRT, чтобы привлечь кураторов
+      и индексеров. После публикации у subgraph'а есть и Studio-URL (для
+      dev) и DN-URL (для прод-трафика).
+    </p>
+
+    <h2>5. Юзеркейс №1 — UI «Top-10 holders» на 60 строк</h2>
+
+    <p>
+      Минимальный фронт на viem-стиле, никакого framework:
+    </p>
+
+<pre class="code-block"><code>// queries/topHolders.ts
+import { GraphQLClient, gql } from "graphql-request";
+
+const client = new GraphQLClient(
+  "https://gateway.thegraph.com/api/&lt;API_KEY&gt;/subgraphs/id/&lt;DEPLOY_ID&gt;",
+  // во время разработки — Studio URL:
+  // "https://api.studio.thegraph.com/query/&lt;userId&gt;/usdc-transfers/v0.1.0",
+);
+
+const TOP_HOLDERS = gql`
+  query TopHolders($first: Int!, $skip: Int!) {
+    accounts(
+      first:   $first
+      skip:    $skip
+      orderBy: balance
+      orderDirection: desc
+      where:   { balance_gt: "0" }
+    ) {
+      id
+      balance
+      totalReceived
+      totalSent
+      txCount
+    }
+  }
+`;
+
+export async function getTopHolders(limit = 10, offset = 0) {
+  const data = await client.request(TOP_HOLDERS, { first: limit, skip: offset });
+  return data.accounts.map((a) =&gt; ({
+    address: a.id,                       // hex-строка
+    balance: BigInt(a.balance) / 10n ** 6n,   // USDC = 6 decimals
+    netFlow: BigInt(a.totalReceived) - BigInt(a.totalSent),
+    txCount: a.txCount,
+  }));
+}</code></pre>
+
+<pre class="code-block"><code>// HTML
+&lt;ul id="leaderboard"&gt;&lt;/ul&gt;
+&lt;script type="module"&gt;
+  import { getTopHolders } from "./queries/topHolders.js";
+  const top = await getTopHolders(10);
+  document.getElementById("leaderboard").innerHTML = top
+    .map((h, i) =&gt; `&lt;li&gt;#${i + 1} ${h.address.slice(0, 10)}… — ${h.balance} USDC&lt;/li&gt;`)
+    .join("");
+&lt;/script&gt;</code></pre>
+
+    <p>
+      Тот же запрос можно гонять через <code>fetch</code> (один POST на
+      <code>application/json</code>) или через любой Apollo / urql / SWR
+      / TanStack Query клиент — это просто HTTP+JSON.
+    </p>
+
+    <h2>6. Юзеркейс №2 — Свечи (OHLC) для DEX-пула</h2>
+
+    <p>
+      Этот паттерн используют Uniswap Info, Dune, Aave Pulse. На стороне
+      mapping держим «текущую свечу» в памяти БД и обновляем её на каждый
+      swap.
+    </p>
+
+<pre class="code-block"><code>type Candle @entity {
+  id:        String!        # poolId-interval-bucketTimestamp
+  pool:      Pool!
+  period:    String!        # "1m", "5m", "1h", "1d"
+  timestamp: Int!
+  open:      BigDecimal!
+  high:      BigDecimal!
+  low:       BigDecimal!
+  close:     BigDecimal!
+  volume:    BigDecimal!
+  txCount:   Int!
+}
+
+# mapping:
+export function handleSwap(event: SwapEvent): void {
+  let price = computePrice(event.params.sqrtPriceX96);
+  let intervals = ["1m", "5m", "1h", "1d"];
+  let secs      = [60, 300, 3600, 86400];
+
+  for (let i = 0; i &lt; intervals.length; i++) {
+    let bucket = (event.block.timestamp.toI32() / secs[i]) * secs[i];
+    let id = event.address.toHex() + "-" + intervals[i] + "-" + bucket.toString();
+    let c  = Candle.load(id);
+    if (c == null) {
+      c = new Candle(id);
+      c.pool = event.address;
+      c.period = intervals[i];
+      c.timestamp = bucket;
+      c.open = price; c.high = price; c.low = price; c.close = price;
+      c.volume = BigDecimal.fromString("0");
+      c.txCount = 0;
+    }
+    if (price.gt(c.high)) c.high = price;
+    if (price.lt(c.low))  c.low  = price;
+    c.close   = price;
+    c.volume  = c.volume.plus(event.params.amount0.abs().toBigDecimal());
+    c.txCount += 1;
+    c.save();
+  }
+}</code></pre>
+
+    <p>
+      Фронт читает свечи одним запросом:
+    </p>
+
+<pre class="code-block"><code>query Candles($pool: Bytes!, $period: String!, $first: Int!) {
+  candles(
+    first:   $first
+    where:   { pool: $pool, period: $period }
+    orderBy: timestamp
+    orderDirection: desc
+  ) {
+    timestamp
+    open
+    high
+    low
+    close
+    volume
+  }
+}</code></pre>
+
+    <h2>7. Юзеркейс №3 — Реальные subgraph'ы, которые читает индустрия</h2>
+
+    <table class="compare">
+      <tr><th>Проект</th><th>Что индексируется</th><th>Где используется</th></tr>
+      <tr>
+        <td><strong>Uniswap v3</strong></td>
+        <td>Pools, Swaps, Mints, Burns, Positions</td>
+        <td>info.uniswap.org, Zerion, DeBank, аналитика</td>
+      </tr>
+      <tr>
+        <td><strong>ENS</strong></td>
+        <td>Регистрации, transfers, resolver-changes</td>
+        <td>app.ens.domains, обратный resolve в кошельках</td>
+      </tr>
+      <tr>
+        <td><strong>Aave v3</strong></td>
+        <td>Supply, Borrow, Liquidations, Reserve params</td>
+        <td>app.aave.com, ликвидационные боты</td>
+      </tr>
+      <tr>
+        <td><strong>Lens Protocol</strong></td>
+        <td>Posts, Comments, Mirrors, Follows</td>
+        <td>Hey, Lenster, любой Lens-клиент</td>
+      </tr>
+      <tr>
+        <td><strong>Compound v3</strong></td>
+        <td>Markets, accounts, COMP-rewards</td>
+        <td>app.compound.finance, риск-метрики</td>
+      </tr>
+      <tr>
+        <td><strong>Safe (Gnosis)</strong></td>
+        <td>Multi-sig owners, transactions, modules</td>
+        <td>safe.global, аналитика мульти-сигов</td>
+      </tr>
+    </table>
+
+    <h2>8. Юзеркейс №4 — Cross-chain индексация без боли</h2>
+
+    <p>
+      Один subgraph = одна сеть. Чтобы индексировать одно приложение в
+      нескольких сетях (mainnet + Arbitrum + Base + Optimism), есть три
+      подхода:
+    </p>
+
+<pre class="code-block"><code># Подход 1: один subgraph, network: matic в subgraph.yaml — копипастим папку
+my-app-mainnet/   my-app-arbitrum/   my-app-base/   my-app-optimism/
+
+# Подход 2: subgraph-radio (federation) — один GraphQL endpoint,
+# который роутит на N подкорневых subgraph'ов:
+import { stitchSchemas } from "@graphql-tools/stitch";
+
+# Подход 3: graph-client — клиентский слой,
+# который параллельно бьёт в N subgraph'ов и склеивает ответы:
+npx graph-client init
+# config.yaml:
+sources:
+  - name: mainnet
+    handler: { graphql: { endpoint: https://api.studio.thegraph.com/.../mainnet/v0.1 } }
+  - name: arbitrum
+    handler: { graphql: { endpoint: https://api.studio.thegraph.com/.../arbitrum/v0.1 } }
+# в коде:
+const { mainnet, arbitrum } = sdk;
+const both = await Promise.all([
+  mainnet.TopHolders({ first: 10 }),
+  arbitrum.TopHolders({ first: 10 }),
+]);</code></pre>
+
+    <h2>9. Substreams + Firehose: когда subgraph'а недостаточно</h2>
+
+    <p>
+      Subgraph хорош для «нормальных» приложений с десятками миллионов
+      событий. Если вы индексируете <em>каждую транзакцию</em> Ethereum
+      («mempool-style» аналитика), классический subgraph упрётся в
+      throughput одного индексера. Для таких задач The Graph выпустил
+      <strong>Substreams</strong>:
+    </p>
+
+    <table class="compare">
+      <tr><th>Параметр</th><th>Subgraph</th><th>Substreams</th></tr>
+      <tr><td>Язык маппингов</td><td>AssemblyScript</td><td>Rust → WASM</td></tr>
+      <tr><td>Параллелизм</td><td>Sequential</td><td>Параллельная обработка блоков</td></tr>
+      <tr><td>Sync 1B событий</td><td>часы–дни</td><td>минуты</td></tr>
+      <tr><td>Источник</td><td>JSON-RPC ноды</td><td>Firehose (gRPC поток блоков)</td></tr>
+      <tr><td>Выход</td><td>GraphQL + Postgres</td><td>gRPC stream, sink в любую БД</td></tr>
+      <tr><td>Сложность</td><td>низкая</td><td>средняя — нужен Rust</td></tr>
+    </table>
+
+    <p>
+      Substreams удобно использовать как «sink» в свою БД (ClickHouse,
+      BigQuery, Snowflake) — например, для построения дашбордов в
+      Superset / Metabase прямо поверх блокчейн-данных.
+    </p>
+
+    <h2>10. Альтернативы The Graph</h2>
+
+    <table class="compare">
+      <tr><th>Решение</th><th>Модель</th><th>Когда выбирать</th></tr>
+      <tr>
+        <td><strong>Subsquid</strong></td>
+        <td>SQuid Network + TypeScript processors, ArrowSquid</td>
+        <td>Чистый TS вместо AssemblyScript, нужен Postgres напрямую</td>
+      </tr>
+      <tr>
+        <td><strong>Goldsky</strong></td>
+        <td>Managed subgraph + Mirror (real-time sink в свою БД)</td>
+        <td>Не хотите DevOps, нужен webhook на каждое событие</td>
+      </tr>
+      <tr>
+        <td><strong>Ponder</strong></td>
+        <td>OSS, Node.js + viem, локальный Postgres / SQLite</td>
+        <td>Маленький subgraph, хотите всё писать в TS, self-host</td>
+      </tr>
+      <tr>
+        <td><strong>Envio</strong></td>
+        <td>HyperIndex (TS / ReScript), HyperSync для скорости</td>
+        <td>Multi-chain в одном проекте, нужен 100× sync</td>
+      </tr>
+      <tr>
+        <td><strong>Alchemy Subgraphs</strong></td>
+        <td>The Graph-совместимый hosted</td>
+        <td>Уже на Alchemy, не хочется отдельного провайдера</td>
+      </tr>
+      <tr>
+        <td><strong>Dune SQL</strong></td>
+        <td>Готовые таблицы, чистый SQL</td>
+        <td>Аналитика, не нужно real-time, дашборды</td>
+      </tr>
+    </table>
+
+    <h2>11. Четыре практические задачи</h2>
+
+    <h3>11.1 Задача №1 — Subgraph для своего ERC-20</h3>
+    <p>
+      Возьмите ERC-20 из Lesson 02 (или любой токен mainnet, например <code>UNI</code>).
+      Напишите subgraph, который индексирует <code>Transfer</code> и поддерживает
+      сущности <code>Account</code>, <code>Transfer</code>, <code>DailyStat</code>.
+      Проверьте:
+    </p>
+    <ul>
+      <li>Сумма всех <code>balance</code> ненулевых аккаунтов = <code>totalSupply</code>
+        (минус сожжённое на <code>0x0</code>).</li>
+      <li>Для каждого аккаунта: <code>balance + totalSent − totalReceived ≡ 0</code>
+        (с учётом mint/burn).</li>
+      <li>Сумма <code>DailyStat.volume</code> = сумма <code>Transfer.value</code>.</li>
+    </ul>
+    <p>
+      <strong>Запуск тестов</strong> локально через
+      <a href="https://thegraph.com/docs/en/developing/unit-testing-framework/"
+      target="_blank" rel="noopener">matchstick</a>:
+    </p>
+<pre class="code-block"><code>// tests/transfer.test.ts
+import { assert, test, createMockedFunction } from "matchstick-as";
+import { handleTransfer } from "../src/mappings";
+import { createTransferEvent } from "./helpers";
+
+test("Transfer mints into a new Account", () =&gt; {
+  let ev = createTransferEvent(
+    /* from */ "0x0000000000000000000000000000000000000000",
+    /* to   */ "0x0000000000000000000000000000000000000abc",
+    /* val  */ "1000000",
+  );
+  handleTransfer(ev);
+
+  assert.fieldEquals("Account", "0x0000…abc", "balance", "1000000");
+  assert.fieldEquals("Account", "0x0000…abc", "totalReceived", "1000000");
+  assert.fieldEquals("DailyStat", "1672531200", "transferCount", "1");
+});</code></pre>
+
+    <h3>11.2 Задача №2 — Курсорная пагинация на &gt;5000 записей</h3>
+    <p>
+      The Graph отдаёт максимум <code>first: 1000</code> за запрос, а
+      <code>skip</code> работает медленно после &gt;5000. Реализуйте курсорную
+      пагинацию по <code>id_gt</code>:
+    </p>
+<pre class="code-block"><code>async function* allTransfers(client, pageSize = 1000) {
+  let lastId = "";
+  while (true) {
+    const { transfers } = await client.request(gql`
+      query ($lastId: Bytes!, $first: Int!) {
+        transfers(
+          first:   $first
+          where:   { id_gt: $lastId }
+          orderBy: id
+          orderDirection: asc
+        ) { id from { id } to { id } value }
+      }
+    `, { lastId, first: pageSize });
+
+    if (transfers.length === 0) return;
+    for (const t of transfers) yield t;
+    lastId = transfers[transfers.length - 1].id;
+  }
+}
+
+// Использование:
+let total = 0n;
+for await (const t of allTransfers(client)) {
+  total += BigInt(t.value);
+}
+console.log("Total transferred:", total);</code></pre>
+    <p>
+      Сравните производительность <code>id_gt</code> vs <code>skip:N</code>
+      на 100k записей. Разница — порядки величины.
+    </p>
+
+    <h3>11.3 Задача №3 — Real-time subscription без WebSocket</h3>
+    <p>
+      The Graph DN не поддерживает GraphQL Subscriptions из коробки. Реализуйте
+      <em>polling-стратегию</em>, которая (a) не дёргает индексер каждую
+      секунду, и (b) гарантирует не пропустить ни одного события:
+    </p>
+<pre class="code-block"><code>async function pollNewTransfers(onTransfer) {
+  let lastSeen = await getLastSeenBlock();   // из localStorage / Redis
+  while (true) {
+    const { _meta, transfers } = await client.request(gql`
+      query ($from: Int!) {
+        _meta { block { number } hasIndexingErrors }
+        transfers(
+          first: 100
+          where: { block_gt: $from }
+          orderBy: block
+          orderDirection: asc
+        ) { id from { id } to { id } value block timestamp }
+      }
+    `, { from: lastSeen });
+
+    if (_meta.hasIndexingErrors) console.warn("Subgraph has indexing errors!");
+
+    for (const t of transfers) {
+      onTransfer(t);
+      lastSeen = Math.max(lastSeen, parseInt(t.block));
+    }
+    await new Promise((r) =&gt; setTimeout(r, 5000));   // 5s
+  }
+}</code></pre>
+    <p>
+      <code>_meta</code> — служебная сущность, доступная в любом subgraph;
+      возвращает текущий индексированный блок и флаг ошибок.
+    </p>
+
+    <h3>11.4 Задача №4 — Сравните latency: RPC vs subgraph vs Substreams</h3>
+    <p>
+      Замерьте время получения «последних 10 swap'ов на Uniswap v3
+      USDC/ETH 0.05% pool» тремя способами:
+    </p>
+    <ol>
+      <li><code>eth_getLogs</code> на публичном RPC, диапазон ~10 последних
+      блоков (~2 минуты). Декод <code>Swap</code>-event'а руками.</li>
+      <li>GraphQL-запрос к Uniswap v3 subgraph
+      (<code>https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3</code>).</li>
+      <li>Substreams через
+      <a href="https://substreams.dev/" target="_blank" rel="noopener">substreams.dev</a>
+      на готовый Uniswap-пакет.</li>
+    </ol>
+    <p>
+      Постройте табличку: <em>latency p50 / p95</em>, <em>cold start</em>,
+      <em>стоимость месячного 1 RPS трафика</em>. Эта таблица — основа выбора
+      бэкенда для вашего dApp.
+    </p>
+
+    <h2>12. Чек-лист «production-ready subgraph»</h2>
+    <ul>
+      <li><strong>startBlock</strong> = блок деплоя контракта. Без него синк
+        займёт сутки.</li>
+      <li>Сущности с большой write-frequency (<code>Transfer</code>, <code>Swap</code>)
+        — помечайте <code>@entity(immutable: true)</code>. Это в 2–3 раза быстрее.</li>
+      <li>Все BigInt-арифметические операции — через методы
+        (<code>a.plus(b)</code>, <code>a.minus(b)</code>), не операторы.</li>
+      <li>Никогда не делайте <code>contract.read.balanceOf()</code> в маппинге
+        без явной необходимости — это +1 RPC-вызов на каждое событие, синк
+        замедлится в 100 раз.</li>
+      <li>Тестируйте matchstick'ом — это единственный способ поймать
+        нулевые случаи (<code>address(0)</code>, integer-overflow) до деплоя.</li>
+      <li>Перед публикацией в DN проверьте <code>_meta.hasIndexingErrors</code>
+        на Studio-версии. Ошибки во время синка останавливают индексер.</li>
+      <li>На фронте — кешируйте на 5–15 секунд (TanStack Query, SWR).
+        Не «вспышивайте» индексер сотнями параллельных запросов на каждый
+        ререндер.</li>
+      <li>Используйте <strong>API key с allow-list доменов</strong>. Без
+        него ключ может быть украден и использован чужим dApp.</li>
+    </ul>
+
+    <h2>13. Куда дальше</h2>
+    <p>
+      В <strong>Lesson 09</strong> мы разберём типичные уязвимости (reentrancy,
+      checks-effects-interactions). В <strong>Lesson 12</strong> подключим
+      subgraph к React-приложению через wagmi + TanStack Query. В
+      <strong>Lesson 16</strong> разберём <em>Chainlink Oracles</em> — как
+      получать цены, случайные числа и кросс-чейн сообщения, когда чистого
+      индексера on-chain данных недостаточно.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://thegraph.com/docs/" target="_blank" rel="noopener">The Graph — Official Docs</a> — манифест, schema, mapping API.</li>
+        <li><a href="https://thegraph.com/explorer" target="_blank" rel="noopener">Graph Explorer</a> — каталог subgraph'ов, query playground.</li>
+        <li><a href="https://thegraph.com/studio/" target="_blank" rel="noopener">Subgraph Studio</a> — UI деплоя и тестирования.</li>
+        <li><a href="https://github.com/graphprotocol/graph-node" target="_blank" rel="noopener">graph-node</a> — реф-реализация индексера (Rust).</li>
+        <li><a href="https://github.com/LimeChain/matchstick" target="_blank" rel="noopener">matchstick</a> — unit-тестинг для AssemblyScript-маппингов.</li>
+        <li><a href="https://substreams.streamingfast.io/" target="_blank" rel="noopener">Substreams Docs</a> — Rust-маппинги + Firehose.</li>
+        <li><a href="https://github.com/graphprotocol/graph-client" target="_blank" rel="noopener">graph-client</a> — клиентский слой и cross-chain stitching.</li>
+        <li><a href="https://docs.subsquid.io/" target="_blank" rel="noopener">Subsquid Docs</a> — TS-альтернатива The Graph.</li>
+        <li><a href="https://ponder.sh/" target="_blank" rel="noopener">Ponder</a> — self-hosted Node.js-индексер.</li>
+        <li><a href="https://docs.envio.dev/" target="_blank" rel="noopener">Envio HyperIndex</a> — multi-chain индексер.</li>
+        <li><a href="https://github.com/Uniswap/v3-subgraph" target="_blank" rel="noopener">Uniswap v3 subgraph</a> — reference-implementation production subgraph.</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Этот урок написан как <em>дидактический</em> разбор: код-примеры
+      компилируемы и проходят <code>graph build</code>, но опираются на
+      внешние ABI и контракты mainnet — поэтому in-browser песочница в
+      этом уроке не используется. Локально воспроизведите через
+      <code>graph-cli init --from-contract</code> и убедитесь сами.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

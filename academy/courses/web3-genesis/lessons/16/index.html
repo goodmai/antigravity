@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 16 · Chainlink Oracles — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 16 · Chainlink Oracles</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 16 · oracles &amp; external data</p>
+    <h1>Chainlink Oracles — внешние данные для смарт-контрактов</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../08/index.html">Lesson 08 — The Graph</a>. Там
+      мы научились <em>читать</em> on-chain данные эффективно. Здесь — учимся
+      <em>приводить</em> в on-chain данные, которых на блокчейне нет: цены,
+      случайные числа, веб-API, кросс-чейн сообщения.
+    </p>
+
+    <p>
+      EVM детерминирован: одна транзакция — одно состояние, одинаковое у всех
+      нод. Это значит, что контракт <strong>не может</strong> просто так
+      сделать HTTP-запрос: разные ноды получат разные ответы и сеть
+      расколется. Чтобы безопасно «прибить» внешний мир к консенсусу, нужен
+      <strong>оракул</strong> — отдельная сеть, которая собирает данные,
+      криптографически подписывает агрегированный результат и публикует его
+      on-chain. <strong>Chainlink</strong> — крупнейшая такая сеть: на 2025
+      она секурит ~$22 трлн совокупного объёма (TVS).
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: подключить
+      Chainlink Data Feed в Solidity и читать его на фронте; получить
+      verifiable-random number через VRF v2.5 для NFT-mint'а или лотереи;
+      запланировать периодические задачи через Chainlink Automation
+      (бывший Keepers); сделать кросс-чейн вызов через CCIP; вызвать
+      произвольный HTTP API из контракта через Chainlink Functions; защищать
+      контракты от stale price и L2-sequencer downtime.
+    </div>
+
+    <h2>1. Почему контракт не может сделать HTTP-запрос</h2>
+
+    <p>
+      Каждый full-node Ethereum перепроверяет все транзакции в блоке. Если
+      бы EVM-инструкция <code>HTTP</code> существовала, то нода A в Германии
+      получила бы ответ «1.23», а нода B в Сингапуре — «1.24» (разный
+      latency, разная кеш-вершина, разный round-robin DNS). Хэши блоков
+      разошлись бы — сеть расколота.
+    </p>
+
+    <p>
+      Решение универсальное: внешние данные приходят <strong>как обычная
+      on-chain транзакция</strong>, которую отправляет оракул. EVM просто
+      читает их из storage чужого контракта — это детерминировано.
+    </p>
+
+<pre class="code-block"><code>      Off-chain world                On-chain
+      ───────────────                ────────
+
+   ┌──────────────────┐                              ┌────────────────┐
+   │ Centralized API  │   pull   ┌──────────────┐    │ Aggregator     │
+   │ Coinbase Pro     │◄────────►│  Chainlink   │tx  │ contract       │
+   │ Kraken           │          │  node        │───►│  • answer      │
+   │ Binance          │          │  (off-chain) │    │  • updatedAt   │
+   │ Bitstamp         │          └──────────────┘    │  • roundId     │
+   │ ...              │                              └────────┬───────┘
+   └──────────────────┘                                       │
+                                                              │ read
+                                                              ▼
+                                                       ┌──────────────┐
+                                                       │ Ваш контракт │
+                                                       │ (DeFi proto) │
+                                                       └──────────────┘</code></pre>
+
+    <h2>2. Семь продуктов Chainlink</h2>
+
+    <table class="compare">
+      <tr><th>Продукт</th><th>Что даёт</th><th>Юзеркейс</th></tr>
+      <tr><td><strong>Data Feeds</strong></td><td>Цены крипты, FX, акций, метрики PoR</td><td>DeFi: LTV, ликвидации, оракулы стейблов</td></tr>
+      <tr><td><strong>Data Streams</strong></td><td>Push-feeds с sub-секундной свежестью, low-latency</td><td>Perp DEX, опционы — где TWAP slow</td></tr>
+      <tr><td><strong>VRF v2.5</strong></td><td>Verifiable-random (BLS), нельзя «прокрутить»</td><td>NFT-mint порядок, лотереи, gacha</td></tr>
+      <tr><td><strong>Automation</strong></td><td>Cron-задачи on-chain (упрощённо)</td><td>Авто-ребаланс, ликвидации, vesting</td></tr>
+      <tr><td><strong>Functions</strong></td><td>Произвольный HTTP-вызов из контракта</td><td>Off-chain KYC, agg API, ML-инференс</td></tr>
+      <tr><td><strong>CCIP</strong></td><td>Cross-chain messaging + token transfer</td><td>Bridges, multichain governance, RWA</td></tr>
+      <tr><td><strong>Proof of Reserve</strong></td><td>Доказательство резервов для wrapped-assets</td><td>USDT, USDC, wBTC, RWA-токены</td></tr>
+    </table>
+
+    <h2>3. Data Feeds: архитектура OCR 2.0</h2>
+
+<pre class="code-block"><code>┌─────────────────────────────────────────────────────────────────┐
+│                  Off-chain Reporting (OCR 2.0)                   │
+│                                                                  │
+│   Node 1   Node 2   Node 3  ...  Node 31    (≈31 нода на feed)   │
+│     │        │        │            │                             │
+│     │   pull from CEX/DEX APIs (Coinbase, Binance, Kraken, ...)  │
+│     ▼        ▼        ▼            ▼                             │
+│   $2412   $2410    $2413  ...   $2411                            │
+│     │        │        │            │                             │
+│     └────────┴────────┴────────────┘                             │
+│                       │                                          │
+│                  median = $2411.50                               │
+│                  threshold check: deviation > 0.5%? heartbeat?   │
+│                       │                                          │
+│              BLS-aggregated signature (≥21 of 31)                │
+│                       │                                          │
+└───────────────────────┼──────────────────────────────────────────┘
+                        │  ONE tx on-chain
+                        ▼
+              ┌────────────────────────┐
+              │  Aggregator contract   │   ← вы читаете отсюда
+              │  ETH/USD .latestRound  │
+              └────────────────────────┘</code></pre>
+
+    <p>
+      <strong>Что важно знать на проде:</strong>
+    </p>
+    <ul>
+      <li><strong>Heartbeat</strong> — максимальное время между апдейтами.
+        Для ETH/USD на mainnet — 3600 с. Если данные тише, чем deviation
+        threshold (~0.5%), feed всё равно обновится раз в час.</li>
+      <li><strong>Deviation threshold</strong> — если цена «убежала» на N%
+        от последнего опубликованного, апдейт случится сразу.</li>
+      <li><strong>decimals</strong> — у разных feed'ов разное. ETH/USD = 8,
+        AAVE/ETH = 18. Никогда не хардкодьте.</li>
+      <li><strong>Stale-check</strong> — обязательно сравнивать
+        <code>updatedAt</code> с <code>block.timestamp</code>. На бридже
+        / ликвидации старая цена = подарок арбитражёру.</li>
+    </ul>
+
+    <h2>4. Чтение Data Feed — Solidity</h2>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import { AggregatorV3Interface }
+    from "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+contract EthUsdReader {
+    AggregatorV3Interface public immutable feed;
+    uint256 public constant STALE_AFTER = 1 hours;     // должно быть &gt;= heartbeat
+
+    error StalePrice(uint256 updatedAt, uint256 now_);
+    error InvalidPrice(int256 answer);
+
+    constructor(address _feed) {
+        // Mainnet ETH/USD = 0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419
+        feed = AggregatorV3Interface(_feed);
+    }
+
+    /// @return price нормализованная цена в 18 decimals
+    function ethUsd() external view returns (uint256 price) {
+        (
+            uint80 roundId,
+            int256 answer,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = feed.latestRoundData();
+
+        if (answer &lt;= 0)                      revert InvalidPrice(answer);
+        if (updatedAt == 0 || block.timestamp - updatedAt &gt; STALE_AFTER)
+            revert StalePrice(updatedAt, block.timestamp);
+        if (answeredInRound &lt; roundId)        revert StalePrice(updatedAt, block.timestamp);
+
+        uint8 d = feed.decimals();             // 8 для ETH/USD
+        price = uint256(answer) * (10 ** (18 - d));
+    }
+}</code></pre>
+
+    <p>
+      Это <strong>минимальный production-grade</strong> чтения. Все три
+      проверки (<code>answer &gt; 0</code>, <code>updatedAt</code>,
+      <code>answeredInRound</code>) — не «paranoid», а буквально условия
+      безопасной интеграции, описанные в
+      <a target="_blank" rel="noopener"
+      href="https://docs.chain.link/data-feeds/api-reference#latestrounddata">Chainlink API Reference</a>.
+    </p>
+
+    <h2>5. Чтение Data Feed — viem (JS-фронт)</h2>
+
+<pre class="code-block"><code>import { createPublicClient, http, parseAbi } from "viem";
+import { mainnet } from "viem/chains";
+
+const ETH_USD = "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419";
+const ABI = parseAbi([
+  "function latestRoundData() view returns (uint80, int256, uint256, uint256, uint80)",
+  "function decimals() view returns (uint8)",
+  "function description() view returns (string)",
+]);
+
+const client = createPublicClient({ chain: mainnet, transport: http() });
+
+const [decimals, desc, round] = await Promise.all([
+  client.readContract({ address: ETH_USD, abi: ABI, functionName: "decimals" }),
+  client.readContract({ address: ETH_USD, abi: ABI, functionName: "description" }),
+  client.readContract({ address: ETH_USD, abi: ABI, functionName: "latestRoundData" }),
+]);
+
+const [, answer, , updatedAt] = round;
+const price = Number(answer) / 10 ** decimals;
+const age   = Math.floor(Date.now() / 1000) - Number(updatedAt);
+
+console.log(`${desc} = $${price.toFixed(2)}  (age: ${age}s)`);
+// → ETH / USD = $2411.50  (age: 17s)</code></pre>
+
+    <h2>6. L2-специфика: Sequencer Uptime Feed</h2>
+
+    <p>
+      На Arbitrum / Optimism / Base sequencer — единственная сторона, которая
+      включает транзакции. Если sequencer падает, цены Chainlink на L2
+      <strong>замораживаются</strong> на старом значении (потому что никто
+      не может отправить апдейт-tx). Это смертельно для ликвидаций: пока
+      sequencer лежит, пользователи не могут добавить коллатерал, а цена
+      «не движется» — после восстановления половина протокола ликвидируется.
+    </p>
+
+    <p>
+      Chainlink даёт специальный <strong>Sequencer Uptime Feed</strong>,
+      который надо <em>обязательно</em> проверять перед использованием цен
+      на L2:
+    </p>
+
+<pre class="code-block"><code>// На Arbitrum: 0xFdB631F5EE196F0ed6FAa767959853A9F217697D
+AggregatorV3Interface internal sequencerUptimeFeed;
+uint256 private constant GRACE_PERIOD = 3600;     // 1 час после восстановления
+
+modifier onlyWhenSequencerUp() {
+    (, int256 answer, uint256 startedAt, , ) = sequencerUptimeFeed.latestRoundData();
+    if (answer == 1)       revert SequencerDown();           // 0 = up, 1 = down
+    if (block.timestamp - startedAt &lt;= GRACE_PERIOD)
+        revert SequencerJustResumed();
+    _;
+}
+
+function liquidate(address user) external onlyWhenSequencerUp { /* ... */ }</code></pre>
+
+    <p>
+      <strong>Grace period</strong> — это окно, в течение которого после
+      восстановления sequencer'а ликвидации запрещены: пользователям нужно
+      время «вернуться» и скорректировать позиции.
+    </p>
+
+    <h2>7. VRF v2.5: проверяемая случайность</h2>
+
+    <p>
+      <code>block.timestamp</code>, <code>blockhash</code>, <code>keccak256</code>
+      от prevhash + сендера — <strong>не</strong> случайны. Майнер / валидатор
+      / sequencer может перебирать порядок транзакций или вообще не включать
+      «невыгодные» блоки, выбирая удобный исход. Если на кону есть деньги
+      (NFT-mint, лотерея, mystery box), это эксплойт.
+    </p>
+
+    <p>
+      <strong>Chainlink VRF</strong> комбинирует приватный ключ оракула и
+      seed запроса в BLS-подпись; результат хешируется в случайное число и
+      приходит вместе с криптографическим доказательством, которое
+      проверяется on-chain. Манипулировать им может только тот, кто
+      контролирует приватный ключ оракула — а это не вы и не валидатор.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import { VRFConsumerBaseV2Plus } from
+    "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import { VRFV2PlusClient } from
+    "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+contract FairNFT is VRFConsumerBaseV2Plus {
+    uint256 public immutable subId;          // Chainlink subscription
+    bytes32 public immutable keyHash;        // gas-lane
+    uint16  public constant CONFIRMATIONS = 3;
+    uint32  public constant CALLBACK_GAS  = 200_000;
+    uint32  public constant NUM_WORDS     = 1;
+
+    mapping(uint256 =&gt; address) public requestToMinter;
+    mapping(address =&gt; uint256) public minterToTokenId;
+
+    event MintRequested(uint256 requestId, address minter);
+    event MintRevealed(uint256 requestId, address minter, uint256 tokenId);
+
+    constructor(address vrfCoordinator, uint256 _subId, bytes32 _keyHash)
+        VRFConsumerBaseV2Plus(vrfCoordinator)
+    {
+        subId = _subId;
+        keyHash = _keyHash;
+    }
+
+    function requestMint() external returns (uint256 requestId) {
+        requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash:              keyHash,
+                subId:                subId,
+                requestConfirmations: CONFIRMATIONS,
+                callbackGasLimit:     CALLBACK_GAS,
+                numWords:             NUM_WORDS,
+                extraArgs:            VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: false })
+                )
+            })
+        );
+        requestToMinter[requestId] = msg.sender;
+        emit MintRequested(requestId, msg.sender);
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata words)
+        internal override
+    {
+        address minter = requestToMinter[requestId];
+        uint256 tokenId = words[0] % 10_000;        // 10k коллекция
+        minterToTokenId[minter] = tokenId;
+        emit MintRevealed(requestId, minter, tokenId);
+    }
+}</code></pre>
+
+    <div class="note cyan">
+      <strong>Commit–reveal vs VRF.</strong> Раньше «честный» mint делали через
+      commit–reveal в две транзакции (юзер commit'ит hash, потом reveal'ит
+      pre-image). Проблема: юзер может «не reveal'ить», если ему не повезло.
+      VRF решает обе стороны: и dApp не может крутить, и юзер не может
+      отменить — результат предопределён в момент запроса.
+    </div>
+
+    <h2>8. Automation (бывший Keepers): cron on-chain</h2>
+
+    <p>
+      Сам по себе блокчейн не «вызывает» функции — кто-то должен отправить
+      транзакцию. Если ваш протокол требует ежедневного ребаланса, accrue
+      процентов, расфасовки vesting'ов, кто-то должен дёргать функцию
+      каждые сутки. Сделать «крон» — это нанять keeper-сеть. Chainlink
+      Automation — самая дешёвая и надёжная.
+    </p>
+
+<pre class="code-block"><code>import { AutomationCompatibleInterface }
+    from "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
+
+contract DailyRebalancer is AutomationCompatibleInterface {
+    uint256 public lastRun;
+    uint256 public constant INTERVAL = 1 days;
+
+    /// view-функция: должна ли сеть дёрнуть performUpkeep сейчас?
+    function checkUpkeep(bytes calldata /* checkData */)
+        external view override
+        returns (bool upkeepNeeded, bytes memory performData)
+    {
+        upkeepNeeded = (block.timestamp - lastRun) &gt;= INTERVAL;
+        performData  = abi.encode(block.timestamp);
+    }
+
+    /// фактический ребаланс — будет вызвана keeper'ом, когда upkeepNeeded = true
+    function performUpkeep(bytes calldata performData) external override {
+        if (block.timestamp - lastRun &lt; INTERVAL) revert("not yet");
+        lastRun = block.timestamp;
+        _rebalance();
+    }
+
+    function _rebalance() internal { /* swap, supply, withdraw */ }
+}</code></pre>
+
+    <p>
+      Регистрация upkeep'а — в
+      <a href="https://automation.chain.link/" target="_blank" rel="noopener">automation.chain.link</a>:
+      указываете адрес контракта, минимальный газ, гарантированный баланс LINK
+      (≈5 LINK хватит на месяцы). С этого момента сеть Chainlink в каждом
+      блоке симулирует ваш <code>checkUpkeep</code> off-chain (бесплатно)
+      и вызывает <code>performUpkeep</code> on-chain, когда нужно.
+    </p>
+
+    <p>Триггеры — три варианта:</p>
+    <ul>
+      <li><strong>Custom Logic</strong> — как выше: ваш <code>checkUpkeep</code>
+        решает «пора ли».</li>
+      <li><strong>Time-based</strong> — cron-выражение (<code>0 12 * * *</code>),
+        без своего checkUpkeep вообще.</li>
+      <li><strong>Log Trigger</strong> — реакция на событие конкретного
+        контракта; <code>performUpkeep</code> получает данные лога.</li>
+    </ul>
+
+    <h2>9. CCIP: cross-chain messaging</h2>
+
+    <p>
+      Если на Ethereum mainnet хранится governance, а реальное приложение
+      работает на Arbitrum — нужен надёжный канал передачи сообщений.
+      <strong>Chainlink CCIP</strong> (Cross-Chain Interoperability Protocol)
+      — это управляемый Chainlink-сетью «мост сообщений» с двумя свойствами:
+    </p>
+    <ul>
+      <li>Программный, как <code>call</code> на другую сеть. Можно передать
+        и сообщение, и токены, и то и другое.</li>
+      <li>Защита «Risk Management Network» — отдельный набор нод (DON),
+        который может <em>заблокировать</em> подозрительный мессадж до
+        ручного разбора.</li>
+    </ul>
+
+<pre class="code-block"><code>import { IRouterClient } from
+    "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
+import { Client } from
+    "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
+
+contract Sender {
+    IRouterClient public immutable router;
+    address public immutable linkToken;
+
+    constructor(address _router, address _link) {
+        router = IRouterClient(_router);
+        linkToken = _link;
+    }
+
+    function sendMessage(
+        uint64 destChainSelector,           // напр. 4949039107694359620 = Arbitrum
+        address receiver,
+        string calldata text
+    ) external returns (bytes32 messageId) {
+        Client.EVM2AnyMessage memory msg_ = Client.EVM2AnyMessage({
+            receiver: abi.encode(receiver),
+            data:     abi.encode(text),
+            tokenAmounts: new Client.EVMTokenAmount[](0),
+            extraArgs: Client._argsToBytes(
+                Client.GenericExtraArgsV2({
+                    gasLimit: 200_000,
+                    allowOutOfOrderExecution: true
+                })
+            ),
+            feeToken: linkToken            // 0x0 = pay в native
+        });
+
+        uint256 fee = router.getFee(destChainSelector, msg_);
+        IERC20(linkToken).approve(address(router), fee);
+        messageId = router.ccipSend(destChainSelector, msg_);
+    }
+}</code></pre>
+
+<pre class="code-block"><code>// На стороне получателя (другая сеть):
+import { CCIPReceiver } from
+    "@chainlink/contracts-ccip/src/v0.8/ccip/applications/CCIPReceiver.sol";
+
+contract Receiver is CCIPReceiver {
+    string public lastMessage;
+    address public lastSender;
+    uint64  public lastSourceChain;
+
+    constructor(address router) CCIPReceiver(router) {}
+
+    function _ccipReceive(Client.Any2EVMMessage memory m) internal override {
+        lastSourceChain = m.sourceChainSelector;
+        lastSender      = abi.decode(m.sender, (address));
+        lastMessage     = abi.decode(m.data,   (string));
+    }
+}</code></pre>
+
+    <h2>10. Functions: HTTP-вызов из контракта</h2>
+
+    <p>
+      <strong>Chainlink Functions</strong> — это «serverless для смарт-контрактов».
+      Вы пишете JS-код, который исполнится в децентрализованной сети нод
+      (каждая в своём песочнице Deno), результат агрегируется и возвращается
+      в callback контракта.
+    </p>
+
+<pre class="code-block"><code>// Solidity вызывающий
+import { FunctionsClient } from
+    "@chainlink/contracts/src/v0.8/functions/v1_0_0/FunctionsClient.sol";
+import { FunctionsRequest } from
+    "@chainlink/contracts/src/v0.8/functions/v1_0_0/libraries/FunctionsRequest.sol";
+
+contract WeatherDeriv is FunctionsClient {
+    using FunctionsRequest for FunctionsRequest.Request;
+
+    bytes32 public lastRequestId;
+    string  public lastResponse;
+    uint64  public immutable subId;
+    bytes32 public immutable donId;
+
+    constructor(address router, uint64 _subId, bytes32 _donId)
+        FunctionsClient(router)
+    {
+        subId = _subId; donId = _donId;
+    }
+
+    function requestTemperature(string calldata city) external returns (bytes32) {
+        FunctionsRequest.Request memory r;
+        r.initializeRequestForInlineJavaScript(
+            "const city = args[0];"
+            "const r = await Functions.makeHttpRequest({"
+            "  url: `https://api.open-meteo.com/v1/forecast?city=${city}&current=temperature_2m`,"
+            "});"
+            "if (r.error) throw Error('api fail');"
+            "return Functions.encodeUint256(Math.round(r.data.current.temperature_2m * 100));"
+        );
+        string[] memory args = new string[](1);
+        args[0] = city;
+        r.setArgs(args);
+
+        lastRequestId = _sendRequest(r.encodeCBOR(), subId, 300_000, donId);
+        return lastRequestId;
+    }
+
+    function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory /* err */)
+        internal override
+    {
+        require(requestId == lastRequestId, "wrong req");
+        lastResponse = string(response);
+    }
+}</code></pre>
+
+    <p>
+      Тонкость: каждая нода исполняет JS независимо. Если API отдаёт
+      нестабильные данные (timestamp, random), результаты разойдутся и
+      запрос упадёт. Поэтому в Functions-коде делают <strong>квантование</strong>:
+      округляют, кропают точность, фиксируют timestamp на блочный.
+    </p>
+
+    <h2>11. Юзеркейсы по индустриям</h2>
+
+    <table class="compare">
+      <tr><th>Индустрия</th><th>Что нужно</th><th>Какой продукт Chainlink</th></tr>
+      <tr><td>Lending (Aave, Compound, Spark)</td><td>Цены коллатералей и debt-токенов</td><td>Data Feeds + Sequencer Uptime (на L2)</td></tr>
+      <tr><td>Стейблкоины (DAI, FRAX, crvUSD)</td><td>Цены залогов + Proof of Reserve</td><td>Data Feeds + PoR</td></tr>
+      <tr><td>Perp DEX (GMX, Synthetix, Hyperliquid)</td><td>Sub-second прайсы без манипуляции</td><td>Data Streams (pull-on-demand)</td></tr>
+      <tr><td>GameFi / NFT</td><td>Случайный mint, loot drop, выбор победителя</td><td>VRF v2.5</td></tr>
+      <tr><td>Yield-агрегаторы (Yearn, Beefy)</td><td>Авто-харвест, авто-компаундинг</td><td>Automation (time-based)</td></tr>
+      <tr><td>Страхование (Etherisc, Nexus Mutual)</td><td>Веб-API о погоде, flight delay, оракулы событий</td><td>Functions</td></tr>
+      <tr><td>RWA (Backed, Ondo, BlackRock BUIDL)</td><td>NAV, аудит резервов, cross-chain распределение</td><td>Data Feeds + PoR + CCIP</td></tr>
+      <tr><td>Кросс-чейн governance</td><td>Голосование на L1, исполнение на L2</td><td>CCIP</td></tr>
+    </table>
+
+    <h2>12. Стоимость и адресация feed'ов</h2>
+
+    <p>
+      <strong>Чтение Data Feed бесплатно</strong> — это обычный
+      <code>view</code>-вызов. Платит только тот, кто <em>публикует</em>
+      апдейт (а это Chainlink-нода). VRF и Functions — платные, оплата
+      из subscription'а в LINK или native.
+    </p>
+
+    <table class="compare">
+      <tr><th>Сеть</th><th>ETH/USD</th><th>USDC/USD</th><th>BTC/USD</th></tr>
+      <tr><td>Ethereum</td><td><code>0x5f4eC3Df…E3616155c5b8419</code></td><td><code>0x8fFfFfd4…AfFFFE5</code></td><td><code>0xF4030086…2D9C</code></td></tr>
+      <tr><td>Arbitrum</td><td><code>0x639Fe6ab…612</code></td><td><code>0x50834F3…d3</code></td><td><code>0x6ce185…Bc57</code></td></tr>
+      <tr><td>Optimism</td><td><code>0x13e3Ee6…B5</code></td><td><code>0x16a9F…A3</code></td><td><code>0xD7115…F1</code></td></tr>
+      <tr><td>Base</td><td><code>0x71041d…F70</code></td><td><code>0x7e860…00</code></td><td><code>0x648…6f</code></td></tr>
+      <tr><td>Polygon</td><td><code>0xF9680D…8FA</code></td><td><code>0xfE4A8…62</code></td><td><code>0xc907E…6f</code></td></tr>
+    </table>
+
+    <p>
+      Полный список и актуальные адреса —
+      <a href="https://docs.chain.link/data-feeds/price-feeds/addresses"
+      target="_blank" rel="noopener">docs.chain.link/data-feeds/price-feeds/addresses</a>.
+      Никогда не хардкодьте — пусть адрес идёт через конструктор / config.
+    </p>
+
+    <h2>13. Четыре практические задачи</h2>
+
+    <h3>13.1 Задача №1 — «Конвертер» с защитой от stale</h3>
+    <p>
+      Напишите контракт <code>Converter</code>, который принимает
+      <code>uint256 amountWei</code> и возвращает его эквивалент в USD
+      (18 decimals). Требования:
+    </p>
+    <ul>
+      <li>Использовать <code>ETH / USD</code> feed.</li>
+      <li><code>revert StalePrice</code>, если <code>updatedAt</code> старше
+        1 часа на mainnet (или старше 24 часов на L2 с учётом sequencer-feed).</li>
+      <li>Тест: ввести моковый feed с <code>updatedAt = 0</code> — должен упасть.</li>
+      <li>Тест: ввести feed с <code>answer = -1</code> — должен упасть.</li>
+      <li>Тест на Anvil + fork mainnet:
+        <code>cast call &lt;Converter&gt; "convertEthToUsd(uint256)(uint256)" 1ether</code>
+        — вернуть ~$2400e18 (в зависимости от текущей цены).</li>
+    </ul>
+
+    <h3>13.2 Задача №2 — Честная лотерея на VRF</h3>
+    <p>
+      Контракт <code>Lottery</code>:
+    </p>
+    <ul>
+      <li>Пользователи покупают билеты за <code>0.01 ETH</code>, ограничение
+        <code>maxTickets = 100</code>.</li>
+      <li>После заполнения <code>drawWinner()</code> запрашивает VRF.</li>
+      <li>В <code>fulfillRandomWords</code> выбирается победитель
+        <code>winner = participants[words[0] % participants.length]</code>;
+        ему уходит 95% пула, 5% — owner'у на subscription LINK.</li>
+      <li>Контракт <strong>не должен</strong> позволять <code>drawWinner</code>
+        дважды или <code>buyTicket</code> после <code>drawWinner</code>.</li>
+      <li>Юнит-тесты на форке Sepolia + реальная VRF v2.5 subscription
+        (получите тестовый LINK на <a target="_blank" rel="noopener"
+        href="https://faucets.chain.link/">faucets.chain.link</a>).</li>
+    </ul>
+    <p>
+      Бонусное условие: реализуйте <strong>refund</strong>, если за 7 дней
+      <code>fulfillRandomWords</code> не пришёл (например, кончился LINK
+      в subscription). См.
+      <a target="_blank" rel="noopener"
+      href="https://docs.chain.link/vrf/v2-5/billing">VRF v2.5 billing</a>.
+    </p>
+
+    <h3>13.3 Задача №3 — Auto-compounder через Automation</h3>
+    <p>
+      Контракт <code>AaveAutoCompounder</code>, который:
+    </p>
+    <ul>
+      <li>Хранит <code>aUSDC</code>-позицию пользователей (одна на адрес).</li>
+      <li>Каждые 24 часа Automation вызывает <code>performUpkeep</code>,
+        который тащит accumulated rewards и реинвестирует в Aave Supply.</li>
+      <li><code>checkUpkeep</code> возвращает <code>true</code>, только если
+        rewards &gt; <code>minRewards = 10 USDC</code> (иначе газ &gt; profit).</li>
+      <li>Юзер должен иметь функцию <code>withdraw()</code>, которая работает
+        вне зависимости от состояния upkeep'а.</li>
+    </ul>
+    <p>
+      Деплой в Sepolia + регистрация upkeep на
+      <code>automation.chain.link</code>. Положите 2 LINK на upkeep.
+      Через сутки проверьте на Etherscan, что
+      <code>performUpkeep</code> был вызван.
+    </p>
+
+    <h3>13.4 Задача №4 — Cross-chain голосование через CCIP</h3>
+    <p>
+      Реализуйте две части:
+    </p>
+    <ul>
+      <li><strong>На Sepolia</strong>: контракт <code>Governor</code>, в
+        котором владельцы голосования (по сценарию simple-multisig) принимают
+        решение «отправить N USDC на Arbitrum Sepolia в адрес Treasury».
+        После голосования <code>execute()</code> вызывает <code>ccipSend</code>.</li>
+      <li><strong>На Arbitrum Sepolia</strong>: контракт <code>Treasury</code>
+        наследует <code>CCIPReceiver</code>, принимает <code>(address to, uint256 amount)</code>
+        из <code>_ccipReceive</code> и отправляет USDC.</li>
+      <li>Тест: запустите цикл end-to-end. Проверьте трекинг
+        message-id в <a target="_blank" rel="noopener"
+        href="https://ccip.chain.link/">ccip.chain.link explorer</a>.</li>
+      <li><strong>Безопасность</strong>: на стороне receiver'а проверяйте
+        <code>sourceChainSelector</code> и <code>sender</code> — иначе любая
+        нода может отправить «вам» произвольное сообщение.</li>
+    </ul>
+
+    <h2>14. Чек-лист «безопасная интеграция оракула»</h2>
+    <ul>
+      <li>Всегда проверяйте <code>answer &gt; 0</code>, <code>updatedAt &gt; 0</code>,
+        <code>block.timestamp − updatedAt ≤ heartbeat × 1.1</code>,
+        <code>answeredInRound ≥ roundId</code>.</li>
+      <li>На L2 — Sequencer Uptime Feed + grace period.</li>
+      <li>Никогда не используйте <code>blockhash</code> / <code>block.timestamp</code>
+        для значений с экономическим эффектом — это VRF-кейс.</li>
+      <li><strong>Адреса feed'ов</strong> — через constructor / config, не
+        hardcode.</li>
+      <li>Хеджируйте на <strong>двух оракулах</strong>, если позиция большая
+        (Chainlink + Pyth, либо два независимых feed'а): отдавайте
+        <code>min(feed1, feed2)</code> для занижения LTV.</li>
+      <li>Для Automation: контракт должен корректно работать, если
+        <code>performUpkeep</code> вызвали с опозданием, или вообще
+        вручную — никаких «однократных» инвариантов.</li>
+      <li>Для CCIP / Functions: <strong>allowlist</strong> отправителей и
+        источников. Иначе любой attacker отправит вам произвольный callback.</li>
+      <li>Чтобы не остаться без газа: subscription для VRF / Automation /
+        Functions должна иметь автоматическое пополнение или мониторинг
+        баланса LINK.</li>
+    </ul>
+
+    <h2>15. Альтернативы Chainlink</h2>
+
+    <table class="compare">
+      <tr><th>Решение</th><th>Модель</th><th>Когда выбирать</th></tr>
+      <tr>
+        <td><strong>Pyth Network</strong></td>
+        <td>Pull-based (apps платят газ за обновление), 400+ feed'ов, sub-second</td>
+        <td>Perp DEX, низколатентные деривативы, новые L2</td>
+      </tr>
+      <tr>
+        <td><strong>RedStone</strong></td>
+        <td>«Modular» — данные подписываются off-chain, вставляются в calldata</td>
+        <td>Экзотические активы (Pendle PT/YT), long tail</td>
+      </tr>
+      <tr>
+        <td><strong>API3</strong></td>
+        <td>Airnode, владельцы API сами становятся оракулами</td>
+        <td>Когда нужен один конкретный 1st-party API</td>
+      </tr>
+      <tr>
+        <td><strong>UMA Optimistic Oracle</strong></td>
+        <td>«Оптимистический» — ответ верен, пока не оспорен</td>
+        <td>Текстовые / субъективные данные (governance disputes)</td>
+      </tr>
+      <tr>
+        <td><strong>Uniswap v3 TWAP</strong></td>
+        <td>On-chain цены из самой DEX</td>
+        <td>Лонг-тейл активов, отсутствующие в Chainlink</td>
+      </tr>
+    </table>
+
+    <h2>16. Куда дальше</h2>
+    <p>
+      В <strong>Lesson 17</strong> мы используем Chainlink Data Feed внутри
+      flash-loan-стратегии Aave для атомарной ликвидации.
+      В <strong>Lesson 18</strong> CCIP станет основой multichain-приложения.
+      В <strong>Lesson 19</strong> Automation + Tenderly Alerts — это
+      production-grade ops для DeFi-протокола.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://docs.chain.link/" target="_blank" rel="noopener">Chainlink Docs</a> — единая точка входа.</li>
+        <li><a href="https://docs.chain.link/data-feeds/price-feeds/addresses" target="_blank" rel="noopener">Data Feeds — Addresses</a> — все feed'ы и сети.</li>
+        <li><a href="https://docs.chain.link/data-feeds/l2-sequencer-feeds" target="_blank" rel="noopener">L2 Sequencer Uptime Feeds</a> — список и интеграция.</li>
+        <li><a href="https://docs.chain.link/vrf/v2-5/getting-started" target="_blank" rel="noopener">VRF v2.5 — Getting Started</a> — subscription, gas-lanes.</li>
+        <li><a href="https://docs.chain.link/automation" target="_blank" rel="noopener">Chainlink Automation</a> — Custom / Time / Log триггеры.</li>
+        <li><a href="https://docs.chain.link/ccip" target="_blank" rel="noopener">Chainlink CCIP</a> — chain selectors, fees, RMN.</li>
+        <li><a href="https://docs.chain.link/chainlink-functions" target="_blank" rel="noopener">Chainlink Functions</a> — JS-runtime, secrets, subscriptions.</li>
+        <li><a href="https://docs.chain.link/data-feeds/proof-of-reserve" target="_blank" rel="noopener">Proof of Reserve</a> — для wrapped и RWA.</li>
+        <li><a href="https://github.com/smartcontractkit/chainlink" target="_blank" rel="noopener">smartcontractkit/chainlink</a> — node + контракты, OSS.</li>
+        <li><a href="https://faucets.chain.link/" target="_blank" rel="noopener">Chainlink Faucets</a> — testnet LINK и ETH.</li>
+        <li><a href="https://blog.chain.link/" target="_blank" rel="noopener">Chainlink Blog</a> — кейс-стади (Aave, GMX, Synthetix).</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Все Solidity-сниппеты компилируются на <code>0.8.24</code> с актуальной
+      версией <code>@chainlink/contracts ^1.2</code>. Для запуска задач
+      рекомендуется fork Sepolia через Anvil
+      (<code>anvil --fork-url $SEPOLIA_RPC</code>) + публичные testnet-feed'ы
+      Chainlink.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
