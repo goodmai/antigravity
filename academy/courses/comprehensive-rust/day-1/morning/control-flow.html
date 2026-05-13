@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Control Flow Basics — Comprehensive Rust 🦀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Comprehensive Rust</a>
+      <span class="sep">/</span>
+      <span>Day 1 · Morning · Control Flow</span>
+    </div>
+
+    <p class="lesson-meta">Day 1 · Morning · Lesson 3</p>
+    <h1>Control Flow Basics</h1>
+
+    <p>
+      Most of Rust&apos;s control-flow constructs — <code>if</code>,
+      <code>match</code>, <code>loop</code>, blocks — are <em>expressions</em>:
+      they evaluate to a value you can bind, return or compare. That single
+      design choice removes a lot of incidental complexity from idiomatic Rust.
+    </p>
+
+    <h2>Blocks and scopes</h2>
+    <p>
+      A <code>{ … }</code> block is itself an expression. Its value is the value
+      of its last expression — i.e. the one without a trailing semicolon. A
+      semicolon discards the value and yields <code>()</code> (the unit type).
+    </p>
+
+    <div class="playground"
+         data-title="Blocks return values"
+         data-code='fn main() {
+    let total = {
+        let a = 2;
+        let b = 3;
+        a * b + 1   // no semicolon — this is the block''s value
+    };
+
+    let unit = {
+        let _silenced = 99;   // semicolon present → block returns ()
+    };
+
+    assert_eq!(total, 7);
+    assert_eq!(unit, ());
+}'></div>
+
+    <h2><code>if</code> is an expression</h2>
+    <p>
+      Because <code>if</code> returns a value, the ternary operator does not
+      exist (and is not missed). Both branches must evaluate to the same type.
+    </p>
+
+    <div class="playground"
+         data-title="if / else expressions"
+         data-code='fn classify(n: i32) -> &''static str {
+    if n < 0 {
+        "negative"
+    } else if n == 0 {
+        "zero"
+    } else {
+        "positive"
+    }
+}
+
+fn main() {
+    assert_eq!(classify(-7), "negative");
+    assert_eq!(classify(0),  "zero");
+    assert_eq!(classify(42), "positive");
+
+    let parity = if 10 % 2 == 0 { "even" } else { "odd" };
+    assert_eq!(parity, "even");
+}'></div>
+
+    <h2><code>match</code> — the workhorse</h2>
+    <p>
+      <code>match</code> compares a value against a sequence of patterns and
+      runs the arm of the first match. Patterns can include literals, ranges,
+      bindings and guards. The compiler enforces exhaustiveness: forgetting a
+      case is a compile error.
+    </p>
+
+    <div class="playground"
+         data-title="match with ranges and guards"
+         data-code='fn grade(score: u32) -> char {
+    match score {
+        0..=59 => ''F'',
+        60..=69 => ''D'',
+        70..=79 => ''C'',
+        80..=89 => ''B'',
+        90..=100 => ''A'',
+        _ => ''?'',
+    }
+}
+
+fn sign(n: i32) -> i32 {
+    match n {
+        x if x > 0 => 1,
+        0 => 0,
+        _ => -1,
+    }
+}
+
+fn main() {
+    assert_eq!(grade(72),  ''C'');
+    assert_eq!(grade(95),  ''A'');
+    assert_eq!(grade(150), ''?'');
+
+    assert_eq!(sign(  7),  1);
+    assert_eq!(sign(  0),  0);
+    assert_eq!(sign(-99), -1);
+}'></div>
+
+    <h2>Loops: <code>for</code>, <code>while</code>, <code>loop</code></h2>
+    <p>
+      <code>for</code> iterates over anything that implements
+      <code>IntoIterator</code> — ranges, arrays, vectors, hash maps, your own
+      types. <code>while</code> runs while a condition is true. <code>loop</code>
+      runs forever until you <code>break</code>; that <code>break</code> can
+      carry a value, making <code>loop</code> a search expression.
+    </p>
+
+    <div class="playground"
+         data-title="Sum, search and accumulate"
+         data-code='fn main() {
+    // sum 1..=10 using a for loop
+    let mut sum = 0;
+    for i in 1..=10 {
+        sum += i;
+    }
+    assert_eq!(sum, 55);
+
+    // first power of two greater than 1000, via `loop` returning a value
+    let big = loop {
+        let mut n: u32 = 1;
+        while n <= 1000 {
+            n *= 2;
+        }
+        break n;
+    };
+    assert_eq!(big, 1024);
+
+    // labelled break out of nested loops
+    let target = ''outer: loop {
+        for i in 0..10 {
+            for j in 0..10 {
+                if i * j == 42 {
+                    break ''outer (i, j);
+                }
+            }
+        }
+        break (0, 0);
+    };
+    assert_eq!(target, (6, 7));
+}'></div>
+
+    <h2>Functions</h2>
+    <p>
+      A function is declared with <code>fn</code>, parameters carry explicit
+      types, and the return type follows <code>-&gt;</code>. The body is a
+      block, so the last expression is the return value — but you can also
+      use <code>return</code> for early exits.
+    </p>
+
+    <div class="playground"
+         data-title="Functions, early return, and unit"
+         data-code='fn max3(a: i32, b: i32, c: i32) -> i32 {
+    let ab = if a > b { a } else { b };
+    if ab > c { ab } else { c }
+}
+
+fn first_even(values: &[i32]) -> Option<i32> {
+    for &v in values {
+        if v % 2 == 0 {
+            return Some(v);
+        }
+    }
+    None
+}
+
+fn main() {
+    assert_eq!(max3(1, 9, 4), 9);
+    assert_eq!(max3(8, 8, 2), 8);
+
+    assert_eq!(first_even(&[1, 3, 4, 5]), Some(4));
+    assert_eq!(first_even(&[1, 3, 5, 7]), None);
+}'></div>
+
+    <h2>Macros, briefly</h2>
+    <p>
+      A trailing <code>!</code> means &quot;this is a macro invocation&quot;.
+      Macros are expanded before the compiler does normal type-checking, which
+      is how <code>println!</code> can accept a variable number of typed
+      arguments. You&apos;ll write your own much later; for now treat
+      <code>println!</code>, <code>format!</code>, <code>vec!</code>, and the
+      <code>assert*!</code> family as language primitives.
+    </p>
+
+    <h2>Exercise: Collatz length</h2>
+    <p>
+      Starting from a positive integer <em>n</em>, the Collatz iteration says:
+      if <em>n</em> is even, divide by 2; if odd, replace by 3<em>n</em>+1. The
+      conjecture (still unproven!) is that you always reach 1. Implement
+      <code>collatz_length</code>, the number of steps to reach 1.
+      <code>collatz_length(1)</code> is 0.
+    </p>
+
+    <div class="playground"
+         data-title="Exercise — Collatz length"
+         data-code='fn collatz_length(mut n: u64) -> u64 {
+    let mut steps = 0;
+    while n > 1 {
+        n = if n % 2 == 0 { n / 2 } else { 3 * n + 1 };
+        steps += 1;
+    }
+    steps
+}
+
+fn main() {
+    assert_eq!(collatz_length(1),  0);
+    assert_eq!(collatz_length(2),  1);
+    assert_eq!(collatz_length(3),  7);
+    assert_eq!(collatz_length(11), 14);
+    assert_eq!(collatz_length(27), 111);
+    println!("Collatz checks passed ✓");
+}'></div>
+
+    <div class="lesson-nav">
+      <a href="./types-and-values.html">
+        <span class="label">← Prev</span>
+        <span class="title">Types and Values</span>
+      </a>
+      <a class="next" href="../afternoon/tuples-and-arrays.html">
+        <span class="label">Next →</span>
+        <span class="title">Tuples &amp; Arrays</span>
+      </a>
+    </div>
+
+    <div class="attrib">
+      Topic ordering and the Collatz exercise idea mirror the
+      <a href="https://google.github.io/comprehensive-rust/control-flow-basics.html" target="_blank" rel="noopener">corresponding chapter</a>
+      of Google&apos;s Comprehensive Rust (Apache 2.0 / CC&nbsp;BY&nbsp;4.0).
+      Prose and the assertion-driven playground cells were written for Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>
