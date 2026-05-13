@@ -1,45 +1,199 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="ru" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Web3 Genesis — Daskibo Academy</title>
+  <title>Web3 Genesis ⛓️ — Daskibo Academy</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../../css/academy.css" />
+  <link rel="stylesheet" href="./assets/course.css" />
 </head>
 <body>
   <div id="site-header"></div>
 
   <div class="container">
-    <div class="placeholder-page">
-      <div class="placeholder-icon">⛓️</div>
-      <p style="color:var(--accent3);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em">Course 04</p>
-      <h1 class="placeholder-title" data-i18n="course_web3_title">Web3 Genesis</h1>
-      <p class="placeholder-desc" data-i18n="course_web3_desc">
-        Solidity, smart contracts, DeFi protocols and dApp development on EVM-compatible chains.
-      </p>
+    <div class="crumbs">
+      <a href="../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <span>Web3 Genesis ⛓️</span>
+    </div>
 
-      <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap;margin:8px 0 24px">
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:var(--accent3)">20</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em" data-i18n="lessons_label">Lessons</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:var(--accent3)">10</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em" data-i18n="labs_label">Labs</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:2rem;font-weight:800;color:var(--accent3)">~38h</div>
-          <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total</div>
-        </div>
-      </div>
+    <p class="lesson-meta">Course · 20 lessons · 10 labs · Solidity 0.8.24 · viem · sandbox-first</p>
+    <h1>Web3 Genesis ⛓️</h1>
+    <p>
+      Курс «<strong>Web3 Genesis</strong>» — путь от первого <code>contract</code>
+      на Solidity до production-grade dApp с интеграцией DeFi-протоколов. Каждый
+      урок открывается <strong>интерактивной песочницей</strong> прямо в браузере:
+      студент видит баланс, событие <code>Transfer</code> и трейс транзакции
+      без MetaMask, RPC и оплаты газа. По мере роста сложности песочница
+      «вырастает» вместе со студентом — Remix VM → Anvil → Tenderly Virtual Testnet.
+    </p>
 
-      <span class="badge badge-soon" style="font-size:.875rem;padding:6px 18px" data-i18n="badge_coming_soon">Coming Soon</span>
-      <p class="placeholder-desc" data-i18n="coming_soon_detail">This course is under development. Stay tuned!</p>
+    <div class="note">
+      <strong>Как проходить курс.</strong> Читайте текст — затем играйтесь
+      с песочницей: deploy, transfer, посмотрите события. Когда инварианты
+      ERC-20 «уложатся в голове», переходите к следующему уроку — там тот же
+      контракт, но на настоящем JSON-RPC.
+    </div>
 
-      <a href="../../index.html" class="btn btn-outline" style="margin-top:8px">← Back to Academy</a>
+    <div class="note cyan">
+      <strong>Методологическая основа.</strong> Сравнительный анализ песочниц
+      (Daskibo in-memory / Remix VM / Anvil / Tenderly Virtual Testnet) с
+      обоснованием порядка прохождения — в файле
+      <a href="./sandbox-comparison.md">sandbox-comparison.md</a>.
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль I — Solidity &amp; ERC-20</h2>
+      <span class="module-meta">Lessons 1–5</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/01/index.html">
+        <div class="card-head"><span class="num">Lesson 01</span><span class="badge-mini">wallet</span></div>
+        <h3>MetaMask &amp; кошельки</h3>
+        <p>Seed → ключи → адрес, подпись, nonce, chainId, газ, отмена tx, AA, HD-wallet, hot/cold, библиотеки. С интерактивным HD-derivation.</p>
+      </a>
+      <a class="card" href="./lessons/02/index.html">
+        <div class="card-head"><span class="num">Lesson 02</span><span class="badge-mini">sandbox</span></div>
+        <h3>ERC-20: Deploy &amp; Transfer</h3>
+        <p>Минимальный ERC-20, инварианты, событие <code>Transfer</code>. In-browser песочница + 42 vitest-теста.</p>
+      </a>
+      <a class="card" href="./lessons/03/index.html">
+        <div class="card-head"><span class="num">Lesson 03</span><span class="badge-mini">nodes</span></div>
+        <h3>Ноды, JSON-RPC, L1/L2</h3>
+        <p>Geth/Besu/Erigon/Reth, execution+consensus, finality/slashing, Arbitrum &amp; Optimism, 4 практические задачи, curl/Postman/Foundry/Swagger + 42 vitest-теста.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 04</span><span class="badge-mini">anvil</span></div>
+        <h3>Anvil &amp; Foundry</h3>
+        <p>Локальный node, fork mainnet, <code>cast call</code>, <code>forge test</code>. Coming soon.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 05</span><span class="badge-mini">tenderly</span></div>
+        <h3>Tenderly Virtual Testnet</h3>
+        <p>Облачный fork, Simulation API, визуальный отладчик. Coming soon.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль II — Контрактные паттерны</h2>
+      <span class="module-meta">Lessons 6–10 · скоро</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 06</span><span class="badge-mini">access</span></div>
+        <h3>Ownable / AccessControl</h3>
+        <p>Роли, модификаторы, OpenZeppelin-паттерны.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 07</span><span class="badge-mini">upgrade</span></div>
+        <h3>Upgradeable Proxies</h3>
+        <p>UUPS, Transparent Proxy, ERC-1967 storage slot.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 08</span><span class="badge-mini">events</span></div>
+        <h3>Events &amp; Indexing</h3>
+        <p>Topics, indexed, The Graph subgraphs.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 09</span><span class="badge-mini">sec</span></div>
+        <h3>Security: Reentrancy &amp; Checks</h3>
+        <p>Re-entrancy, integer overflow, <code>nonReentrant</code>.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 10</span><span class="badge-mini">gas</span></div>
+        <h3>Gas optimisation</h3>
+        <p>Storage packing, <code>calldata</code> vs <code>memory</code>, <code>--via-ir</code>.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль III — Frontend &amp; viem / wagmi</h2>
+      <span class="module-meta">Lessons 11–15 · скоро</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 11</span><span class="badge-mini">viem</span></div>
+        <h3>viem: PublicClient / WalletClient</h3>
+        <p>Чтение контрактов, отправка транзакций, decode events.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 12</span><span class="badge-mini">wagmi</span></div>
+        <h3>wagmi: React-хуки</h3>
+        <p><code>useReadContract</code>, <code>useWriteContract</code>, <code>useWatchEvent</code>.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 13</span><span class="badge-mini">wallet</span></div>
+        <h3>Wallet UX</h3>
+        <p>MetaMask, WalletConnect v2, EIP-6963 multi-wallet discovery.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 14</span><span class="badge-mini">tx</span></div>
+        <h3>Транзакционный UX</h3>
+        <p>Optimistic UI, pending states, replacement и dropped transactions.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 15</span><span class="badge-mini">i18n</span></div>
+        <h3>Подписи и SIWE</h3>
+        <p>EIP-4361, server-side verification, sessions.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль IV — DeFi и production</h2>
+      <span class="module-meta">Lessons 16–20 · скоро</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 16</span><span class="badge-mini">defi</span></div>
+        <h3>Uniswap v3 swap</h3>
+        <p>Pools, quoter, slippage, Tenderly-симуляция реальных свопов.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 17</span><span class="badge-mini">defi</span></div>
+        <h3>AAVE: flash loans</h3>
+        <p>Atomic loans, callback-паттерн, fee.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 18</span><span class="badge-mini">multichain</span></div>
+        <h3>Multichain &amp; bridges</h3>
+        <p>L1↔L2 messaging, OP Stack, Arbitrum Nitro.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 19</span><span class="badge-mini">ops</span></div>
+        <h3>Monitoring &amp; Tenderly Alerts</h3>
+        <p>RPC-мониторинг, alerts, post-mortem trace replay.</p>
+      </a>
+      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+        <div class="card-head"><span class="num">Lesson 20</span><span class="badge-mini">ship</span></div>
+        <h3>Поставка dApp</h3>
+        <p>Verify on Etherscan, IPFS, ENS, immutable frontend.</p>
+      </a>
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://soliditylang.org/" target="_blank" rel="noopener">Solidity Documentation</a> — официальный язык контрактов.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-20" target="_blank" rel="noopener">EIP-20: Token Standard</a> — оригинальная спецификация ERC-20.</li>
+        <li><a href="https://github.com/OpenZeppelin/openzeppelin-contracts" target="_blank" rel="noopener">OpenZeppelin Contracts</a> — reference-реализации стандартов.</li>
+        <li><a href="https://viem.sh/" target="_blank" rel="noopener">viem</a> — TypeScript-клиент для EVM, основа всех frontend-уроков.</li>
+        <li><a href="https://wagmi.sh/" target="_blank" rel="noopener">wagmi</a> — React-хуки поверх viem.</li>
+        <li><a href="https://book.getfoundry.sh/" target="_blank" rel="noopener">Foundry Book</a> — Anvil, Forge, Cast.</li>
+        <li><a href="https://docs.tenderly.co/virtual-testnets" target="_blank" rel="noopener">Tenderly Virtual Testnets</a> — облачные форки и Simulation API.</li>
+        <li><a href="https://remix.ethereum.org/" target="_blank" rel="noopener">Remix IDE</a> — браузерная среда для Solidity.</li>
+        <li><a href="https://ethereum.org/en/developers/docs/" target="_blank" rel="noopener">Ethereum.org Developer Docs</a> — концептуальная база.</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Песочница уроков (<code>academy/courses/web3-genesis/assets/sandbox.js</code>)
+      — собственная разработка для Daskibo Academy: детерминированный
+      in-memory симулятор ERC-20 с 42 vitest-тестами. Адреса и tx-хэши
+      воспроизводимы между сессиями, что упрощает скриншоты и
+      проверку решений.
     </div>
   </div>
 

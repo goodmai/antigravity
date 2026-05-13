@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 03 · Ноды, JSON-RPC, L1/L2 — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 03 · Ноды, JSON-RPC, L1/L2</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 03 · ноды и сеть</p>
+    <h1>Ноды, JSON-RPC и L1 / L2</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../02/index.html">Lesson 02 — ERC-20 в песочнице</a>.
+      Там мы развернули контракт «локально». Здесь мы понимаем, <em>через что</em>
+      реальный фронтенд разговаривает с блокчейном — и пишем эти запросы руками.
+    </p>
+
+    <p>
+      Любой dApp, MetaMask, viem и Etherscan общаются с блокчейном через одну и
+      ту же дверь: <strong>JSON-RPC 2.0</strong>. Это значит, что вы можете
+      воспроизвести <em>любой</em> запрос через <code>curl</code>, Postman, Insomnia
+      или Swagger UI — и понять, что именно происходит «под капотом» библиотек.
+      В этом уроке мы разбираемся с архитектурой ноды (execution + consensus),
+      с консенсусом Proof-of-Stake (attestations, finality, slashing),
+      с экосистемой L2 (Arbitrum, Optimism), и решаем четыре практические задачи.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы умеете: за 1 минуту
+      определить, <em>контракт</em> ли по адресу или EOA; узнать, сколько газа
+      сожгла транзакция; прочитать receipt и события; вычислить, финален ли блок;
+      и сделать всё это четырьмя способами — <code>curl</code>, Postman, Foundry
+      Cast и Swagger UI.
+    </div>
+
+    <h2>1. Что такое нода Ethereum</h2>
+    <p>
+      Со времён The Merge (15 сентября 2022) <strong>«нода Ethereum» — это два
+      процесса, говорящих по Engine API</strong>:
+    </p>
+
+<pre class="code-block"><code>┌──────────────────────────────────────────────────────────────────────┐
+│                         Ethereum Full Node                            │
+│                                                                       │
+│   ┌──────────────────────────┐         ┌──────────────────────────┐  │
+│   │ Execution Layer (EL)     │         │ Consensus Layer (CL)     │  │
+│   │ Geth / Besu / Nethermind │ Engine  │ Lighthouse / Prysm /     │  │
+│   │ Erigon / Reth            │ ───API──│ Teku / Nimbus / Lodestar │  │
+│   │                          │ ◄───────│                          │  │
+│   │ • EVM, state, receipts   │         │ • beacon chain, slots,   │  │
+│   │ • JSON-RPC :8545         │         │   epochs, attestations   │  │
+│   │ • Mempool, gas market    │         │ • Beacon API :5052       │  │
+│   │ • Snap-sync, archives    │         │ • Validator duties       │  │
+│   └──────────────────────────┘         └──────────────────────────┘  │
+│             ▲                                       ▲                 │
+│             │ HTTP/WS JSON-RPC                      │ HTTP REST       │
+│             │ (то, что мы шлём из dApp)             │ (для валидатора)│
+└─────────────┼───────────────────────────────────────┼─────────────────┘
+              │                                       │
+            curl     viem      Postman              prysmctl
+            ethers   wagmi     Swagger              beacon-node admin</code></pre>
+
+    <h3>1.1 Клиенты EL: Geth, Besu, Nethermind, Erigon, Reth</h3>
+    <table class="compare">
+      <tr><th>Клиент</th><th>Стек</th><th>Сильные стороны</th><th>Где применяется</th></tr>
+      <tr><td><strong>Geth</strong></td><td>Go (go-ethereum)</td><td>Reference-имплементация, наибольшее покрытие тестов</td><td>~50% mainnet валидаторов</td></tr>
+      <tr><td><strong>Besu</strong></td><td>Java (Hyperledger)</td><td>Enterprise: permissioned-сети, GraphQL, plugin-API</td><td>Корпоративные / permissioned (Quorum, LACChain)</td></tr>
+      <tr><td><strong>Nethermind</strong></td><td>.NET</td><td>Высокая производительность синка, plugins</td><td>~20% mainnet, любим L2 (zkEVM)</td></tr>
+      <tr><td><strong>Erigon</strong></td><td>Go (форк Geth)</td><td>Минимальный диск (~700 ГБ vs 1.2 ТБ), быстрая reindex</td><td>Архивные ноды, dev-environment</td></tr>
+      <tr><td><strong>Reth</strong></td><td>Rust (Paradigm)</td><td>Самый быстрый sync, modular, SDK-first</td><td>Новые ноды 2024+, индексеры, L2-стек</td></tr>
+    </table>
+
+    <p>
+      Все они реализуют <strong>один и тот же JSON-RPC API</strong> — поэтому
+      ваш viem-код работает одинаково. Различия — в скорости синхронизации,
+      потреблении диска, поддержке экзотических методов (<code>debug_traceTransaction</code>
+      доступен на Geth/Erigon/Reth, но не у всех публичных RPC), и в форме
+      log-API.
+    </p>
+
+    <p>
+      <strong>Клиент-диверсификация — это безопасность сети.</strong> Если 80%
+      валидаторов запускают один клиент и в нём найдут консенсус-баг, сеть
+      форкнётся и эти валидаторы будут оштрафованы (slashing). Поэтому Ethereum
+      Foundation активно продвигает не-Geth клиенты.
+    </p>
+
+    <h3>1.2 Консенсус и награды за блок</h3>
+    <p>
+      Proof-of-Stake разделён на <strong>слоты</strong> (12 секунд) и
+      <strong>эпохи</strong> (32 слота = 6 минут 24 секунды). В каждом слоте:
+    </p>
+    <ul>
+      <li>RANDAO-алгоритм выбирает <em>одного</em> <strong>proposer'а</strong> —
+      валидатора, чья очередь предлагать блок.</li>
+      <li>Все остальные валидаторы (~1 млн на mainnet) делятся на 32 «комитета»
+      (по одному на слот) и в назначенный им слот делают <strong>attestation</strong> —
+      подписанный голос «я видел блок X, head канонической цепи — это he».</li>
+    </ul>
+
+    <p>Награды валидатора (стейк 32 ETH) складываются из:</p>
+    <table class="compare">
+      <tr><th>Источник</th><th>Когда</th><th>Доля</th></tr>
+      <tr><td>Attestation reward</td><td>Каждую эпоху</td><td>~75% дохода</td></tr>
+      <tr><td>Proposer reward</td><td>Когда выпала очередь предложить блок (~раз в неделю)</td><td>~12.5%</td></tr>
+      <tr><td>Sync committee reward</td><td>Если выбран в sync committee (256 валидаторов на 256 эпох)</td><td>~3%</td></tr>
+      <tr><td>MEV / priority fees</td><td>Tip'ы пользователей за приоритет</td><td>~10% (сильно варьируется)</td></tr>
+    </table>
+
+    <p>
+      Базовая инфляция Ethereum (issuance) при ~1 млн валидаторов — около
+      <strong>0.5% годовых</strong>. При этом <em>baseFee сжигается</em> (EIP-1559),
+      поэтому при высоком объёме транзакций ETH становится <strong>дефляционным</strong>.
+    </p>
+
+    <h3>1.3 Slashing: что нельзя делать валидатору</h3>
+    <p>
+      Slashing — это <em>сжигание</em> части стейка плюс принудительный выход
+      из активного сета. Условия — только три:
+    </p>
+    <ol>
+      <li><strong>Double-proposing.</strong> Один валидатор подписал два разных
+      блока на одном слоте.</li>
+      <li><strong>Surround vote.</strong> Голосует за epoch A → B, потом голосует
+      за epoch A−1 → C (где C &gt; B). «Окружил» предыдущий голос — атака на finality.</li>
+      <li><strong>Double-vote.</strong> Две attestation'а с одним target epoch
+      и разными head-блоками.</li>
+    </ol>
+    <p>
+      Минимальный штраф — <strong>1 ETH</strong> (1/32 стейка). Максимальный
+      («correlation penalty») — <strong>до всех 32 ETH</strong>, если в ту же
+      эпоху slashed много валидаторов одного оператора (защита от
+      скоординированных атак).
+    </p>
+
+    <h3>1.4 Финальность</h3>
+    <p>
+      В отличие от Bitcoin, где «финальность» вероятностная (6 confirmations
+      ≈ 99.9%), Ethereum даёт <strong>детерминированную финальность</strong>
+      через Casper FFG.
+    </p>
+
+<pre class="code-block"><code>slot   slot+1  …  slot+32       slot+64        slot+96
+─────────────────────────────────────────────────────────────►
+                  ↑              ↑              ↑
+                  justified      finalized      next finalization
+                  (1 epoch)      (2 epochs)
+                  ↑              ↑
+            tag="safe"     tag="finalized"
+
+   tag="latest"  = head (любой блок, может быть реорганизован)
+   tag="safe"    = justified — >2/3 валидаторов проголосовали
+   tag="finalized" = finalized — два последовательных justified epoch'а</code></pre>
+
+    <p>
+      Финальный блок откатить можно только если &gt; 1/3 всего стейка
+      согласованно нарушают правила — и они потеряют свои депозиты.
+      Это &gt; 11 миллиардов долларов экономической безопасности на момент
+      написания. Поэтому <code>finalized</code> для критичных операций (биржевые
+      депозиты, бридж-окна) — стандарт индустрии.
+    </p>
+
+    <h2>2. JSON-RPC: общая структура</h2>
+    <p>
+      Каждый запрос — POST на единый endpoint с JSON-телом:
+    </p>
+
+<pre class="code-block"><code>POST /  HTTP/1.1
+Host: eth.llamarpc.com
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id":      1,
+  "method":  "eth_blockNumber",
+  "params":  []
+}</code></pre>
+
+    <p>
+      Ответ — JSON-RPC envelope:
+    </p>
+
+<pre class="code-block"><code>{ "jsonrpc": "2.0", "id": 1, "result": "0x14589ce" }
+                                                ↑
+                                       hex-строка → 21_341_134 (BigInt!)</code></pre>
+
+    <p>
+      <strong>Все числа — hex-строки</strong> с префиксом <code>0x</code>.
+      JavaScript не умеет нативно работать с числами больше 2<sup>53</sup>,
+      поэтому везде используется <code>BigInt</code> или строка. viem делает
+      это автоматически; в curl-сценариях — конвертируем руками.
+    </p>
+
+    <h2>3. Песочница — мок JSON-RPC ноды</h2>
+    <p>
+      Ниже встроен детерминированный мок: выберите метод, посмотрите готовый
+      <code>curl</code> и ответ. <strong>Никаких реальных запросов в сеть не
+      делается</strong> — данные стабильные, чтобы вы могли сверить с любым
+      из четырёх клиентов из раздела 5.
+    </p>
+
+    <div class="sandbox" data-rpc-playground="mock" data-title="JSON-RPC Mock Playground · 7 ручек"></div>
+
+    <h2>4. Четыре практические задачи</h2>
+
+    <h3>4.1 Задача №1 — наличие контракта по адресу</h3>
+    <p>
+      Метод: <code>eth_getCode(address, blockTag)</code>. EOA вернёт <code>"0x"</code>,
+      контракт — bytecode.
+    </p>
+<pre class="code-block"><code># curl
+curl -s -X POST 'https://eth.llamarpc.com' \
+  -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_getCode",
+           "params":["0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D","latest"]}' \
+  | jq -r '.result | if . == "0x" then "EOA" else "Contract (" + (.|length|tostring) + " hex chars)" end'
+
+# Foundry / Cast
+cast code 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D --rpc-url https://eth.llamarpc.com
+
+# viem (Node.js или браузер)
+import { createPublicClient, http } from "viem";
+import { mainnet } from "viem/chains";
+const client = createPublicClient({ chain: mainnet, transport: http() });
+const code = await client.getCode({ address: "0x7a250d…488D" });
+console.log(code === undefined ? "EOA" : "Contract");</code></pre>
+
+    <h3>4.2 Задача №2 — стоимость транзакции по газу</h3>
+    <p>
+      Из receipt берём <code>gasUsed</code> и <code>effectiveGasPrice</code>:
+      <code>fee = gasUsed × effectiveGasPrice</code>. Для legacy-tx — <code>gasPrice</code>.
+    </p>
+<pre class="code-block"><code># curl + jq
+curl -s -X POST 'https://eth.llamarpc.com' \
+  -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt",
+           "params":["0x88df016429689c079f3b2f6ad39fa052532c56795b733da78a91ebe6a713944b"]}' \
+  | jq -r '.result | (.gasUsed|tonumber) * (.effectiveGasPrice|tonumber) | "fee = \(. ) wei"'
+
+# Foundry / Cast — то же одной командой
+cast receipt 0x88df016… --rpc-url $RPC \
+  --json | jq -r '(.gasUsed|tonumber) * (.effectiveGasPrice|tonumber) / 1e18 | "\(. ) ETH"'
+
+# eth_feeHistory — для оценки будущего fee
+cast rpc eth_feeHistory 0x14 latest '[10,50,90]' --rpc-url $RPC</code></pre>
+
+    <h3>4.3 Задача №3 — получить receipt</h3>
+    <p>
+      Receipt появляется только после включения транзакции в блок. До этого —
+      <code>null</code>. Полный pseudocode polling-цикла:
+    </p>
+<pre class="code-block"><code>async function waitForReceipt(hash, maxAttempts = 60) {
+  for (let i = 0; i &lt; maxAttempts; i++) {
+    const res = await fetch(RPC_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [hash]
+      })
+    }).then(r =&gt; r.json());
+
+    if (res.result) return res.result;             // ✓ mined
+    await new Promise(r =&gt; setTimeout(r, 2000));   // wait 2 s
+  }
+  throw new Error("timeout — tx still pending after 2 min");
+}</code></pre>
+    <p>
+      viem делает это однострочно: <code>client.waitForTransactionReceipt({ hash, confirmations: 1 })</code>.
+    </p>
+
+    <h3>4.4 Задача №4 — финальность блока</h3>
+    <p>
+      Запрашиваем три блока (<code>latest</code>, <code>safe</code>, <code>finalized</code>)
+      и сравниваем номера с нашим блоком.
+    </p>
+<pre class="code-block"><code># Один batch-запрос вместо трёх:
+curl -s -X POST 'https://eth.llamarpc.com' \
+  -H 'content-type: application/json' \
+  --data '[
+    {"jsonrpc":"2.0","id":1,"method":"eth_getBlockByNumber","params":["latest",false]},
+    {"jsonrpc":"2.0","id":2,"method":"eth_getBlockByNumber","params":["safe",false]},
+    {"jsonrpc":"2.0","id":3,"method":"eth_getBlockByNumber","params":["finalized",false]}
+  ]' | jq '.[] | { tag: .id, number: .result.number }'</code></pre>
+
+    <p>
+      Логика классификации (см. <code>finalityOf()</code> в
+      <code>academy/courses/web3-genesis/assets/rpc-helpers.js</code>):
+    </p>
+    <ul>
+      <li>block ≤ finalized → <strong>finalized</strong> (можно засчитывать депозит)</li>
+      <li>finalized &lt; block ≤ safe → <strong>safe</strong></li>
+      <li>safe &lt; block ≤ latest → <strong>unsafe</strong> (риск реорга)</li>
+      <li>block &gt; latest → <strong>future</strong> (наша нода ещё не догнала)</li>
+    </ul>
+
+    <h2>5. Четыре способа сделать тот же запрос</h2>
+
+    <h3>5.1 curl + jq — для скриптов и CI</h3>
+<pre class="code-block"><code>#!/usr/bin/env bash
+set -euo pipefail
+RPC=${RPC:-https://eth.llamarpc.com}
+
+# Все hex-числа конвертируем в десятичные через jq:
+curl -sS -X POST $RPC -H 'content-type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
+  | jq -r '.result | tonumber'</code></pre>
+
+    <h3>5.2 Postman / Insomnia — для ручной отладки</h3>
+    <p>
+      Готовая коллекция: <a href="../../assets/ethereum-rpc.postman_collection.json"
+      download>ethereum-rpc.postman_collection.json</a>. Импортируйте через
+      <em>File → Import</em>. В коллекции:
+    </p>
+    <ul>
+      <li>10 запросов с описаниями (chainId, blockNumber, getCode, receipt,
+      feeHistory, getBalance, eth_call, net_version, web3_clientVersion и др.);</li>
+      <li>переменные <code>{{rpcUrl}}</code>, <code>{{addrEOA}}</code>,
+      <code>{{addrContract}}</code>, <code>{{txHash}}</code> — меняются в одном месте;</li>
+      <li>preset-окружения: Ethereum mainnet, Arbitrum One, Optimism, Base, Sepolia, Anvil.</li>
+    </ul>
+
+    <h3>5.3 Foundry / Cast — для девелопера</h3>
+<pre class="code-block"><code># Установка
+curl -L https://foundry.paradigm.xyz | bash &amp;&amp; foundryup
+
+# Цепочка команд эквивалентная curl-запросам выше:
+cast chain-id        --rpc-url https://eth.llamarpc.com   # eth_chainId
+cast block-number    --rpc-url $RPC                       # eth_blockNumber
+cast code 0x7a25…488D --rpc-url $RPC                      # eth_getCode
+cast receipt 0x88df0…  --rpc-url $RPC                     # eth_getTransactionReceipt
+cast balance vitalik.eth --ether --rpc-url $RPC           # eth_getBalance (с ENS!)
+cast rpc eth_feeHistory 0x14 latest '[10,50,90]' --rpc-url $RPC
+
+# Локальная нода для тестов:
+anvil --fork-url $RPC --fork-block-number 21000000
+
+# forge test — Solidity-юнит-тесты против форка mainnet:
+forge test --fork-url $RPC -vvv</code></pre>
+
+    <h3>5.4 Swagger UI / OpenAPI — для документации</h3>
+    <p>
+      Готовая OpenAPI-спецификация: <a href="../../assets/ethereum-rpc.openapi.yaml"
+      download>ethereum-rpc.openapi.yaml</a>. Запуск Swagger UI локально:
+    </p>
+<pre class="code-block"><code># вариант 1 — Docker
+docker run -p 8080:8080 \
+  -e SWAGGER_JSON=/spec/ethereum-rpc.openapi.yaml \
+  -v $(pwd)/academy/courses/web3-genesis/assets:/spec \
+  swaggerapi/swagger-ui
+
+# вариант 2 — Swagger Editor онлайн
+# скопировать содержимое ethereum-rpc.openapi.yaml в https://editor.swagger.io
+</code></pre>
+
+    <h2>6. Layer 2: Arbitrum и Optimism</h2>
+    <p>
+      L1 (Ethereum mainnet) даёт максимальную безопасность, но дорогой газ
+      (~5–30 $ за swap). <strong>L2</strong> переносит исполнение в отдельную
+      сеть, а на L1 публикует только <em>сжатые данные транзакций</em>
+      («calldata» или EIP-4844 «blob») и доказательство корректности.
+    </p>
+
+    <table class="compare">
+      <tr><th>Параметр</th><th>Arbitrum One</th><th>Optimism / OP Stack</th></tr>
+      <tr><td>Тип</td><td>Optimistic Rollup (Nitro)</td><td>Optimistic Rollup (Bedrock)</td></tr>
+      <tr><td>Chain ID</td><td>42161 (0xa4b1)</td><td>10 (0xa)</td></tr>
+      <tr><td>Sequencer</td><td>Offchain Labs (постепенный decentralization)</td><td>OP Labs / Conduit / третьи стороны</td></tr>
+      <tr><td>Fraud proof</td><td>Interactive (BoLD, 2024)</td><td>Cannon (single-round on EVM)</td></tr>
+      <tr><td>Withdraw period</td><td>~7 дней (challenge window)</td><td>~7 дней</td></tr>
+      <tr><td>Data availability</td><td>L1 calldata / blobs (EIP-4844)</td><td>L1 calldata / blobs</td></tr>
+      <tr><td>Gas token</td><td>ETH (нативно)</td><td>ETH (нативно)</td></tr>
+      <tr><td>EVM-совместимость</td><td>Полная + <code>ArbOS</code> precompiles</td><td>Полная + <code>L1Block</code>, <code>L2ToL1MessagePasser</code></td></tr>
+    </table>
+
+    <h3>6.1 Системные транзакции</h3>
+    <p>
+      На L2 есть транзакции, которые <strong>пользователь не отправлял</strong> —
+      их инициирует сама сеть.
+    </p>
+
+    <p><strong>Optimism — <code>L1Block.setL1BlockValues()</code></strong>: первая
+    транзакция в каждом L2-блоке. Записывает в storage предикомпиля
+    <code>0x4200000000000000000000000000000000000015</code> текущие L1 baseFee,
+    timestamp, blob fee. Это позволяет L2-контрактам читать актуальное состояние L1.</p>
+
+    <p><strong>Arbitrum — <code>ArbOS</code></strong>: системный «контракт-операционка»
+    по адресу <code>0x0000…0064</code>. Через него ходят update'ы цены газа, ретраи bridge-сообщений.</p>
+
+    <h3>6.2 Бриджи L1 ↔ L2</h3>
+<pre class="code-block"><code>L1 (Ethereum)                              L2 (Arbitrum / Optimism)
+─────────────────                          ────────────────────────
+
+L1 → L2 (deposit, fast: ~10 мин)
+─────────────────────────────────
+user → L1Bridge.depositETH()
+       │
+       │ emits MessageSent event
+       ▼
+   Inbox / OptimismPortal contract
+       │
+       │ sequencer прочитал event,
+       │ включил в L2-блок через "force include" механизм
+       ▼
+                                       L2 system tx: mint ETH на user
+
+L2 → L1 (withdraw, slow: ~7 дней!)
+─────────────────────────────────
+                                       user → L2Bridge.withdrawETH()
+                                              │
+                                              │ записывает запрос в Merkle-trie
+                                              ▼
+                                       (challenge window 7 дней)
+                                              │
+       ◄──────────────────── Sequencer публикует state root на L1 ──┘
+       │
+       │ После окна:
+   user → L1Bridge.finalizeWithdrawal(proof)
+       │
+       │ Verifier проверяет Merkle-proof
+       ▼
+   ETH разблокирован user'у на L1</code></pre>
+
+    <p>
+      «7 дней» — это <strong>challenge window</strong>: время, в течение которого
+      любой watcher может оспорить state root и инициировать fraud-proof. На zk-rollup'ах
+      (zkSync Era, Scroll) этого окна нет — проверка криптографическая и моментальная.
+    </p>
+
+    <h3>6.3 Особенности RPC на L2</h3>
+    <ul>
+      <li><strong>Финальность тега «finalized» на L2</strong> — это не L1-финальность.
+      На Optimism «finalized» означает «sequencer опубликовал блок и истёк challenge window»
+      (~7 дней). Для критичных операций используйте <code>safe</code> + 7 дней
+      или подтверждение от индексера.</li>
+      <li><strong><code>eth_chainId</code></strong>: Arbitrum One = <code>42161 (0xa4b1)</code>,
+      OP = <code>10 (0xa)</code>, Base = <code>8453 (0x2105)</code>, Sepolia = <code>11155111</code>.</li>
+      <li><strong>Газ на Arbitrum</strong> делится на L1-cost (calldata, публикация)
+      и L2-cost (исполнение). <code>eth_estimateGas</code> возвращает суммарное.</li>
+      <li><strong>Optimism-специфичный метод</strong> <code>optimism_outputAtBlock</code> —
+      возвращает output root для построения withdraw-proof.</li>
+    </ul>
+
+    <h2>7. Чек-лист «безопасный RPC-провайдер»</h2>
+    <ul>
+      <li><strong>Никогда не отдавайте seed-фразу или приватный ключ RPC-провайдеру.</strong>
+      Подписи — только в кошельке.</li>
+      <li>Проверяйте <code>eth_chainId</code> перед отправкой транзакции — защита от
+      «подмены сети» атакующим RPC.</li>
+      <li>Для production используйте dedicated-RPC (Alchemy, Infura, Quicknode) или
+      собственную ноду. Публичные RPC имеют rate-limits и могут падать.</li>
+      <li><code>debug_traceTransaction</code> доступен не везде — для дебага форкайте
+      через Anvil или используйте Tenderly.</li>
+      <li>Кешируйте read-запросы (<code>chainId</code>, <code>blockByNumber</code>) на
+      стороне фронтенда — экономит квоту провайдера.</li>
+    </ul>
+
+    <h2>8. Куда дальше</h2>
+    <p>
+      В <strong>Lesson 04 — Anvil &amp; Foundry</strong> мы развернём собственный
+      локальный node, форкнем mainnet, и напишем <code>forge test</code> для
+      ERC-20 из Lesson 02 поверх настоящего EVM (а не in-memory симулятора).
+      В <strong>Lesson 05 — Tenderly Virtual Testnet</strong> поднимем тот же
+      контракт в облаке и подружим с визуальным отладчиком.
+    </p>
+
+    <div class="attrib">
+      Файл <code>academy/courses/web3-genesis/assets/rpc-helpers.js</code> —
+      чистый ESM-модуль (42 vitest-теста) с логикой кодирования envelope'а,
+      detect'а контрактов, расчёта fee и классификации финальности.
+      Тот же модуль использует встроенная песочница и тесты — никаких
+      расхождений между «что в уроке» и «что в коде».
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/rpc-playground.js"></script>
+</body>
+</html>

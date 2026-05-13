@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 01 · MetaMask &amp; кошельки — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 01 · MetaMask &amp; кошельки</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 01 · фундамент</p>
+    <h1>MetaMask &amp; кошельки: ключи, подпись, транзакция</h1>
+
+    <p>
+      Любая операция в Web3 — это <strong>транзакция, подписанная приватным
+      ключом</strong>. Прежде чем писать смарт-контракты, нужно понять, что такое
+      ключ, что такое адрес, как кошелёк хранит то и другое, какие поля попадают
+      в подпись, и почему отправленную транзакцию иногда невозможно «вернуть»,
+      но почти всегда можно <em>заменить</em>. Урок собирает эту базу в одном
+      месте, чтобы дальше в курсе вы концентрировались на контрактах, а не на
+      «как мне переподписать тип-2 транзакцию с новым nonce».
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы сможете объяснить:
+      что такое seed → ключи → адрес; чем подпись отличается от транзакции;
+      зачем нужен <code>nonce</code> и <code>chainId</code>; как считается
+      газ в EIP-1559; как отменить или ускорить «зависшую» транзакцию;
+      чем горячий кошелёк отличается от холодного; и какие библиотеки нужны
+      фронтенду для всего этого.
+    </div>
+
+    <h2>1. Что такое кошелёк</h2>
+    <p>
+      Кошелёк <strong>не хранит токены</strong>. Токены живут на блокчейне в
+      <code>mapping(address ⇒ uint256)</code> смарт-контракта (ERC-20) или в
+      нативном балансе аккаунта. Кошелёк хранит <em>ключ</em>, которым вы
+      доказываете право распоряжаться этим балансом. Утратил ключ — утратил
+      доступ; никто (ни MetaMask, ни Ethereum Foundation) не может его восстановить.
+    </p>
+
+    <h3>1.1 Seed-фраза → приватный ключ → публичный ключ → адрес</h3>
+    <p>
+      Современный кошелёк — это <strong>HD-wallet</strong> (Hierarchical
+      Deterministic, BIP-32/39/44). Из одной seed-фразы детерминированно
+      выводятся <em>миллиарды</em> аккаунтов:
+    </p>
+
+<pre class="code-block"><code>BIP-39 mnemonic   "test test test test test test test test test test test junk"
+       │
+       │  PBKDF2-HMAC-SHA512(mnemonic, "mnemonic" + passphrase, 2048)
+       ▼
+512-bit seed       fbd6e0a … (64 байта)
+       │
+       │  BIP-32  HMAC-SHA512("Bitcoin seed", seed)
+       ▼
+master extended key  (k_m, c_m)
+       │
+       │  derive по пути BIP-44:  m / purpose' / coin_type' / account' / change / index
+       │  для Ethereum:           m / 44'      / 60'        / 0'       / 0      / i
+       ▼
+private key (32 байта, secp256k1)
+       │
+       │  публичный ключ = priv · G  (генератор кривой secp256k1)
+       ▼
+public key  (uncompressed, 64 байта)
+       │
+       │  keccak256(pubKey)[-20:]
+       ▼
+address    0x70997970C51812dc3A010C7d01b50e0d17dc79C8</code></pre>
+
+    <p>
+      Несколько важных следствий:
+    </p>
+    <ul>
+      <li><strong>Адрес — это последние 20 байт keccak256 от публичного ключа.</strong>
+      Поэтому проверка подписи на блокчейне = «восстановить публичный ключ из подписи
+      → взять keccak256 → сравнить с адресом» (<code>ecrecover</code>).</li>
+      <li><strong>EIP-55 checksum</strong> добавляет mixed-case к hex-адресу
+      (<code>0xAbCd…</code>) для защиты от опечаток — на сети все буквы одинаковы,
+      но кошелёк/Explorer считают checksum и подсвечивают ошибку.</li>
+      <li><strong>Passphrase (25-е слово)</strong> в BIP-39 — это <em>дополнительная</em>
+      строка к seed-фразе, которая даёт совершенно другой набор ключей.
+      «Скрытый кошелёк» = та же seed-фраза, но с другим passphrase.</li>
+    </ul>
+
+    <p>
+      Попробуйте: введите свою или сгенерируйте новую mnemonic — увидите, как из
+      одной фразы детерминированно выводятся первые пять Ethereum-аккаунтов.
+      По умолчанию подставлена стандартная тестовая mnemonic Anvil / Hardhat —
+      адреса из неё знают все, поэтому никаких реальных средств туда не
+      кладите.
+    </p>
+
+    <div class="sandbox" data-wallet-demo="hd" data-title="Демо · HD-derivation (BIP-39 → BIP-32 → BIP-44)"></div>
+
+    <h3>1.2 Создание и импорт в MetaMask</h3>
+    <p>
+      В UI это выглядит как два сценария — но криптографически они идентичны.
+    </p>
+    <ul>
+      <li><strong>Создание.</strong> Расширение генерирует 12-словную mnemonic
+      из 128 бит энтропии (<code>crypto.getRandomValues</code>) и просит вас
+      сохранить её. После этого все «Account 1», «Account 2»… выводятся
+      по индексу из BIP-44 пути.</li>
+      <li><strong>Импорт по seed.</strong> Вы вводите 12/24 слова, кошелёк
+      проверяет контрольную сумму BIP-39 (последнее слово — это checksum
+      первых) и пересоздаёт ту же HD-tree. Поэтому ваш импортированный
+      кошелёк сразу видит те же адреса и историю.</li>
+      <li><strong>Импорт по приватному ключу</strong> — добавляет одиночный
+      аккаунт <em>не в</em> HD-tree. Такой аккаунт нельзя восстановить из
+      seed-фразы кошелька; беречь его нужно отдельно.</li>
+    </ul>
+
+    <h2>2. Подпись: что именно подписывается</h2>
+    <p>
+      MetaMask умеет три типа подписей. Понимание различий критично — большинство
+      фишинг-атак паразитируют на том, что пользователь не видит, <em>что</em>
+      он подписывает.
+    </p>
+
+    <table class="compare">
+      <tr><th>Метод</th><th>Что подписывается</th><th>Применение</th></tr>
+      <tr>
+        <td><code>personal_sign</code></td>
+        <td>Префиксированная строка: <code>"\x19Ethereum Signed Message:\n" + len + msg</code></td>
+        <td>Логин по подписи (SIWE), доказательство владения адресом</td>
+      </tr>
+      <tr>
+        <td><code>eth_signTypedData_v4</code> (EIP-712)</td>
+        <td>Структурированные данные с типами и доменом</td>
+        <td>Permit для ERC-20, OpenSea-ордера, gasless-операции</td>
+      </tr>
+      <tr>
+        <td><code>eth_sendTransaction</code></td>
+        <td>RLP-кодированная транзакция, отправляется в mempool</td>
+        <td>Любое изменение состояния: перевод, вызов контракта, деплой</td>
+      </tr>
+    </table>
+
+    <p>
+      Только третий тип <strong>стоит газ</strong> и попадает в блокчейн.
+      Первые два — это «офчейн»-подписи, которые сервер или контракт может
+      проверить позже.
+    </p>
+
+    <h2>3. Анатомия транзакции</h2>
+    <p>
+      Транзакция на EVM-сети — это <strong>9-12 полей</strong>, RLP-сериализованные
+      и подписанные приватным ключом. Минимальная сущность:
+    </p>
+
+<pre class="code-block"><code>{
+  type:                 2,                                  // 0 / 1 / 2 — см. ниже
+  chainId:              1,                                  // EIP-155 — для replay protection
+  nonce:                42,                                 // счётчик транзакций отправителя
+  maxFeePerGas:         30_000_000_000n,                    // 30 gwei — потолок суммарной цены
+  maxPriorityFeePerGas:  1_500_000_000n,                    // 1.5 gwei — чаевые валидатору
+  gas:                  21_000n,                            // лимит газа (gasLimit)
+  to:                   "0x70997…79C8",                     // null = деплой контракта
+  value:                1_000_000_000_000_000_000n,         // 1 ETH в wei
+  data:                 "0xa9059cbb…",                      // calldata: пустая = native transfer
+  accessList:           []                                  // EIP-2930, опционально
+}</code></pre>
+
+    <h3>3.1 Nonce</h3>
+    <p>
+      <code>nonce</code> — это последовательный счётчик транзакций аккаунта.
+      Каждая ваша транзакция должна иметь <em>следующий по порядку</em> nonce.
+      Если вы отправите nonce=10, а потом nonce=12 — вторая будет висеть
+      в mempool как «зависшая», пока не появится nonce=11.
+    </p>
+    <p>
+      Это даёт нам три практических механизма:
+    </p>
+    <ul>
+      <li><strong>Replay protection</strong> — одну и ту же транзакцию нельзя
+      провести дважды (после майнинга nonce увеличился).</li>
+      <li><strong>Отмена транзакции</strong> — отправляем новую транзакцию
+      <em>с тем же nonce</em>, но <code>to = моему же адресу</code>,
+      <code>value = 0</code>, и более высокий <code>maxFeePerGas</code>.
+      Валидатор включит ту, что платит больше; старая молча выпадет из mempool.</li>
+      <li><strong>Speed-up</strong> — то же самое, но <code>to / value / data</code>
+      остаются прежними, мы только повышаем цену газа.</li>
+    </ul>
+
+    <h3>3.2 ChainId</h3>
+    <p>
+      <code>chainId</code> (EIP-155) включён в данные, по которым считается подпись.
+      Поэтому транзакция, подписанная для Ethereum mainnet (<code>1</code>), не может
+      быть «прокручена» на Polygon (<code>137</code>) — подпись окажется недействительной.
+      Это защищает вас от <em>cross-chain replay</em>. В MetaMask <code>chainId</code>
+      устанавливается выбранной сетью в шапке.
+    </p>
+
+    <h3>3.3 Газ: EIP-1559</h3>
+    <p>
+      С августа 2021 (London hard fork) Ethereum использует двухкомпонентную модель:
+    </p>
+    <ul>
+      <li><strong>baseFeePerGas</strong> — динамическая цена, заданная сетью; растёт
+      на 12.5% за блок, если предыдущий блок заполнен &gt;50%, падает иначе. <em>Сжигается</em>
+      (burn).</li>
+      <li><strong>maxPriorityFeePerGas</strong> («tip») — ваши чаевые валидатору поверх
+      baseFee. Чем выше — тем быстрее включат.</li>
+      <li><strong>maxFeePerGas</strong> — суммарный потолок: <em>baseFee + tip ≤ maxFee</em>.
+      Если рынок дороже потолка — транзакция ждёт.</li>
+    </ul>
+    <p>
+      Итоговая цена транзакции = <code>gasUsed × (baseFee + min(tip, maxFee − baseFee))</code>.
+      MetaMask показывает вам три скорости («low / market / aggressive») —
+      это разные tip'ы поверх текущего baseFee.
+    </p>
+
+    <h3>3.4 Типы транзакций</h3>
+    <table class="compare">
+      <tr><th>Type</th><th>EIP</th><th>Когда</th><th>Особенность</th></tr>
+      <tr><td><code>0</code></td><td>—</td><td>Legacy, до 2021</td><td><code>gasPrice</code> единое поле</td></tr>
+      <tr><td><code>1</code></td><td>EIP-2930</td><td>Berlin, 2021</td><td>access lists — скидка на storage-read</td></tr>
+      <tr><td><code>2</code></td><td>EIP-1559</td><td>London, 2021</td><td><code>maxFeePerGas</code> + <code>maxPriorityFeePerGas</code></td></tr>
+      <tr><td><code>3</code></td><td>EIP-4844</td><td>Dencun, 2024</td><td>blob-транзакции для L2 rollups</td></tr>
+    </table>
+
+    <h3>3.5 Статусы транзакции</h3>
+    <ul>
+      <li><strong>signed</strong> — подписана в кошельке, но ещё не отправлена.</li>
+      <li><strong>pending (in mempool)</strong> — отправлена на ноду, ждёт включения в блок.</li>
+      <li><strong>included / mined</strong> — попала в блок, <code>status: 0x1</code> = успех.</li>
+      <li><strong>reverted</strong> — попала в блок, но контракт вызвал <code>revert</code>,
+      газ <em>списан</em>, состояние не изменилось.</li>
+      <li><strong>replaced</strong> — другая транзакция с тем же nonce была включена раньше.</li>
+      <li><strong>dropped</strong> — выпала из mempool (по таймауту или из-за низкого fee).</li>
+      <li><strong>finalized</strong> — после ~64 слотов на Ethereum, состояние неизменно
+      даже при reorg.</li>
+    </ul>
+
+    <h2>4. Отмена и ускорение транзакции</h2>
+    <div class="note cyan">
+      <strong>Алгоритм отмены «зависшей» транзакции в MetaMask:</strong>
+      <ol>
+        <li>Откройте Activity → выберите pending-транзакцию.</li>
+        <li>Cancel → MetaMask отправит self-transfer (<code>to = ваш же адрес</code>,
+        <code>value = 0</code>) с тем же <code>nonce</code>, но <strong>+10% к
+        maxFeePerGas и maxPriorityFeePerGas</strong> (это правило geth/erigon —
+        иначе нода отбросит замену).</li>
+        <li>Если первая транзакция уже включена — отмена ревертнётся,
+        и вы заплатите ~21 000 газа за «холостой ход».</li>
+      </ol>
+    </div>
+
+<pre class="code-block"><code>// Cancel вручную через viem:
+import { createWalletClient, custom } from "viem";
+import { mainnet } from "viem/chains";
+
+const wallet = createWalletClient({ chain: mainnet, transport: custom(window.ethereum) });
+await wallet.sendTransaction({
+  to:                   account.address,        // себе
+  value:                0n,
+  nonce:                stuckNonce,             // тот же nonce
+  maxFeePerGas:         oldMaxFee * 110n / 100n,
+  maxPriorityFeePerGas: oldTip    * 110n / 100n,
+});</code></pre>
+
+    <h2>5. Смарт-контракты и абстракция аккаунтов</h2>
+    <p>
+      На EVM существует <strong>два типа аккаунтов</strong>:
+    </p>
+    <ul>
+      <li><strong>EOA</strong> (Externally Owned Account) — то, что вы привыкли называть
+      кошельком. Контролируется приватным ключом, не имеет кода.</li>
+      <li><strong>Contract Account</strong> — имеет байткод и собственный storage. Сам
+      инициировать транзакцию не может; «оживает» только когда EOA его вызвал.</li>
+    </ul>
+
+    <h3>5.1 Account Abstraction (EIP-4337)</h3>
+    <p>
+      Классическая модель «EOA подписывает → контракт исполняет» неудобна: ключ
+      нельзя ротировать, газ надо платить в native ETH, multi-sig требует отдельных
+      транзакций. <strong>ERC-4337 (Account Abstraction)</strong> решает это без
+      hard fork — добавляет параллельную инфраструктуру:
+    </p>
+<pre class="code-block"><code>EOA (signer)              Smart Account (EIP-4337)
+─────────────             ───────────────────────
+priv key подписывает      smart contract проверяет подпись
+tx идёт сразу             UserOperation идёт в alt-mempool
+                          ↓
+                          Bundler упаковывает несколько UserOps в одну Ethereum-tx
+                          ↓
+                          EntryPoint.sol валидирует подписи & оплату
+                          ↓
+                          Paymaster (опционально) платит газ за пользователя
+                          ↓
+                          выполняется callData кошелька-контракта</code></pre>
+
+    <p>
+      Что это даёт: <em>social recovery</em> (восстановление по доверенным адресам
+      вместо seed-фразы), <em>gas в USDC</em> (paymaster конвертирует), <em>batched
+      transactions</em> (одна подпись на approve+swap+stake), <em>session keys</em>
+      (временные ключи с ограничениями). Современные кошельки на AA — Safe (бывший
+      Gnosis Safe), Argent, Biconomy Smart Account, ZeroDev Kernel.
+    </p>
+
+    <p>
+      <strong>EIP-7702</strong> (Pectra, 2025) идёт ещё дальше: позволяет EOA
+      <em>временно</em> исполнять код контракта, не теряя адреса. Это «лёгкая» AA
+      без миграции на новый адрес.
+    </p>
+
+    <h2>6. Холодные и горячие кошельки</h2>
+    <table class="compare">
+      <tr><th>Класс</th><th>Где живёт ключ</th><th>Плюсы</th><th>Минусы</th><th>Примеры</th></tr>
+      <tr>
+        <td><strong>Hot</strong> (горячий)</td>
+        <td>в памяти расширения/мобильного приложения</td>
+        <td>Удобно, доступно из dApp одним кликом</td>
+        <td>Уязвимо к malware, фишингу clipboard, утечке seed-фразы</td>
+        <td>MetaMask, Rabby, Phantom, Trust Wallet</td>
+      </tr>
+      <tr>
+        <td><strong>Cold</strong> (холодный)</td>
+        <td>в Secure Element аппаратного устройства</td>
+        <td>Ключ <em>никогда</em> не покидает чип, подпись на устройстве</td>
+        <td>Дороже, медленнее, нужен физический доступ</td>
+        <td>Ledger Nano X / S Plus, Trezor T, Keystone, GridPlus Lattice1</td>
+      </tr>
+      <tr>
+        <td><strong>Smart wallet</strong></td>
+        <td>в коде контракта, ключ — EOA или passkey</td>
+        <td>Social recovery, gas abstraction, multi-sig</td>
+        <td>Транзакции дороже из-за overhead, не везде поддерживаются</td>
+        <td>Safe, Argent, Biconomy, ZeroDev</td>
+      </tr>
+      <tr>
+        <td><strong>MPC</strong> (Multi-Party Computation)</td>
+        <td>осколки ключа распределены между серверами</td>
+        <td>Нет single point of failure, можно «забыть пароль»</td>
+        <td>Зависимость от провайдера, сложная криптография</td>
+        <td>Fireblocks, Coinbase MPC, Web3Auth, Zengo</td>
+      </tr>
+    </table>
+
+    <div class="note">
+      <strong>Практическое правило.</strong> Для daily-use держите ≤ суммы,
+      которую готовы потерять, в горячем кошельке. Для накоплений — холодный
+      Ledger / Trezor. Для активного DeFi — smart wallet с дневным лимитом
+      и whitelist'ом адресов.
+    </div>
+
+    <h2>7. Библиотеки для фронтенда</h2>
+
+    <h3>7.1 Низкоуровневые клиенты</h3>
+    <table class="compare">
+      <tr><th>Библиотека</th><th>Версия / стек</th><th>Когда выбирать</th></tr>
+      <tr>
+        <td><strong>viem</strong></td>
+        <td>2.x · TypeScript-first · tree-shakable</td>
+        <td><em>Default</em> для нового кода. Маленький bundle, BigInt из коробки, лучший DX.</td>
+      </tr>
+      <tr>
+        <td><strong>ethers.js</strong></td>
+        <td>6.x · «классика» с 2018</td>
+        <td>Совместимость со старыми гайдами, экосистема туториалов больше всех.</td>
+      </tr>
+      <tr>
+        <td><strong>web3.js</strong></td>
+        <td>4.x · MetaMask &amp; ConsenSys</td>
+        <td>Энтерпрайз-проекты, требующие callback-API.</td>
+      </tr>
+    </table>
+
+    <h3>7.2 React-обёртки и connect-kit'ы</h3>
+    <table class="compare">
+      <tr><th>Пакет</th><th>Поверх</th><th>Что даёт</th></tr>
+      <tr>
+        <td><strong>wagmi</strong></td>
+        <td>viem</td>
+        <td>React-хуки: <code>useAccount</code>, <code>useReadContract</code>, <code>useWriteContract</code>, кэш через TanStack Query.</td>
+      </tr>
+      <tr>
+        <td><strong>RainbowKit</strong></td>
+        <td>wagmi</td>
+        <td>Готовая «Connect Wallet» кнопка с 50+ кошельками, dark/light тема.</td>
+      </tr>
+      <tr>
+        <td><strong>ConnectKit</strong></td>
+        <td>wagmi</td>
+        <td>Альтернатива RainbowKit от Family.co, минималистичнее.</td>
+      </tr>
+      <tr>
+        <td><strong>Web3Modal / Reown AppKit</strong></td>
+        <td>WalletConnect</td>
+        <td>QR-коннект для мобильных кошельков, social login.</td>
+      </tr>
+    </table>
+
+    <h3>7.3 Стандарт для discovery: EIP-6963</h3>
+    <p>
+      Историческая проблема: несколько расширений-кошельков (MetaMask + Rabby + Phantom)
+      перезаписывают друг друга в <code>window.ethereum</code>. <strong>EIP-6963</strong>
+      ввёл стандарт «multi-injected provider discovery»: каждый кошелёк диспатчит
+      <code>eip6963:announceProvider</code> с уникальным rdns/icon/name, а dApp
+      слушает <code>eip6963:requestProvider</code>. Все современные connect-kit'ы
+      работают через EIP-6963 — пользователь видит реальный список установленных
+      кошельков, а не одну «правую» иконку.
+    </p>
+
+    <h2>8. Минимальный workflow «подключить кошелёк»</h2>
+<pre class="code-block"><code>import { createWalletClient, custom, parseEther } from "viem";
+import { mainnet } from "viem/chains";
+
+// 1) discovery
+const provider = window.ethereum;
+if (!provider) throw new Error("No injected wallet");
+
+// 2) запрос доступа — открывает popup MetaMask
+const [address] = await provider.request({ method: "eth_requestAccounts" });
+
+// 3) переключение сети — EIP-3326
+await provider.request({
+  method: "wallet_switchEthereumChain",
+  params: [{ chainId: "0x1" }],
+});
+
+// 4) клиент для запросов и подписи
+const wallet = createWalletClient({
+  account: address,
+  chain:   mainnet,
+  transport: custom(provider),
+});
+
+// 5) подпись плоского сообщения (SIWE login)
+const sig = await wallet.signMessage({ message: "I am the owner of " + address });
+
+// 6) отправка транзакции
+const txHash = await wallet.sendTransaction({
+  to:    "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  value: parseEther("0.01"),
+});</code></pre>
+
+    <h2>9. Чек-лист безопасности</h2>
+    <ul>
+      <li>Seed-фраза только на бумаге / металле; никогда не в облаке, скриншоте, телеге.</li>
+      <li>Для сумм &gt; зарплаты — Ledger или Trezor; daily-spending — MetaMask + лимит.</li>
+      <li>EIP-712 подписи читайте до подписания — «approve unlimited» = доступ ко всему балансу токена.</li>
+      <li>Для подключения к незнакомым dApp — отдельный «burner»-аккаунт.</li>
+      <li>Включайте EIP-6963 / hardware-кошелёк-аппаратное подтверждение для критичных операций.</li>
+    </ul>
+
+    <h2>10. Что дальше</h2>
+    <p>
+      В <a href="../02/index.html"><strong>Lesson 02 — ERC-20: Deploy &amp; Transfer</strong></a>
+      мы развернём первый смарт-контракт в браузерной песочнице и проверим
+      инварианты ERC-20 живым кодом: 42 vitest-теста покрывают деплой, передачу,
+      события и реверты. Никаких реальных транзакций — только понимание механики.
+    </p>
+
+    <div class="attrib">
+      Демо HD-derivation работает поверх viem (<code>mnemonicToAccount</code>,
+      <code>generateMnemonic</code>). Вся криптография выполняется локально в
+      браузере, ничего не отправляется во внешнюю сеть.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/wallet-demo.js"></script>
+</body>
+</html>
