@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 20 · Безопасность и hardening — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 20 · Безопасность</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 20</p>
+    <h1>Безопасность, supply chain, fuzzing</h1>
+
+    <p>
+      Google в <a href="https://security.googleblog.com/2021/04/rust-in-android-platform.html" target="_blank" rel="noopener">пост 2021 года</a>
+      сообщил, что 70 % CVE в Android — memory safety. В 2023-м Android Platform
+      Security публично заявил, что <em>«no memory safety vulnerabilities have
+      been found in Android's Rust code»</em>. Это уровень, к которому стремимся.
+    </p>
+
+    <h2>Запрет unsafe в библиотеках высокого уровня</h2>
+    <p>
+      На уровне «бизнес-логики» поставьте директиву и пусть компилятор
+      следит:
+    </p>
+    <pre class="code-block"><code>// в верхушке lib.rs
+#![forbid(unsafe_code)]</code></pre>
+
+    <p>
+      <code>unsafe</code> остаётся в FFI-обёртке (это неизбежно), но всё остальное
+      должно быть safe.
+    </p>
+
+    <h2>cargo-audit и cargo-deny</h2>
+    <pre class="code-block"><code>cargo install cargo-audit cargo-deny
+cargo audit            # CVE по transitive-зависимостям из RustSec advisory-db
+cargo deny check       # лицензии, banned crates, дубликаты версий</code></pre>
+
+    <p>
+      Запускайте в CI на каждый PR. Пример deny.toml:
+    </p>
+    <pre class="code-block"><code>[bans]
+multiple-versions = "warn"
+deny = [
+  { name = "openssl" },          # используем rustls
+  { name = "openssl-sys" },
+]
+
+[licenses]
+allow = ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC"]
+deny  = ["GPL-3.0", "AGPL-3.0"]</code></pre>
+
+    <h2>Fuzzing с cargo-fuzz</h2>
+    <pre class="code-block"><code>cargo install cargo-fuzz
+cargo fuzz init
+# fuzz/fuzz_targets/parse_jwt.rs
+#![no_main]
+use libfuzzer_sys::fuzz_target;
+fuzz_target!(|data: &amp;[u8]| {
+    let _ = mycrate::jwt::parse(data);
+});
+
+cargo fuzz run parse_jwt -- -max_total_time=300</code></pre>
+
+    <h2>Hardened build на Android</h2>
+    <ul>
+      <li><strong>PIE</strong> — Position Independent Executable: NDK включает по умолчанию.</li>
+      <li><strong>RELRO</strong>: <code>-Wl,-z,relro,-z,now</code>.</li>
+      <li><strong>Stack canaries</strong>: <code>-Cforce-frame-pointers</code>, <code>-Z stack-protector=all</code> (nightly).</li>
+      <li><strong>Control Flow Integrity</strong>: <code>-Cllvm-args=-fsanitize=cfi</code> для LTO-сборок.</li>
+      <li><strong>Скрыть DEBUG-build</strong> от Play Store: всегда <code>strip = "symbols"</code> для public release.</li>
+    </ul>
+
+    <h2>Проверка зависимостей на Android-несовместимость</h2>
+    <p>
+      Не все Rust-крейты собираются под Android. <a href="https://github.com/EmbarkStudios/cargo-deny" target="_blank" rel="noopener">cargo-deny</a>
+      + <a href="https://github.com/passcod/cargo-watch" target="_blank" rel="noopener">cargo-watch</a> + матрица CI на 4 target'а решают 99% случаев.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · forbid(unsafe_code) на практике"
+         data-code='#![forbid(unsafe_code)]
+
+fn xor_inplace(buf: &amp;mut [u8], key: u8) {
+    for b in buf.iter_mut() { *b ^= key; }
+}
+
+fn main() {
+    let mut b = vec![0x10, 0x20, 0x30];
+    xor_inplace(&amp;mut b, 0x05);
+    assert_eq!(b, vec![0x15, 0x25, 0x35]);
+    // Если раскомментировать:
+    // unsafe { std::ptr::null::&lt;u8&gt;().read(); }   // compile-error!
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> уберите комментарий из последней строки песочницы
+      — компилятор откажет с «<code>unsafe</code> is not allowed by <code>#![forbid]</code>».
+      Это и есть статическая гарантия безопасности на уровне модуля.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://security.googleblog.com/2021/04/rust-in-android-platform.html" target="_blank" rel="noopener">Google Security · Rust in the Android platform</a></li>
+        <li><a href="https://security.googleblog.com/2023/12/eliminating-memory-safety-vulnerabilities-Android.html" target="_blank" rel="noopener">Google Security · Eliminating Memory Safety Vulnerabilities</a> (2023)</li>
+        <li><a href="https://rustsec.org/" target="_blank" rel="noopener">RustSec Advisory Database</a></li>
+        <li><a href="https://rust-fuzz.github.io/book/" target="_blank" rel="noopener">Rust Fuzz Book</a></li>
+        <li><a href="https://embarkstudios.github.io/cargo-deny/" target="_blank" rel="noopener">cargo-deny User Guide</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../19/index.html"><span class="label">← Назад</span><span class="title">Lesson 19 · Perf</span></a>
+      <a class="next" href="../21/index.html"><span class="label">Далее →</span><span class="title">Lesson 21 · Поставка</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy. Статистика по CVE — Google Security Blog (2021, 2023).</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

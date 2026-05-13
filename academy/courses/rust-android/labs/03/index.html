@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 03 · Rust-driven Toast — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 03 · Rust Toast</span>
+    </div>
+
+    <p class="lesson-meta">Lab 03 · ~60 минут</p>
+    <h1>Lab 03 — Rust вызывает Android Toast</h1>
+
+    <p>
+      В предыдущих лабах мы шли «снизу вверх»: Kotlin → Rust. Теперь обратный
+      путь: Rust сам вызывает Java API. Это пригождается, когда Rust-код знает
+      о критичном событии (например, ошибке расшифровки) и хочет показать
+      нативный UI без посредников.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate</div></div>
+      <div><div class="k">Время</div><div class="v">~60 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">14, 15, 16</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Rust-функция, показывающая Toast</div></div>
+    </div>
+
+    <h2>Идея</h2>
+    <ol>
+      <li>Kotlin передаёт Rust ссылку на <code>Activity</code>.</li>
+      <li>Rust получает <code>JObject</code> и через <code>JNIEnv::call_static_method</code> вызывает <code>Toast.makeText(...)</code>.</li>
+      <li>Дальше — <code>.show()</code> на полученной локальной ссылке.</li>
+    </ol>
+
+    <h2>Rust-код</h2>
+    <pre class="code-block"><code>use jni::{JNIEnv, objects::{JClass, JObject, JString, JValue}};
+
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_toast_NativeKt_toast(
+    mut env: JNIEnv,
+    _class: JClass,
+    activity: JObject,
+    msg: JString,
+) {
+    let toast_cls = env.find_class("android/widget/Toast").unwrap();
+    let length_short = JValue::Int(0);
+
+    // CharSequence-параметр: передаём JString — он реализует CharSequence.
+    let toast = env.call_static_method(
+        toast_cls,
+        "makeText",
+        "(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;",
+        &amp;[JValue::Object(&amp;activity), JValue::Object(&amp;msg.into()), length_short],
+    ).unwrap().l().unwrap();
+
+    env.call_method(toast, "show", "()V", &amp;[]).unwrap();
+}</code></pre>
+
+    <h2>Kotlin-код</h2>
+    <pre class="code-block"><code>// app/.../Native.kt
+object Native {
+    init { System.loadLibrary("toaster") }
+    external fun toast(activity: Activity, message: String)
+}
+
+// MainActivity.kt — по кнопке
+Native.toast(this, "Привет из Rust!")</code></pre>
+
+    <h2>UI Thread</h2>
+    <p>
+      <code>Toast.show()</code> требует main-looper. Если вы вызвали <code>Native.toast()</code>
+      из background-потока — будет <code>RuntimeException</code>. Решение: либо
+      гарантируйте вызов с main-thread в Kotlin, либо в Rust поднимите Handler:
+    </p>
+    <pre class="code-block"><code>// в Kotlin — самый простой путь:
+runOnUiThread { Native.toast(this, "from rust on main thread") }</code></pre>
+
+    <div class="playground"
+         data-title="Sandbox · проверка type-descriptor для makeText"
+         data-code='fn make_text_signature() -&gt; &amp;&apos;static str {
+    // makeText(Context, CharSequence, int) → Toast
+    "(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;"
+}
+
+fn main() {
+    let sig = make_text_signature();
+    assert!(sig.starts_with("("));
+    assert!(sig.contains("Landroid/content/Context;"));
+    assert!(sig.contains("Ljava/lang/CharSequence;"));
+    assert!(sig.ends_with("Landroid/widget/Toast;"));
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> добавьте параметр <code>duration: i32</code> и
+      используйте <code>Toast.LENGTH_LONG</code> (значение <code>1</code>) для важных
+      сообщений.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/reference/android/widget/Toast" target="_blank" rel="noopener">Android · Toast reference</a></li>
+        <li><a href="https://docs.rs/jni/latest/jni/struct.JNIEnv.html#method.call_static_method" target="_blank" rel="noopener">JNIEnv::call_static_method docs</a></li>
+        <li><a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/types.html" target="_blank" rel="noopener">JNI type signatures (Oracle)</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../02/index.html"><span class="label">← Назад</span><span class="title">Lab 02 · CLI</span></a>
+      <a class="next" href="../04/index.html"><span class="label">Далее →</span><span class="title">Lab 04 · SHA-256</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

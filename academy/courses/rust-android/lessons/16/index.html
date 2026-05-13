@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 16 · Логи и panic-safety — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 16 · Логи и panic-safety</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 16</p>
+    <h1>Логирование и пропуск ошибок через FFI</h1>
+
+    <p>
+      На Android <code>println!</code> не виден в Logcat — stdout редиректится
+      в <code>/dev/null</code>. Используйте крейт <a href="https://docs.rs/android_logger" target="_blank" rel="noopener">android_logger</a>:
+      он пишет через <code>__android_log_print</code> и интегрируется с фасадом
+      <a href="https://docs.rs/log" target="_blank" rel="noopener">log</a>.
+    </p>
+
+    <h2>Инициализация логгера в <code>JNI_OnLoad</code></h2>
+    <pre class="code-block"><code>use jni::{JavaVM, sys::{jint, JNI_VERSION_1_6}};
+use std::ffi::c_void;
+
+#[no_mangle]
+pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -&gt; jint {
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("daskibo"),
+    );
+    log::info!("Rust core загружен");
+    JNI_VERSION_1_6
+}</code></pre>
+
+    <h2>Panic не должен переходить границу FFI</h2>
+    <p>
+      <code>panic!</code> через ABI — это undefined behavior. Защититесь
+      <code>std::panic::catch_unwind</code> и конвертируйте панику в ошибку
+      Java-уровня:
+    </p>
+
+    <pre class="code-block"><code>use std::panic::{catch_unwind, AssertUnwindSafe};
+
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_NativeKt_divide(
+    mut env: jni::JNIEnv,
+    _: jni::objects::JClass,
+    a: jni::sys::jint,
+    b: jni::sys::jint,
+) -&gt; jni::sys::jint {
+    let res = catch_unwind(AssertUnwindSafe(|| {
+        if b == 0 { panic!("div-by-zero"); }
+        a / b
+    }));
+    match res {
+        Ok(v) =&gt; v,
+        Err(_) =&gt; {
+            let _ = env.throw_new("java/lang/ArithmeticException", "rust panic");
+            0
+        }
+    }
+}</code></pre>
+
+    <h2>Эмулируем panic→Result-конвертацию</h2>
+    <div class="playground"
+         data-title="Sandbox · catch_unwind"
+         data-code='use std::panic::catch_unwind;
+
+fn divide(a: i32, b: i32) -&gt; Result&lt;i32, String&gt; {
+    catch_unwind(|| {
+        if b == 0 { panic!("div-by-zero"); }
+        a / b
+    }).map_err(|e| {
+        if let Some(s) = e.downcast_ref::&lt;&amp;str&gt;() { (*s).to_string() }
+        else if let Some(s) = e.downcast_ref::&lt;String&gt;() { s.clone() }
+        else { "panic".to_string() }
+    })
+}
+
+fn main() {
+    assert_eq!(divide(10, 2), Ok(5));
+    assert_eq!(divide(1, 0), Err("div-by-zero".to_string()));
+}'></div>
+
+    <h2>Чтение Logcat</h2>
+    <pre class="code-block"><code>adb logcat -s daskibo
+# 01-23 14:55:01.123 12345 12345 I daskibo: Rust core загружен
+# 01-23 14:55:01.456 12345 12345 W daskibo: division by zero, returning 0</code></pre>
+
+    <div class="note">
+      <strong>Задание:</strong> в песочнице добавьте кейс <code>divide(i32::MIN, -1)</code>
+      — это переполнение, его тоже надо ловить. Подсказка: <code>checked_div</code>
+      из стандартной библиотеки.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://docs.rs/android_logger/latest/android_logger/" target="_blank" rel="noopener">android_logger — crate docs</a></li>
+        <li><a href="https://docs.rs/log/latest/log/" target="_blank" rel="noopener">log facade docs</a></li>
+        <li><a href="https://doc.rust-lang.org/std/panic/fn.catch_unwind.html" target="_blank" rel="noopener">std::panic::catch_unwind</a></li>
+        <li><a href="https://doc.rust-lang.org/nomicon/ffi.html#ffi-and-panics" target="_blank" rel="noopener">The Rustonomicon · FFI &amp; panics</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../15/index.html"><span class="label">← Назад</span><span class="title">Lesson 15 · .so</span></a>
+      <a class="next" href="../17/index.html"><span class="label">Далее →</span><span class="title">Lesson 17 · UniFFI</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy. Прим. для panic-safety см. The Rustonomicon.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

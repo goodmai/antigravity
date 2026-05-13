@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 06 · Async HTTP-клиент — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 06 · Async HTTP</span>
+    </div>
+
+    <p class="lesson-meta">Lab 06 · ~75 минут</p>
+    <h1>Lab 06 — Async HTTP-клиент на reqwest + tokio</h1>
+
+    <p>
+      Цель — собрать минимальный «GET → JSON → Kotlin callback» pipeline.
+      Это шаблон, из которого вы построите всё, что общается с back-end'ом
+      в реальном приложении.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate+</div></div>
+      <div><div class="k">Время</div><div class="v">~75 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">11, 17, 18</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Activity, показывающий курс BTC</div></div>
+    </div>
+
+    <h2>Cargo.toml</h2>
+    <pre class="code-block"><code>[dependencies]
+jni = { version = "0.21", default-features = false }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+once_cell = "1"
+log = "0.4"
+android_logger = "0.14"</code></pre>
+
+    <h2>Глобальный <code>Runtime</code></h2>
+    <p>
+      tokio-runtime создаём один раз при загрузке <code>.so</code> через
+      <code>JNI_OnLoad</code> и кладём в <code>once_cell::sync::OnceCell</code>.
+      Иначе на каждый вызов будем плодить новые рантаймы — это сожжёт батарею.
+    </p>
+
+    <pre class="code-block"><code>use once_cell::sync::OnceCell;
+use tokio::runtime::Runtime;
+
+static RT: OnceCell&lt;Runtime&gt; = OnceCell::new();
+
+fn rt() -&gt; &amp;'static Runtime {
+    RT.get_or_init(|| Runtime::new().unwrap())
+}</code></pre>
+
+    <h2>Async-функция и JNI-обёртка</h2>
+    <pre class="code-block"><code>#[derive(serde::Deserialize)]
+struct Ticker { #[serde(rename = "USD")] usd: f64 }
+
+async fn btc_price() -&gt; reqwest::Result&lt;f64&gt; {
+    let t: Ticker = reqwest::Client::new()
+        .get("https://api.coindesk.com/v1/bpi/currentprice/USD.json")
+        .send().await?
+        .error_for_status()?
+        .json::&lt;serde_json::Value&gt;().await?
+        ["bpi"]["USD"]["rate_float"]
+        .as_f64()
+        .map(|usd| Ticker { usd })
+        .unwrap_or(Ticker { usd: 0.0 });
+    Ok(t.usd)
+}
+
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_btc_NativeKt_btcPrice(
+    mut env: jni::JNIEnv,
+    _: jni::objects::JClass,
+) -&gt; jni::sys::jdouble {
+    rt().block_on(btc_price()).unwrap_or(-1.0)
+}</code></pre>
+
+    <h2>Kotlin: запускаем в coroutine</h2>
+    <pre class="code-block"><code>lifecycleScope.launch(Dispatchers.IO) {
+    val usd = Native.btcPrice()    // блокирует Rust-поток, но не Kotlin'овский UI
+    withContext(Dispatchers.Main) {
+        priceView.text = "BTC = $${"%.2f".format(usd)}"
+    }
+}</code></pre>
+
+    <h2>AndroidManifest.xml</h2>
+    <pre class="code-block"><code>&lt;uses-permission android:name="android.permission.INTERNET"/&gt;
+&lt;application android:usesCleartextTraffic="false" /&gt;</code></pre>
+
+    <h2>Парсинг JSON-ответа</h2>
+    <div class="playground"
+         data-title="Sandbox · вытаскиваем число из вложенного JSON"
+         data-code='fn price_from_json(s: &amp;str) -&gt; Option&lt;f64&gt; {
+    // Очень упрощённый поиск по шаблону "rate_float":NUMBER
+    let pat = r#""rate_float":"#;
+    let i = s.find(pat)? + pat.len();
+    let rest = &amp;s[i..];
+    let end = rest.find(|c: char| !c.is_ascii_digit() &amp;&amp; c != &apos;.&apos;).unwrap_or(rest.len());
+    rest[..end].parse().ok()
+}
+
+fn main() {
+    let body = r#"{"bpi":{"USD":{"rate_float":67234.55,"code":"USD"}}}"#;
+    let p = price_from_json(body).unwrap();
+    assert!((p - 67234.55).abs() &lt; 1e-3);
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> переключите блокирующий <code>block_on</code> на
+      <em>асинхронный callback</em> через <code>JavaVM</code> + <code>AttachCurrentThread</code>.
+      Это устранит блокировку Rust-потока. Подсказка: <a href="https://mozilla.github.io/uniffi-rs/futures.html" target="_blank" rel="noopener">UniFFI Futures</a> делает это за вас.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://docs.rs/reqwest/latest/reqwest/" target="_blank" rel="noopener">reqwest crate docs</a></li>
+        <li><a href="https://tokio.rs/tokio/tutorial" target="_blank" rel="noopener">Tokio tutorial</a></li>
+        <li><a href="https://github.com/rustls/rustls" target="_blank" rel="noopener">rustls — pure-Rust TLS</a></li>
+        <li><a href="https://developer.android.com/training/articles/security-config" target="_blank" rel="noopener">Android Network Security Config</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../05/index.html"><span class="label">← Назад</span><span class="title">Lab 05 · Bitmap</span></a>
+      <a class="next" href="../07/index.html"><span class="label">Далее →</span><span class="title">Lab 07 · UniFFI</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

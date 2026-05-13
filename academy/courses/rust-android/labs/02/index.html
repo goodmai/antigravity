@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 02 · Cross-compile CLI for arm64 — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 02 · Cross-compile CLI</span>
+    </div>
+
+    <p class="lesson-meta">Lab 02 · ~30 минут</p>
+    <h1>Lab 02 — CLI-утилита под arm64-v8a</h1>
+
+    <p>
+      Цель — собрать Rust-бинарь, который запускается на Android-устройстве через
+      ADB-shell (без всякого UI), и понять, какие отличия Android от обычного Linux.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Beginner+</div></div>
+      <div><div class="k">Время</div><div class="v">~30 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">13</div></div>
+      <div><div class="k">Артефакт</div><div class="v">ELF-бинарь, исполняемый из <code>adb shell</code></div></div>
+    </div>
+
+    <h2>Шаги</h2>
+    <div class="steps">
+
+      <div class="step">
+        <h3>Создать проект</h3>
+<pre class="code-block"><code>cargo new androidstats --bin
+cd androidstats</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Код утилиты</h3>
+<pre class="code-block"><code>// src/main.rs
+use std::env;
+use std::fs;
+
+fn main() {
+    let arch = env::consts::ARCH;
+    let kernel = fs::read_to_string("/proc/version").unwrap_or_default();
+    let mem = fs::read_to_string("/proc/meminfo").unwrap_or_default();
+    let total = mem.lines().find(|l| l.starts_with("MemTotal:")).unwrap_or("MemTotal: ?");
+
+    println!("arch:   {arch}");
+    println!("kernel: {}", kernel.lines().next().unwrap_or("?"));
+    println!("{total}");
+}</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Кросс-сборка</h3>
+<pre class="code-block"><code>rustup target add aarch64-linux-android
+
+cat &gt;&gt; .cargo/config.toml &lt;&lt; 'EOF'
+[target.aarch64-linux-android]
+linker = "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+EOF
+
+cargo build --target aarch64-linux-android --release</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Залить на устройство и запустить</h3>
+<pre class="code-block"><code>adb push target/aarch64-linux-android/release/androidstats /data/local/tmp/
+adb shell chmod +x /data/local/tmp/androidstats
+adb shell /data/local/tmp/androidstats
+
+# arch:   aarch64
+# kernel: Linux version 6.1.43-android14-11-...
+# MemTotal: 8112700 kB</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Что отличается от обычного Linux</h3>
+        <ul>
+          <li><strong>Bionic</strong>, не glibc. Меньше POSIX-фич, нет <code>getpwnam</code> в полном виде.</li>
+          <li><strong>SELinux</strong>: даже <code>chmod +x</code> в <code>/data/local/tmp</code>
+          может не позволить exec — используйте <code>shell</code>-домены.</li>
+          <li>На Android 11+ <code>/sdcard</code> для исполнения недоступен — только <code>/data/local/tmp</code> или путь приложения.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <h2>Проверка парсинга <code>/proc/meminfo</code></h2>
+    <div class="playground"
+         data-title="Sandbox · парсим MemTotal"
+         data-code='fn mem_total_kb(meminfo: &amp;str) -&gt; Option&lt;u64&gt; {
+    for line in meminfo.lines() {
+        if let Some(rest) = line.strip_prefix("MemTotal:") {
+            let num: String = rest.chars().filter(|c| c.is_ascii_digit()).collect();
+            return num.parse().ok();
+        }
+    }
+    None
+}
+
+fn main() {
+    let sample = "MemTotal:        8112700 kB\nMemFree: 1234 kB";
+    assert_eq!(mem_total_kb(sample), Some(8_112_700));
+    assert_eq!(mem_total_kb("nothing here"), None);
+}'></div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/ndk/guides/abis" target="_blank" rel="noopener">Android NDK · ABIs</a></li>
+        <li><a href="https://developer.android.com/studio/command-line/adb" target="_blank" rel="noopener">adb command reference</a></li>
+        <li><a href="https://source.android.com/docs/security/features/selinux" target="_blank" rel="noopener">AOSP · SELinux</a></li>
+        <li><a href="https://github.com/cross-rs/cross" target="_blank" rel="noopener">cross — альтернатива cargo-ndk для CLI</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../01/index.html"><span class="label">← Назад</span><span class="title">Lab 01 · Hello JNI</span></a>
+      <a class="next" href="../03/index.html"><span class="label">Далее →</span><span class="title">Lab 03 · Rust Toast</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

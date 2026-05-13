@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 15 · .so и Kotlin — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 15 · .so и Kotlin</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 15</p>
+    <h1>Сборка <code>.so</code>-библиотеки и загрузка из Kotlin</h1>
+
+    <p>
+      В этом уроке мы соберём первый рабочий Rust→Kotlin pipeline:
+      <code>libdaskibo.so</code> экспортирует функцию <code>add(i32, i32) → i32</code>,
+      а Kotlin её вызывает.
+    </p>
+
+    <h2>Шаги</h2>
+    <div class="steps">
+
+      <div class="step">
+        <h3>Cargo.toml объявляет cdylib</h3>
+<pre class="code-block"><code>[package]
+name    = "daskibo"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]   # ← обязательно, иначе .so не появится
+
+[dependencies]
+jni = { version = "0.21", default-features = false }</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>src/lib.rs — экспортируемая функция</h3>
+<pre class="code-block"><code>use jni::JNIEnv;
+use jni::objects::JClass;
+use jni::sys::jint;
+
+#[no_mangle]
+pub extern "system" fn Java_io_daskibo_NativeKt_add(
+    _env: JNIEnv,
+    _class: JClass,
+    a: jint,
+    b: jint,
+) -&gt; jint {
+    a + b
+}</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Сборка для 3 архитектур</h3>
+<pre class="code-block"><code>cargo ndk \
+  -t arm64-v8a -t armeabi-v7a -t x86_64 \
+  -o ./app/src/main/jniLibs \
+  build --release</code></pre>
+        <p>cargo-ndk положит <code>.so</code>-файлы в каноничный каталог Android,
+        откуда AGP их подхватит при сборке APK/AAB.</p>
+      </div>
+
+      <div class="step">
+        <h3>Kotlin: загрузка и вызов</h3>
+<pre class="code-block"><code>// app/src/main/java/io/daskibo/Native.kt
+package io.daskibo
+
+object Native {
+    init { System.loadLibrary("daskibo") }   // имя без префикса lib и без .so
+    external fun add(a: Int, b: Int): Int
+}
+
+// MainActivity.kt
+val sum = Native.add(2, 3)
+Log.d("daskibo", "sum=$sum")  // → 5</code></pre>
+      </div>
+
+      <div class="step">
+        <h3>Проверка через <code>nm</code></h3>
+<pre class="code-block"><code>$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm \
+  -D app/src/main/jniLibs/arm64-v8a/libdaskibo.so | grep Java_
+
+# 0000000000001234 T Java_io_daskibo_NativeKt_add</code></pre>
+        <p>Видим символ — значит, JNI его найдёт. Если символа нет — либо забыли
+        <code>#[no_mangle]</code>, либо <code>cdylib</code>, либо опечатались
+        в имени.</p>
+      </div>
+
+    </div>
+
+    <h2>Эмулируем имя <code>System.loadLibrary</code></h2>
+    <p>
+      Android-loader ищет файл с шаблоном <code>lib&lt;name&gt;.so</code>. Песочница ниже
+      воссоздаёт эту логику — пригодится для отладки скриптов сборки.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · имя файла .so"
+         data-code='fn so_filename(libname: &amp;str) -&gt; String {
+    format!("lib{libname}.so")
+}
+
+fn main() {
+    assert_eq!(so_filename("daskibo"), "libdaskibo.so");
+    assert_eq!(so_filename("rust_core"), "librust_core.so");
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте функцию <code>Java_io_daskibo_NativeKt_sub</code>
+      в <code>lib.rs</code>, пересоберите <code>cargo ndk … build --release</code> и
+      убедитесь, что новый символ виден в <code>llvm-nm</code>.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://developer.android.com/ndk/guides/abis" target="_blank" rel="noopener">Android NDK · ABIs</a></li>
+        <li><a href="https://github.com/bbqsrc/cargo-ndk#readme" target="_blank" rel="noopener">cargo-ndk README</a></li>
+        <li><a href="https://docs.rs/jni/latest/jni/" target="_blank" rel="noopener">jni-rs crate</a></li>
+        <li><a href="https://kotlinlang.org/docs/native-overview.html" target="_blank" rel="noopener">Kotlin Native · external functions</a></li>
+        <li><a href="https://gendignoux.com/blog/2022/10/24/rust-library-android.html" target="_blank" rel="noopener">Guillaume Endignoux · Building a Rust library for Android</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../14/index.html"><span class="label">← Назад</span><span class="title">Lesson 14 · JNI</span></a>
+      <a class="next" href="../16/index.html"><span class="label">Далее →</span><span class="title">Lesson 16 · Логи и panic</span></a>
+    </div>
+
+    <div class="attrib">Контент написан для Daskibo Academy на основе документации cargo-ndk и jni-rs.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

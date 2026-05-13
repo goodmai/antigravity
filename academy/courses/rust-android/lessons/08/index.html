@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 08 · Коллекции и итераторы — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 08 · Коллекции и итераторы</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 08</p>
+    <h1>Коллекции стандартной библиотеки и итераторы</h1>
+
+    <p>
+      <code>Vec&lt;T&gt;</code>, <code>HashMap&lt;K, V&gt;</code> и <code>HashSet&lt;T&gt;</code>
+      покрывают 90% задач хранения данных в Rust-сервисах для Android. Итераторы
+      делают цепочки преобразований ленивыми и без аллокаций — идеально для
+      обработки сетевых ответов до возврата в Kotlin.
+    </p>
+
+    <h2><code>Vec&lt;T&gt;</code></h2>
+    <div class="playground"
+         data-title="Sandbox · Vec, push, итерация"
+         data-code='fn main() {
+    let mut tokens: Vec&lt;String&gt; = Vec::new();
+    tokens.push("fcm:abc".into());
+    tokens.push("fcm:xyz".into());
+    tokens.push("apn:123".into());
+
+    let fcm: Vec&lt;&amp;String&gt; = tokens.iter().filter(|t| t.starts_with("fcm:")).collect();
+
+    assert_eq!(tokens.len(), 3);
+    assert_eq!(fcm.len(), 2);
+    assert_eq!(fcm[0], "fcm:abc");
+}'></div>
+
+    <h2><code>HashMap&lt;K, V&gt;</code></h2>
+    <div class="playground"
+         data-title="Sandbox · HashMap"
+         data-code='use std::collections::HashMap;
+
+fn main() {
+    let mut sessions: HashMap&lt;&amp;str, u32&gt; = HashMap::new();
+    sessions.insert("device-A", 1);
+    sessions.insert("device-B", 1);
+    *sessions.entry("device-A").or_insert(0) += 1;
+
+    assert_eq!(sessions.get("device-A"), Some(&amp;2));
+    assert_eq!(sessions.get("device-B"), Some(&amp;1));
+    assert_eq!(sessions.get("device-Z"), None);
+}'></div>
+
+    <h2>Итераторы и ленивые цепочки</h2>
+    <p>
+      Любая цепочка <code>.iter().map(…).filter(…)</code> — это композиция
+      адаптеров, которая <em>ничего не делает</em>, пока вы не вызовете
+      терминальную операцию: <code>.collect()</code>, <code>.sum()</code>,
+      <code>.for_each()</code>, <code>.count()</code>. Это zero-cost абстракция.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · iterator chains"
+         data-code='fn main() {
+    let logs = vec!["INFO ok", "WARN slow", "ERROR oom", "INFO retry", "ERROR crash"];
+
+    let errors: Vec&lt;&amp;str&gt; = logs.iter()
+        .filter(|l| l.starts_with("ERROR"))
+        .copied()
+        .collect();
+
+    let total_chars: usize = logs.iter().map(|l| l.len()).sum();
+
+    assert_eq!(errors, vec!["ERROR oom", "ERROR crash"]);
+    assert_eq!(total_chars, 48);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> подсчитайте, сколько токенов начинается с
+      <code>"apn:"</code>, используя <code>.iter().filter(…).count()</code>.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch08-00-common-collections.html" target="_blank" rel="noopener">The Rust Book · Chapter 8 — Common Collections</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch13-02-iterators.html" target="_blank" rel="noopener">The Rust Book · 13.2 Iterators</a></li>
+        <li><a href="https://doc.rust-lang.org/std/collections/index.html" target="_blank" rel="noopener">std::collections — module-level docs</a></li>
+        <li><a href="https://github.com/rust-itertools/itertools" target="_blank" rel="noopener">itertools crate</a> — расширение итераторов.</li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../07/index.html"><span class="label">← Назад</span><span class="title">Lesson 07 · Traits</span></a>
+      <a class="next" href="../09/index.html"><span class="label">Далее →</span><span class="title">Lesson 09 · Модули и Cargo</span></a>
+    </div>
+
+    <div class="attrib">
+      Текст и playground-ячейки написаны для Daskibo Academy. Структура темы
+      следует <a href="https://doc.rust-lang.org/book/" target="_blank" rel="noopener">The Rust Book</a>.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

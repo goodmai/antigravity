@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 03 · Control flow — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lesson 03 · Control flow</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 03</p>
+    <h1>Control flow: if, match, циклы</h1>
+
+    <p>
+      Управляющие конструкции Rust — это <em>выражения</em>, а не операторы:
+      каждое <code>if</code> и <code>match</code> возвращает значение. Это удаляет
+      целый класс багов вида «забыл вернуть в одной из веток».
+    </p>
+
+    <h2>if как выражение</h2>
+    <div class="playground"
+         data-title="Sandbox · if/else возвращает значение"
+         data-code='fn main() {
+    let api = 34;
+    let supports_predictive_back = if api &gt;= 33 { true } else { false };
+
+    let label = if api &gt;= 34 {
+        "Android 14"
+    } else if api &gt;= 33 {
+        "Android 13"
+    } else {
+        "Legacy"
+    };
+
+    assert!(supports_predictive_back);
+    assert_eq!(label, "Android 14");
+}'></div>
+
+    <h2>match — exhaustive pattern matching</h2>
+    <p>
+      <code>match</code> требует обработать все возможные варианты — иначе
+      компилятор не пропустит код. Для перечислимых enum'ов это даёт гарантию
+      «новая ветка enum'а нигде не забыта», что особенно ценно в больших
+      Rust-ядрах для Android.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · match по числу и диапазону"
+         data-code='fn classify_api(api: u32) -&gt; &amp;&apos;static str {
+    match api {
+        0..=20 =&gt; "ancient",
+        21..=29 =&gt; "supported",
+        30..=33 =&gt; "modern",
+        34.. =&gt; "edge",
+    }
+}
+
+fn main() {
+    assert_eq!(classify_api(15), "ancient");
+    assert_eq!(classify_api(28), "supported");
+    assert_eq!(classify_api(34), "edge");
+}'></div>
+
+    <h2>loop, while, for</h2>
+    <p>
+      <code>loop</code> — бесконечный, прерывается <code>break</code>; <code>break</code>
+      умеет возвращать значение из <code>loop</code>. <code>for</code> работает поверх
+      любого <code>IntoIterator</code> — массивов, диапазонов, <code>Vec</code>'ов.
+    </p>
+
+    <div class="playground"
+         data-title="Sandbox · loop возвращает значение"
+         data-code='fn main() {
+    let mut x = 0;
+    let answer = loop {
+        x += 1;
+        if x * x &gt;= 100 {
+            break x; // значение, к которому привязывается `answer`
+        }
+    };
+
+    let mut sum = 0;
+    for i in 1..=10 {
+        sum += i;
+    }
+
+    assert_eq!(answer, 10);
+    assert_eq!(sum, 55);
+}'></div>
+
+    <div class="note">
+      <strong>Задание:</strong> добавьте в <code>classify_api</code> отдельную ветку
+      для <code>21..=22</code> со значением <code>"lollipop"</code>. Если она будет
+      пересекаться с другими — компилятор предупредит об unreachable-ветке.
+    </div>
+
+    <div class="refs">
+      <h3>Дополнительные материалы</h3>
+      <ul>
+        <li><a href="https://doc.rust-lang.org/book/ch06-02-match.html" target="_blank" rel="noopener">The Rust Book · 6.2 The match Control Flow Construct</a></li>
+        <li><a href="https://doc.rust-lang.org/book/ch03-05-control-flow.html" target="_blank" rel="noopener">The Rust Book · 3.5 Control Flow</a></li>
+        <li><a href="https://google.github.io/comprehensive-rust/control-flow-basics.html" target="_blank" rel="noopener">Comprehensive Rust · Control Flow Basics</a></li>
+        <li><a href="https://doc.rust-lang.org/reference/expressions/match-expr.html" target="_blank" rel="noopener">Rust Reference · Match expressions</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../02/index.html"><span class="label">← Назад</span><span class="title">Lesson 02 · Типы и значения</span></a>
+      <a class="next" href="../04/index.html"><span class="label">Далее →</span><span class="title">Lesson 04 · Функции и методы</span></a>
+    </div>
+
+    <div class="attrib">
+      Тематический план адаптирован из <a href="https://google.github.io/comprehensive-rust/control-flow-basics.html" target="_blank" rel="noopener">Comprehensive Rust</a> (Apache 2.0 / CC BY 4.0).
+      Текст и песочницы написаны для Daskibo Academy.
+    </div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

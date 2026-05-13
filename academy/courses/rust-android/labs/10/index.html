@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 10 · AGP-плагин для Rust — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 10 · AGP plugin</span>
+    </div>
+
+    <p class="lesson-meta">Lab 10 · ~60 минут</p>
+    <h1>Lab 10 — Интеграция Rust в AGP через rust-android-gradle</h1>
+
+    <p>
+      В предыдущих лабах мы вручную звали <code>cargo ndk</code>. Это работает,
+      но забывается. Подключим <a href="https://github.com/mozilla/rust-android-gradle" target="_blank" rel="noopener">mozilla/rust-android-gradle</a>:
+      Gradle сам поставит таргеты, вызовет cargo, положит <code>.so</code> в нужный
+      <code>jniLibs</code>.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate</div></div>
+      <div><div class="k">Время</div><div class="v">~60 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">13, 21</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Build, где <code>./gradlew assembleRelease</code> делает всё сам</div></div>
+    </div>
+
+    <h2>Project-level build.gradle.kts</h2>
+    <pre class="code-block"><code>plugins {
+    id("com.android.application") version "8.5.0" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.0" apply false
+    id("org.mozilla.rust-android-gradle.rust-android") version "0.9.4" apply false
+}</code></pre>
+
+    <h2>app/build.gradle.kts</h2>
+    <pre class="code-block"><code>plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.mozilla.rust-android-gradle.rust-android")
+}
+
+android {
+    namespace = "io.daskibo.app"
+    compileSdk = 34
+    defaultConfig {
+        applicationId = "io.daskibo.app"
+        minSdk = 24
+        targetSdk = 34
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+    }
+}
+
+cargo {
+    module      = "../rust-core"             // путь к Rust-crate'у
+    libname     = "daskibo"
+    targets     = listOf("arm64", "x86_64")
+    profile     = "release"
+    pythonCommand = "python3"
+    extraCargoBuildArguments = listOf("--locked")
+}
+
+// связываем cargoBuild с merge JniLibs:
+tasks.matching { it.name.matches(Regex("merge.*JniLibFolders")) }.configureEach {
+    inputs.dir(layout.buildDirectory.dir("rustJniLibs/android"))
+    dependsOn("cargoBuild")
+}</code></pre>
+
+    <h2>Структура проекта</h2>
+    <pre class="code-block"><code>my-app/
+├─ app/
+│  └─ build.gradle.kts
+├─ rust-core/
+│  ├─ Cargo.toml
+│  └─ src/lib.rs
+├─ build.gradle.kts
+└─ settings.gradle.kts</code></pre>
+
+    <h2>Запуск</h2>
+    <pre class="code-block"><code>./gradlew :app:assembleRelease   # сначала cargoBuild, потом APK
+./gradlew :app:installDebug      # на устройство</code></pre>
+
+    <p>
+      В логе вы увидите <code>:app:cargoBuildArm64</code> и
+      <code>:app:cargoBuildX86_64</code>. Если cargo упал — Gradle сразу остановит
+      сборку, не дойдя до AGP.
+    </p>
+
+    <h2>Совместимость версий</h2>
+    <table style="width:100%;border-collapse:collapse;margin:1rem 0;font-size:0.9rem">
+      <thead><tr style="text-align:left;border-bottom:1px solid var(--border)"><th>AGP</th><th>rust-android-gradle</th><th>NDK</th></tr></thead>
+      <tbody>
+        <tr><td>8.5.x</td><td>0.9.4+</td><td>r26d / r27</td></tr>
+        <tr><td>8.2.x</td><td>0.9.3</td><td>r25c / r26b</td></tr>
+        <tr><td>7.4.x</td><td>0.9.0</td><td>r23c</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что Gradle складывает в jniLibs</h2>
+    <div class="playground"
+         data-title="Sandbox · резолвер цели по ABI"
+         data-code='fn cargo_target_for_abi(abi: &amp;str) -&gt; Option&lt;&amp;&apos;static str&gt; {
+    match abi {
+        "arm64-v8a" =&gt; Some("aarch64-linux-android"),
+        "armeabi-v7a" =&gt; Some("armv7-linux-androideabi"),
+        "x86" =&gt; Some("i686-linux-android"),
+        "x86_64" =&gt; Some("x86_64-linux-android"),
+        _ =&gt; None,
+    }
+}
+
+fn main() {
+    assert_eq!(cargo_target_for_abi("arm64-v8a"), Some("aarch64-linux-android"));
+    assert_eq!(cargo_target_for_abi("x86_64"), Some("x86_64-linux-android"));
+    assert_eq!(cargo_target_for_abi("mips"), None);
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> заведите <code>./gradlew rustCheck</code>-таск, который
+      запускает <code>cargo clippy -D warnings</code> до сборки. Это «зелёный CI на коленке».
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://github.com/mozilla/rust-android-gradle" target="_blank" rel="noopener">mozilla/rust-android-gradle · GitHub</a></li>
+        <li><a href="https://developer.android.com/build/agp-upgrade-assistant" target="_blank" rel="noopener">AGP Upgrade Assistant</a></li>
+        <li><a href="https://docs.gradle.org/current/userguide/build_lifecycle.html" target="_blank" rel="noopener">Gradle build lifecycle</a></li>
+        <li><a href="https://developer.android.com/ndk/downloads/revision_history" target="_blank" rel="noopener">NDK · revision history</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../09/index.html"><span class="label">← Назад</span><span class="title">Lab 09 · Foreground service</span></a>
+      <a class="next" href="../11/index.html"><span class="label">Далее →</span><span class="title">Lab 11 · Crash reporting</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>

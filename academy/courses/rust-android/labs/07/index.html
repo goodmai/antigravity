@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 07 · UniFFI Note Store — Rust on Android</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Rust on Android</a>
+      <span class="sep">/</span>
+      <span>Lab 07 · UniFFI</span>
+    </div>
+
+    <p class="lesson-meta">Lab 07 · ~90 минут</p>
+    <h1>Lab 07 — UniFFI: Note Store на 50 строках</h1>
+
+    <p>
+      В этой лабе мы откажемся от ручного JNI и соберём идиоматичный Kotlin
+      API через UniFFI. На выходе — типизированный <code>NoteStore</code> с
+      эксепшенами Kotlin, который вы не отличите от написанного вручную.
+    </p>
+
+    <div class="lab-meta-grid">
+      <div><div class="k">Уровень</div><div class="v">Intermediate</div></div>
+      <div><div class="k">Время</div><div class="v">~90 мин</div></div>
+      <div><div class="k">Уроки</div><div class="v">17</div></div>
+      <div><div class="k">Артефакт</div><div class="v">Rust crate + Kotlin-биндинги</div></div>
+    </div>
+
+    <h2>Cargo.toml</h2>
+    <pre class="code-block"><code>[package]
+name    = "notes"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+uniffi    = { version = "0.27", features = ["build", "tokio"] }
+thiserror = "1"
+
+[build-dependencies]
+uniffi = { version = "0.27", features = ["build"] }</code></pre>
+
+    <h2>src/lib.rs</h2>
+    <pre class="code-block"><code>use std::sync::Mutex;
+
+#[derive(uniffi::Error, Debug, thiserror::Error)]
+pub enum NoteError {
+    #[error("note not found")] NotFound,
+    #[error("note empty")]     Empty,
+}
+
+#[derive(uniffi::Object)]
+pub struct NoteStore { inner: Mutex&lt;Vec&lt;String&gt;&gt; }
+
+#[uniffi::export]
+impl NoteStore {
+    #[uniffi::constructor]
+    pub fn new() -&gt; std::sync::Arc&lt;Self&gt; {
+        std::sync::Arc::new(Self { inner: Mutex::default() })
+    }
+    pub fn add(&amp;self, body: String) -&gt; Result&lt;(), NoteError&gt; {
+        if body.trim().is_empty() { return Err(NoteError::Empty); }
+        self.inner.lock().unwrap().push(body);
+        Ok(())
+    }
+    pub fn get(&amp;self, idx: u32) -&gt; Result&lt;String, NoteError&gt; {
+        self.inner.lock().unwrap().get(idx as usize).cloned().ok_or(NoteError::NotFound)
+    }
+    pub fn count(&amp;self) -&gt; u32 { self.inner.lock().unwrap().len() as u32 }
+}
+
+uniffi::setup_scaffolding!();</code></pre>
+
+    <h2>Сборка биндингов</h2>
+    <pre class="code-block"><code># 1. .so для arm64
+cargo ndk -t arm64-v8a -o app/src/main/jniLibs build --release
+
+# 2. Kotlin-файлы
+cargo run --release --bin uniffi-bindgen -- generate \
+    --library target/aarch64-linux-android/release/libnotes.so \
+    --language kotlin \
+    --out-dir app/src/main/java/io/daskibo/notes</code></pre>
+
+    <h2>Kotlin: использование</h2>
+    <pre class="code-block"><code>import io.daskibo.notes.*
+
+val store = NoteStore()
+try {
+    store.add("Купить молоко")
+    store.add("")           // → NoteException.Empty
+} catch (e: NoteException) {
+    Log.w("notes", "add failed: $e")
+}
+
+val first = store.`get`(0u)   // "Купить молоко"
+val total = store.count()     // 1</code></pre>
+
+    <h2>Что сгенерировал UniFFI «под капотом»</h2>
+    <ul>
+      <li>Kotlin-класс <code>NoteStore</code> с <code>JNA</code>-биндингами к нашему <code>.so</code>.</li>
+      <li>Sealed class <code>NoteException</code> с подклассами <code>NotFound</code> и <code>Empty</code>.</li>
+      <li>Хелперы для конвертации <code>String ↔ RustBuffer</code>, <code>UInt ↔ u32</code>.</li>
+      <li><code>FfiConverter</code>'ы — поэтому никаких ручных JNI-сигнатур.</li>
+    </ul>
+
+    <h2>Логика add() в песочнице</h2>
+    <div class="playground"
+         data-title="Sandbox · валидация заметки"
+         data-code='#[derive(Debug, PartialEq)]
+enum NoteError { Empty }
+
+fn add(body: &amp;str) -&gt; Result&lt;String, NoteError&gt; {
+    if body.trim().is_empty() { Err(NoteError::Empty) }
+    else { Ok(body.to_string()) }
+}
+
+fn main() {
+    assert_eq!(add("hello"), Ok("hello".to_string()));
+    assert_eq!(add("  "),    Err(NoteError::Empty));
+    assert_eq!(add(""),      Err(NoteError::Empty));
+}'></div>
+
+    <div class="note">
+      <strong>Бонус:</strong> добавьте метод <code>list(&amp;self) -&gt; Vec&lt;String&gt;</code> и
+      убедитесь, что Kotlin получит <code>List&lt;String&gt;</code> без всякой ручной работы.
+    </div>
+
+    <div class="refs">
+      <h3>Источники и материалы</h3>
+      <ul>
+        <li><a href="https://mozilla.github.io/uniffi-rs/" target="_blank" rel="noopener">UniFFI User Guide</a></li>
+        <li><a href="https://mozilla.github.io/uniffi-rs/proc_macro/index.html" target="_blank" rel="noopener">UniFFI · Proc-macro API</a></li>
+        <li><a href="https://mozilla.github.io/uniffi-rs/kotlin/integration_tests.html" target="_blank" rel="noopener">UniFFI · Kotlin integration tests</a></li>
+        <li><a href="https://github.com/mozilla/uniffi-rs/tree/main/examples" target="_blank" rel="noopener">UniFFI examples</a></li>
+      </ul>
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../06/index.html"><span class="label">← Назад</span><span class="title">Lab 06 · Async HTTP</span></a>
+      <a class="next" href="../08/index.html"><span class="label">Далее →</span><span class="title">Lab 08 · SQLite</span></a>
+    </div>
+
+    <div class="attrib">Лаба написана для Daskibo Academy.</div>
+  </div>
+  <script src="../../assets/playground.js"></script>
+</body>
+</html>
