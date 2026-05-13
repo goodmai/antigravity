@@ -1,0 +1,257 @@
+openapi: 3.1.0
+info:
+  title: Ethereum JSON-RPC (read-only subset)
+  version: 1.0.0
+  summary: Foundational read-only methods for Lesson 03 of Web3 Genesis.
+  description: |
+    A pragmatic OpenAPI surface for the Ethereum JSON-RPC. The protocol is
+    technically not REST — it's a single POST endpoint that multiplexes by
+    the body's `method` field — so we model it with one path operation per
+    JSON-RPC method using `requestBody`'s `oneOf`. This works with Swagger UI
+    and Insomnia OpenAPI import out of the box.
+
+    The full reference is at https://ethereum.org/en/developers/docs/apis/json-rpc/.
+
+servers:
+  - url: https://eth.llamarpc.com
+    description: Ethereum mainnet — Llama RPC (public, no key, CORS open).
+  - url: https://arb1.arbitrum.io/rpc
+    description: Arbitrum One (L2 rollup).
+  - url: https://mainnet.optimism.io
+    description: OP Mainnet (L2 rollup).
+  - url: https://mainnet.base.org
+    description: Base (Coinbase's OP-Stack L2).
+  - url: https://ethereum-sepolia-rpc.publicnode.com
+    description: Sepolia testnet.
+  - url: http://127.0.0.1:8545
+    description: Local Anvil node (`anvil`).
+
+paths:
+  /:
+    post:
+      summary: JSON-RPC 2.0 endpoint (read-only methods)
+      description: |
+        Every Ethereum JSON-RPC call is `POST /` with a body of the form
+        `{ jsonrpc: "2.0", id: 1, method: "<method>", params: [...] }`.
+      operationId: jsonRpc
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Req_eth_chainId'
+                - $ref: '#/components/schemas/Req_eth_blockNumber'
+                - $ref: '#/components/schemas/Req_eth_getBlockByNumber'
+                - $ref: '#/components/schemas/Req_eth_getCode'
+                - $ref: '#/components/schemas/Req_eth_getTransactionReceipt'
+                - $ref: '#/components/schemas/Req_eth_feeHistory'
+                - $ref: '#/components/schemas/Req_eth_getBalance'
+                - $ref: '#/components/schemas/Req_eth_call'
+              discriminator:
+                propertyName: method
+            examples:
+              chainId:
+                summary: eth_chainId
+                value: { jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }
+              blockNumber:
+                summary: eth_blockNumber
+                value: { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }
+              finalizedBlock:
+                summary: eth_getBlockByNumber (finalized)
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "eth_getBlockByNumber"
+                  params: ["finalized", false]
+              getCode:
+                summary: eth_getCode — Uniswap V2 Router
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "eth_getCode"
+                  params: ["0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "latest"]
+              receipt:
+                summary: eth_getTransactionReceipt
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "eth_getTransactionReceipt"
+                  params: ["0x88df016429689c079f3b2f6ad39fa052532c56795b733da78a91ebe6a713944b"]
+              feeHistory:
+                summary: eth_feeHistory (last 20 blocks, p10/p50/p90)
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "eth_feeHistory"
+                  params: ["0x14", "latest", [10, 50, 90]]
+      responses:
+        '200':
+          description: JSON-RPC response (success or error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RpcResponse'
+
+components:
+  schemas:
+    BlockTag:
+      type: string
+      enum: [earliest, latest, safe, finalized, pending]
+      description: |
+        EIP-1898 block tags.
+          * `latest`    — current head of the EL.
+          * `safe`      — 1 epoch (~6 min) deep, low reorg risk.
+          * `finalized` — 2 epochs (~12 min), state will not reorg.
+          * `pending`   — local mempool view.
+          * `earliest`  — genesis (block 0).
+
+    Address:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{40}$'
+
+    Hash32:
+      type: string
+      pattern: '^0x[0-9a-fA-F]{64}$'
+
+    HexInt:
+      type: string
+      pattern: '^0x[0-9a-fA-F]+$'
+
+    Req_eth_chainId:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { oneOf: [{ type: integer }, { type: string }] }
+        method:  { type: string, enum: [eth_chainId] }
+        params:  { type: array, maxItems: 0 }
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_blockNumber:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_blockNumber] }
+        params:  { type: array, maxItems: 0 }
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_getBlockByNumber:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_getBlockByNumber] }
+        params:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/BlockTag'
+              - $ref: '#/components/schemas/HexInt'
+              - { type: boolean, description: "true ⇒ return full transactions, false ⇒ only tx hashes" }
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_getCode:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_getCode] }
+        params:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/Address'
+              - $ref: '#/components/schemas/BlockTag'
+              - $ref: '#/components/schemas/HexInt'
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_getTransactionReceipt:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_getTransactionReceipt] }
+        params:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items: { $ref: '#/components/schemas/Hash32' }
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_feeHistory:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_feeHistory] }
+        params:
+          type: array
+          minItems: 2
+          maxItems: 3
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/HexInt'
+              - $ref: '#/components/schemas/BlockTag'
+              - { type: array, items: { type: number, minimum: 0, maximum: 100 } }
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_getBalance:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_getBalance] }
+        params:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/Address'
+              - $ref: '#/components/schemas/BlockTag'
+              - $ref: '#/components/schemas/HexInt'
+      required: [jsonrpc, id, method, params]
+
+    Req_eth_call:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { type: integer }
+        method:  { type: string, enum: [eth_call] }
+        params:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            oneOf:
+              - type: object
+                properties:
+                  to:    { $ref: '#/components/schemas/Address' }
+                  from:  { $ref: '#/components/schemas/Address' }
+                  data:  { type: string, pattern: '^0x[0-9a-fA-F]*$' }
+                  value: { $ref: '#/components/schemas/HexInt' }
+                  gas:   { $ref: '#/components/schemas/HexInt' }
+                required: [to]
+              - $ref: '#/components/schemas/BlockTag'
+              - $ref: '#/components/schemas/HexInt'
+      required: [jsonrpc, id, method, params]
+
+    RpcResponse:
+      type: object
+      properties:
+        jsonrpc: { type: string, enum: ["2.0"] }
+        id:      { oneOf: [{ type: integer }, { type: string }, { type: 'null' }] }
+        result:  {}
+        error:
+          type: object
+          properties:
+            code:    { type: integer }
+            message: { type: string }
+            data:    {}
+          required: [code, message]
+      required: [jsonrpc, id]

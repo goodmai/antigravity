@@ -1,0 +1,152 @@
+{
+  "info": {
+    "_postman_id": "a9c4f1de-2dca-4c66-8e7a-daskibo-l03",
+    "name": "Ethereum JSON-RPC — Daskibo Academy (Lesson 03)",
+    "description": "Foundational read-only methods every Web3 developer should know cold. Variables let you switch between mainnet, Arbitrum, Optimism, and Anvil with one click.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "rpcUrl", "value": "https://eth.llamarpc.com", "description": "Default = Ethereum mainnet via Llama RPC. See `_environments` below." },
+    { "key": "addrEOA", "value": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "description": "Anvil account 1 — used in lesson examples." },
+    { "key": "addrContract", "value": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", "description": "Uniswap V2 Router — used as a known-contract example." },
+    { "key": "txHash", "value": "0x88df016429689c079f3b2f6ad39fa052532c56795b733da78a91ebe6a713944b", "description": "Lesson example tx — change to your own to inspect." }
+  ],
+  "item": [
+    {
+      "name": "01. eth_chainId — what network am I on?",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_chainId\",\n  \"params\": []\n}"
+        },
+        "description": "Returns EIP-155 chainId. Mainnet = 0x1, Arbitrum One = 0xa4b1, Optimism = 0xa, Sepolia = 0xaa36a7."
+      }
+    },
+    {
+      "name": "02. eth_blockNumber — chain head",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_blockNumber\",\n  \"params\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "03. eth_getBlockByNumber (finalized) — finality",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_getBlockByNumber\",\n  \"params\": [\"finalized\", false]\n}"
+        },
+        "description": "Use tag `latest` / `safe` / `finalized` / `pending` / `earliest`, or a 0x-prefixed block number. Compare numbers to derive finality of any other block."
+      }
+    },
+    {
+      "name": "04. eth_getCode — is this address a contract?",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_getCode\",\n  \"params\": [\"{{addrContract}}\", \"latest\"]\n}"
+        },
+        "description": "Returns 0x for EOAs, deployed bytecode otherwise."
+      },
+      "response": []
+    },
+    {
+      "name": "05. eth_getTransactionReceipt — gas, status, logs",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_getTransactionReceipt\",\n  \"params\": [\"{{txHash}}\"]\n}"
+        },
+        "description": "status=0x1 success, 0x0 reverted. gasUsed × effectiveGasPrice = total fee in wei. contractAddress present only on deploy transactions."
+      }
+    },
+    {
+      "name": "06. eth_feeHistory — gas market window",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_feeHistory\",\n  \"params\": [\"0x14\", \"latest\", [10, 50, 90]]\n}"
+        },
+        "description": "Returns sliding window of last N=20 blocks: baseFeePerGas, gasUsedRatio, reward percentiles. Use this for EIP-1559 fee estimation."
+      }
+    },
+    {
+      "name": "07. eth_getBalance — native wei",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_getBalance\",\n  \"params\": [\"{{addrEOA}}\", \"latest\"]\n}"
+        }
+      }
+    },
+    {
+      "name": "08. eth_call — read-only contract view",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"eth_call\",\n  \"params\": [{\n    \"to\": \"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\n    \"data\": \"0x70a08231000000000000000000000000{{addrEOA-noPrefix}}\"\n  }, \"latest\"]\n}"
+        },
+        "description": "balanceOf(address) on USDC. Selector 0x70a08231 + 32-byte address parameter."
+      }
+    },
+    {
+      "name": "09. net_version — legacy network id",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"net_version\",\n  \"params\": []\n}"
+        }
+      }
+    },
+    {
+      "name": "10. web3_clientVersion — what node am I talking to?",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "content-type", "value": "application/json" }],
+        "url": { "raw": "{{rpcUrl}}", "host": ["{{rpcUrl}}"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"web3_clientVersion\",\n  \"params\": []\n}"
+        },
+        "description": "e.g. `Geth/v1.13.5-stable-...` or `besu/v23.10.3/.../...`"
+      }
+    }
+  ],
+  "_environments": {
+    "Ethereum mainnet":   { "rpcUrl": "https://eth.llamarpc.com" },
+    "Arbitrum One":       { "rpcUrl": "https://arb1.arbitrum.io/rpc" },
+    "Optimism":           { "rpcUrl": "https://mainnet.optimism.io" },
+    "Base":               { "rpcUrl": "https://mainnet.base.org" },
+    "Sepolia testnet":    { "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com" },
+    "Local Anvil":        { "rpcUrl": "http://127.0.0.1:8545" }
+  }
+}
