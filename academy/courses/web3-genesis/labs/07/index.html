@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 07 · The Graph: Subgraph — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 07 · The Graph: Subgraph</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 07 · индексирование событий</p>
+    <h1>Lab 07 · The Graph: Subgraph</h1>
+
+    <p>
+      On-chain данные — события, вызовы функций, состояние контрактов — практически
+      невозможно эффективно читать напрямую через RPC для аналитики или UI с
+      историей. <strong>The Graph</strong> — это децентрализованный протокол
+      индексирования: вы описываете <em>subgraph</em> (какой контракт слушать,
+      какие события обрабатывать, в какие сущности сохранять), а Graph Node
+      строит GraphQL API поверх проиндексированных данных. В этом лабе вы напишете
+      subgraph для ERC-20 токена на Sepolia — от схемы до запроса в React-компоненте.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      инициализировать subgraph через Graph CLI; проектировать GraphQL-схему с
+      сущностями и связями; писать subgraph.yaml манифест с event handler'ами;
+      кодировать AssemblyScript mapping для обработки Transfer события; деплоить
+      в The Graph Studio и отслеживать статус синхронизации; писать сложные
+      GraphQL-запросы с сортировкой и фильтрацией; интегрировать subgraph в
+      React с <code>urql</code>.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Установите Graph CLI и создайте заготовку subgraph для ERC-20 контракта
+      на Sepolia. В качестве примера используем USDC на Sepolia:
+      <code>0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238</code>.
+    </p>
+
+<pre class="code-block"><code># Установка Graph CLI
+npm install -g @graphprotocol/graph-cli
+
+# Проверка:
+graph --version   # ожидаем 0.71.x или выше
+
+# Создаём subgraph из ABI существующего контракта:
+graph init \
+  --studio \
+  --protocol ethereum \
+  --network sepolia \
+  --contract-name ERC20 \
+  --from-contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 \
+  my-erc20-subgraph
+
+# CLI автоматически:
+# 1) Скачает ABI с Etherscan
+# 2) Сгенерирует schema.graphql с базовыми полями
+# 3) Создаст subgraph.yaml с datasource
+# 4) Создаст src/erc-20.ts с заглушками handler-функций
+cd my-erc20-subgraph</code></pre>
+
+    <p>
+      Изучите сгенерированную структуру:
+    </p>
+
+    <table class="compare">
+      <tr><th>Файл</th><th>Назначение</th></tr>
+      <tr><td><code>subgraph.yaml</code></td><td>Манифест: сети, контракты, startBlock, обработчики событий</td></tr>
+      <tr><td><code>schema.graphql</code></td><td>GraphQL-схема: определение сущностей и полей</td></tr>
+      <tr><td><code>src/*.ts</code></td><td>AssemblyScript mappings: логика обработки событий</td></tr>
+      <tr><td><code>abis/</code></td><td>ABI-файлы контрактов в JSON-формате</td></tr>
+      <tr><td><code>generated/</code></td><td>Автосгенерированные TypeScript-типы из ABI и схемы</td></tr>
+    </table>
+
+    <h2>Задание 2</h2>
+    <p>
+      Замените автосгенерированную схему на полноценную с тремя сущностями:
+      <code>Token</code>, <code>Transfer</code>, <code>Account</code>.
+    </p>
+
+    <h3>schema.graphql</h3>
+<pre class="code-block"><code>type Token @entity {
+  id: ID!                      # адрес контракта (lowercase hex)
+  name: String!
+  symbol: String!
+  decimals: Int!
+  totalSupply: BigInt!
+  transferCount: BigInt!
+}
+
+type Account @entity {
+  id: ID!                      # адрес кошелька (lowercase hex)
+  balance: BigInt!             # текущий баланс токена
+  transfersFrom: [Transfer!]! @derivedFrom(field: "from")
+  transfersTo:   [Transfer!]! @derivedFrom(field: "to")
+  transferCount: BigInt!
+}
+
+type Transfer @entity(immutable: true) {
+  id: ID!                      # txHash + "-" + logIndex
+  token: Token!
+  from: Account!
+  to: Account!
+  amount: BigInt!
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}</code></pre>
+
+    <p>
+      После изменения схемы регенерируйте типы:
+    </p>
+
+<pre class="code-block"><code>graph codegen   # создаст generated/schema.ts с классами Token, Account, Transfer
+graph build     # проверит корректность всего subgraph</code></pre>
+
+    <h2>Задание 3</h2>
+    <p>
+      Обновите <code>subgraph.yaml</code> манифест: укажите правильный
+      <code>startBlock</code>, добавьте все нужные event handler'ы и включите
+      вызов <code>callHandlers</code>.
+    </p>
+
+    <h3>subgraph.yaml</h3>
+<pre class="code-block"><code>specVersion: 1.0.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: ERC20
+    network: sepolia
+    source:
+      address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+      abi: ERC20
+      # startBlock: берём блок деплоя контракта для экономии времени синхронизации
+      # Найти: https://sepolia.etherscan.io/address/0x1c7D... → "Contract Creation"
+      startBlock: 4000000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Token
+        - Account
+        - Transfer
+      abis:
+        - name: ERC20
+          file: ./abis/ERC20.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleApproval
+      file: ./src/erc-20.ts</code></pre>
+
+    <div class="note cyan">
+      <strong>startBlock важен.</strong> Если указать 0 — Graph Node будет
+      сканировать всю историю сети с блока 0, что займёт часы или дни.
+      Всегда указывайте блок деплоя контракта. Найдите его на Etherscan
+      в разделе «Contract Creation» для вашего контракта.
+    </div>
+
+    <h2>Задание 4</h2>
+    <p>
+      Напишите AssemblyScript mapping для обработки события <code>Transfer</code>.
+      Mapping должен создавать или обновлять сущности <code>Account</code>,
+      <code>Token</code> и создавать неизменяемую запись <code>Transfer</code>.
+    </p>
+
+    <h3>src/erc-20.ts</h3>
+<pre class="code-block"><code>import { BigInt, Address } from "@graphprotocol/graph-ts";
+import { Transfer as TransferEvent, ERC20 } from "../generated/ERC20/ERC20";
+import { Token, Account, Transfer } from "../generated/schema";
+
+// Вспомогательная функция: загрузить или создать Account
+function getOrCreateAccount(address: Address): Account {
+  const id = address.toHexString();
+  let account = Account.load(id);
+  if (account == null) {
+    account = new Account(id);
+    account.balance = BigInt.fromI32(0);
+    account.transferCount = BigInt.fromI32(0);
+  }
+  return account;
+}
+
+// Вспомогательная функция: загрузить или создать Token
+function getOrCreateToken(address: Address): Token {
+  const id = address.toHexString();
+  let token = Token.load(id);
+  if (token == null) {
+    // Первый раз — читаем данные из контракта через contract call
+    const contract = ERC20.bind(address);
+    token = new Token(id);
+    token.name = contract.name();
+    token.symbol = contract.symbol();
+    token.decimals = contract.decimals();
+    token.totalSupply = contract.totalSupply();
+    token.transferCount = BigInt.fromI32(0);
+  }
+  return token;
+}
+
+export function handleTransfer(event: TransferEvent): void {
+  const tokenAddress = event.address;
+
+  // 1. Обновляем Token
+  const token = getOrCreateToken(tokenAddress);
+  token.transferCount = token.transferCount.plus(BigInt.fromI32(1));
+  token.save();
+
+  // 2. Обновляем Account "from" (уменьшаем баланс)
+  const fromAccount = getOrCreateAccount(event.params.from);
+  fromAccount.balance = fromAccount.balance.minus(event.params.value);
+  fromAccount.transferCount = fromAccount.transferCount.plus(BigInt.fromI32(1));
+  fromAccount.save();
+
+  // 3. Обновляем Account "to" (увеличиваем баланс)
+  const toAccount = getOrCreateAccount(event.params.to);
+  toAccount.balance = toAccount.balance.plus(event.params.value);
+  toAccount.transferCount = toAccount.transferCount.plus(BigInt.fromI32(1));
+  toAccount.save();
+
+  // 4. Создаём запись Transfer (immutable — никогда не обновляется)
+  const transferId =
+    event.transaction.hash.toHexString() + "-" + event.logIndex.toString();
+  const transfer = new Transfer(transferId);
+  transfer.token = token.id;
+  transfer.from = fromAccount.id;
+  transfer.to = toAccount.id;
+  transfer.amount = event.params.value;
+  transfer.blockNumber = event.block.number;
+  transfer.blockTimestamp = event.block.timestamp;
+  transfer.transactionHash = event.transaction.hash;
+  transfer.save();
+}
+
+export function handleApproval(event: TransferEvent): void {
+  // Для данного лаба Approval можно пропустить или добавить Allowance entity
+}</code></pre>
+
+<pre class="code-block"><code>graph codegen && graph build   # должно завершиться без ошибок</code></pre>
+
+    <h2>Задание 5</h2>
+    <p>
+      Создайте subgraph в The Graph Studio и задеплойте его. Проверьте
+      статус синхронизации.
+    </p>
+
+<pre class="code-block"><code># 1. Зарегистрируйтесь на https://thegraph.com/studio/
+# 2. Создайте новый subgraph (кнопка "Create a Subgraph")
+# 3. Скопируйте Deploy Key из Studio
+
+# 4. Авторизуйтесь в CLI:
+graph auth --studio YOUR_DEPLOY_KEY
+
+# 5. Деплой:
+graph deploy --studio my-erc20-subgraph
+
+# CLI спросит версию (например 0.0.1), затем задеплоит WASM-бандл в Studio</code></pre>
+
+    <p>
+      Статусы синхронизации в Studio:
+    </p>
+
+    <table class="compare">
+      <tr><th>Статус</th><th>Значение</th></tr>
+      <tr><td><code>Syncing</code></td><td>Graph Node активно обрабатывает блоки, индексирует события</td></tr>
+      <tr><td><code>Synced</code></td><td>Индексирование завершено, данные актуальны</td></tr>
+      <tr><td><code>Failed</code></td><td>Ошибка в mapping — смотрите логи в разделе Logs</td></tr>
+      <tr><td><code>Paused</code></td><td>Индексирование приостановлено вручную</td></tr>
+    </table>
+
+    <p>
+      Проверьте логи синхронизации через Playground в Studio — там уже можно
+      запускать GraphQL-запросы к частично проиндексированным данным.
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Напишите два GraphQL-запроса: топ-10 держателей по балансу и все
+      трансферы за последние 100 блоков.
+    </p>
+
+    <h3>Запрос 1: топ-10 держателей</h3>
+<pre class="code-block"><code>query TopHolders($tokenId: ID!) {
+  accounts(
+    where: { balance_gt: "0" }
+    orderBy: balance
+    orderDirection: desc
+    first: 10
+  ) {
+    id
+    balance
+    transferCount
+  }
+  token(id: $tokenId) {
+    name
+    symbol
+    decimals
+    totalSupply
+    transferCount
+  }
+}
+
+# Переменные:
+{
+  "tokenId": "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238"
+}</code></pre>
+
+    <h3>Запрос 2: трансферы в последних 100 блоках</h3>
+<pre class="code-block"><code>query RecentTransfers($minBlock: BigInt!) {
+  transfers(
+    where: { blockNumber_gte: $minBlock }
+    orderBy: blockNumber
+    orderDirection: desc
+    first: 50
+  ) {
+    id
+    from { id balance }
+    to   { id balance }
+    amount
+    blockNumber
+    blockTimestamp
+    transactionHash
+  }
+}
+
+# Переменные (актуальный блок - 100):
+# Получить текущий блок: eth_blockNumber через RPC
+{
+  "minBlock": "5000000"
+}</code></pre>
+
+    <h2>Задание 7</h2>
+    <p>
+      Интегрируйте запросы в React-компонент с помощью <code>urql</code>.
+    </p>
+
+<pre class="code-block"><code># Установка:
+npm install urql graphql</code></pre>
+
+    <h3>src/graphql/client.ts</h3>
+<pre class="code-block"><code>import { createClient, cacheExchange, fetchExchange } from "urql";
+
+// URL из Studio: Queries (HTTP) endpoint
+const SUBGRAPH_URL =
+  "https://api.studio.thegraph.com/query/YOUR_ID/my-erc20-subgraph/v0.0.1";
+
+export const graphqlClient = createClient({
+  url: SUBGRAPH_URL,
+  exchanges: [cacheExchange, fetchExchange],
+});</code></pre>
+
+    <h3>src/components/TopHolders.tsx</h3>
+<pre class="code-block"><code>import { useQuery } from "urql";
+import { graphqlClient } from "../graphql/client";
+
+const TOP_HOLDERS_QUERY = `
+  query TopHolders {
+    accounts(
+      where: { balance_gt: "0" }
+      orderBy: balance
+      orderDirection: desc
+      first: 10
+    ) {
+      id
+      balance
+      transferCount
+    }
+  }
+`;
+
+export function TopHolders() {
+  const [result] = useQuery({ query: TOP_HOLDERS_QUERY });
+
+  if (result.fetching) return <p>Загрузка...</p>;
+  if (result.error) return <p>Ошибка: {result.error.message}</p>;
+
+  const accounts = result.data?.accounts ?? [];
+
+  return (
+    &lt;div&gt;
+      &lt;h3&gt;Топ-10 держателей&lt;/h3&gt;
+      &lt;table&gt;
+        &lt;thead&gt;
+          &lt;tr&gt;&lt;th&gt;Адрес&lt;/th&gt;&lt;th&gt;Баланс&lt;/th&gt;&lt;th&gt;Трансферов&lt;/th&gt;&lt;/tr&gt;
+        &lt;/thead&gt;
+        &lt;tbody&gt;
+          {accounts.map((acc: any) =&gt; (
+            &lt;tr key={acc.id}&gt;
+              &lt;td&gt;{acc.id.slice(0, 10)}...&lt;/td&gt;
+              &lt;td&gt;{(BigInt(acc.balance) / 10n ** 6n).toString()} USDC&lt;/td&gt;
+              &lt;td&gt;{acc.transferCount}&lt;/td&gt;
+            &lt;/tr&gt;
+          ))}
+        &lt;/tbody&gt;
+      &lt;/table&gt;
+    &lt;/div&gt;
+  );
+}
+
+// В App.tsx — оберните в Provider:
+// import { Provider } from "urql";
+// import { graphqlClient } from "./graphql/client";
+//
+// function App() {
+//   return (
+//     &lt;Provider value={graphqlClient}&gt;
+//       &lt;TopHolders /&gt;
+//     &lt;/Provider&gt;
+//   );
+// }</code></pre>
+
+    <section class="lesson-quiz" data-lesson="lab-07">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 07 · The Graph",
+  "intro": "Семь вопросов по subgraph-разработке. Multiple-выбор подсвечивает верный ответ; открытые вопросы и задачи оцените самостоятельно.",
+  "questions": [
+    {
+      "q": "Зачем нужен параметр `startBlock` в subgraph.yaml?",
+      "kind": "multiple",
+      "options": [
+        "Указывает максимальный блок, до которого индексируется subgraph",
+        "Ограничивает количество событий, которые обрабатывает mapping",
+        "Позволяет Graph Node пропустить все блоки до деплоя контракта, экономя время синхронизации",
+        "Включает поддержку нескольких версий ABI"
+      ],
+      "answerIndex": 2,
+      "explain": "Без startBlock Graph Node начинает сканирование с блока 0 и обрабатывает всю историю сети. Это может занять дни. startBlock = блок деплоя контракта — оптимальный выбор."
+    },
+    {
+      "q": "Почему в schema.graphql для сущности Transfer используется аннотация `@entity(immutable: true)`?",
+      "kind": "multiple",
+      "options": [
+        "Запрещает удаление сущности через GraphQL Mutation",
+        "Сигнализирует Graph Node, что сущность никогда не обновляется после создания — это оптимизирует хранение и запросы",
+        "Делает все поля обязательными (non-null)",
+        "Включает кэширование записей в IndexedDB"
+      ],
+      "answerIndex": 1,
+      "explain": "Исторические записи вроде Transfer никогда не изменяются. Аннотация immutable позволяет Graph Node использовать более эффективное хранилище и ускоряет запросы к таким сущностям."
+    },
+    {
+      "q": "Что делает директива `@derivedFrom(field: \"from\")` в схеме Account?",
+      "kind": "open",
+      "answer": "Директива @derivedFrom создаёт виртуальное обратное отношение: поле transfersFrom в Account не хранится в базе данных, а вычисляется при запросе как список всех Transfer, у которых поле from указывает на данный аккаунт. Это позволяет навигировать по графу сущностей в обоих направлениях без дублирования данных."
+    },
+    {
+      "q": "В AssemblyScript mapping нельзя использовать JavaScript-методы вроде `Array.filter()` напрямую. Почему?",
+      "kind": "multiple",
+      "options": [
+        "AssemblyScript компилируется в WebAssembly и имеет ограниченный рантайм: отсутствуют closures, динамическая типизация, большинство JS built-ins",
+        "Graph Node запрещает использование функций высшего порядка в целях безопасности",
+        "Это ограничение только версии 0.0.7 apiVersion, в 0.1.0 оно снято",
+        "AssemblyScript не поддерживает массивы вообще"
+      ],
+      "answerIndex": 0,
+      "explain": "AssemblyScript — это строго типизированный язык, компилирующийся в WASM. Он не имеет стандартного JavaScript рантайма, поэтому многие JS-паттерны (closures, динамические типы, большинство Array методов с callbacks) недоступны. Нужно использовать типизированные массивы и явные циклы."
+    },
+    {
+      "q": "Subgraph задеплоен и показывает статус `Failed`. Где искать причину ошибки?",
+      "kind": "open",
+      "answer": "В The Graph Studio → вкладка Logs для конкретного деплоя. Типичные причины: 1) reverted contract call в mapping (контракт не имеет запрашиваемой функции) — использовать try_functionName вместо functionName; 2) несоответствие типов в ABI и mapping; 3) null pointer при обращении к entity, которая ещё не создана; 4) переполнение BigInt. Все ошибки логируются с номером блока и транзакции, что позволяет точно воспроизвести проблему."
+    },
+    {
+      "q": "Practical: напишите GraphQL-запрос, который возвращает адрес, отправивший больше всего трансферов за всё время (один аккаунт с максимальным transferCount).",
+      "kind": "task",
+      "answer": "query TopSender {\n  accounts(\n    orderBy: transferCount\n    orderDirection: desc\n    first: 1\n  ) {\n    id\n    transferCount\n    balance\n  }\n}"
+    },
+    {
+      "q": "Чем отличается деплой subgraph в The Graph Studio (centralized) от деплоя в децентрализованную сеть The Graph?",
+      "kind": "open",
+      "answer": "The Graph Studio — централизованный хостинг от Edge & Node для разработки и тестирования. Данные хранятся на серверах компании, нет экономических гарантий доступности, но быстро и бесплатно для разработки. Децентрализованная сеть The Graph: индексаторы (Indexers) конкурируют за субграфы, которым делегированы GRT-токены (Delegators); кураторы (Curators) сигнализируют GRT на ценные субграфы; доступность гарантируется экономическими стимулами протокола. Для production dApp с требованием к децентрализации нужна публикация в сети."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      The Graph Protocol открыт для публичного использования. Для production
+      рекомендуется публиковать subgraph в децентрализованную сеть The Graph
+      или использовать самостоятельно размещённый Graph Node.
+      AssemblyScript mapping компилируется в WebAssembly и исполняется в
+      изолированном окружении Graph Node.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

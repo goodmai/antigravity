@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 01 · Развёртывание первого ERC-20 — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 01 · Развёртывание первого ERC-20</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 01 · deploy</p>
+    <h1>Lab 01 · Развёртывание первого ERC-20</h1>
+
+    <p>
+      В этом лабораторном задании вы пройдёте полный цикл от установки инструментов
+      до верификации живого контракта в тестовой сети. Вы напишете минимальный токен
+      на базе OpenZeppelin, покроете его Foundry-тестами, задеплоите на Sepolia и
+      прочитаете состояние контракта через <code>viem</code>. По итогу у вас будет
+      задеплоенный ERC-20 с адресом на Sepolia Etherscan — это первый «живой» артефакт
+      в вашем Web3-портфолио.
+    </p>
+
+    <div class="note">
+      <strong>Что вы сделаете:</strong>
+      <ul>
+        <li>Установите Foundry и инициализируете проект с зависимостью OpenZeppelin.</li>
+        <li>Напишете минимальный ERC-20 с функцией <code>mint</code>.</li>
+        <li>Покроете контракт Foundry-тестами (deploy, totalSupply, transfer, события).</li>
+        <li>Задеплоите контракт на Sepolia через <code>forge script --broadcast</code>.</li>
+        <li>Верифицируете исходный код на Sepolia Etherscan.</li>
+        <li>Прочитаете состояние через <code>viem publicClient.readContract</code>.</li>
+        <li>Отправите перевод через <code>viem walletClient.writeContract</code> и проверите событие.</li>
+      </ul>
+      <strong>Что сдать:</strong> ссылку на верифицированный контракт на Sepolia Etherscan
+      и скриншот успешного теста <code>forge test -vv</code>.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Установите Foundry и инициализируйте новый проект. Добавьте OpenZeppelin Contracts
+      как git-субмодуль через <code>forge install</code>. Убедитесь, что файл
+      <code>foundry.toml</code> содержит корректный маппинг для импортов.
+    </p>
+
+<pre class="code-block"><code># Установка Foundry (выполняется один раз)
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Создание проекта
+forge init my-token
+cd my-token
+
+# Добавление OpenZeppelin
+forge install OpenZeppelin/openzeppelin-contracts --no-commit
+
+# Проверка версии
+forge --version
+# forge 0.3.x (...)
+</code></pre>
+
+    <p>
+      После установки добавьте в <code>foundry.toml</code> ремапинг:
+    </p>
+
+<pre class="code-block"><code>[profile.default]
+src     = "src"
+out     = "out"
+libs    = ["lib"]
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+]
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> команда <code>forge build</code> завершается
+      без ошибок; папка <code>lib/openzeppelin-contracts/</code> существует.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Напишите минимальный ERC-20 контракт в файле <code>src/MyToken.sol</code>.
+      Контракт должен наследовать <code>OpenZeppelin ERC20</code>, иметь конструктор
+      с именем и символом токена, и публичную функцию <code>mint(address, uint256)</code>,
+      доступную только owner'у.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract MyToken is ERC20, Ownable {
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        address initialOwner
+    )
+        ERC20(name_, symbol_)
+        Ownable(initialOwner)
+    {}
+
+    /// @notice Чеканит токены на адрес `to`. Только owner.
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> <code>forge build</code> компилируется без
+      предупреждений; в артефакте <code>out/MyToken.sol/MyToken.json</code> присутствует
+      ABI с функциями <code>mint</code>, <code>transfer</code>, <code>balanceOf</code>.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Напишите Foundry-тест в файле <code>test/MyToken.t.sol</code>. Тест должен:
+      задеплоить контракт; проверить начальный <code>totalSupply</code>; вызвать
+      <code>mint</code> и проверить баланс; сделать <code>transfer</code> и проверить
+      балансы обеих сторон; убедиться, что события <code>Transfer</code> эмитируются
+      корректно через <code>vm.expectEmit</code>.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/MyToken.sol";
+
+contract MyTokenTest is Test {
+    MyToken public token;
+    address public owner  = address(0xA11CE);
+    address public alice  = address(0xA11C3);
+    address public bob    = address(0xB0B);
+
+    function setUp() public {
+        vm.startPrank(owner);
+        token = new MyToken("My Token", "MTK", owner);
+        vm.stopPrank();
+    }
+
+    function test_InitialSupplyIsZero() public view {
+        assertEq(token.totalSupply(), 0);
+    }
+
+    function test_MintIncreasesSupply() public {
+        vm.prank(owner);
+        token.mint(alice, 1000e18);
+        assertEq(token.totalSupply(), 1000e18);
+        assertEq(token.balanceOf(alice), 1000e18);
+    }
+
+    function test_TransferMovesBalance() public {
+        vm.prank(owner);
+        token.mint(alice, 500e18);
+
+        vm.prank(alice);
+        token.transfer(bob, 200e18);
+
+        assertEq(token.balanceOf(alice), 300e18);
+        assertEq(token.balanceOf(bob),   200e18);
+    }
+
+    function test_TransferEmitsEvent() public {
+        vm.prank(owner);
+        token.mint(alice, 100e18);
+
+        // vm.expectEmit(checkTopic1, checkTopic2, checkTopic3, checkData, emitter)
+        vm.expectEmit(true, true, false, true, address(token));
+        emit IERC20.Transfer(alice, bob, 50e18);
+
+        vm.prank(alice);
+        token.transfer(bob, 50e18);
+    }
+
+    function test_MintRevertsForNonOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        token.mint(alice, 1e18);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> <code>forge test -vv</code> показывает
+      5 зелёных тестов без единого <code>FAIL</code>.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Напишите Foundry-скрипт деплоя в <code>script/Deploy.s.sol</code> и задеплойте
+      контракт на Sepolia через <code>forge script --broadcast</code>. Для этого нужен
+      RPC-URL от Alchemy/Infura и приватный ключ тестового кошелька (никогда не используйте
+      mainnet-ключ в скриптах).
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "../src/MyToken.sol";
+
+contract DeployMyToken is Script {
+    function run() external {
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address deployer    = vm.addr(deployerKey);
+
+        vm.startBroadcast(deployerKey);
+        MyToken token = new MyToken("My Token", "MTK", deployer);
+        // Чеканим 1 000 000 токенов для деплоера
+        token.mint(deployer, 1_000_000e18);
+        vm.stopBroadcast();
+
+        console.log("MyToken deployed at:", address(token));
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># .env (не коммитить!)
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+ETHERSCAN_API_KEY=YOUR_ETHERSCAN_KEY
+</code></pre>
+
+<pre class="code-block"><code># Загружаем переменные и запускаем деплой
+source .env
+forge script script/Deploy.s.sol:DeployMyToken \
+  --rpc-url $SEPOLIA_RPC_URL \
+  --broadcast \
+  --verify \
+  -vvvv
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> в выводе присутствует строка
+      <code>MyToken deployed at: 0x…</code>; транзакция деплоя видна
+      на <code>sepolia.etherscan.io</code>.
+    </p>
+
+    <h2>Задание 5</h2>
+    <p>
+      Если верификация через <code>--verify</code> не сработала автоматически
+      (бывает при congestion Etherscan), выполните её вручную через
+      <code>forge verify-contract</code>.
+    </p>
+
+<pre class="code-block"><code># Узнаём аргументы конструктора в ABI-кодировании
+cast abi-encode "constructor(string,string,address)" \
+  "My Token" "MTK" 0xYOUR_DEPLOYER_ADDRESS
+
+# Верификация вручную
+forge verify-contract \
+  0xYOUR_CONTRACT_ADDRESS \
+  src/MyToken.sol:MyToken \
+  --chain-id 11155111 \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(string,string,address)" \
+      "My Token" "MTK" 0xYOUR_DEPLOYER_ADDRESS)
+
+# Проверка статуса верификации
+forge verify-check \
+  GUID_FROM_PREVIOUS_COMMAND \
+  --chain-id 11155111 \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> на странице контракта в Sepolia Etherscan
+      появилась вкладка «Contract» со статусом «Verified» и читаемым исходным кодом Solidity.
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Прочитайте состояние задеплоенного контракта через <code>viem</code>
+      <code>publicClient.readContract</code>. Проверьте: <code>name()</code>,
+      <code>symbol()</code>, <code>totalSupply()</code>, <code>balanceOf(deployer)</code>.
+    </p>
+
+<pre class="code-block"><code>import { createPublicClient, http, formatUnits } from "viem";
+import { sepolia } from "viem/chains";
+
+const CONTRACT = "0xYOUR_CONTRACT_ADDRESS";
+const DEPLOYER  = "0xYOUR_DEPLOYER_ADDRESS";
+
+const ABI = [
+  { name: "name",        type: "function", inputs: [], outputs: [{ type: "string" }],  stateMutability: "view" },
+  { name: "symbol",      type: "function", inputs: [], outputs: [{ type: "string" }],  stateMutability: "view" },
+  { name: "totalSupply", type: "function", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { name: "balanceOf",   type: "function",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view"
+  },
+] as const;
+
+const client = createPublicClient({
+  chain:     sepolia,
+  transport: http("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"),
+});
+
+const [name, symbol, totalSupply, balance] = await Promise.all([
+  client.readContract({ address: CONTRACT, abi: ABI, functionName: "name" }),
+  client.readContract({ address: CONTRACT, abi: ABI, functionName: "symbol" }),
+  client.readContract({ address: CONTRACT, abi: ABI, functionName: "totalSupply" }),
+  client.readContract({ address: CONTRACT, abi: ABI, functionName: "balanceOf", args: [DEPLOYER] }),
+]);
+
+console.log(`${name} (${symbol})`);
+console.log(`totalSupply: ${formatUnits(totalSupply, 18)} MTK`);
+console.log(`deployer balance: ${formatUnits(balance, 18)} MTK`);
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> скрипт выводит корректное имя, символ и
+      баланс деплоера = 1 000 000 MTK.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Отправьте перевод токенов через <code>viem walletClient.writeContract</code>.
+      После отправки дождитесь подтверждения транзакции, затем получите receipt
+      и проверьте, что в логах присутствует событие <code>Transfer</code> с правильными
+      аргументами <code>from</code>, <code>to</code>, <code>value</code>.
+    </p>
+
+<pre class="code-block"><code>import {
+  createPublicClient, createWalletClient,
+  http, custom, parseUnits, decodeEventLog
+} from "viem";
+import { sepolia } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+
+const CONTRACT = "0xYOUR_CONTRACT_ADDRESS";
+const RECIPIENT = "0xRECIPIENT_ADDRESS";
+
+const ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    inputs: [
+      { name: "to",     type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    name: "Transfer",
+    type: "event",
+    inputs: [
+      { name: "from",  type: "address", indexed: true  },
+      { name: "to",    type: "address", indexed: true  },
+      { name: "value", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
+
+const publicClient = createPublicClient({
+  chain: sepolia,
+  transport: http("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"),
+});
+
+const walletClient = createWalletClient({
+  account,
+  chain:     sepolia,
+  transport: http("https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY"),
+});
+
+// Отправляем 100 MTK
+const hash = await walletClient.writeContract({
+  address:      CONTRACT,
+  abi:          ABI,
+  functionName: "transfer",
+  args:         [RECIPIENT, parseUnits("100", 18)],
+});
+
+console.log("tx hash:", hash);
+
+// Ждём подтверждения
+const receipt = await publicClient.waitForTransactionReceipt({ hash });
+console.log("status:", receipt.status); // 'success'
+
+// Декодируем событие Transfer
+for (const log of receipt.logs) {
+  try {
+    const decoded = decodeEventLog({ abi: ABI, ...log });
+    if (decoded.eventName === "Transfer") {
+      console.log("Transfer event:", decoded.args);
+      // { from: '0x...', to: '0x...', value: 100000000000000000000n }
+    }
+  } catch { /* не наш log */ }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> транзакция подтверждена (<code>status: success</code>);
+      декодированное событие содержит корректные <code>from</code>, <code>to</code>
+      и <code>value = 100e18</code>; баланс получателя вырос на 100 MTK.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-01">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 01 · ERC-20 деплой",
+  "intro": "Семь вопросов по материалу лаборатории. Прогресс сохраняется в localStorage.",
+  "questions": [
+    {
+      "q": "Что делает команда <code>forge install OpenZeppelin/openzeppelin-contracts --no-commit</code>?",
+      "kind": "multiple",
+      "options": [
+        "Устанавливает пакет через npm в node_modules",
+        "Клонирует репозиторий OZ как git-субмодуль в папку lib/ без создания коммита",
+        "Скачивает скомпилированные артефакты ABI",
+        "Добавляет зависимость в package.json"
+      ],
+      "answerIndex": 1,
+      "explain": "Foundry использует git-субмодули для зависимостей. Флаг --no-commit предотвращает автоматический коммит изменений в .gitmodules."
+    },
+    {
+      "q": "Зачем в <code>foundry.toml</code> нужны <code>remappings</code>?",
+      "kind": "multiple",
+      "options": [
+        "Чтобы указать версию компилятора Solidity",
+        "Чтобы транслировать пути вида <code>@openzeppelin/…</code> в реальные пути внутри lib/",
+        "Чтобы включить оптимизацию компилятора",
+        "Чтобы настроить RPC-эндпоинт"
+      ],
+      "answerIndex": 1,
+      "explain": "Solidity-компилятор не знает про @-алиасы — ремапинг заменяет их на физические пути до субмодуля."
+    },
+    {
+      "q": "Почему в конструкторе OpenZeppelin ERC20 v5 нужно явно передавать <code>initialOwner</code> в <code>Ownable(initialOwner)</code>?",
+      "kind": "multiple",
+      "options": [
+        "Так требует компилятор Solidity 0.8.24",
+        "OpenZeppelin v5 убрал неявный <code>_msgSender()</code> из Ownable — owner должен быть указан явно для безопасности",
+        "Это необязательно, можно вызвать без аргументов",
+        "Потому что <code>msg.sender</code> внутри constructor всегда равен address(0)"
+      ],
+      "answerIndex": 1,
+      "explain": "В OZ v5 Ownable требует явного владельца в конструкторе — это предотвращает ошибки, когда фабричный контракт случайно становится owner'ом."
+    },
+    {
+      "q": "Что проверяет <code>vm.expectEmit(true, true, false, true, address(token))</code> в Foundry?",
+      "kind": "multiple",
+      "options": [
+        "Что следующий вызов эмитирует событие с совпадением topic1, topic2, игнорированием topic3 и совпадением data, именно от контракта token",
+        "Что следующий вызов вернёт <code>true</code> и не будет реверта",
+        "Что topic1 и topic2 равны нулю",
+        "Что событие будет отброшено из receipts"
+      ],
+      "answerIndex": 0,
+      "explain": "Четыре булева параметра = проверять ли topic1, topic2, topic3, data. Пятый аргумент — эмиттер-адрес. Transfer имеет indexed from (topic1) и indexed to (topic2)."
+    },
+    {
+      "q": "Чем <code>forge script --broadcast</code> отличается от запуска без этого флага?",
+      "kind": "multiple",
+      "options": [
+        "Без --broadcast скрипт только симулируется локально, с --broadcast транзакции отправляются в реальную сеть",
+        "--broadcast включает verbose-вывод",
+        "Без --broadcast деплой идёт на anvil, с --broadcast — на hardhat",
+        "Разницы нет, оба варианта деплоят в сеть"
+      ],
+      "answerIndex": 0,
+      "explain": "По умолчанию forge script работает в dry-run режиме (fork + симуляция). Флаг --broadcast отправляет подписанные транзакции в указанную сеть."
+    },
+    {
+      "q": "Каким значением <code>decimals()</code> возвращает стандартный OpenZeppelin ERC20?",
+      "kind": "multiple",
+      "options": [
+        "6 (как USDC)",
+        "8 (как WBTC)",
+        "18",
+        "0"
+      ],
+      "answerIndex": 2,
+      "explain": "По умолчанию ERC20 из OZ возвращает 18. Это соответствует 1 ETH = 1e18 wei. Переопределить можно через override decimals()."
+    },
+    {
+      "q": "Что вернёт <code>decodeEventLog</code> из viem, если лог не соответствует ни одному событию в ABI?",
+      "kind": "multiple",
+      "options": [
+        "null",
+        "Пустой объект {}",
+        "Выбросит исключение (throw) — нужно оборачивать в try/catch",
+        "Вернёт сырые байты данных"
+      ],
+      "answerIndex": 2,
+      "explain": "viem бросает AbiEventSignatureNotFoundError или DecodeLogDataMismatch, если topic0 не совпадает с сигнатурой события в ABI. Поэтому итерацию по логам оборачивают в try/catch."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Лабораторная работа использует Foundry (forge, cast), OpenZeppelin Contracts v5,
+      viem 2.x и Sepolia testnet. Приватные ключи в примерах — тестовые ключи Anvil/Hardhat,
+      не используйте их для хранения реальных средств.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

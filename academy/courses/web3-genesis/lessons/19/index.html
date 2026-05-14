@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 19 · Monitoring &amp; Tenderly Alerts — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 19 · Monitoring &amp; Tenderly Alerts</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 19 · monitoring · alerting · ops</p>
+    <h1>Monitoring &amp; Tenderly Alerts: мониторинг контрактов в продакшене</h1>
+
+    <p>
+      Смарт-контракт задеплоен, тесты прошли, аудит получен — кажется, дело сделано.
+      На самом деле это только начало: <strong>продакшен живёт 24/7</strong>, атаки
+      случаются в любое время, а «тихая» ошибка контракта может слить протокол за
+      несколько блоков прежде чем кто-то заметит. В этом уроке вы узнаете, как
+      выстроить полный стек наблюдаемости — от Tenderly Alerts до собственных
+      ethers.js/viem-подписок — и что делать, когда что-то всё-таки пошло не так.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: создать алерты в
+      Tenderly на события, вызовы функций, изменения состояния и падение баланса;
+      написать Tenderly Web3 Action на TypeScript; использовать Simulation API для
+      pre-execution validation; подписаться на on-chain события через viem
+      <code>watchContractEvent</code> и ethers.js; сравнить Tenderly с OpenZeppelin
+      Defender; воспроизвести упавшую транзакцию через trace-replay; составить
+      production-checklist по мониторингу.
+    </div>
+
+    <h2>1. Почему мониторинг критичен: тихие сбои и атаки</h2>
+
+    <p>
+      Blockchain-протоколы страдают от особого класса проблем, которых нет в обычном
+      бэкенде. Традиционный сервис упадёт с 5xx, алерт сработает, SRE поднимет
+      инцидент. Контракт же <em>никогда не упадёт сам по себе</em> — он будет
+      тихо делать не то, что задумывалось, пока кто-то не выведет все средства.
+    </p>
+
+    <table class="compare">
+      <tr><th>Тип проблемы</th><th>Сигнал без мониторинга</th><th>Сигнал с мониторингом</th></tr>
+      <tr>
+        <td><strong>Reentrancy атака</strong></td>
+        <td>Баланс контракта = 0, Twitter в панике</td>
+        <td>Алерт при первом подозрительном вызове + аномальный gas usage</td>
+      </tr>
+      <tr>
+        <td><strong>Oracle manipulation (MEV)</strong></td>
+        <td>Liquidation cascade через 3 блока</td>
+        <td>Алерт при price deviation &gt; N% за один блок</td>
+      </tr>
+      <tr>
+        <td><strong>Missed event</strong></td>
+        <td>Off-chain сервис «теряет» депозиты пользователей</td>
+        <td>Алерт при разрыве между событиями &gt; X минут</td>
+      </tr>
+      <tr>
+        <td><strong>Pause не сработал</strong></td>
+        <td>Контракт продолжает принимать деньги после exploit</td>
+        <td>Алерт при вызове pauseAdmin + проверка флага paused</td>
+      </tr>
+      <tr>
+        <td><strong>Proxy upgrade</strong></td>
+        <td>Неожиданно изменилась логика контракта</td>
+        <td>Алерт на Upgraded(address) с проверкой нового impl-адреса</td>
+      </tr>
+    </table>
+
+    <p>
+      Знаменитые атаки — Ronin Bridge ($625M, 2022), Euler Finance ($197M, 2023),
+      Curve Finance ($62M, 2023) — были замечены <em>задним числом</em>. У команд,
+      у которых были настроены алерты, окно реакции сокращается с часов до минут.
+      Именно это время решает — успел ли паузить контракт, успел ли drain-proof
+      сработать.
+    </p>
+
+    <h2>2. Tenderly Alerting: создание алертов</h2>
+
+    <p>
+      <a href="https://tenderly.co" target="_blank">Tenderly</a> — наиболее полная
+      платформа для Web3 ops: дашборд транзакций, симуляция, отладка trace и,
+      главное, <strong>Alerting</strong> — система нотификаций, которая реагирует
+      на on-chain события без написания инфраструктурного кода.
+    </p>
+
+    <h3>2.1 Типы алертов</h3>
+
+    <table class="compare">
+      <tr><th>Тип</th><th>Когда срабатывает</th><th>Пример использования</th></tr>
+      <tr>
+        <td><strong>Successful Transaction</strong></td>
+        <td>Любая успешная транзакция к адресу</td>
+        <td>Мониторинг нового контракта после деплоя</td>
+      </tr>
+      <tr>
+        <td><strong>Failed Transaction</strong></td>
+        <td>Транзакция реверчена</td>
+        <td>Детект revert-loop атак, отладка пользовательских ошибок</td>
+      </tr>
+      <tr>
+        <td><strong>Function Call</strong></td>
+        <td>Вызвана конкретная функция</td>
+        <td>Алерт при вызове <code>withdraw()</code> крупнее threshold</td>
+      </tr>
+      <tr>
+        <td><strong>Event Emitted</strong></td>
+        <td>Контракт эмитировал событие с нужными параметрами</td>
+        <td>Алерт на <code>Transfer(from, to, amount)</code> с <code>amount &gt; 1000 ETH</code></td>
+      </tr>
+      <tr>
+        <td><strong>State Change</strong></td>
+        <td>Слот storage изменился</td>
+        <td>Алерт при изменении <code>owner</code> — потенциальный takeover</td>
+      </tr>
+      <tr>
+        <td><strong>Balance Change</strong></td>
+        <td>Нативный баланс адреса изменился</td>
+        <td>Алерт при падении баланса multisig ниже 0.5 ETH</td>
+      </tr>
+      <tr>
+        <td><strong>ERC-20 Transfer</strong></td>
+        <td>ERC-20 токен переведён от/к адресу</td>
+        <td>Мониторинг treasury wallet на неожиданные оттоки</td>
+      </tr>
+    </table>
+
+    <h3>2.2 Создание алерта через UI</h3>
+
+    <p>
+      Зайдите в <strong>Dashboard → Alerts → New Alert</strong>. Шаги:
+    </p>
+
+    <ol>
+      <li><strong>Target</strong> — введите адрес контракта или выберите из добавленных
+      проектов. Можно указать несколько адресов одним алертом.</li>
+      <li><strong>Alert type</strong> — выберите из таблицы выше.</li>
+      <li><strong>Filters</strong> — для Event: название события + фильтр по параметрам
+      (например, <code>amount &gt; 1000000000000000000000</code> для 1000 ETH).</li>
+      <li><strong>Destination</strong> — Email, Slack, Telegram, Discord Webhook,
+      PagerDuty, Webhook URL. Можно несколько назначений одновременно.</li>
+      <li><strong>Network</strong> — Mainnet, Sepolia, Polygon, Arbitrum, Optimism и др.</li>
+    </ol>
+
+    <div class="note cyan">
+      <strong>Совет.</strong> Для продакшен-протокола создайте <em>минимум три
+      уровня алертов</em>: (1) «информационный» — в Slack-канал команды;
+      (2) «предупреждение» — в PagerDuty с SLA 15 минут; (3) «критический»
+      — звонок дежурному инженеру через PagerDuty, если паузить нужно немедленно.
+    </div>
+
+    <h3>2.3 Алерт через Tenderly API</h3>
+
+    <p>
+      Те же алерты можно создавать программно — удобно для IaC (Terraform,
+      Pulumi) или CI/CD:
+    </p>
+
+<pre class="code-block"><code># Создать Event Emitted alert через REST API
+curl -X POST "https://api.tenderly.co/api/v1/account/{ACCOUNT}/project/{PROJECT}/alert" \
+  -H "X-Access-Key: $TENDERLY_ACCESS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Large Withdrawal Detected",
+    "description": "Alert when withdraw() emits WithdrawalProcessed with amount > 50 ETH",
+    "enabled": true,
+    "network_id": "1",
+    "conditions": [
+      {
+        "type": "event_emitted",
+        "contract_address": "0xYourContractAddress",
+        "event_name": "WithdrawalProcessed",
+        "parameters": [
+          {
+            "name": "amount",
+            "type": "uint256",
+            "comparison": "gt",
+            "value": "50000000000000000000"
+          }
+        ]
+      }
+    ],
+    "destinations": [
+      {
+        "type": "slack",
+        "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      },
+      {
+        "type": "pagerduty",
+        "routing_key": "YOUR_PAGERDUTY_KEY"
+      }
+    ]
+  }'</code></pre>
+
+    <h2>3. Tenderly Web3 Actions: serverless-функции на событиях</h2>
+
+    <p>
+      Алерты отправляют уведомления. <strong>Web3 Actions</strong> — идут дальше:
+      это серверные JS/TS-функции, которые <em>исполняются</em> при наступлении
+      on-chain события. Можно автоматически паузить контракт, обновить off-chain
+      базу, вызвать внешний API.
+    </p>
+
+    <h3>3.1 Структура проекта</h3>
+
+<pre class="code-block"><code># Установить CLI
+npm install -g @tenderly/cli
+
+# Инициализировать проект
+tenderly init
+tenderly actions init
+
+# Структура
+my-project/
+├── actions/
+│   ├── tenderly.yaml      # конфигурация trigger'ов
+│   └── monitorWithdrawal.ts
+└── package.json</code></pre>
+
+    <h3>3.2 Конфигурация trigger в tenderly.yaml</h3>
+
+<pre class="code-block"><code>account_id: "your-account"
+project_slug: "your-project"
+
+actions:
+  monitorWithdrawal:
+    runtime: v2
+    description: "Auto-pause on large withdrawal"
+    trigger:
+      type: transaction
+      transaction:
+        status:
+          - mined
+        filters:
+          - network: 1
+            eventEmitted:
+              contract:
+                address: "0xYourContractAddress"
+              name: "WithdrawalProcessed"
+              # Фильтр на уровне ABI-параметров
+    function: monitorWithdrawal.ts:onWithdrawal
+    execution_type: parallel</code></pre>
+
+    <h3>3.3 Функция-обработчик (TypeScript)</h3>
+
+<pre class="code-block"><code>import {
+  ActionFn,
+  Context,
+  Event,
+  TransactionEvent,
+} from "@tenderly/actions";
+import { ethers } from "ethers";
+
+// ABI для вызова pause()
+const VAULT_ABI = [
+  "event WithdrawalProcessed(address indexed recipient, uint256 amount)",
+  "function pause() external",
+  "function paused() view returns (bool)",
+];
+
+const LARGE_WITHDRAWAL_THRESHOLD = ethers.parseEther("50"); // 50 ETH
+
+export const onWithdrawal: ActionFn = async (context: Context, event: Event) => {
+  const txEvent = event as TransactionEvent;
+
+  // Получаем провайдер через Tenderly-контекст
+  const provider = await context.gateways.getGateway("mainnet");
+  const rpcUrl = await provider.get();
+  const ethersProvider = new ethers.JsonRpcProvider(rpcUrl);
+
+  // Декодируем logs
+  const iface = new ethers.Interface(VAULT_ABI);
+  for (const log of txEvent.logs) {
+    let decoded;
+    try {
+      decoded = iface.parseLog(log);
+    } catch {
+      continue;
+    }
+
+    if (decoded?.name === "WithdrawalProcessed") {
+      const amount: bigint = decoded.args.amount;
+
+      if (amount > LARGE_WITHDRAWAL_THRESHOLD) {
+        console.log(`🚨 Large withdrawal detected: ${ethers.formatEther(amount)} ETH`);
+        console.log(`Recipient: ${decoded.args.recipient}`);
+        console.log(`TX hash: ${txEvent.hash}`);
+
+        // Достаём приватный ключ из зашифрованного Secrets-хранилища Tenderly
+        const adminKey = await context.secrets.get("GUARDIAN_PRIVATE_KEY");
+        const wallet = new ethers.Wallet(adminKey, ethersProvider);
+        const vault = new ethers.Contract(
+          "0xYourContractAddress",
+          VAULT_ABI,
+          wallet
+        );
+
+        // Паузим контракт
+        const alreadyPaused = await vault.paused();
+        if (!alreadyPaused) {
+          const tx = await vault.pause();
+          await tx.wait();
+          console.log(`✅ Contract paused. Pause TX: ${tx.hash}`);
+        }
+
+        // Уведомляем в PagerDuty
+        await fetch("https://events.pagerduty.com/v2/enqueue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            routing_key: await context.secrets.get("PAGERDUTY_KEY"),
+            event_action: "trigger",
+            payload: {
+              summary: `Large withdrawal: ${ethers.formatEther(amount)} ETH`,
+              severity: "critical",
+              source: "tenderly-web3-action",
+              custom_details: {
+                tx_hash: txEvent.hash,
+                recipient: decoded.args.recipient,
+              },
+            },
+          }),
+        });
+      }
+    }
+  }
+};
+</code></pre>
+
+    <div class="note">
+      <strong>Secrets.</strong> Tenderly Web3 Actions имеют зашифрованное хранилище
+      секретов — <code>context.secrets.get("KEY")</code>. Никогда не хардкодьте
+      приватные ключи прямо в коде функции; используйте только Secrets API.
+    </div>
+
+    <h2>4. Tenderly Simulation API: pre-execution validation</h2>
+
+    <p>
+      Simulation API позволяет <em>сымитировать</em> транзакцию на актуальном
+      состоянии блокчейна <strong>до её отправки</strong>. Это мощный инструмент:
+      можно проверить, не реверчен ли вызов, сколько газа потратит, какие события
+      эмитируются — и всё это без трат газа и без риска для реальных средств.
+    </p>
+
+    <h3>4.1 Сценарии применения</h3>
+    <ul>
+      <li><strong>Pre-execution validation</strong> в UI dApp: перед тем как пользователь
+      нажмёт «Confirm» в MetaMask, симулируем транзакцию и показываем, что именно
+      произойдёт — «вы получите 1.23 WETH, потратив 500 USDC».</li>
+      <li><strong>Tender Gas Estimation</strong>: более точная оценка газа, чем
+      <code>eth_estimateGas</code>, с декодированием причины реверта.</li>
+      <li><strong>What-if scenarios</strong>: тестирование upgrade'ов, parameter changes,
+      liquidation scenarios на fork'е mainnet без реальных транзакций.</li>
+      <li><strong>MEV-защита</strong>: проверить, не ухудшит ли sandwich bot вашу
+      транзакцию при текущем состоянии пула.</li>
+    </ul>
+
+    <h3>4.2 Вызов Simulation API</h3>
+
+<pre class="code-block"><code>// Симуляция перед отправкой swap-транзакции
+async function simulateBeforeSend(
+  from: string,
+  to: string,
+  data: string,
+  value: bigint
+): Promise<{ success: boolean; gasUsed: number; revertReason?: string }> {
+  const TENDERLY_PROJECT = process.env.TENDERLY_PROJECT!;
+  const TENDERLY_ACCOUNT = process.env.TENDERLY_ACCOUNT!;
+  const TENDERLY_KEY = process.env.TENDERLY_ACCESS_KEY!;
+
+  const resp = await fetch(
+    `https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate`,
+    {
+      method: "POST",
+      headers: {
+        "X-Access-Key": TENDERLY_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        network_id: "1",
+        from,
+        to,
+        input: data,
+        value: value.toString(),
+        gas: 500_000,
+        gas_price: "20000000000",
+        save: true,           // сохранить для отладки в дашборде
+        save_if_fails: true,  // сохранить даже если реверт
+        simulation_type: "full", // full trace
+      }),
+    }
+  );
+
+  const result = await resp.json();
+  const sim = result.simulation;
+
+  if (!sim.status) {
+    // Достаём причину реверта из decoded output
+    const revertReason = sim.transaction?.error_message ?? "unknown revert";
+    console.error("Simulation failed:", revertReason);
+    return { success: false, gasUsed: sim.gas_used, revertReason };
+  }
+
+  console.log("Simulation passed. Gas used:", sim.gas_used);
+  // Логируем эмитированные события
+  for (const log of sim.transaction?.transaction_info?.logs ?? []) {
+    console.log("Event:", log.name, log.inputs);
+  }
+
+  return { success: true, gasUsed: sim.gas_used };
+}
+
+// Пример использования перед реальным вызовом swap
+const { success, revertReason } = await simulateBeforeSend(
+  userAddress,
+  UNISWAP_V3_ROUTER,
+  swapCalldata,
+  0n
+);
+
+if (!success) {
+  showError(`Transaction would fail: ${revertReason}`);
+  return;
+}
+
+// Только если симуляция успешна — отправляем
+await walletClient.sendTransaction({ to: UNISWAP_V3_ROUTER, data: swapCalldata });
+</code></pre>
+
+    <h2>5. RPC-мониторинг: ethers.js и viem event subscriptions</h2>
+
+    <p>
+      Для некоторых случаев (более дешёвый стек, self-hosted, нет привязки к Tenderly)
+      мониторинг можно строить напрямую через WebSocket RPC-подписки.
+    </p>
+
+    <h3>5.1 viem: watchContractEvent</h3>
+
+<pre class="code-block"><code>import { createPublicClient, webSocket, parseAbi } from "viem";
+import { mainnet } from "viem/chains";
+
+const VAULT_ABI = parseAbi([
+  "event WithdrawalProcessed(address indexed recipient, uint256 indexed tokenId, uint256 amount)",
+  "event Paused(address account)",
+  "event Unpaused(address account)",
+]);
+
+const client = createPublicClient({
+  chain: mainnet,
+  // WebSocket для real-time подписки (vs HTTP polling)
+  transport: webSocket("wss://mainnet.infura.io/ws/v3/YOUR_KEY"),
+});
+
+// Подписка на конкретное событие контракта
+const unwatch = client.watchContractEvent({
+  address: "0xYourVaultAddress",
+  abi: VAULT_ABI,
+  eventName: "WithdrawalProcessed",
+  // Фильтр по indexed параметрам
+  args: { tokenId: 42n },
+  onLogs: (logs) => {
+    for (const log of logs) {
+      const { recipient, amount } = log.args;
+      console.log(`Withdrawal: ${recipient} → ${amount} wei`);
+      if (amount! > parseEther("50")) {
+        triggerEmergencyPause();
+      }
+    }
+  },
+  onError: (error) => {
+    console.error("Subscription error:", error);
+    // Реконнект-логика
+  },
+});
+
+// Остановить подписку
+// unwatch();
+</code></pre>
+
+    <h3>5.2 getLogs с ретраем (polling fallback)</h3>
+
+<pre class="code-block"><code>import { createPublicClient, http, parseAbiItem } from "viem";
+import { mainnet } from "viem/chains";
+
+const client = createPublicClient({ chain: mainnet, transport: http() });
+
+async function pollEvents(fromBlock: bigint) {
+  while (true) {
+    const latestBlock = await client.getBlockNumber();
+
+    if (latestBlock > fromBlock) {
+      const logs = await client.getLogs({
+        address: "0xYourVaultAddress",
+        event: parseAbiItem(
+          "event WithdrawalProcessed(address indexed recipient, uint256 amount)"
+        ),
+        fromBlock,
+        toBlock: latestBlock,
+      });
+
+      for (const log of logs) {
+        await processWithdrawal(log);
+      }
+
+      fromBlock = latestBlock + 1n;
+    }
+
+    await new Promise((r) => setTimeout(r, 12_000)); // ~1 блок = 12 сек
+  }
+}
+
+// Стартуем с блока деплоя контракта
+await pollEvents(19_000_000n);
+</code></pre>
+
+    <h3>5.3 ethers.js: provider.on и queryFilter</h3>
+
+<pre class="code-block"><code>import { ethers } from "ethers";
+
+const provider = new ethers.WebSocketProvider(
+  "wss://mainnet.infura.io/ws/v3/YOUR_KEY"
+);
+const vault = new ethers.Contract("0xYourVaultAddress", VAULT_ABI, provider);
+
+// Подписка real-time
+vault.on("WithdrawalProcessed", (recipient, amount, event) => {
+  console.log(`TX: ${event.transactionHash}`);
+  console.log(`Withdrawal: ${ethers.formatEther(amount)} ETH to ${recipient}`);
+});
+
+// Исторические события
+const filter = vault.filters.WithdrawalProcessed(null, null);
+const logs = await vault.queryFilter(filter, -10_000); // последние 10 000 блоков
+console.log(`Found ${logs.length} past withdrawals`);
+
+// Реконнект при падении WS
+provider.on("error", async (err) => {
+  console.error("WS Error:", err);
+  await provider.destroy();
+  // перезапустить провайдер...
+});
+</code></pre>
+
+    <div class="note cyan">
+      <strong>WebSocket vs HTTP polling.</strong> WebSocket дают push-нотификации
+      без задержки (~100ms vs ~12000ms), но нестабильны при длительной работе —
+      нужен реконнект. Для критичного мониторинга используйте оба: WS как primary,
+      HTTP polling как fallback с проверкой пропущенных блоков.
+    </div>
+
+    <h2>6. OpenZeppelin Defender Monitors</h2>
+
+    <p>
+      <strong>OpenZeppelin Defender</strong> — конкурент Tenderly с несколько
+      другим фокусом: больше внимания к automated response (автоматические
+      транзакции), мультисиг управление, Relayers для gasless operations.
+    </p>
+
+    <table class="compare">
+      <tr><th>Функция</th><th>Tenderly</th><th>OZ Defender</th></tr>
+      <tr>
+        <td>Мониторинг событий</td>
+        <td>Alerts + Web3 Actions</td>
+        <td>Monitors + Autotasks</td>
+      </tr>
+      <tr>
+        <td>Автоматические транзакции</td>
+        <td>Web3 Actions + Secrets</td>
+        <td>Relayer (managed key + gas)</td>
+      </tr>
+      <tr>
+        <td>Multisig управление</td>
+        <td>Нет</td>
+        <td>Safe (Gnosis) интеграция</td>
+      </tr>
+      <tr>
+        <td>Симуляция транзакций</td>
+        <td>Simulation API (лучше)</td>
+        <td>Ограниченная</td>
+      </tr>
+      <tr>
+        <td>Trace debugging</td>
+        <td>Полный trace + декодирование</td>
+        <td>Базовый</td>
+      </tr>
+      <tr>
+        <td>Цена</td>
+        <td>Free tier + платные планы</td>
+        <td>Free tier + платные планы</td>
+      </tr>
+      <tr>
+        <td>Self-hosted</td>
+        <td>Нет</td>
+        <td>Нет (но open-source SDK)</td>
+      </tr>
+    </table>
+
+    <h3>6.1 Defender Monitor пример</h3>
+
+<pre class="code-block"><code>import { Defender } from "@openzeppelin/defender-sdk";
+
+const client = new Defender({
+  apiKey: process.env.DEFENDER_KEY!,
+  apiSecret: process.env.DEFENDER_SECRET!,
+});
+
+// Создать Monitor
+const monitor = await client.monitor.create({
+  type: "BLOCK",
+  name: "Vault Large Withdrawal",
+  addresses: ["0xYourVaultAddress"],
+  abi: JSON.stringify(VAULT_ABI),
+  network: "mainnet",
+  // Фильтр событий
+  eventConditions: [
+    {
+      eventSignature: "WithdrawalProcessed(address,uint256)",
+      expression: "amount > 50000000000000000000", // > 50 ETH
+    },
+  ],
+  // Notif каналы
+  notificationChannels: ["SLACK_CHANNEL_ID", "PAGERDUTY_CHANNEL_ID"],
+  // Autotask — serverless функция (аналог Web3 Actions)
+  autotaskId: "YOUR_AUTOTASK_ID",
+});
+
+console.log("Monitor created:", monitor.monitorId);
+</code></pre>
+
+    <h2>7. Post-mortem: воспроизведение упавшей транзакции</h2>
+
+    <p>
+      Когда инцидент уже произошёл, Tenderly позволяет <strong>пошагово
+      воспроизвести</strong> упавшую транзакцию — увидеть каждый шаг EVM,
+      изменения состояния, стек вызовов, декодированные ошибки.
+    </p>
+
+    <h3>7.1 Trace replay в UI</h3>
+
+    <ol>
+      <li>Откройте <strong>Tenderly Dashboard → Explorer</strong>, введите hash
+      упавшей транзакции.</li>
+      <li>Перейдите во вкладку <strong>Debugger</strong> — видите call tree:
+      каждый вызов, sub-call, delegatecall с результатами.</li>
+      <li>Во вкладке <strong>State Changes</strong> — все затронутые storage слоты
+      с before/after значениями, декодированными через ABI.</li>
+      <li>Вкладка <strong>Events</strong> — события, которые были бы эмитированы
+      (даже если транзакция реверчена — виртуальные события до revert видны).</li>
+      <li><strong>Re-simulate</strong>: измените параметры (другой block number,
+      другой from, другая сумма) — пересимулируйте и сравните результаты.</li>
+    </ol>
+
+    <h3>7.2 Trace через API</h3>
+
+<pre class="code-block"><code>// Получить trace упавшей транзакции программно
+async function analyzeFailedTx(txHash: string) {
+  const resp = await fetch(
+    `https://api.tenderly.co/api/v1/public-contract/1/trace/${txHash}`,
+    {
+      headers: { "X-Access-Key": process.env.TENDERLY_ACCESS_KEY! },
+    }
+  );
+
+  const trace = await resp.json();
+
+  // Найти точку реверта в call tree
+  function findRevert(calls: any[], depth = 0): void {
+    for (const call of calls) {
+      const indent = "  ".repeat(depth);
+      const status = call.error ? "❌ REVERT" : "✅";
+      console.log(
+        `${indent}${status} ${call.type} ${call.to} → ${call.function_name ?? "(fallback)"}`
+      );
+      if (call.error) {
+        console.log(`${indent}  Error: ${call.error}`);
+        console.log(`${indent}  Error reason: ${call.error_reason ?? "N/A"}`);
+      }
+      if (call.calls?.length) {
+        findRevert(call.calls, depth + 1);
+      }
+    }
+  }
+
+  findRevert(trace.transaction_info.call_trace.calls ?? []);
+}
+
+// Пример
+await analyzeFailedTx("0xabcd1234...упавшая транзакция...");
+</code></pre>
+
+    <h3>7.3 Декодирование custom errors через trace</h3>
+
+<pre class="code-block"><code>// Solidity custom error в контракте
+// error InsufficientBalance(address user, uint256 required, uint256 actual);
+
+// Tenderly декодирует это автоматически если ABI загружен.
+// Если нет — декодируем вручную:
+import { decodeErrorResult, parseAbi } from "viem";
+
+const ABI = parseAbi([
+  "error InsufficientBalance(address user, uint256 required, uint256 actual)",
+]);
+
+// Из trace получаем revert data (hex)
+const revertData = "0x12345678..."; // первые 4 байта = selector, остальное = args
+
+try {
+  const decoded = decodeErrorResult({ abi: ABI, data: revertData });
+  console.log("Custom error:", decoded.errorName);
+  console.log("Args:", decoded.args);
+  // InsufficientBalance { user: "0x...", required: 1000n, actual: 500n }
+} catch {
+  // Не custom error — попробовать как стандартный revert(string)
+  console.log("Standard revert:", hexToString(revertData.slice(10)));
+}
+</code></pre>
+
+    <h2>8. Production checklist: мониторинг</h2>
+
+    <div class="note">
+      <strong>Чек-лист для production-деплоя (мониторинг).</strong>
+    </div>
+
+    <table class="compare">
+      <tr><th>#</th><th>Требование</th><th>Инструмент</th></tr>
+      <tr>
+        <td>1</td>
+        <td>Каждое изменение состояния эмитирует event с индексируемыми полями</td>
+        <td>Code review + Slither <code>events-access</code> detector</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Алерт на все <code>Transfer</code> из treasury &gt; threshold</td>
+        <td>Tenderly Alert / OZ Defender Monitor</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Алерт при изменении <code>owner</code> или <code>admin</code> storage slot</td>
+        <td>Tenderly State Change alert</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Алерт при балансе hot wallet / relayer &lt; 0.1 ETH</td>
+        <td>Tenderly Balance Change alert</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Слипаж-проверки в контракте (<code>require(amountOut &gt;= minAmountOut)</code>)</td>
+        <td>Solidity + Foundry fuzz-тесты</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Механизм паузы: <code>Pausable</code> + guardians с мультисигом</td>
+        <td>OpenZeppelin Pausable + Safe multisig</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Web3 Action для автоматического паузирования при аномалии</td>
+        <td>Tenderly Web3 Actions + Secrets</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Pre-tx симуляция в фронтенде для UX + защиты от неожиданных реверт</td>
+        <td>Tenderly Simulation API</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Post-mortem процедура: trace replay + разбор root cause &lt; 24ч</td>
+        <td>Tenderly Debugger</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Runbook в Notion/Confluence: кто что делает при инциденте</td>
+        <td>Документация + PagerDuty escalation policy</td>
+      </tr>
+    </table>
+
+    <h3>8.1 Pausable pattern в контракте</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+
+contract SecureVault is Pausable, AccessControl {
+    bytes32 public constant GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
+    bytes32 public constant OPERATOR_ROLE  = keccak256("OPERATOR_ROLE");
+
+    // Guardians — адреса Tenderly Web3 Action, может быть несколько
+    // Operator — multisig Safe, может выполнять операции
+
+    event WithdrawalProcessed(
+        address indexed recipient,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    constructor(address admin, address guardian) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(GUARDIAN_ROLE, guardian);
+        _grantRole(OPERATOR_ROLE, admin);
+    }
+
+    // Только guardian или admin могут паузить
+    function pause() external onlyRole(GUARDIAN_ROLE) {
+        _pause();
+    }
+
+    // Только admin может снять паузу (намеренно строже)
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
+    }
+
+    function withdraw(address recipient, uint256 amount)
+        external
+        onlyRole(OPERATOR_ROLE)
+        whenNotPaused  // ← ключевой модификатор
+    {
+        require(address(this).balance >= amount, "InsufficientBalance");
+        // Slippage protection: здесь для native ETH это limit
+        require(amount <= 10 ether, "ExceedsLimit");
+
+        (bool ok,) = recipient.call{value: amount}("");
+        require(ok, "TransferFailed");
+
+        emit WithdrawalProcessed(recipient, amount, block.timestamp);
+    }
+
+    receive() external payable {}
+}
+</code></pre>
+
+    <h2>9. Что дальше</h2>
+    <p>
+      В <a href="../20/index.html"><strong>Lesson 20 — Поставка dApp</strong></a>
+      мы завершим курс: верификация контракта на Etherscan, деплой фронтенда на IPFS,
+      привязка ENS-имени, production deployment checklist — от multisig deployer
+      до timelock controller и emergency pause.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="19">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 19 · мониторинг и Tenderly",
+  "intro": "Семь вопросов по мониторингу смарт-контрактов. Multiple-выбор подсвечивает верный ответ; задачи отмечайте сами. Прогресс сохраняется в localStorage.",
+  "questions": [
+    {
+      "q": "Какой тип Tenderly-алерта следует создать, чтобы получить уведомление при изменении переменной <code>owner</code> в storage контракта?",
+      "kind": "multiple",
+      "options": [
+        "Event Emitted — подписаться на событие OwnershipTransferred",
+        "State Change — указать конкретный storage slot переменной owner",
+        "Failed Transaction — ловить revert при попытке смены владельца",
+        "Balance Change — мониторить ETH-баланс owner-адреса"
+      ],
+      "answerIndex": 1,
+      "explain": "State Change alert напрямую отслеживает изменения storage. Event Emitted тоже возможен если в контракте есть событие OwnershipTransferred, но State Change сработает даже если событие не эмитировано — более надёжно."
+    },
+    {
+      "q": "Tenderly Web3 Actions позволяют автоматически паузить контракт при аномалии. Где безопасно хранить приватный ключ guardian-кошелька, который будет использоваться функцией-обработчиком?",
+      "kind": "multiple",
+      "options": [
+        "Захардкодить прямо в TypeScript-функции — там никто не увидит",
+        "В переменной окружения tenderly.yaml",
+        "В зашифрованном Tenderly Secrets хранилище, доступ через context.secrets.get()",
+        "В публичном GitHub-репозитории в файле .env.example"
+      ],
+      "answerIndex": 2,
+      "explain": "Tenderly Secrets — это зашифрованное key-value хранилище, специально предназначенное для чувствительных данных в Web3 Actions. Ключ никогда не появляется в логах и не доступен через UI после сохранения."
+    },
+    {
+      "q": "Для чего используется Tenderly Simulation API в контексте UX dApp?",
+      "kind": "multiple",
+      "options": [
+        "Для генерации случайных чисел для NFT-минта",
+        "Для показа пользователю что именно произойдёт при транзакции до её отправки, без трат газа",
+        "Для автоматического выбора оптимального газ-прайса",
+        "Для верификации исходного кода контракта на Etherscan"
+      ],
+      "answerIndex": 1,
+      "explain": "Simulation API позволяет выполнить транзакцию на текущем состоянии блокчейна виртуально — узнать результат, gas usage, эмитированные события — и показать это пользователю как preview перед реальной подписью в MetaMask."
+    },
+    {
+      "q": "Чем viem <code>watchContractEvent</code> отличается от polling через <code>getLogs</code>?",
+      "kind": "open",
+      "answer": "watchContractEvent использует WebSocket-подписку (eth_subscribe) и получает push-уведомления от ноды почти мгновенно (~100ms задержка). getLogs — это HTTP polling: нужно самому периодически опрашивать ноду и запрашивать логи за диапазон блоков. WS дешевле по задержке, но нестабилен при длительной работе (нужен реконнект). Polling надёжнее для гарантированной обработки всех блоков, особенно при перезапусках сервиса."
+    },
+    {
+      "q": "Какова минимально необходимая роль контракта для реализации механизма аварийной паузы согласно best practices OpenZeppelin?",
+      "kind": "multiple",
+      "options": [
+        "Только DEFAULT_ADMIN_ROLE — один адрес должен иметь все права",
+        "Отдельная GUARDIAN_ROLE для паузы + DEFAULT_ADMIN_ROLE для снятия паузы — намеренно асимметрично",
+        "Любой пользователь должен уметь паузить для максимальной безопасности",
+        "OPERATOR_ROLE совмещает паузу и все операции"
+      ],
+      "answerIndex": 1,
+      "explain": "Асимметрия намеренная: GUARDIAN_ROLE (может быть у Tenderly Web3 Action) может быстро паузить при подозрении, но снять паузу может только DEFAULT_ADMIN_ROLE (multisig). Это предотвращает ложные срабатывания от скомпрометированного guardian."
+    },
+    {
+      "q": "Practical: настройте Tenderly алерт (через UI или API) на событие <code>Transfer(address indexed from, address indexed to, uint256 value)</code> USDC-контракта (0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48) с фильтром <code>value &gt; 1 000 000 * 10^6</code> (более $1M). Запишите шаги настройки.",
+      "kind": "task",
+      "answer": "1. Tenderly Dashboard → Alerts → New Alert. 2. Network: Ethereum Mainnet. 3. Target: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 (USDC). 4. Alert type: Event Emitted. 5. Event name: Transfer. 6. Filter: параметр value > 1000000000000 (USDC имеет 6 decimals: 1M USDC = 1_000_000 * 10^6 = 10^12). 7. Destination: ваш Slack/Email/Telegram. 8. Save. Алерт будет срабатывать при каждом переводе USDC более $1M."
+    },
+    {
+      "q": "При post-mortem анализе упавшей транзакции через Tenderly Debugger что именно можно увидеть во вкладке «State Changes»?",
+      "kind": "multiple",
+      "options": [
+        "Только публичные переменные контракта и их новые значения",
+        "Все затронутые storage слоты всех контрактов с before/after значениями, декодированными через ABI",
+        "Только изменения ERC-20 балансов",
+        "Список транзакций в том же блоке"
+      ],
+      "answerIndex": 1,
+      "explain": "State Changes показывает все storage слоты, затронутые транзакцией, включая внутренние переменные, mapping-значения, массивы — с декодированием через загруженный ABI. Это позволяет точно понять что изменилось и почему произошёл revert."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Примеры кода используют Tenderly SDK, viem 2.x и ethers.js 6.x.
+      Для тестирования алертов используйте Tenderly Forks — изолированные
+      копии сети, в которых можно симулировать атаки без реальных средств.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

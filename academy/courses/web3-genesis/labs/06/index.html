@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 06 · Upgradeable Proxy (UUPS) — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 06 · Upgradeable Proxy (UUPS)</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 06 · обновляемые контракты</p>
+    <h1>Lab 06 · Upgradeable Proxy (UUPS)</h1>
+
+    <p>
+      Смарт-контракты на EVM по умолчанию <strong>неизменяемы</strong>: задеплоенный
+      байткод нельзя переписать. Тем не менее большинство production-протоколов
+      нуждаются в возможности исправлять баги и добавлять функции, сохраняя
+      адрес контракта и все накопленные данные. Решение — <strong>паттерн прокси</strong>:
+      пользователи взаимодействуют с «тонкой» оболочкой (proxy), которая через
+      <code>delegatecall</code> перенаправляет вызовы в сменную реализацию
+      (implementation). В этом лабе вы пройдёте полный цикл: деплой, апгрейд,
+      сломаете хранилище намеренно и снова починете — чтобы понять риски изнутри.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      разворачивать контракты через UUPS-прокси с плагином OpenZeppelin Upgrades;
+      объяснять разницу между UUPS и Transparent Proxy; безопасно добавлять переменные
+      в storage layout, не вызывая коллизий; читать ERC-1967 слот, чтобы убедиться
+      в смене реализации; воспроизводить и диагностировать storage collision при
+      переименовании переменных; деплоить и верифицировать оба контракта на Sepolia.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Инициализируйте Hardhat-проект с плагином <code>@openzeppelin/hardhat-upgrades</code>
+      и напишите простой счётчик <code>CounterV1</code>, готовый к проксированию
+      через UUPS.
+    </p>
+
+    <h3>Подготовка окружения</h3>
+<pre class="code-block"><code>mkdir counter-uups && cd counter-uups
+npm init -y
+npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox \
+  @openzeppelin/hardhat-upgrades \
+  @openzeppelin/contracts-upgradeable
+
+npx hardhat init   # выберите "Create a TypeScript project"</code></pre>
+
+    <h3>contracts/CounterV1.sol</h3>
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+contract CounterV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    // Slot 0: _initialized + _initializing (Initializable)
+    // Slot 1..n: OwnableUpgradeable внутренние переменные
+    // --- ваши переменные ПОСЛЕ унаследованных ---
+    uint256 public count;       // slot N (зависит от родителей)
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+        count = 0;
+    }
+
+    function increment() external {
+        count += 1;
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyOwner
+    {}
+}</code></pre>
+
+    <h3>scripts/deploy.ts</h3>
+<pre class="code-block"><code>import { ethers, upgrades } from "hardhat";
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  console.log("Deploying with:", deployer.address);
+
+  const CounterV1 = await ethers.getContractFactory("CounterV1");
+
+  // deployProxy автоматически деплоит ERC1967Proxy + вызывает initialize()
+  const proxy = await upgrades.deployProxy(CounterV1, [deployer.address], {
+    kind: "uups",
+  });
+  await proxy.waitForDeployment();
+
+  console.log("Proxy deployed at:", await proxy.getAddress());
+}
+
+main().catch((e) => { console.error(e); process.exitCode = 1; });</code></pre>
+
+<pre class="code-block"><code>npx hardhat run scripts/deploy.ts --network localhost</code></pre>
+
+    <p>
+      Проверьте: после деплоя вызовите <code>proxy.count()</code> — должно
+      вернуть <code>0</code>. Вызовите <code>proxy.increment()</code> три раза,
+      затем снова <code>count()</code> — ожидаемый результат: <code>3</code>.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Изучите layout хранилища и добавьте новую переменную <strong>правильно</strong>
+      — только в конец списка. Проверьте отсутствие коллизий с помощью плагина
+      Foundry <code>forge inspect</code> и сравните слоты вручную.
+    </p>
+
+    <h3>Правила безопасного расширения storage</h3>
+    <table class="compare">
+      <tr><th>Действие</th><th>Безопасно?</th><th>Причина</th></tr>
+      <tr>
+        <td>Добавить переменную <em>в конец</em></td>
+        <td>Да</td>
+        <td>Существующие слоты не сдвигаются</td>
+      </tr>
+      <tr>
+        <td>Добавить переменную <em>в начало</em> или между</td>
+        <td>Нет</td>
+        <td>Все последующие переменные сдвигаются на N слотов</td>
+      </tr>
+      <tr>
+        <td>Переименовать переменную (тот же тип)</td>
+        <td>Да (на уровне EVM)</td>
+        <td>Слоты определяются порядком, не именем; но плагин предупредит</td>
+      </tr>
+      <tr>
+        <td>Изменить тип переменной (<code>uint128</code> → <code>uint256</code>)</td>
+        <td>Нет</td>
+        <td>Размер слота изменяется, прочитанные биты сдвигаются</td>
+      </tr>
+      <tr>
+        <td>Удалить переменную</td>
+        <td>Нет</td>
+        <td>Последующие переменные занимают освободившийся слот, значения перепутаются</td>
+      </tr>
+    </table>
+
+    <h3>Инспекция слотов через forge</h3>
+<pre class="code-block"><code># Если у вас установлен Foundry:
+forge inspect CounterV1 storage-layout --pretty
+
+# Пример вывода:
+# | Name    | Type    | Slot | Offset | Bytes |
+# |---------|---------|------|--------|-------|
+# | _owner  | address |  0   |   0    |  20   |
+# | count   | uint256 |  1   |   0    |  32   |</code></pre>
+
+    <h3>Добавление новой переменной</h3>
+<pre class="code-block"><code>// CounterV1 (правильно расширенный для V2):
+contract CounterV2 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    uint256 public count;       // slot N — НЕ ТРОГАЕМ
+    string  public label;       // slot N+1 — добавляем ТОЛЬКО в конец
+
+    // ... остальной код
+}</code></pre>
+
+    <p>
+      Запустите <code>npx hardhat compile</code> и <code>forge inspect CounterV2 storage-layout --pretty</code>,
+      убедитесь что <code>count</code> остался на прежнем слоте.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Напишите <code>CounterV2</code> с новым методом <code>incrementBy(uint256)</code>
+      и строковым полем <code>label</code>. Выполните апгрейд через
+      <code>upgrades.upgradeProxy()</code>.
+    </p>
+
+    <h3>contracts/CounterV2.sol</h3>
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+contract CounterV2 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    uint256 public count;       // slot N — сохраняем на месте
+    string  public label;       // slot N+1 — новая переменная в конце
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() { _disableInitializers(); }
+
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+    }
+
+    function increment() external {
+        count += 1;
+    }
+
+    // НОВАЯ функция:
+    function incrementBy(uint256 amount) external {
+        count += amount;
+    }
+
+    function setLabel(string calldata _label) external onlyOwner {
+        label = _label;
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal override onlyOwner {}
+}</code></pre>
+
+    <h3>scripts/upgrade.ts</h3>
+<pre class="code-block"><code>import { ethers, upgrades } from "hardhat";
+
+const PROXY_ADDRESS = "0x..."; // адрес из Задания 1
+
+async function main() {
+  const CounterV2 = await ethers.getContractFactory("CounterV2");
+
+  const upgraded = await upgrades.upgradeProxy(PROXY_ADDRESS, CounterV2);
+  await upgraded.waitForDeployment();
+
+  console.log("Proxy upgraded. Address (должен совпасть):", await upgraded.getAddress());
+
+  // Проверяем новую функцию:
+  await upgraded.incrementBy(10);
+  console.log("count после incrementBy(10):", await upgraded.count());
+}
+
+main().catch((e) => { console.error(e); process.exitCode = 1; });</code></pre>
+
+<pre class="code-block"><code>npx hardhat run scripts/upgrade.ts --network localhost</code></pre>
+
+    <p>
+      Адрес прокси <em>не изменится</em>. Изменится только адрес реализации,
+      который прокси хранит во внутреннем ERC-1967 слоте.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Убедитесь в смене реализации напрямую через ERC-1967 storage slot.
+      Проверьте адрес реализации до и после апгрейда.
+    </p>
+
+    <h3>Читаем ERC-1967 implementation slot</h3>
+<pre class="code-block"><code>// ERC-1967 определяет фиксированный слот для адреса реализации:
+// keccak256("eip1967.proxy.implementation") - 1
+// = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
+
+import { ethers } from "hardhat";
+
+async function checkImplementation(proxyAddress: string) {
+  const IMPL_SLOT =
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+
+  const raw = await ethers.provider.getStorage(proxyAddress, IMPL_SLOT);
+  // raw — 32 байта, адрес находится в последних 20 байтах
+  const implAddress = ethers.getAddress("0x" + raw.slice(-40));
+  console.log("Implementation address:", implAddress);
+  return implAddress;
+}
+
+// Вызовите до и после upgrade:
+const before = await checkImplementation(PROXY_ADDRESS);
+// ... запустите upgrade ...
+const after = await checkImplementation(PROXY_ADDRESS);
+console.log("Changed:", before !== after);</code></pre>
+
+    <p>
+      Также воспользуйтесь встроенным хелпером плагина:
+    </p>
+
+<pre class="code-block"><code>import { upgrades } from "hardhat";
+
+const implAddr = await upgrades.erc1967.getImplementationAddress(PROXY_ADDRESS);
+console.log("Impl via plugin:", implAddr);</code></pre>
+
+    <h2>Задание 5</h2>
+    <p>
+      Проверьте сохранность хранилища после апгрейда: значение счётчика,
+      установленное в V1, должно быть доступно через V2-интерфейс.
+    </p>
+
+    <h3>scripts/check-storage.ts</h3>
+<pre class="code-block"><code>import { ethers, upgrades } from "hardhat";
+
+const PROXY_ADDRESS = "0x...";
+
+async function main() {
+  // Шаг 1: получаем текущий count через V2 ABI
+  const counter = await ethers.getContractAt("CounterV2", PROXY_ADDRESS);
+  const countBefore = await counter.count();
+  console.log("count до apgrade:", countBefore.toString());
+
+  // Шаг 2: вызываем новую функцию
+  const tx = await counter.incrementBy(5);
+  await tx.wait();
+
+  const countAfter = await counter.count();
+  console.log("count после incrementBy(5):", countAfter.toString());
+
+  // Проверяем инвариант: countAfter === countBefore + 5
+  const expected = countBefore + 5n;
+  console.assert(countAfter === expected, `Ожидали ${expected}, получили ${countAfter}`);
+  console.log("Хранилище сохранено корректно.");
+}
+
+main().catch((e) => { console.error(e); process.exitCode = 1; });</code></pre>
+
+    <p>
+      Если апгрейд нарушил storage layout, значения смешаются и вы увидите
+      неожиданные числа. В правильном сценарии <code>countBefore</code>
+      должен совпасть со значением, накопленным в V1.
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Намеренно сломайте хранилище: в новой версии контракта поменяйте
+      <strong>порядок</strong> переменных — поставьте <code>label</code>
+      перед <code>count</code>. Наблюдайте за коллизией.
+    </p>
+
+    <h3>contracts/CounterV2_BROKEN.sol — плохой пример</h3>
+<pre class="code-block"><code>// ВНИМАНИЕ: это намеренно сломанный контракт для демонстрации коллизии
+contract CounterV2_BROKEN is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    // ОШИБКА: label добавлена перед count — сдвигает count на следующий слот!
+    string  public label;       // займёт slot N (бывший slot count)
+    uint256 public count;       // переедет на slot N+1 — ТЕРЯЕТ старое значение
+    // ...
+}</code></pre>
+
+    <h3>Диагностика через forge</h3>
+<pre class="code-block"><code># Сравните layout до и после:
+forge inspect CounterV1 storage-layout --pretty > layout_v1.txt
+forge inspect CounterV2_BROKEN storage-layout --pretty > layout_broken.txt
+diff layout_v1.txt layout_broken.txt
+
+# Или используйте плагин hardhat-upgrades — он откажется апгрейдить:
+# Error: New storage layout is incompatible:
+# Storage variable "count" was removed at slot 1</code></pre>
+
+    <h3>Что произойдёт при апгрейде</h3>
+<pre class="code-block"><code">// После апгрейда на сломанную версию:
+const broken = await ethers.getContractAt("CounterV2_BROKEN", PROXY_ADDRESS);
+
+// Слот N содержит старое значение count (например 3), но теперь он трактуется
+// как bytes строки label — вы увидите мусор вместо строки:
+console.log("label:", await broken.label());  // <- бинарный мусор
+
+// Слот N+1 был пустым (нулём), поэтому count "потерял" своё значение:
+console.log("count:", await broken.count());  // <- 0 вместо 3</code></pre>
+
+    <p>
+      Плагин <code>@openzeppelin/hardhat-upgrades</code> по умолчанию проверяет
+      совместимость и <em>отказывает</em> в апгрейде с ошибкой. Чтобы
+      воспроизвести эффект — используйте <code>unsafeAllow: ["delegatecall"]</code>
+      или напишите тест с ручным <code>delegatecall</code>. Никогда не делайте
+      это в production.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Задеплойте прокси и реализацию на Sepolia через Hardhat, затем верифицируйте
+      оба контракта на Etherscan.
+    </p>
+
+    <h3>hardhat.config.ts — добавьте Sepolia</h3>
+<pre class="code-block"><code>import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+import "@openzeppelin/hardhat-upgrades";
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.24",
+  networks: {
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL ?? "",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY ?? "",
+  },
+};
+
+export default config;</code></pre>
+
+    <h3>Деплой на Sepolia</h3>
+<pre class="code-block"><code># .env
+SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_KEY
+PRIVATE_KEY=0xabc...   # тестовый ключ без реальных средств
+ETHERSCAN_API_KEY=YOUR_ETHERSCAN_KEY
+
+npx hardhat run scripts/deploy.ts --network sepolia</code></pre>
+
+    <h3>Верификация</h3>
+<pre class="code-block"><code># Верификация реализации:
+npx hardhat verify --network sepolia IMPLEMENTATION_ADDRESS
+
+# Верификация прокси (Etherscan умеет распознавать ERC-1967):
+npx hardhat verify --network sepolia PROXY_ADDRESS
+
+# Плагин предоставляет удобную обёртку:
+# upgrades.verifyProxy(PROXY_ADDRESS)</code></pre>
+
+    <p>
+      После верификации на Sepolia Etherscan вы увидите вкладку «Read as Proxy»
+      / «Write as Proxy» — Etherscan автоматически показывает ABI реализации
+      поверх адреса прокси благодаря ERC-1967 слоту.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-06">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 06 · UUPS Proxy",
+  "intro": "Семь вопросов по материалу лаба. Multiple-выбор подсвечивает верный ответ; задачи и открытые вопросы отмечайте самостоятельно.",
+  "questions": [
+    {
+      "q": "Чем UUPS-прокси отличается от Transparent Proxy (OpenZeppelin)?",
+      "kind": "multiple",
+      "options": [
+        "UUPS хранит логику апгрейда в самой реализации, Transparent — в прокси-контракте",
+        "UUPS дешевле в деплое, но дороже в апгрейде",
+        "Transparent Proxy использует ERC-1967, UUPS — нет",
+        "UUPS не поддерживает onlyOwner-защиту функции апгрейда"
+      ],
+      "answerIndex": 0,
+      "explain": "В UUPS функция _authorizeUpgrade и upgradeToAndCall находятся в implementation. Это уменьшает размер прокси и снижает стоимость деплоя, но требует аккуратности: если задеплоить реализацию без _authorizeUpgrade — прокси потеряет возможность апгрейда навсегда."
+    },
+    {
+      "q": "По какому ERC-1967 слоту хранится адрес текущей реализации?",
+      "kind": "multiple",
+      "options": [
+        "0x0000...0001 (первый слот storage)",
+        "keccak256(\"eip1967.proxy.implementation\") - 1",
+        "keccak256(abi.encodePacked(address(this)))",
+        "Произвольный слот, выбранный при деплое"
+      ],
+      "answerIndex": 1,
+      "explain": "ERC-1967 использует псевдо-случайный слот 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc, чтобы избежать коллизий с переменными реализации."
+    },
+    {
+      "q": "Почему нельзя добавить новую переменную перед существующими в upgradeable-контракте?",
+      "kind": "open",
+      "answer": "EVM хранит переменные в слотах по порядку объявления. Если вставить новую переменную между старыми, все последующие переменные сдвигаются на один слот. После апгрейда старые данные в памяти прокси оказываются под новыми именами — возникает storage collision. Пример: если count был в слоте 2, а мы добавили label перед ним, то label теперь читает слот 2 (старое значение count), а count — пустой слот 3."
+    },
+    {
+      "q": "Что означает декоратор `@custom:oz-upgrades-unsafe-allow constructor` перед конструктором реализации?",
+      "kind": "multiple",
+      "options": [
+        "Разрешает вызов конструктора при апгрейде",
+        "Подавляет ошибку плагина, который запрещает конструкторы в upgradeable-контрактах; конструктор здесь только вызывает _disableInitializers()",
+        "Указывает компилятору пропустить проверку Initializable",
+        "Разрешает повторную инициализацию контракта"
+      ],
+      "answerIndex": 1,
+      "explain": "Плагин OZ upgrades по умолчанию запрещает любые конструкторы в upgradeable-контрактах, так как конструктор исполняется в контексте implementation, а не proxy. Единственное безопасное исключение — вызов _disableInitializers(), который блокирует прямой вызов initialize() на implementation-адресе."
+    },
+    {
+      "q": "После апгрейда CounterV1 → CounterV2 адрес прокси остался прежним. Что именно изменилось в blockchain state?",
+      "kind": "open",
+      "answer": "Изменилось значение ERC-1967 implementation slot (0x3608...) в storage прокси-контракта — теперь оно указывает на адрес нового контракта CounterV2. Весь остальной storage прокси (count, _owner и т.д.) остался нетронутым. Байткод прокси тоже не изменился — он по-прежнему содержит только логику delegatecall."
+    },
+    {
+      "q": "Practical: напишите одну строку TypeScript, которая читает адрес implementation из ERC-1967 слота прокси, используя ethers.js v6.",
+      "kind": "task",
+      "answer": "const implSlot = '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc';\nconst raw = await ethers.provider.getStorage(proxyAddress, implSlot);\nconst impl = ethers.getAddress('0x' + raw.slice(-40));"
+    },
+    {
+      "q": "Команда `upgrades.upgradeProxy()` завершилась с ошибкой «New storage layout is incompatible». Что это означает и как исправить?",
+      "kind": "open",
+      "answer": "Плагин обнаружил, что в новой версии контракта изменился порядок, тип или были удалены существующие storage-переменные. Нужно: 1) добавлять новые переменные только в конец; 2) не менять тип существующих переменных; 3) не удалять переменные (можно переименовать с аннотацией @custom:oz-renamed-from). Если изменение намеренное и понятны последствия — можно использовать unsafeSkipStorageCheck: true, но это крайняя мера для продвинутых случаев."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Контракты используют OpenZeppelin Contracts Upgradeable v5. Для Foundry-проектов
+      аналогичную функциональность предоставляет <code>forge-std</code> с
+      <code>UUPSUpgradeable</code> из <code>@openzeppelin/contracts-upgradeable</code>.
+      Никогда не деплойте тестовые ключи с реальными средствами на mainnet.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

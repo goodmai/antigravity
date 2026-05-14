@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 18 · Multichain &amp; Bridges — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 18 · Multichain &amp; Bridges</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 18 · multichain · L2 · bridges</p>
+    <h1>Multichain &amp; Bridges: L1↔L2 и кросс-чейн протоколы</h1>
+
+    <p>
+      Блокчейны по своей природе изолированы: Ethereum не «знает» о Solana,
+      а Arbitrum не может напрямую прочитать состояние Optimism. При этом
+      ценность сосредоточена на разных цепочках — огромная ликвидность заперта
+      в Ethereum L1, быстрые и дешёвые L2 пусты без мостов. <strong>Кросс-чейн
+      мосты</strong> — это инфраструктура для передачи токенов и сообщений между
+      изолированными блокчейнами, и одновременно — самая атакуемая точка
+      всего экосистемы Web3.
+    </p>
+    <p>
+      В этом уроке мы разберём архитектуру мостов от фундамента: доверенные и
+      trustless варианты, нативные мосты Optimism и Arbitrum, и расскажем, почему
+      два крупнейших взлома в истории Web3 (Ronin $625M и Wormhole $320M)
+      стали возможными.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы сможете: объяснить
+      разницу между lock-and-mint и burn-and-mint; сказать, почему вывод из
+      Optimism занимает 7 дней; объяснить роль sequencer и fraud proof; сравнить
+      нативные мосты с LayerZero и CCIP; назвать конкретную причину взлома
+      Ronin Bridge.
+    </div>
+
+    <h2>1. Зачем нужны мосты</h2>
+    <p>
+      Ethereum L1 — самый безопасный и ликвидный блокчейн, но и самый дорогой:
+      в периоды нагрузки gas fee за обычный swap превышает $50–100. Layer 2
+      решения (Optimism, Arbitrum, Base, Scroll, zkSync) предлагают в 10–100 раз
+      более дешёвые транзакции, наследуя безопасность Ethereum через публикацию
+      данных и proof'ов в L1.
+    </p>
+    <p>
+      Чтобы использовать DeFi-протоколы на L2, пользователи должны <em>перевести</em>
+      туда свои активы. Здесь вступают мосты: они берут актив на одной цепочке
+      и «создают» его эквивалент на другой.
+    </p>
+
+    <h3>1.1 Фундаментальная проблема</h3>
+    <p>
+      Блокчейн — детерминированная машина состояний. Она не может самостоятельно
+      прочитать состояние другой цепочки (это нарушило бы детерминизм). Мост —
+      это <em>внешняя система</em>, которая:
+    </p>
+    <ol>
+      <li>Наблюдает события на цепочке A (например, депозит ETH)</li>
+      <li>Формирует <em>доказательство</em> того, что событие произошло</li>
+      <li>Предъявляет это доказательство контракту на цепочке B</li>
+      <li>Контракт на B минтит эквивалентный актив</li>
+    </ol>
+    <p>
+      Всё различие между типами мостов сводится к вопросу: <strong>кто формирует
+      доказательство, и как оно верифицируется?</strong>
+    </p>
+
+    <h2>2. Типы мостов</h2>
+    <table class="compare">
+      <tr>
+        <th>Тип</th>
+        <th>Кто верифицирует</th>
+        <th>Доверие</th>
+        <th>Скорость вывода</th>
+        <th>Примеры</th>
+      </tr>
+      <tr>
+        <td><strong>Доверенный (централизованный)</strong></td>
+        <td>Компания-оператор (multisig)</td>
+        <td>Полное доверие оператору</td>
+        <td>Минуты</td>
+        <td>Binance Bridge, ранний Multichain</td>
+      </tr>
+      <tr>
+        <td><strong>Оптимистичный</strong></td>
+        <td>Watchers/наблюдатели + challenge period</td>
+        <td>≥1 честный наблюдатель</td>
+        <td>7 дней (L2→L1)</td>
+        <td>Optimism (OP Stack), нативный Arbitrum</td>
+      </tr>
+      <tr>
+        <td><strong>ZK (доказательство с нулевым знанием)</strong></td>
+        <td>ZK-proof, проверяемый on-chain</td>
+        <td>Математика + L1 валидатор</td>
+        <td>Минуты–часы</td>
+        <td>zkSync Era Bridge, Polygon zkEVM, Scroll</td>
+      </tr>
+      <tr>
+        <td><strong>Оракульный (external validators)</strong></td>
+        <td>Набор независимых реляторов</td>
+        <td>Достаточное число честных реляторов</td>
+        <td>Минуты</td>
+        <td>LayerZero, Wormhole, Axelar</td>
+      </tr>
+      <tr>
+        <td><strong>Liquidity network</strong></td>
+        <td>LP-провайдеры заранее держат ликвидность на обоих концах</td>
+        <td>Минимальное (нет lock/mint)</td>
+        <td>Секунды</td>
+        <td>Hop Protocol, Across Protocol</td>
+      </tr>
+    </table>
+
+    <h2>3. Optimism (OP Stack): депозиты и выводы</h2>
+    <p>
+      Optimism — это <strong>Optimistic Rollup</strong>. Батчи транзакций
+      публикуются в Ethereum L1 как calldata (или blob после EIP-4844), а
+      корректность батча по умолчанию принимается оптимистически — без
+      немедленного доказательства.
+    </p>
+
+    <h3>3.1 L1 → L2: депозит</h3>
+    <p>
+      Депозит ETH из Ethereum в Optimism — быстрый, потому что данные идут
+      «вниз» (от родительской цепочки к дочерней):
+    </p>
+<pre class="code-block"><code>// На Ethereum L1: пользователь вызывает OptimismPortal
+interface IOptimismPortal {
+    function depositTransaction(
+        address _to,          // адрес получателя на L2
+        uint256 _value,       // ETH в wei
+        uint64  _gasLimit,    // газ для выполнения на L2
+        bool    _isCreation,  // true если деплой контракта
+        bytes   calldata _data
+    ) external payable;
+}
+
+// Пример: перевести 0.1 ETH себе на Optimism
+OptimismPortal(0xbEb5Fc579115071764c7423A4f12eDde41f106Ed).depositTransaction{
+    value: 0.1 ether
+}(
+    msg.sender,   // тот же адрес на L2
+    0.1 ether,
+    100_000,      // газ на L2
+    false,
+    ""
+);
+// Средства появятся на L2 через ~1-3 минуты (1 подтверждение L1)</code></pre>
+
+    <h3>3.2 L2 → L1: вывод и 7-дневный challenge period</h3>
+    <p>
+      Вывод средств из Optimism обратно в Ethereum занимает <strong>7 дней</strong>.
+      Это не техническое ограничение, а <em>параметр безопасности</em>:
+    </p>
+<pre class="code-block"><code>// ── Шаг 1 (L2): инициировать вывод ──────────────────────────────────────────
+// Вызывается на L2
+L2ToL1MessagePasser.initiateWithdrawal(
+    address _target,    // получатель на L1
+    uint256 _gasLimit,
+    bytes   calldata _data
+);
+// Транзакция включается в батч и публикуется в L1
+
+// ── Шаг 2 (L1, ~7 дней спустя): доказать вывод ───────────────────────────────
+// После 7-дневного окна challenge period истёк
+OptimismPortal.proveWithdrawalTransaction(
+    Types.WithdrawalTransaction memory _tx,
+    uint256 _l2OutputIndex,
+    Types.OutputRootProof calldata _outputRootProof,
+    bytes[] calldata _withdrawalProof
+);
+
+// ── Шаг 3 (L1): финализировать вывод ─────────────────────────────────────────
+OptimismPortal.finalizeWithdrawalTransaction(
+    Types.WithdrawalTransaction memory _tx
+);
+// ETH/токены поступают на адрес получателя на L1</code></pre>
+
+    <p>
+      <strong>Зачем 7 дней?</strong> За это время любой наблюдатель (watcher)
+      может заметить мошеннический батч и подать <em>dispute</em> (fault proof).
+      Если fraud proof подтверждён — батч отклонён, sequencer слэшится,
+      мошеннический вывод не проходит. Если за 7 дней никто не возразил —
+      батч считается финальным.
+    </p>
+
+    <div class="note cyan">
+      <strong>Fault Proofs в Optimism (Bedrock+).</strong> До 2024 года Optimism
+      работал без on-chain fault proofs — security council мог вручную
+      вмешаться. В 2024 году запущены permissionless fault proofs: теперь
+      любой может оспорить батч, отправив залог и играя в «bisection game» —
+      пошаговое сужение спорного вычисления до одного шага EVM.
+    </div>
+
+    <h2>4. Arbitrum Nitro: ArbOS, fraud proofs, inbox/outbox</h2>
+    <p>
+      Arbitrum Nitro — технически более сложная система, чем OP Stack.
+      Ключевые отличия:
+    </p>
+
+    <table class="compare">
+      <tr><th>Компонент</th><th>Что делает</th></tr>
+      <tr>
+        <td><strong>ArbOS</strong></td>
+        <td>«Операционная система» поверх Geth. Добавляет precompiles для кросс-чейн сообщений, обрабатывает L1→L2 сообщения, управляет fee market</td>
+      </tr>
+      <tr>
+        <td><strong>Geth fork (go-ethereum)</strong></td>
+        <td>Arbtirum буквально форкнул geth и добавил ArbOS как слой. Это даёт полную EVM-совместимость без адаптации инструментов</td>
+      </tr>
+      <tr>
+        <td><strong>Sequencer</strong></td>
+        <td>Принимает транзакции пользователей, упорядочивает их, публикует в L1 Inbox. Централизован у Offchain Labs, но не может цензурировать навсегда — есть forced inclusion через L1</td>
+      </tr>
+      <tr>
+        <td><strong>Inbox (DelayedInbox)</strong></td>
+        <td>Смарт-контракт на L1. Принимает L1→L2 сообщения (депозиты). Если sequencer игнорирует сообщение 24ч — любой может его включить принудительно</td>
+      </tr>
+      <tr>
+        <td><strong>Outbox</strong></td>
+        <td>Смарт-контракт на L1. Хранит merkle-root завершённых L2→L1 сообщений. После финализации RBlock пользователи могут исполнить свои выводы</td>
+      </tr>
+      <tr>
+        <td><strong>Interactive Fraud Proof (Bisection)</strong></td>
+        <td>Если validator оспаривает RBlock, запускается on-chain игра: спорный диапазон вычислений делится пополам итеративно, пока не остаётся один шаг — его исполняет L1</td>
+      </tr>
+    </table>
+
+    <h3>4.1 Depositing ETH в Arbitrum One</h3>
+<pre class="code-block"><code>// На Ethereum L1: самый простой способ — отправить ETH на Inbox напрямую
+// Arbitrum Delayed Inbox: 0x4Dbd4fc535Ac27206064B68FfCf827b0A60BAB3f
+
+interface IInbox {
+    function depositEth() external payable returns (uint256 ticketId);
+}
+
+// Или через Arbitrum SDK (JavaScript):
+// import { EthBridger, getL2Network } from '@arbitrum/sdk';
+//
+// const l2Network = await getL2Network(l2Provider);
+// const ethBridger = new EthBridger(l2Network);
+// const depositTx = await ethBridger.deposit({
+//   amount: ethers.utils.parseEther('0.1'),
+//   l1Signer: l1Wallet,
+//   l2Provider,
+// });
+// await depositTx.wait();</code></pre>
+
+    <h3>4.2 Проверить статус вывода</h3>
+<pre class="code-block"><code>// JavaScript / Arbitrum SDK
+import { L2ToL1MessageStatus, L2TransactionReceipt } from '@arbitrum/sdk';
+
+const l2TxReceipt = new L2TransactionReceipt(
+    await l2Provider.getTransactionReceipt(l2TxHash)
+);
+const messages = await l2TxReceipt.getL2ToL1Messages(l1Signer);
+const l2ToL1Msg = messages[0];
+
+const status = await l2ToL1Msg.status(l2Provider);
+// Возможные статусы:
+// L2ToL1MessageStatus.UNCONFIRMED  — ещё в challenge period
+// L2ToL1MessageStatus.CONFIRMED    — подтверждён, можно исполнять
+// L2ToL1MessageStatus.EXECUTED     — уже исполнён
+
+if (status === L2ToL1MessageStatus.CONFIRMED) {
+    const res = await l2ToL1Msg.execute(l2Provider);
+    await res.wait(); // ETH зачислен на L1
+}</code></pre>
+
+    <h2>5. Нативный мост vs сторонние мосты</h2>
+    <p>
+      Для каждого L2 существует нативный (официальный) мост — самый безопасный
+      вариант, но с ограничениями. Сторонние мосты предлагают скорость и
+      дополнительные функции за счёт другого профиля доверия.
+    </p>
+
+    <table class="compare">
+      <tr>
+        <th>Протокол</th>
+        <th>Тип</th>
+        <th>Скорость вывода</th>
+        <th>Механизм</th>
+        <th>Риск</th>
+      </tr>
+      <tr>
+        <td><strong>Optimism Native Bridge</strong></td>
+        <td>Оптимистичный</td>
+        <td>7 дней</td>
+        <td>Fault proofs, L1 finality</td>
+        <td>Минимальный (=L1 security)</td>
+      </tr>
+      <tr>
+        <td><strong>Arbitrum Native Bridge</strong></td>
+        <td>Оптимистичный</td>
+        <td>~7 дней</td>
+        <td>Interactive fraud proofs</td>
+        <td>Минимальный (=L1 security)</td>
+      </tr>
+      <tr>
+        <td><strong>Hop Protocol</strong></td>
+        <td>Liquidity network</td>
+        <td>Минуты</td>
+        <td>AMM + hTokens + bonders</td>
+        <td>Smart contract risk, bonder risk</td>
+      </tr>
+      <tr>
+        <td><strong>Across Protocol</strong></td>
+        <td>Liquidity network</td>
+        <td>Секунды–минуты</td>
+        <td>LP pool + UMA oracle для settlement</td>
+        <td>Oracle risk, LP risk</td>
+      </tr>
+      <tr>
+        <td><strong>Stargate (LayerZero)</strong></td>
+        <td>Unified liquidity + оракульный</td>
+        <td>Минуты</td>
+        <td>LayerZero messaging + SGT/USDC pools</td>
+        <td>Relayer/Oracle risk</td>
+      </tr>
+      <tr>
+        <td><strong>LayerZero</strong></td>
+        <td>Messaging protocol</td>
+        <td>Минуты</td>
+        <td>Ultra-Light Node + Oracle + Relayer</td>
+        <td>Оба oracle и relayer не должны быть скомпрометированы</td>
+      </tr>
+      <tr>
+        <td><strong>CCIP (Chainlink)</strong></td>
+        <td>Messaging + token transfer</td>
+        <td>Минуты</td>
+        <td>Decentralized Oracle Network + Risk Management Network</td>
+        <td>Oracle network risk (Chainlink DON)</td>
+      </tr>
+    </table>
+
+    <div class="note">
+      <strong>Trilemma мостов.</strong> Хорошее резюме от Li Jin (Connext):
+      мост не может одновременно быть trustless, extensible и generalizable.
+      Нативные мосты выбирают trustless + generalizable, теряя скорость.
+      Liquidity networks выбирают скорость, допуская дополнительное доверие.
+    </div>
+
+    <h2>6. Безопасность мостов: два крупнейших взлома</h2>
+
+    <h3>6.1 Ronin Bridge — $625 млн (Март 2022)</h3>
+    <p>
+      Ronin — это sidechain (не rollup) для игры Axie Infinity, разработан
+      Sky Mavis. Мост Ronin управлялся multisig из <strong>9 валидаторов</strong>:
+      для подтверждения вывода требовалось 5 из 9 подписей.
+    </p>
+    <p>
+      <strong>Что произошло:</strong>
+    </p>
+    <ol>
+      <li>Sky Mavis временно передала 4 голоса AxieDAO для снятия нагрузки
+      с пользователей ещё в ноябре 2021</li>
+      <li>В ноябре 2021 AxieDAO перестала использовать эти ключи, но Sky Mavis
+      <em>не отозвала</em> разрешение</li>
+      <li>В марте 2022 атакующий (предположительно Lazarus Group, КНДР)
+      скомпрометировал 4 ключа Sky Mavis через spear-phishing PDF</li>
+      <li>Вместе с 4 ключами AxieDAO (которые ещё имели разрешение) —
+      получилось 5 из 9: кворум достигнут</li>
+      <li>Атакующий вывел $625M в 2 транзакциях; атака оставалась
+      незамеченной 6 дней</li>
+    </ol>
+
+<pre class="code-block"><code>// Упрощённая схема уязвимости:
+// Валидаторы: SkyMavis(4) + AxieDAO(4) + Independent(1)
+//
+// Требуется: 5 из 9
+//
+// AxieDAO сохранила разрешение → итого у атакующего: 4 + 1 (AxieDAO) = 5 ✓
+//
+// Атакующий подписал:
+// withdrawETH(173,600 ETH, attacker_address)  ← $592M
+// withdrawUSDC(25,500,000 USDC, attacker_address)  ← $25M
+//
+// Защита которой НЕ было:
+// - Нет мониторинга крупных выводов
+// - Нет time-lock на крупные транзакции
+// - Не отозваны устаревшие разрешения
+// - 6 дней до обнаружения</code></pre>
+
+    <p>
+      <strong>Урок:</strong> централизованный multisig — это одна точка отказа,
+      если ключи управляются небрежно. Для мостов с миллиардами TVL необходим
+      мониторинг аномалий в реальном времени, time-lock'и на крупные выводы,
+      и регулярный аудит активных разрешений.
+    </p>
+
+    <h3>6.2 Wormhole — $320 млн (Февраль 2022)</h3>
+    <p>
+      Wormhole — это протокол кросс-чейн сообщений, поддерживающий Solana,
+      Ethereum и другие цепочки. Мост Ethereum↔Solana позволял депонировать
+      ETH на Ethereum, получать wETH на Solana, и обратно.
+    </p>
+    <p>
+      <strong>Уязвимость в коде Solana:</strong>
+    </p>
+<pre class="code-block"><code>// Уязвимая функция verify_signatures() на Solana (псевдокод):
+//
+// Solana аккаунты имеют поле owner — программа, которая "владеет" аккаунтом.
+// Только owner-программа может изменять данные аккаунта.
+//
+// ❌ УЯЗВИМЫЙ КОД (упрощённо):
+fn verify_signatures(signature_set: &AccountInfo) -> Result<()> {
+    // Проверяем, что signature_set создан ЭТОЙ программой
+    // НО: использовался устаревший системный вызов solana_program::sysvar
+    // который НЕ проверял, что аккаунт принадлежит правильной программе
+    if signature_set.owner != sysvar::id() { // ← НЕПРАВИЛЬНАЯ проверка!
+        return Err(BridgeError::InvalidSignatureSet);
+    }
+    // Считаем подписи "верифицированными" на основе этого аккаунта
+    // ...
+}
+//
+// Атакующий:
+// 1. Создал фейковый аккаунт, имитирующий SignatureSet с "верифицированными" подписями
+// 2. Передал его в mint_wrapped_eth() вместо настоящего
+// 3. Функция не проверила реальные guardian signatures
+// 4. Контракт выпустил 120,000 wETH ($320M) "из воздуха"
+// 5. Атакующий вывел wETH → ETH на Ethereum</code></pre>
+
+    <p>
+      <strong>Урок:</strong> проверка авторизации в Solana — не то же самое,
+      что в EVM. В Solana критически важно проверять <code>owner</code> аккаунта
+      (какая программа им управляет), а не только pubkey. Уязвимость типа
+      «account confusion» — специфична для Solana-архитектуры.
+    </p>
+
+    <h2>7. ERC-20 canonical token на L2: lock-and-mint vs burn-and-mint</h2>
+    <p>
+      Когда токен «переезжает» на L2, существует две принципиально разные архитектуры:
+    </p>
+
+    <h3>7.1 Lock-and-Mint</h3>
+    <p>
+      Токены на L1 <strong>блокируются</strong> в контракте-мосте, на L2 минтится
+      «обёрнутый» токен в соотношении 1:1.
+    </p>
+<pre class="code-block"><code>// L1: пользователь блокирует USDC
+ERC20Bridge.deposit(USDC, amount, l2Recipient);
+// USDC переходит в кастодию bridge contract
+// → Bridge публикует событие в L1
+
+// L2: BridgedUSDC контракт получает сообщение и минтит
+BridgedUSDC.mint(l2Recipient, amount);
+// Теперь у пользователя есть "wrapped USDC" на L2
+
+// При выводе:
+BridgedUSDC.burn(l2Recipient, amount);
+// → сообщение идёт в L1 → ERC20Bridge разблокирует USDC</code></pre>
+
+    <p>
+      <strong>Риск:</strong> если мост взломан — все заблокированные токены на L1
+      под угрозой. Именно так работал Ronin Bridge, и Wormhole ETH Bridge.
+    </p>
+
+    <h3>7.2 Burn-and-Mint (Canonical Token)</h3>
+    <p>
+      Canonical-подход: эмитент токена сам деплоит контракт на L2 и даёт
+      Bridge право минтить/сжигать. Нет кастодии — нет и риска «кражи запасов».
+    </p>
+<pre class="code-block"><code>// Circle's Cross-Chain Transfer Protocol (CCTP) для USDC:
+// На L1:
+TokenMessenger.depositForBurn(
+    amount,           // количество USDC
+    ARBITRUM_DOMAIN,  // domain ID целевой цепочки
+    mintRecipient,    // адрес получателя на Arbitrum
+    USDC_L1_ADDRESS
+);
+// Circle сжигает USDC на L1 (burnFrom)
+// Публикует attestation в Circle's API
+
+// На L2 (Arbitrum):
+MessageTransmitter.receiveMessage(
+    message,       // raw message bytes
+    attestation    // Circle's signature
+);
+// USDC контракт на Arbitrum минтит нативный USDC
+// Никакой кастодии на L1 — нет риска кражи запасов</code></pre>
+
+    <h3>7.3 OptimismPortal StandardBridge</h3>
+    <p>
+      OP Stack поставляет стандартизированный bridge для ERC-20. Принцип — lock-and-mint,
+      но через безопасный нативный контракт:
+    </p>
+<pre class="code-block"><code>// На L1: StandardBridge
+interface IL1StandardBridge {
+    function bridgeERC20(
+        address _localToken,   // адрес токена на L1
+        address _remoteToken,  // адрес wrapped токена на L2
+        uint256 _amount,
+        uint32  _minGasLimit,
+        bytes   calldata _extraData
+    ) external;
+}
+
+// Сначала approve:
+IERC20(localToken).approve(L1_STANDARD_BRIDGE, amount);
+IL1StandardBridge(L1_STANDARD_BRIDGE).bridgeERC20(
+    DAI_L1,      // DAI на Ethereum
+    DAI_L2,      // Optimism DAI (L2StandardERC20)
+    100e18,      // 100 DAI
+    200_000,
+    ""
+);
+
+// DAI заблокирован в L1StandardBridge
+// На Optimism L2 автоматически минтится 100 OVM_DAI</code></pre>
+
+    <h2>8. Как работает LayerZero (детальнее)</h2>
+    <p>
+      LayerZero — это не мост, а <strong>messaging protocol</strong>: он передаёт
+      произвольные сообщения между цепочками. Stargate и другие мосты строятся
+      поверх него.
+    </p>
+<pre class="code-block"><code>// Упрощённая архитектура LayerZero V2:
+//
+// Отправитель (chain A)  →  Endpoint.send()
+//                               │
+//                               │  Пакет с payload
+//                               ▼
+//                          DVN (Decentralized Verifier Network)
+//                          — независимые верификаторы
+//                          — подтверждают хэш пакета on-chain
+//                               │
+//                          Executor
+//                          — доставляет пакет на chain B
+//                               │
+//                               ▼
+//                         Endpoint.lzReceive() → ваш контракт
+//
+// Безопасность: атакующий должен скомпрометировать
+// majority DVN-верификаторов И executor одновременно</code></pre>
+
+    <h2>9. Практика: депозит ETH в Optimism через контракт</h2>
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IOptimismPortal {
+    function depositTransaction(
+        address _to,
+        uint256 _value,
+        uint64  _gasLimit,
+        bool    _isCreation,
+        bytes   calldata _data
+    ) external payable;
+}
+
+interface IOptimismPortalV2 {
+    /// @notice Читает статус вывода
+    function provenWithdrawals(bytes32 withdrawalHash)
+        external view
+        returns (
+            bytes32 outputRoot,
+            uint128 timestamp,
+            uint128 l2OutputIndex
+        );
+
+    function finalizedWithdrawals(bytes32 withdrawalHash)
+        external view returns (bool);
+}
+
+/// @title OptimismDepositor — утилита для L1→L2 депозитов
+contract OptimismDepositor {
+    // Ethereum Mainnet: OptimismPortal2
+    IOptimismPortal constant PORTAL =
+        IOptimismPortal(0xbEb5Fc579115071764c7423A4f12eDde41f106Ed);
+
+    IOptimismPortalV2 constant PORTAL_V2 =
+        IOptimismPortalV2(0xbEb5Fc579115071764c7423A4f12eDde41f106Ed);
+
+    event DepositInitiated(address indexed to, uint256 value);
+
+    /// @notice Депозит ETH в Optimism
+    /// @param _l2Recipient  Получатель на L2 (может быть тем же адресом)
+    /// @param _l2GasLimit   Газ для исполнения транзакции на L2
+    function depositETH(address _l2Recipient, uint64 _l2GasLimit)
+        external payable
+    {
+        require(msg.value > 0, "Send ETH");
+
+        PORTAL.depositTransaction{value: msg.value}(
+            _l2Recipient,
+            msg.value,
+            _l2GasLimit,
+            false,
+            ""
+        );
+
+        emit DepositInitiated(_l2Recipient, msg.value);
+    }
+
+    /// @notice Депозит с произвольным calldata (например, вызов контракта на L2)
+    /// @param _l2Contract  Контракт на L2
+    /// @param _calldata    Encoded function call
+    function depositWithCall(
+        address _l2Contract,
+        bytes calldata _calldata,
+        uint64 _l2GasLimit
+    ) external payable {
+        PORTAL.depositTransaction{value: msg.value}(
+            _l2Contract,
+            msg.value,
+            _l2GasLimit,
+            false,
+            _calldata
+        );
+    }
+
+    /// @notice Проверить статус вывода
+    /// @param withdrawalHash  keccak256 хэш WithdrawalTransaction struct
+    function isWithdrawalFinalized(bytes32 withdrawalHash)
+        external view returns (bool)
+    {
+        return PORTAL_V2.finalizedWithdrawals(withdrawalHash);
+    }
+}</code></pre>
+
+    <h2>10. Сравнение: выбрать мост для вашего use case</h2>
+    <table class="compare">
+      <tr>
+        <th>Сценарий</th>
+        <th>Рекомендация</th>
+        <th>Причина</th>
+      </tr>
+      <tr>
+        <td>Перевести крупную сумму ETH из Ethereum в Arbitrum</td>
+        <td>Нативный Arbitrum Bridge</td>
+        <td>Максимальная безопасность, нет дополнительных смарт-контрактов</td>
+      </tr>
+      <tr>
+        <td>Быстро переместить $1000 USDC с Optimism на Base</td>
+        <td>Across или Hop</td>
+        <td>Секунды, low fees, не ждать 7 дней</td>
+      </tr>
+      <tr>
+        <td>Нативный USDC между L2 (без wrapped)</td>
+        <td>Circle CCTP</td>
+        <td>Burn-and-mint без кастодии, официально от Circle</td>
+      </tr>
+      <tr>
+        <td>Кросс-чейн DeFi протокол (произвольные сообщения)</td>
+        <td>LayerZero V2 или Chainlink CCIP</td>
+        <td>Messaging + token transfer в одном вызове</td>
+      </tr>
+      <tr>
+        <td>Перевод малой суммы, максимальная скорость</td>
+        <td>Stargate (LayerZero)</td>
+        <td>Unified liquidity, мгновенная финальность для поддерживаемых токенов</td>
+      </tr>
+    </table>
+
+    <h2>11. Что дальше</h2>
+    <p>
+      Этот урок завершает Модуль IV курса Web3 Genesis. Вы прошли путь от
+      кошельков и приватных ключей (Lesson 01) до кросс-чейн инфраструктуры —
+      и теперь понимаете, как работает вся DeFi-экосистема от смарт-контракта
+      до моста между блокчейнами.
+    </p>
+    <p>
+      В следующем модуле мы перейдём к <strong>advanced security</strong>:
+      формальная верификация, MEV и флэш-бот атаки, аудит контрактов с реальными
+      CVE-примерами.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="18">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 18 · Multichain &amp; Bridges",
+  "intro": "Семь вопросов по архитектуре мостов, безопасности и кросс-чейн механикам. Multiple-выбор подсвечивает правильный ответ; открытые вопросы проверяйте сами.",
+  "questions": [
+    {
+      "q": "Почему вывод ETH из Optimism в Ethereum L1 занимает 7 дней, а не несколько минут?",
+      "kind": "multiple",
+      "options": [
+        "Технические ограничения пропускной способности Ethereum",
+        "Это challenge period: любой наблюдатель может оспорить мошеннический батч, для чего нужно время",
+        "Регуляторные требования для крупных переводов",
+        "Ограничение самого кошелька MetaMask"
+      ],
+      "answerIndex": 1,
+      "explain": "7 дней — параметр безопасности оптимистичного роллапа. Батчи принимаются оптимистически (без немедленного proof), и за 7 дней любой честный валидатор может подать fraud proof если батч мошеннический. ZK-роллапы не имеют этого ограничения — proof верифицируется on-chain моментально."
+    },
+    {
+      "q": "В чём принципиальное различие между lock-and-mint и burn-and-mint архитектурами мостов?",
+      "kind": "open",
+      "answer": "Lock-and-mint: токены L1 блокируются в смарт-контракте моста, на L2 минтится wrapped-эквивалент. Риск: если мост взломан — все заблокированные токены под угрозой (как Ronin). Burn-and-mint (canonical): эмитент токена даёт Bridge право mint/burn на обеих цепочках — токены сжигаются на источнике и минтятся на цели, нет кастодии. Пример: Circle CCTP для USDC. Burn-and-mint безопаснее, так как нет 'склада' токенов для кражи."
+    },
+    {
+      "q": "Что конкретно позволило атакующему украсть $625M из Ronin Bridge?",
+      "kind": "multiple",
+      "options": [
+        "Уязвимость в криптографии ECDSA подписей",
+        "Ошибка переполнения целочисленного типа в смарт-контракте",
+        "Компрометация 5 из 9 ключей валидаторов: 4 ключа Sky Mavis через фишинг + 1 ключ AxieDAO с неотозванным разрешением",
+        "Flash loan манипуляция оракулом цены"
+      ],
+      "answerIndex": 2,
+      "explain": "Sky Mavis временно передала AxieDAO 4 валидаторных голоса, но не отозвала разрешение после того, как AxieDAO перестала их использовать. Через фишинговую атаку (PDF) атакующий получил 4 ключа Sky Mavis. Вместе с 1 ключом AxieDAO — получился кворум 5 из 9. Атака прошла незамеченной 6 дней."
+    },
+    {
+      "q": "Объясните уязвимость Wormhole Bridge ($320M). Чего не проверял смарт-контракт на Solana?",
+      "kind": "open",
+      "answer": "Контракт Wormhole на Solana не проверял поле owner у переданного SignatureSet аккаунта. В Solana архитектуре owner аккаунта — это программа, которой принадлежат данные аккаунта. Атакующий создал фейковый аккаунт, имитирующий SignatureSet с 'верифицированными' подписями, и передал его в функцию mint. Контракт принял его без проверки реальных guardian signatures и выпустил 120,000 wETH. Это классическая 'account confusion' атака, специфичная для Solana-модели аккаунтов."
+    },
+    {
+      "q": "Какой тип моста обеспечивает наибольшую безопасность, но при этом самый медленный для L2→L1 выводов?",
+      "kind": "multiple",
+      "options": [
+        "Liquidity network (Hop, Across)",
+        "Оракульный (LayerZero, Wormhole)",
+        "Нативный оптимистичный мост (Optimism, Arbitrum) с fault proof периодом",
+        "Централизованный (биржевые мосты)"
+      ],
+      "answerIndex": 2,
+      "explain": "Нативные оптимистичные мосты унаследуют безопасность L1 (Ethereum) — это максимальный уровень безопасности. Но именно поэтому выводы требуют 7-дневного challenge period. ZK-мосты предлагают сопоставимую безопасность с гораздо более быстрой финальностью, но сложнее в разработке."
+    },
+    {
+      "q": "В чём разница между StandardBridge (OP Stack) и Circle CCTP для передачи USDC с Ethereum на Optimism?",
+      "kind": "multiple",
+      "options": [
+        "StandardBridge бесплатный, CCTP берёт 0.1% комиссии",
+        "StandardBridge использует lock-and-mint (USDC хранится в мосте), CCTP использует burn-and-mint (Circle сжигает на L1 и минтит нативный USDC на L2)",
+        "CCTP работает только на Arbitrum, StandardBridge — на всех OP Stack сетях",
+        "Разницы нет — оба дают идентичный wrapped USDC"
+      ],
+      "answerIndex": 1,
+      "explain": "StandardBridge блокирует USDC в контракте L1StandardBridge и минтит bridged USDC (wrapped) на L2. CCTP сжигает нативный USDC на L1 и минтит нативный USDC на L2 — без кастодии. Нативный USDC через CCTP предпочтительнее: нет риска кражи заблокированных средств, и это 'настоящий' USDC от Circle."
+    },
+    {
+      "q": "Practical: вам нужно перевести 50,000 USDC с Ethereum Mainnet на Base как можно быстрее (меньше минуты). Ждать 7 дней нельзя. Какой протокол и механизм вы выберете и почему? Назовите конкретный риск выбранного решения.",
+      "kind": "task",
+      "answer": "Оптимальный выбор: Circle CCTP (Cross-Chain Transfer Protocol) — burn-and-mint, занимает ~2-5 минут, нет кастодии, нативный USDC на обоих концах. Альтернатива: Across Protocol — секунды, LP-провайдеры авансируют USDC на Base, settlement через UMA oracle. Конкретный риск CCTP: зависимость от Circle's attestation API и централизованного элемента (Circle подписывает каждый перевод). Конкретный риск Across: smart contract risk в LP pool + если UMA oracle скомпрометирован, settlement может быть некорректным. Нативный мост Base (OP Stack) занял бы 7 дней — не подходит по условиям задачи."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Адреса контрактов актуальны для Ethereum Mainnet на момент написания урока.
+      Архитектура Optimism Bedrock и Arbitrum Nitro продолжает развиваться —
+      проверяйте актуальную документацию на
+      <a href="https://docs.optimism.io" target="_blank" rel="noopener">docs.optimism.io</a>
+      и <a href="https://docs.arbitrum.io" target="_blank" rel="noopener">docs.arbitrum.io</a>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
