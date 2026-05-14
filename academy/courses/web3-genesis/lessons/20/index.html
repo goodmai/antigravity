@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 20 · Поставка dApp — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 20 · Поставка dApp</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 20 · deploy · verify · IPFS · ENS</p>
+    <h1>Поставка dApp: Etherscan, IPFS, ENS, production-checklist</h1>
+
+    <p>
+      Контракт написан, протестирован, проаудирован и задеплоен — это половина
+      пути. Вторая половина: <strong>верифицировать</strong> его на Etherscan, чтобы
+      пользователи видели исходный код; <strong>задеплоить</strong> фронтенд на IPFS,
+      чтобы он был неизменяемым и цензуростойким; <strong>привязать</strong> ENS-имя,
+      чтобы пользователи попадали на правильный CID; и пройти производственный
+      <strong>checklist</strong> — multisig, timelock, proxy admin, emergency pause.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: верифицировать контракт
+      командой <code>forge verify-contract</code>, в том числе с constructor args и
+      multi-file; деплоить фронтенд на IPFS через Pinata/Filebase; установить
+      contentHash ENS-домена на IPFS CID; использовать CREATE2 для детерминированных
+      адресов; пройти production checklist перед mainnet-деплоем; настроить
+      post-deploy верификацию.
+    </div>
+
+    <h2>1. Верификация контракта на Etherscan</h2>
+
+    <p>
+      <strong>Верификация</strong> — это публикация исходного кода контракта на
+      Etherscan (или Blockscout) таким образом, чтобы платформа могла независимо
+      скомпилировать его и убедиться, что полученный байткод совпадает с тем, что
+      задеплоено на блокчейне. После этого любой может читать код и вызывать
+      функции прямо из интерфейса «Read/Write Contract».
+    </p>
+
+    <h3>1.1 forge verify-contract</h3>
+
+    <p>
+      Foundry имеет встроенную поддержку верификации. Минимальный вызов:
+    </p>
+
+<pre class="code-block"><code># Деплой + верификация одной командой (--verify флаг)
+forge create src/SecureVault.sol:SecureVault \
+  --rpc-url $MAINNET_RPC_URL \
+  --private-key $DEPLOYER_KEY \
+  --constructor-args $ADMIN_ADDRESS $GUARDIAN_ADDRESS \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+
+# Если деплой уже произошёл — верифицировать отдельно
+forge verify-contract \
+  0xYourDeployedContractAddress \
+  src/SecureVault.sol:SecureVault \
+  --chain-id 1 \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(address,address)" \
+      $ADMIN_ADDRESS $GUARDIAN_ADDRESS)
+</code></pre>
+
+    <h3>1.2 foundry.toml — настройка верификатора</h3>
+
+<pre class="code-block"><code>[profile.default]
+src     = "src"
+out     = "out"
+libs    = ["lib"]
+solc    = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+
+# Конфигурация верификатора
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}", url = "https://api.etherscan.io/api" }
+sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.etherscan.io/api" }
+polygon = { key = "${POLYGONSCAN_API_KEY}", url = "https://api.polygonscan.com/api" }
+arbitrum = { key = "${ARBISCAN_API_KEY}", url = "https://api.arbiscan.io/api" }
+</code></pre>
+
+    <h3>1.3 Encoding constructor arguments</h3>
+
+    <p>
+      Конструктор с аргументами требует отдельной передачи ABI-encoded аргументов.
+      Etherscan ожидает их в hex без <code>0x</code> префикса:
+    </p>
+
+<pre class="code-block"><code># cast abi-encode возвращает hex с 0x, strip его для Etherscan
+CONSTRUCTOR_ARGS=$(cast abi-encode \
+  "constructor(address,address,uint256)" \
+  "0xAdminAddress" \
+  "0xGuardianAddress" \
+  "86400" \
+  | cut -c3-)   # убрать ведущий "0x"
+
+echo "Constructor args: $CONSTRUCTOR_ARGS"
+
+forge verify-contract \
+  0xDeployedAddress \
+  src/Vault.sol:Vault \
+  --constructor-args $CONSTRUCTOR_ARGS \
+  --chain-id 1 \
+  --etherscan-api-key $ETHERSCAN_API_KEY
+</code></pre>
+
+    <h3>1.4 Верификация proxy + implementation</h3>
+
+    <p>
+      При деплое через UUPS или Transparent Proxy нужно верифицировать
+      <em>оба</em> контракта: proxy и implementation отдельно.
+      Etherscan автоматически определяет UUPS/Transparent паттерн и показывает
+      «Read/Write as Proxy».
+    </p>
+
+<pre class="code-block"><code># 1. Задеплоить implementation
+forge create src/VaultV1.sol:VaultV1 \
+  --rpc-url $RPC --private-key $KEY --verify --etherscan-api-key $KEY
+
+# 2. Задеплоить ERC1967Proxy
+forge create lib/openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy \
+  --constructor-args $IMPL_ADDRESS $(cast calldata "initialize(address,address)" $ADMIN $GUARDIAN) \
+  --rpc-url $RPC --private-key $KEY --verify --etherscan-api-key $KEY
+
+# 3. Верифицировать proxy как proxy на Etherscan
+# Это делается через UI: Contract → More Options → Is this a proxy?
+# Или через API:
+curl "https://api.etherscan.io/api?module=contract&action=verifyproxycontract\
+&address=$PROXY_ADDRESS&apikey=$ETHERSCAN_API_KEY"
+</code></pre>
+
+    <h3>1.5 Flattening и multi-file верификация</h3>
+
+    <p>
+      Если автоматика не работает (необычный маршрут импортов, нестандартная
+      структура), Etherscan поддерживает «Standard JSON» — полный input JSON
+      компилятора, который воспроизводит компиляцию один в один:
+    </p>
+
+<pre class="code-block"><code># Получить Standard JSON input для верификации
+forge verify-contract \
+  0xDeployedAddress \
+  src/Vault.sol:Vault \
+  --show-standard-json-input \
+  > standard-json-input.json
+
+# Загрузить через Etherscan UI:
+# Contract → Verify → Standard-Json-Input → вставить файл
+</code></pre>
+
+    <h2>2. IPFS для фронтенда: неизменяемый деплой</h2>
+
+    <p>
+      IPFS (InterPlanetary File System) — контент-адресуемая распределённая
+      файловая система. Файлы адресуются по своему <strong>хэшу (CID)</strong>,
+      а не по location URL. Это означает: задеплоенный фронтенд <em>неизменяем</em>
+      — любое изменение создаёт новый CID. Пользователь, открывший <code>ipfs://CID</code>,
+      гарантированно видит именно тот код, который вы опубликовали.
+    </p>
+
+    <h3>2.1 Локальный деплой через IPFS CLI</h3>
+
+<pre class="code-block"><code># Установить IPFS Desktop или Kubo CLI
+# https://docs.ipfs.tech/install/
+
+# Добавить папку сборки фронтенда рекурсивно
+ipfs add -r ./dist --cid-version 1 --hash sha2-256
+
+# Вывод:
+# added bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenxquvyku dist/index.html
+# added bafybeid...  dist/assets/index-BxG0Bq9F.js
+# added bafybeia...  dist/assets/index-DQkl1Npq.css
+# added bafybeig...  dist   ← это корневой CID папки
+
+# Корневой CID для ENS:
+IPFS_CID="bafybeig..."
+
+echo "Deploy URL: https://ipfs.io/ipfs/$IPFS_CID"
+echo "dweb.link:  https://$IPFS_CID.ipfs.dweb.link"
+</code></pre>
+
+    <h3>2.2 Pinata: managed pinning</h3>
+
+    <p>
+      Собственная нода IPFS не гарантирует доступность файлов — если нода упала,
+      файлы недоступны. <strong>Pinning services</strong> (Pinata, NFT.Storage,
+      Filebase) держат файлы «закреплёнными» в своих нодах, обеспечивая доступность.
+    </p>
+
+<pre class="code-block"><code>#!/bin/bash
+# deploy-ipfs.sh — сборка + загрузка на Pinata
+
+set -e
+
+# Сборка фронтенда
+npm run build
+
+# Загрузка на Pinata через API v3
+RESPONSE=$(curl -s -X POST "https://uploads.pinata.cloud/v3/files" \
+  -H "Authorization: Bearer $PINATA_JWT" \
+  -F "file=@./dist;type=application/octet-stream" \
+  -F 'pinataMetadata={"name":"my-dapp-v1.2.3"}' \
+  -F 'pinataOptions={"cidVersion":1}')
+
+CID=$(echo $RESPONSE | jq -r '.data.cid')
+echo "Pinned to IPFS: $CID"
+echo "Gateway URL: https://gateway.pinata.cloud/ipfs/$CID"
+
+# Сохранить CID для ENS update
+echo $CID > .ipfs-cid
+</code></pre>
+
+    <h3>2.3 CIDv1 vs CIDv0</h3>
+
+    <table class="compare">
+      <tr><th>Версия</th><th>Формат</th><th>Рекомендация</th></tr>
+      <tr>
+        <td><strong>CIDv0</strong></td>
+        <td><code>Qm...</code> (base58btc, SHA-256, dag-pb)</td>
+        <td>Легаси; поддерживается везде, но менее гибкий</td>
+      </tr>
+      <tr>
+        <td><strong>CIDv1</strong></td>
+        <td><code>bafy...</code> (base32, multicodec, multihash)</td>
+        <td><strong>Рекомендуется</strong>; поддерживает разные хэш-функции, лучше для браузера</td>
+      </tr>
+    </table>
+
+    <p>
+      Для ENS contentHash всегда используйте CIDv1 — это требование протокола.
+      При загрузке добавляйте флаг <code>--cid-version 1</code>.
+    </p>
+
+    <h2>3. ENS: привязка домена к IPFS CID</h2>
+
+    <p>
+      <strong>ENS (Ethereum Name Service)</strong> — децентрализованный DNS
+      на Ethereum. Домен вида <code>myprotocol.eth</code> — это NFT (ERC-721),
+      который хранится в ENS Registry контракте. Через resolver вы можете
+      привязать к нему IPFS-хэш фронтенда — тогда браузеры с поддержкой ENS
+      (Brave, MetaMask, Opera) откроют ваш dApp по имени <code>myprotocol.eth</code>.
+    </p>
+
+    <h3>3.1 Установить contentHash на IPFS CID</h3>
+
+<pre class="code-block"><code">import { createWalletClient, http, encodeFunctionData } from "viem";
+import { mainnet } from "viem/chains";
+import { normalize } from "viem/ens";
+
+// ENS Public Resolver ABI (минимальный)
+const PUBLIC_RESOLVER_ABI = [
+  {
+    name: "setContenthash",
+    type: "function",
+    inputs: [
+      { name: "node", type: "bytes32" },
+      { name: "hash", type: "bytes" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+] as const;
+
+const ENS_PUBLIC_RESOLVER = "0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41";
+
+// Конвертировать IPFS CID в contentHash bytes
+// contentHash encoding: 0xe3010170 + varint(CID length) + CID bytes
+function ipfsCidToContentHash(cid: string): `0x${string}` {
+  // Используем готовую библиотеку @ensdomains/content-hash
+  // npm install @ensdomains/content-hash
+  const { encode } = require("@ensdomains/content-hash");
+  return `0x${encode("ipfs", cid)}`;
+}
+
+async function setEnsContentHash(
+  ensName: string,
+  ipfsCid: string,
+  walletClient: ReturnType<typeof createWalletClient>
+) {
+  // Вычислить namehash (bytes32 ключ в ENS Registry)
+  const publicClient = createPublicClient({ chain: mainnet, transport: http() });
+  const node = await publicClient.getEnsAddress({ name: normalize(ensName) });
+  // Для namehash используем viem namehash utility:
+  const { namehash } = await import("viem/ens");
+  const nameHash = namehash(ensName);
+
+  const contentHashBytes = ipfsCidToContentHash(ipfsCid);
+
+  const txHash = await walletClient.writeContract({
+    address: ENS_PUBLIC_RESOLVER,
+    abi: PUBLIC_RESOLVER_ABI,
+    functionName: "setContenthash",
+    args: [nameHash, contentHashBytes],
+  });
+
+  console.log(`ENS contentHash updated. TX: ${txHash}`);
+  console.log(`Visit: https://app.ens.domains/${ensName}`);
+}
+
+// Пример
+const wallet = createWalletClient({
+  chain: mainnet,
+  transport: http(process.env.RPC_URL),
+  account: privateKeyToAccount(`0x${process.env.PRIVATE_KEY}`),
+});
+
+await setEnsContentHash(
+  "myprotocol.eth",
+  "bafybeig...", // ваш IPFS CID
+  wallet
+);
+</code></pre>
+
+    <h3>3.2 Через ENS CLI (проще)</h3>
+
+<pre class="code-block"><code># Установить ENS CLI
+npm install -g @ensdomains/ens-utils
+
+# Или использовать cast + ABI напрямую
+# 1. Получить namehash вашего домена
+cast namehash "myprotocol.eth"
+# 0x5cee339e13375638553bdf5a6e36ba80fb9f6a4f0783680884d92b558aa471da
+
+# 2. Закодировать IPFS CID в contentHash формат
+# Для CIDv1: prefix 0xe3010170 + CID bytes
+node -e "
+const { encode } = require('@ensdomains/content-hash');
+const cid = 'bafybeig...';
+console.log('0x' + encode('ipfs', cid));
+"
+# 0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1
+
+# 3. Вызвать setContenthash
+cast send $ENS_PUBLIC_RESOLVER \
+  "setContenthash(bytes32,bytes)" \
+  $(cast namehash "myprotocol.eth") \
+  "0xe3010170..." \
+  --rpc-url $MAINNET_RPC_URL \
+  --private-key $PRIVATE_KEY
+</code></pre>
+
+    <h3>3.3 Subdomain delegation</h3>
+
+<pre class="code-block"><code># Создать субдомен app.myprotocol.eth
+# Сначала установить resolver для субдомена:
+cast send $ENS_REGISTRY \
+  "setSubnodeRecord(bytes32,bytes32,address,address,uint64)" \
+  $(cast namehash "myprotocol.eth") \
+  $(cast keccak "app") \
+  $OWNER_ADDRESS \
+  $ENS_PUBLIC_RESOLVER \
+  0 \
+  --rpc-url $MAINNET_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Затем установить contentHash для app.myprotocol.eth
+cast send $ENS_PUBLIC_RESOLVER \
+  "setContenthash(bytes32,bytes)" \
+  $(cast namehash "app.myprotocol.eth") \
+  "0xe3010170..." \
+  --rpc-url $MAINNET_RPC_URL \
+  --private-key $PRIVATE_KEY
+</code></pre>
+
+    <h2>4. Детерминированные деплои: CREATE2, salt, factory</h2>
+
+    <p>
+      Обычный <code>CREATE</code> даёт адрес контракта, зависящий от deployer-адреса
+      и nonce — случайный с точки зрения пользователя. <strong>CREATE2</strong>
+      (EIP-1014) позволяет <em>рассчитать</em> адрес до деплоя — он зависит только
+      от deployer, salt и байткода инициализации. Это открывает мощные паттерны:
+      pre-fund контракт до деплоя, одинаковый адрес на всех сетях, factory паттерны.
+    </p>
+
+    <h3>4.1 CREATE2 адрес: формула</h3>
+
+<pre class="code-block"><code>// Формула адреса при CREATE2:
+// address = keccak256(0xff ++ deployer ++ salt ++ keccak256(initCode))[12:]
+
+// Предварительный расчёт адреса в Solidity:
+function computeAddress(
+    address deployer,
+    bytes32 salt,
+    bytes32 initCodeHash
+) internal pure returns (address) {
+    return address(uint160(uint256(keccak256(abi.encodePacked(
+        bytes1(0xff),
+        deployer,
+        salt,
+        initCodeHash
+    )))));
+}
+
+// Предварительный расчёт в TypeScript (viem):
+import { getCreate2Address, keccak256, encodeDeployData } from "viem";
+
+const initCode = encodeDeployData({
+  abi: VaultABI,
+  bytecode: VaultBytecode,
+  args: [adminAddress, guardianAddress],
+});
+
+const predictedAddress = getCreate2Address({
+  from: FACTORY_ADDRESS,
+  salt: keccak256(toHex("vault-v1-mainnet")),
+  bytecodeHash: keccak256(initCode),
+});
+
+console.log("Vault will be deployed to:", predictedAddress);
+// Теперь можно заранее отправить ETH на этот адрес или настроить allowances
+</code></pre>
+
+    <h3>4.2 Determinstic Factory контракт</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract DeterministicFactory {
+    event Deployed(address indexed contractAddress, bytes32 indexed salt);
+
+    /// @notice Задеплоить контракт с предсказуемым адресом через CREATE2
+    function deploy(bytes32 salt, bytes memory initCode)
+        external
+        returns (address deployed)
+    {
+        assembly {
+            deployed := create2(
+                callvalue(),           // value (ETH) для нового контракта
+                add(initCode, 0x20),   // указатель на начало bytecode
+                mload(initCode),       // длина bytecode
+                salt
+            )
+        }
+        require(deployed != address(0), "CREATE2 failed");
+        emit Deployed(deployed, salt);
+    }
+
+    /// @notice Предварительно рассчитать адрес без деплоя
+    function computeAddress(bytes32 salt, bytes32 initCodeHash)
+        external
+        view
+        returns (address)
+    {
+        return address(uint160(uint256(keccak256(abi.encodePacked(
+            bytes1(0xff), address(this), salt, initCodeHash
+        )))));
+    }
+}
+</code></pre>
+
+    <h3>4.3 Foundry script с CREATE2</h3>
+
+<pre class="code-block"><code>// script/DeployVault.s.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "../src/SecureVault.sol";
+
+contract DeployVault is Script {
+    // Используем Foundry встроенный CREATE2 factory (0x4e59b44847b379578588920cA78FbF26c0B4956C)
+    address constant CREATE2_FACTORY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
+    function run() external {
+        uint256 deployerKey = vm.envUint("DEPLOYER_KEY");
+        address admin    = vm.envAddress("ADMIN_ADDRESS");
+        address guardian = vm.envAddress("GUARDIAN_ADDRESS");
+
+        // Одинаковый salt → одинаковый адрес на всех сетях
+        bytes32 salt = keccak256("securevault.v1.production");
+
+        vm.startBroadcast(deployerKey);
+
+        // Предварительный расчёт адреса
+        bytes memory initCode = abi.encodePacked(
+            type(SecureVault).creationCode,
+            abi.encode(admin, guardian)
+        );
+        bytes32 initCodeHash = keccak256(initCode);
+
+        address predicted = address(uint160(uint256(keccak256(abi.encodePacked(
+            bytes1(0xff), CREATE2_FACTORY, salt, initCodeHash
+        )))));
+        console.log("Predicted address:", predicted);
+
+        // Деплой через Foundry CREATE2 factory
+        SecureVault vault = new SecureVault{salt: salt}(admin, guardian);
+
+        require(address(vault) == predicted, "Address mismatch");
+        console.log("Deployed to:", address(vault));
+
+        vm.stopBroadcast();
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># Запуск deployment script
+forge script script/DeployVault.s.sol:DeployVault \
+  --rpc-url $MAINNET_RPC_URL \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  -vvvv
+
+# --broadcast  — реальная отправка транзакций
+# --verify     — автоматическая верификация на Etherscan
+# -vvvv        — максимальная детализация логов
+</code></pre>
+
+    <h2>5. Production deployment checklist</h2>
+
+    <p>
+      Перед деплоем в mainnet пройдите этот чеклист. Каждый пункт — это либо
+      предотвращённый exploit, либо сохранённое время при инциденте.
+    </p>
+
+    <table class="compare">
+      <tr><th>#</th><th>Пункт</th><th>Инструмент / стандарт</th></tr>
+      <tr>
+        <td>1</td>
+        <td><strong>Multisig deployer</strong> — деплой из Safe 3-of-5, не с EOA-кошелька</td>
+        <td>Safe (Gnosis) + Foundry <code>--sender</code></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Timelock controller</strong> — все admin-функции за 48ч задержкой</td>
+        <td>OZ TimelockController</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Proxy admin</strong> — управление upgrades через TimelockController</td>
+        <td>OZ ProxyAdmin + UUPS</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Emergency pause</strong> — guardian мультисиг может паузить немедленно</td>
+        <td>OZ Pausable + GUARDIAN_ROLE</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Аудит</strong> — минимум один независимый аудит, исправлены все critical/high</td>
+        <td>Trail of Bits / Spearbit / Code4rena</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>Bug bounty</strong> — активная программа до деплоя (Immunefi)</td>
+        <td>Immunefi / HackerOne</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><strong>Tenderly мониторинг</strong> — алерты настроены до деплоя</td>
+        <td>Tenderly Alerts + Web3 Actions</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><strong>Тесты на форке mainnet</strong> — <code>forge test --fork-url</code> прошли</td>
+        <td>Foundry mainnet fork</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><strong>Детерминированный адрес</strong> — одинаковый на всех сетях через CREATE2</td>
+        <td>CREATE2 + Foundry script</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td><strong>Incident runbook</strong> — задокументированы шаги при инциденте</td>
+        <td>Notion / Confluence</td>
+      </tr>
+    </table>
+
+    <h3>5.1 TimelockController + ProxyAdmin</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/governance/TimelockController.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
+// Deployment order:
+// 1. Deploy TimelockController (минимальная задержка = 48ч)
+// 2. Deploy ProxyAdmin (owner = TimelockController)
+// 3. Deploy Implementation
+// 4. Deploy TransparentUpgradeableProxy (admin = ProxyAdmin)
+
+contract DeployScript {
+    function deployTimelock(
+        address[] memory proposers,   // Safe multisig адрес
+        address[] memory executors    // Safe multisig адрес (или address(0) = любой)
+    ) external returns (address) {
+        uint256 minDelay = 48 hours;  // 48 часов до исполнения любой admin-операции
+        TimelockController timelock = new TimelockController(
+            minDelay, proposers, executors, address(0)
+        );
+        return address(timelock);
+    }
+}
+</code></pre>
+
+    <h2>6. Frontend деплой: Cloudflare Pages, Vercel, IPFS gateways</h2>
+
+    <p>
+      Для максимальной доступности фронтенда используется комбинация: IPFS как
+      «неизменяемый» слой + традиционные CDN как fast gateway + ENS как
+      точка входа.
+    </p>
+
+    <h3>6.1 Архитектура доступности</h3>
+
+    <table class="compare">
+      <tr><th>Слой</th><th>URL</th><th>Характеристика</th></tr>
+      <tr>
+        <td>ENS</td>
+        <td><code>myprotocol.eth</code></td>
+        <td>Неизменяемое имя, contentHash → IPFS CID</td>
+      </tr>
+      <tr>
+        <td>IPFS native</td>
+        <td><code>ipfs://bafy...</code></td>
+        <td>Цензуростойкий, нужен IPFS-совместимый браузер или gateway</td>
+      </tr>
+      <tr>
+        <td>Public gateway</td>
+        <td><code>https://bafy....ipfs.dweb.link</code></td>
+        <td>Protocol Labs gateway, работает в любом браузере</td>
+      </tr>
+      <tr>
+        <td>Pinata gateway</td>
+        <td><code>https://myprotocol.mypinata.cloud</code></td>
+        <td>Кастомный домен, быстрее чем public gateways</td>
+      </tr>
+      <tr>
+        <td>Cloudflare Pages</td>
+        <td><code>https://myprotocol.pages.dev</code></td>
+        <td>Traditional CDN, лучший performance, но централизован</td>
+      </tr>
+    </table>
+
+    <h3>6.2 GitHub Actions CI/CD для IPFS деплоя</h3>
+
+<pre class="code-block"><code># .github/workflows/deploy.yml
+name: Deploy to IPFS + Update ENS
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_CONTRACT_ADDRESS: ${{ vars.CONTRACT_ADDRESS }}
+          VITE_CHAIN_ID: "1"
+
+      # Загрузить на Pinata
+      - name: Pin to IPFS via Pinata
+        id: ipfs
+        run: |
+          RESPONSE=$(curl -s -X POST \
+            "https://uploads.pinata.cloud/v3/files" \
+            -H "Authorization: Bearer ${{ secrets.PINATA_JWT }}" \
+            -F "file=@./dist" \
+            -F 'pinataMetadata={"name":"myprotocol-${{ github.ref_name }}"}' \
+            -F 'pinataOptions={"cidVersion":1}')
+          CID=$(echo $RESPONSE | jq -r '.data.cid')
+          echo "cid=$CID" >> $GITHUB_OUTPUT
+          echo "Deployed to IPFS: $CID"
+
+      # Обновить ENS contentHash только при релизе
+      - name: Update ENS contentHash
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          npx ts-node scripts/update-ens.ts ${{ steps.ipfs.outputs.cid }}
+        env:
+          RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.ENS_DEPLOYER_KEY }}
+          ENS_NAME: "myprotocol.eth"
+
+      # Синхронизировать на Cloudflare Pages (для performance)
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: myprotocol-dapp
+          directory: dist
+</code></pre>
+
+    <h2>7. Post-deploy верификация</h2>
+
+    <p>
+      После деплоя обязательно пройдите проверки — они ловят проблемы, которые
+      не видны в staging, но критичны в mainnet.
+    </p>
+
+    <h3>7.1 Проверить байткод на Etherscan</h3>
+
+<pre class="code-block"><code># Сравнить on-chain байткод с локальной компиляцией
+ON_CHAIN=$(cast code 0xDeployedAddress --rpc-url $RPC_URL)
+LOCAL=$(cat out/SecureVault.sol/SecureVault.json | jq -r '.deployedBytecode.object')
+
+if [ "$ON_CHAIN" = "0x$LOCAL" ]; then
+  echo "✅ Bytecode matches local compilation"
+else
+  echo "❌ BYTECODE MISMATCH — verify your deployment"
+  diff <(echo $ON_CHAIN) <(echo "0x$LOCAL")
+fi
+</code></pre>
+
+    <h3>7.2 Проверить ABI через Etherscan API</h3>
+
+<pre class="code-block"><code>#!/usr/bin/env ts-node
+// scripts/verify-abi.ts — проверить что on-chain ABI совпадает с локальным
+
+import fs from "fs";
+import { createPublicClient, http } from "viem";
+import { mainnet } from "viem/chains";
+
+async function verifyAbi(contractAddress: string) {
+  // Получить ABI с Etherscan
+  const resp = await fetch(
+    `https://api.etherscan.io/api?module=contract&action=getabi` +
+    `&address=${contractAddress}&apikey=${process.env.ETHERSCAN_API_KEY}`
+  );
+  const data = await resp.json();
+
+  if (data.status !== "1") {
+    console.error("Contract not verified on Etherscan:", data.result);
+    process.exit(1);
+  }
+
+  const etherscanAbi = JSON.parse(data.result);
+
+  // Загрузить локальный ABI из Foundry out/
+  const localAbi = JSON.parse(
+    fs.readFileSync("out/SecureVault.sol/SecureVault.json", "utf8")
+  ).abi;
+
+  // Сравнить количество и сигнатуры функций
+  const etherscanSigs = new Set(
+    etherscanAbi.map((x: any) => `${x.type}:${x.name}`)
+  );
+  const localSigs = new Set(
+    localAbi.map((x: any) => `${x.type}:${x.name}`)
+  );
+
+  const mismatches = [...localSigs].filter((sig) => !etherscanSigs.has(sig));
+  if (mismatches.length > 0) {
+    console.error("❌ ABI mismatch. Missing on Etherscan:", mismatches);
+    process.exit(1);
+  }
+
+  console.log("✅ ABI matches between local and Etherscan");
+
+  // Smoke-test: вызвать view-функцию
+  const client = createPublicClient({ chain: mainnet, transport: http() });
+  const paused = await client.readContract({
+    address: contractAddress as `0x${string}`,
+    abi: localAbi,
+    functionName: "paused",
+  });
+  console.log(`✅ Contract is ${paused ? "PAUSED" : "active"} on-chain`);
+}
+
+await verifyAbi(process.argv[2]);
+</code></pre>
+
+    <h3>7.3 Тест на mainnet-форке после деплоя</h3>
+
+<pre class="code-block"><code">// test/PostDeploy.t.sol — тесты против реального задеплоенного контракта
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/SecureVault.sol";
+
+contract PostDeployTest is Test {
+    // Адрес реального контракта в mainnet
+    SecureVault vault = SecureVault(payable(0xYourDeployedAddress));
+
+    function setUp() public {
+        // Форкнуть mainnet на конкретном блоке после деплоя
+        vm.createSelectFork(vm.envString("MAINNET_RPC_URL"));
+    }
+
+    function test_VaultIsNotPausedAfterDeploy() public view {
+        assertFalse(vault.paused(), "Vault should not be paused on deploy");
+    }
+
+    function test_AdminHasCorrectRole() public view {
+        assertTrue(
+            vault.hasRole(vault.DEFAULT_ADMIN_ROLE(), vm.envAddress("ADMIN_ADDRESS")),
+            "Admin should have DEFAULT_ADMIN_ROLE"
+        );
+    }
+
+    function test_GuardianHasCorrectRole() public view {
+        assertTrue(
+            vault.hasRole(vault.GUARDIAN_ROLE(), vm.envAddress("GUARDIAN_ADDRESS")),
+            "Guardian should have GUARDIAN_ROLE"
+        );
+    }
+
+    function test_GuardianCanPause() public {
+        address guardian = vm.envAddress("GUARDIAN_ADDRESS");
+        vm.prank(guardian);
+        vault.pause();
+        assertTrue(vault.paused(), "Vault should be paused");
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># Запуск post-deploy тестов на форке mainnet
+forge test \
+  --match-path test/PostDeploy.t.sol \
+  --fork-url $MAINNET_RPC_URL \
+  -vv
+</code></pre>
+
+    <h2>8. Полный pipeline: forge script + verify</h2>
+
+    <p>
+      Собираем всё вместе — production deployment script, который включает:
+      проверку среды, деплой с CREATE2, автоверификацию, сохранение артефактов.
+    </p>
+
+<pre class="code-block"><code">#!/bin/bash
+# scripts/deploy-production.sh
+set -euo pipefail
+
+echo "=== Web3 Genesis Protocol: Production Deploy ==="
+
+# 1. Проверить переменные среды
+: "${MAINNET_RPC_URL:?}" "${DEPLOYER_KEY:?}" "${ADMIN_ADDRESS:?}"
+: "${GUARDIAN_ADDRESS:?}" "${ETHERSCAN_API_KEY:?}"
+
+# 2. Убедиться что тесты прошли
+echo "→ Running tests..."
+forge test --fork-url $MAINNET_RPC_URL -q
+echo "✅ All tests passed"
+
+# 3. Деплой через Foundry script
+echo "→ Deploying contracts..."
+forge script script/DeployVault.s.sol:DeployVault \
+  --rpc-url $MAINNET_RPC_URL \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $ETHERSCAN_API_KEY \
+  --slow \      # ждём каждую транзакцию
+  -vvv \
+  2>&1 | tee deploy-$(date +%Y%m%d-%H%M%S).log
+
+# 4. Сохранить адрес задеплоенного контракта
+DEPLOYED=$(cat broadcast/DeployVault.s.sol/1/run-latest.json \
+  | jq -r '.transactions[0].contractAddress')
+echo "✅ Contract deployed at: $DEPLOYED"
+echo $DEPLOYED > .deployed-address
+
+# 5. Запустить post-deploy тесты
+echo "→ Running post-deploy tests..."
+DEPLOYED_ADDRESS=$DEPLOYED forge test \
+  --match-path test/PostDeploy.t.sol \
+  --fork-url $MAINNET_RPC_URL \
+  -v
+echo "✅ Post-deploy tests passed"
+
+# 6. Проверить байткод
+echo "→ Verifying bytecode..."
+ON_CHAIN=$(cast code $DEPLOYED --rpc-url $MAINNET_RPC_URL)
+LOCAL_BYTECODE=$(cat out/SecureVault.sol/SecureVault.json | jq -r '.deployedBytecode.object')
+[ "$ON_CHAIN" = "0x$LOCAL_BYTECODE" ] \
+  && echo "✅ Bytecode verified" \
+  || (echo "❌ BYTECODE MISMATCH" && exit 1)
+
+echo ""
+echo "=== Deploy Complete ==="
+echo "Contract:  $DEPLOYED"
+echo "Etherscan: https://etherscan.io/address/$DEPLOYED"
+echo ""
+echo "Next steps:"
+echo "  1. Build and pin frontend: ./scripts/deploy-ipfs.sh"
+echo "  2. Update ENS contentHash: npx ts-node scripts/update-ens.ts"
+echo "  3. Configure Tenderly alerts for $DEPLOYED"
+</code></pre>
+
+    <h2>9. Что дальше</h2>
+
+    <p>
+      Поздравляем! Вы прошли курс <strong>Web3 Genesis</strong> от первого
+      MetaMask-подключения до production-деплоя dApp с мониторингом, верификацией
+      и декентрализованным фронтендом. Следующие шаги:
+    </p>
+
+    <ul>
+      <li>
+        <strong>Углублённая безопасность</strong> — курс по smart contract security:
+        reentrancy, flash loan атаки, oracle manipulation, formal verification
+        с Halmos/Certora.
+      </li>
+      <li>
+        <strong>DeFi протоколы</strong> — AMM (Uniswap v3/v4 hooks), лендинг
+        (Aave v3 архитектура), yield-стратегии (ERC-4626 vaults).
+      </li>
+      <li>
+        <strong>L2 и кросс-чейн</strong> — Optimism/Arbitrum proof systems,
+        zkEVM, Chainlink CCIP, LayerZero.
+      </li>
+      <li>
+        <strong>DAO и governance</strong> — OpenZeppelin Governor, vote delegation,
+        timelock execution, Snapshot off-chain голосование.
+      </li>
+    </ul>
+
+    <section class="lesson-quiz" data-lesson="20">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 20 · поставка dApp",
+  "intro": "Семь вопросов по деплою и верификации. Multiple-выбор подсвечивает верный ответ; задачи отмечайте сами. Прогресс сохраняется в localStorage.",
+  "questions": [
+    {
+      "q": "При верификации контракта на Etherscan через <code>forge verify-contract</code> для чего нужен флаг <code>--constructor-args</code>?",
+      "kind": "multiple",
+      "options": [
+        "Для передачи аргументов конструктора в байткод нового деплоя",
+        "Чтобы Etherscan мог воспроизвести initCode с теми же аргументами и получить идентичный байткод",
+        "Для дешифровки приватных переменных контракта",
+        "Для автоматической верификации событий контракта"
+      ],
+      "answerIndex": 1,
+      "explain": "При верификации Etherscan компилирует исходный код и сравнивает байткод с on-chain. Байткод включает encoded constructor arguments как суффикс — без них компиляция даст другой initCode и верификация не пройдёт."
+    },
+    {
+      "q": "Почему фронтенд на IPFS называют «неизменяемым деплоем»?",
+      "kind": "multiple",
+      "options": [
+        "Потому что IPFS использует шифрование и никто не может изменить файлы",
+        "Потому что файлы адресуются по хэшу их содержимого (CID) — любое изменение создаёт новый CID",
+        "Потому что файлы хранятся только на одной ноде и не могут быть перемещены",
+        "Потому что IPFS требует консенсус блокчейна для любого изменения"
+      ],
+      "answerIndex": 1,
+      "explain": "IPFS — контент-адресуемая система: CID = хэш содержимого. Старый CID всегда указывает на старое содержимое, новый CID — на новое. Никакой сервер не может «подменить» файл по тому же CID — это криптографически невозможно."
+    },
+    {
+      "q": "Что такое ENS <code>contentHash</code> и как он связан с IPFS?",
+      "kind": "open",
+      "answer": "contentHash — поле в ENS Public Resolver, которое хранит encoded ссылку на контент (IPFS CID, Swarm hash, ARWEAVE hash и др.). При установке IPFS CID в contentHash браузеры с ENS-поддержкой (Brave, MetaMask extension) при переходе на myprotocol.eth сначала резолвят ENS → получают contentHash → декодируют CID → загружают файлы через IPFS gateway. Это создаёт децентрализованный веб: ENS — неизменяемое имя, IPFS — неизменяемый контент."
+    },
+    {
+      "q": "CREATE2 позволяет получить одинаковый адрес контракта на всех сетях. От каких параметров зависит CREATE2-адрес?",
+      "kind": "multiple",
+      "options": [
+        "От адреса deployer-аккаунта и его текущего nonce",
+        "От адреса factory-контракта, salt (bytes32) и keccak256(initCode)",
+        "От block.timestamp и block.number в момент деплоя",
+        "Только от salt — factory и initCode не важны"
+      ],
+      "answerIndex": 1,
+      "explain": "Формула: address = keccak256(0xff ++ factory_address ++ salt ++ keccak256(initCode))[12:]. Все три параметра фиксированы и не зависят от состояния сети — поэтому адрес предсказуем и воспроизводим на любой EVM-сети."
+    },
+    {
+      "q": "Почему TimelockController устанавливают как owner ProxyAdmin, а не Safe-мультисиг напрямую?",
+      "kind": "multiple",
+      "options": [
+        "Потому что Safe не совместим с OZ ProxyAdmin",
+        "Чтобы добавить обязательную задержку между предложением и исполнением upgrade — пользователи видят что изменится и могут выйти",
+        "Чтобы ускорить процесс upgrade без ожидания мультисиг-подписей",
+        "Потому что TimelockController дешевле по газу"
+      ],
+      "answerIndex": 1,
+      "explain": "TimelockController добавляет минимальную задержку (например, 48ч) между proposing и executing операции. За это время пользователи протокола видят предстоящий upgrade в событиях контракта и могут вывести средства если не согласны. Safe выступает proposer/executor внутри Timelock."
+    },
+    {
+      "q": "Practical: задеплойте простой контракт <code>Counter</code> на Sepolia через <code>forge create</code> и верифицируйте его через <code>forge verify-contract</code>. Проверьте, что в интерфейсе Etherscan Sepolia появилась вкладка «Contract» с исходным кодом.",
+      "kind": "task",
+      "answer": "1. forge create src/Counter.sol:Counter --rpc-url $SEPOLIA_RPC --private-key $KEY --verify --etherscan-api-key $ETHERSCAN_KEY\n2. В выводе найти deployed address (например 0xAbCd...)\n3. Открыть https://sepolia.etherscan.io/address/0xAbCd\n4. Вкладка 'Contract' должна показывать зелёную галочку и исходный код Solidity\n5. Через 'Read Contract' можно вызвать функцию number() — должна вернуть 0"
+    },
+    {
+      "q": "Какой инструмент/команда позволяет проверить, что байткод задеплоенного контракта в mainnet совпадает с локальной компиляцией?",
+      "kind": "multiple",
+      "options": [
+        "forge test --fork-url mainnet — проверяет ABI и байткод автоматически",
+        "cast code <address> — вернёт on-chain байткод для сравнения с out/ директорией",
+        "forge verify-contract --check — специальный режим проверки",
+        "hardhat verify --network mainnet — единственный способ"
+      ],
+      "answerIndex": 1,
+      "explain": "cast code <address> возвращает deployed bytecode из блокчейна. Его можно сравнить с .deployedBytecode.object из Foundry out/<Contract>.json. Совпадение гарантирует что задеплоенный контракт соответствует исходному коду в репозитории."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Примеры используют Foundry (forge, cast), viem 2.x, OpenZeppelin Contracts 5.x.
+      Для тестирования ENS-функциональности используйте Sepolia — там работает
+      ENS registry с теми же контрактами. IPFS pinning проверяйте через
+      <code>ipfs.io/ipfs/&lt;CID&gt;</code> — если файл доступен, значит pin активен.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
