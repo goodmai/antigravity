@@ -20,7 +20,7 @@
       <span>Web3 Genesis ⛓️</span>
     </div>
 
-    <p class="lesson-meta">Course · 20 lessons · 10 labs · Solidity 0.8.24 · viem · sandbox-first</p>
+    <p class="lesson-meta">Course · 21 lessons · 10 labs · Solidity 0.8.24 · viem · sandbox-first</p>
     <h1>Web3 Genesis ⛓️</h1>
     <p>
       Курс «<strong>Web3 Genesis</strong>» — путь от первого <code>contract</code>
@@ -43,6 +43,18 @@
       (Daskibo in-memory / Remix VM / Anvil / Tenderly Virtual Testnet) с
       обоснованием порядка прохождения — в файле
       <a href="./sandbox-comparison.md">sandbox-comparison.md</a>.
+    </div>
+
+    <div class="module-h">
+      <h2>Введение — Основы блокчейна</h2>
+      <span class="module-meta">Lesson 0 · prerequisites</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/00/index.html">
+        <div class="card-head"><span class="num">Lesson 00</span><span class="badge-mini">intro</span></div>
+        <h3>Основы блокчейна</h3>
+        <p>Блок, цепочка, Genesis. PoW, PoS, DPoS, BFT, PoA, PoH. Стейкинг, слэшинг, финальность, форки, EVM.</p>
+      </a>
     </div>
 
     <div class="module-h">
@@ -149,27 +161,84 @@
       <a class="card" href="./lessons/16/index.html">
         <div class="card-head"><span class="num">Lesson 16</span><span class="badge-mini">oracle</span></div>
         <h3>Chainlink Oracles</h3>
-        <p>Data Feeds, VRF v2.5, Automation, CCIP, Functions. Юзеркейсы по индустриям + 4 практических задачи.</p>
+        <p>Data Feeds, VRF v2.5, Automation, CCIP, Functions. Юзеркейсы по индустриям + 7 практических задач.</p>
       </a>
-      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+      <a class="card" href="./lessons/17/index.html">
         <div class="card-head"><span class="num">Lesson 17</span><span class="badge-mini">defi</span></div>
-        <h3>AAVE: flash loans</h3>
-        <p>Atomic loans, callback-паттерн, fee.</p>
+        <h3>AAVE: Flash Loans</h3>
+        <p>Атомарные займы без залога, callback-паттерн executeOperation, арбитраж, рефинансирование, слэш. 7 задач.</p>
       </a>
-      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+      <a class="card" href="./lessons/18/index.html">
         <div class="card-head"><span class="num">Lesson 18</span><span class="badge-mini">multichain</span></div>
-        <h3>Multichain &amp; bridges</h3>
-        <p>L1↔L2 messaging, OP Stack, Arbitrum Nitro.</p>
+        <h3>Multichain &amp; Bridges</h3>
+        <p>L1↔L2 депозиты и вывод (7-дневный период), Optimism / Arbitrum Nitro, LayerZero, Hop, безопасность. 7 задач.</p>
       </a>
-      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+      <a class="card" href="./lessons/19/index.html">
         <div class="card-head"><span class="num">Lesson 19</span><span class="badge-mini">ops</span></div>
         <h3>Monitoring &amp; Tenderly Alerts</h3>
-        <p>RPC-мониторинг, alerts, post-mortem trace replay.</p>
+        <p>Tenderly Web3 Actions, event-подписки viem, OZ Defender, post-mortem trace replay, production checklist. 7 задач.</p>
       </a>
-      <a class="card" style="opacity:.45;cursor:default" onclick="event.preventDefault()">
+      <a class="card" href="./lessons/20/index.html">
         <div class="card-head"><span class="num">Lesson 20</span><span class="badge-mini">ship</span></div>
         <h3>Поставка dApp</h3>
-        <p>Verify on Etherscan, IPFS, ENS, immutable frontend.</p>
+        <p>forge verify-contract, IPFS + Pinata, ENS contentHash, CREATE2 deploy, multisig, timelock, production checklist. 7 задач.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Лабораторные работы</h2>
+      <span class="module-meta">Labs 1–10 · практика</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./labs/01/index.html">
+        <div class="card-head"><span class="num">Lab 01</span><span class="badge-mini">deploy</span></div>
+        <h3>Развёртывание ERC-20</h3>
+        <p>Foundry + OpenZeppelin, forge test, deploy на Sepolia, verify на Etherscan, viem read/write. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/02/index.html">
+        <div class="card-head"><span class="num">Lab 02</span><span class="badge-mini">permit</span></div>
+        <h3>ERC-20 Allowance &amp; Permit</h3>
+        <p>approve/transferFrom, EIP-2612 permit, EIP-712 signTypedData, gasless relayer. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/03/index.html">
+        <div class="card-head"><span class="num">Lab 03</span><span class="badge-mini">access</span></div>
+        <h3>Ownable &amp; AccessControl</h3>
+        <p>Роли, Pausable, multisig-голосование, тесты событий, deploy + cast. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/04/index.html">
+        <div class="card-head"><span class="num">Lab 04</span><span class="badge-mini">sec</span></div>
+        <h3>Reentrancy: атака и защита</h3>
+        <p>Уязвимый Vault, Attacker-контракт, CEI, ReentrancyGuard, cross-function, Slither. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/05/index.html">
+        <div class="card-head"><span class="num">Lab 05</span><span class="badge-mini">gas</span></div>
+        <h3>Gas Optimization</h3>
+        <p>forge gas-report, storage packing, calldata, custom errors, immutable, unchecked. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/06/index.html">
+        <div class="card-head"><span class="num">Lab 06</span><span class="badge-mini">upgrade</span></div>
+        <h3>UUPS Proxy</h3>
+        <p>OpenZeppelin upgrades, storage layout, CounterV2, ERC-1967 slot, Sepolia deploy. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/07/index.html">
+        <div class="card-head"><span class="num">Lab 07</span><span class="badge-mini">the graph</span></div>
+        <h3>Subgraph</h3>
+        <p>Graph CLI, schema.graphql, AssemblyScript, GraphQL-запросы, React + urql. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/08/index.html">
+        <div class="card-head"><span class="num">Lab 08</span><span class="badge-mini">viem</span></div>
+        <h3>viem JSON-RPC Client</h3>
+        <p>publicClient, readContract, getLogs, decodeEventLog, simulateContract, walletClient. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/09/index.html">
+        <div class="card-head"><span class="num">Lab 09</span><span class="badge-mini">wagmi</span></div>
+        <h3>wagmi React dApp</h3>
+        <p>RainbowKit, useReadContract, useWriteContract, useWatchContractEvent, сетевое переключение. 7 заданий.</p>
+      </a>
+      <a class="card" href="./labs/10/index.html">
+        <div class="card-head"><span class="num">Lab 10</span><span class="badge-mini">capstone</span></div>
+        <h3>Full dApp Dashboard</h3>
+        <p>ERC-20 дашборд: TokenCard, TransferForm, EventFeed, TxHistory, IPFS-деплой, ENS. 7 заданий.</p>
       </a>
     </div>
 
