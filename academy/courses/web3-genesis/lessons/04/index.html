@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 04 · Anvil &amp; Foundry — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 04 · Anvil &amp; Foundry</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 04 · local devnet &amp; testing</p>
+    <h1>Anvil &amp; Foundry — локальная среда разработки для EVM</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../03/index.html">Lesson 03 — Ноды, JSON-RPC</a>.
+      Там мы изучили, как фронтенд разговаривает с блокчейном через JSON-RPC.
+      Здесь мы разворачиваем собственный EVM-node прямо на ноутбуке,
+      форкаем mainnet и пишем тесты на Solidity.
+    </p>
+
+    <p>
+      Каждый раз гонять тест против Sepolia — дорого и медленно: 12 секунд на блок,
+      нужны тестовые ETH, публичные RPC лимитируют запросы.
+      <strong>Foundry</strong> решает эту проблему: <code>anvil</code> поднимает
+      полноценный EVM-node в памяти за &lt;200 мс, <code>forge test</code>
+      прогоняет тысячи юнит-тестов на Solidity прямо против него, а
+      <code>cast</code> позволяет вызывать контракты и отправлять транзакции
+      из командной строки — без MetaMask, без фронтенда, без ожиданий.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: запустить локальный
+      Anvil-node и задеплоить на него контракт одной командой; форкнуть mainnet
+      или Sepolia, чтобы тест работал с реальными контрактами (USDC, Uniswap,
+      Aave) без единого wei; написать полноценный <code>forge test</code> для
+      ERC-20 с fuzzing-тестом; читать и записывать storage slot через
+      <code>cast</code>; и воспроизвести тестовое состояние через
+      <code>anvil --state</code>.
+    </div>
+
+    <h2>1. Что такое Foundry: четыре инструмента</h2>
+
+    <p>
+      <strong>Foundry</strong> — open-source toolkit для разработки на Solidity,
+      написанный на Rust компанией Paradigm. Включает четыре исполняемых файла:
+    </p>
+
+    <table class="compare">
+      <tr><th>Инструмент</th><th>Что делает</th><th>Аналог в HardHat-мире</th></tr>
+      <tr>
+        <td><code>forge</code></td>
+        <td>Компилирует контракты, запускает тесты на Solidity, управляет зависимостями через git-submodules</td>
+        <td><code>npx hardhat compile</code>, <code>npx hardhat test</code></td>
+      </tr>
+      <tr>
+        <td><code>anvil</code></td>
+        <td>Локальный EVM-node в памяти (JSON-RPC :8545). Форкает любую сеть. Чит-коды для манипуляции состоянием.</td>
+        <td><code>npx hardhat node</code>, Ganache</td>
+      </tr>
+      <tr>
+        <td><code>cast</code></td>
+        <td>CLI для взаимодействия с любым JSON-RPC: eth_call, send tx, decode ABI, read storage, ENS resolve</td>
+        <td><code>npx hardhat run</code>, ethers scripts</td>
+      </tr>
+      <tr>
+        <td><code>chisel</code></td>
+        <td>Интерактивная Solidity REPL: пишете выражение — получаете результат в EVM мгновенно</td>
+        <td>нет прямого аналога</td>
+      </tr>
+    </table>
+
+    <p>
+      Главное отличие от HardHat: тесты пишутся на <strong>Solidity</strong>, а не
+      на JavaScript/TypeScript. Это означает: нет сериализации типов между JS и EVM,
+      полная поддержка всех Solidity-конструкций в тестах, и скорость — forge test
+      работает в 10–100 раз быстрее аналогов на JS.
+    </p>
+
+    <h2>2. Установка Foundry</h2>
+
+    <p>
+      Foundry устанавливается одной командой через <code>foundryup</code> —
+      официальный installer, который скачивает pre-built бинари для вашей платформы
+      (Linux, macOS, Windows WSL2):
+    </p>
+
+<pre class="code-block"><code># Шаг 1: скачать и запустить foundryup
+curl -L https://foundry.paradigm.xyz | bash
+
+# Шаг 2: перезагрузить shell (или source ~/.bashrc / ~/.zshrc)
+# Команда foundryup добавляет ~/.foundry/bin в PATH
+
+# Шаг 3: установить/обновить последнюю версию
+foundryup
+
+# Проверка установки:
+forge --version   # forge 0.2.0 (abcdef 2025-04-10T...)
+anvil --version   # anvil 0.2.0 (abcdef 2025-04-10T...)
+cast --version    # cast 0.2.0 (abcdef 2025-04-10T...)
+chisel --version  # chisel 0.2.0 (abcdef 2025-04-10T...)</code></pre>
+
+    <div class="note">
+      <strong>Обновление.</strong> Команда <code>foundryup</code> всегда устанавливает
+      последний стабильный выпуск. Для конкретной версии: <code>foundryup --version
+      nightly-abc1234</code>. Бинари кладутся в <code>~/.foundry/bin/</code>.
+      На macOS Apple Silicon (M1/M2/M3) нативно собран arm64 — Rosetta не нужна.
+    </div>
+
+    <h2>3. Anvil: запуск локальной ноды</h2>
+
+    <p>
+      Без параметров <code>anvil</code> запускает пустую EVM-сеть с
+      chain-id <code>31337</code> и 10 заранее созданными счетами с балансом
+      по 10 000 ETH каждый:
+    </p>
+
+<pre class="code-block"><code>$ anvil
+
+                             _   _
+                            (_) | |
+  __ _   _ __   __   __  _  _  | |
+ / _` | | '_ \  \ \ / / | || | | |
+| (_| | | | | |  \ V /  | || | | |
+ \__,_| |_| |_|   \_/  |_||_| |_|
+
+                 by Paradigm
+
+Available Accounts
+==================
+(0) 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000.000000000000000000 ETH)
+(1) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000.000000000000000000 ETH)
+(2) 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000.000000000000000000 ETH)
+...
+(9) 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000.000000000000000000 ETH)
+
+Private Keys
+==================
+(0) 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+(1) 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+...
+
+Chain ID
+==================
+31337
+
+Listening on 127.0.0.1:8545</code></pre>
+
+    <p>
+      Эти 10 аккаунтов — детерминированные: они всегда одинаковы, потому что
+      Anvil использует стандартную BIP-39 мнемонику
+      <code>test test test test test test test test test test test junk</code>.
+      Первый аккаунт <code>0xf39F…2266</code> с приватным ключом
+      <code>0xac09…ff80</code> — «стандартный» сигнер в большинстве примеров
+      Foundry-сообщества.
+    </p>
+
+    <h3>3.1 Полезные флаги Anvil</h3>
+
+<pre class="code-block"><code># Изменить chain-id (по умолчанию 31337):
+anvil --chain-id 1337
+
+# Изменить количество аккаунтов и начальный баланс:
+anvil --accounts 5 --balance 1000
+
+# Изменить интервал майнинга (по умолчанию = instant, блок на каждую tx):
+anvil --block-time 12        # блок раз в 12 секунд, как mainnet
+
+# Включить подробное логирование транзакций:
+anvil --verbose
+
+# Слушать не только localhost — для Docker-окружений:
+anvil --host 0.0.0.0
+
+# Задать конкретный порт:
+anvil --port 8546
+
+# Сохранять состояние в файл (при выходе):
+anvil --dump-state ./anvil-state.json
+
+# Загрузить ранее сохранённое состояние:
+anvil --load-state ./anvil-state.json</code></pre>
+
+    <h3>3.2 Проверка работы Anvil через cast</h3>
+
+<pre class="code-block"><code># В первом терминале: anvil (запущен)
+
+# В втором терминале — общаемся с нодой:
+cast chain-id --rpc-url http://127.0.0.1:8545
+# 31337
+
+cast block-number --rpc-url http://127.0.0.1:8545
+# 0
+
+cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --ether --rpc-url http://127.0.0.1:8545
+# 10000.000000000000000000
+
+# Сокращённо: если ANVIL_RPC не задан — cast по умолчанию пробует localhost:8545:
+cast block-number</code></pre>
+
+    <h2>4. Fork mainnet с Anvil</h2>
+
+    <p>
+      Самая мощная функция Anvil — <strong>форк</strong> любой EVM-сети.
+      При форке Anvil «притворяется» нодой выбранной сети: при запросе данных
+      (storage, bytecode, balance) сначала смотрит в локальный кеш, а при промахе
+      — делает реальный запрос к указанному RPC. Новые транзакции исполняются
+      только локально: вы полностью изолированы от mainnet.
+    </p>
+
+<pre class="code-block"><code># Форк Ethereum mainnet (нужен RPC-URL с архивными данными):
+export ETH_RPC_URL=https://eth.llamarpc.com
+anvil --fork-url $ETH_RPC_URL
+
+# Форк конкретного блока (воспроизводимо!):
+anvil --fork-url $ETH_RPC_URL --fork-block-number 21500000
+
+# Форк Sepolia:
+anvil --fork-url https://sepolia.gateway.tenderly.co
+
+# Форк Arbitrum One:
+anvil --fork-url https://arb1.arbitrum.io/rpc</code></pre>
+
+    <div class="note">
+      <strong>Зачем форк mainnet?</strong> Вы получаете реальное состояние
+      всех контрактов — USDC, Uniswap v3, Aave, ENS — прямо у себя локально.
+      Можно: написать тест, который реально вызывает <code>USDC.transfer()</code>;
+      проверить свой контракт против конкретной версии протокола; воспроизвести
+      exploit, опубликованный в post-mortem (указав блок прямо перед атакой);
+      протестировать интеграцию с любым контрактом без нужды в тестовых токенах.
+      Всё это — без единой реальной транзакции в сеть.
+    </div>
+
+    <h3>4.1 Читаем форкнутое состояние</h3>
+
+<pre class="code-block"><code># После запуска: anvil --fork-url $ETH_RPC_URL
+
+# Баланс USDC у Binance (крупнейший holder на mainnet):
+USDC=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+BINANCE=0x28C6c06298d514Db089934071355E5743bf21d60
+
+cast call $USDC "balanceOf(address)(uint256)" $BINANCE --rpc-url http://localhost:8545
+# 2500000000000000   (2.5 трлн USDC-units = 2.5 млрд USDC)
+
+# Получить ETH у произвольного адреса — чит-код Anvil:
+cast rpc anvil_setBalance $BINANCE 0x56BC75E2D63100000 --rpc-url http://localhost:8545
+# (0x56BC75E2D63100000 = 100 ETH в wei)
+
+# Имперсонация: отправить tx от чужого имени (без приватного ключа):
+cast rpc anvil_impersonateAccount $BINANCE --rpc-url http://localhost:8545
+cast send $USDC "transfer(address,uint256)" 0xf39F...2266 1000000000 \
+  --from $BINANCE --rpc-url http://localhost:8545 --unlocked</code></pre>
+
+    <h3>4.2 Чит-коды Anvil</h3>
+
+    <table class="compare">
+      <tr><th>Метод</th><th>Что делает</th></tr>
+      <tr><td><code>anvil_setBalance</code></td><td>Принудительно задать ETH-баланс любого адреса</td></tr>
+      <tr><td><code>anvil_setStorageAt</code></td><td>Записать произвольное значение в конкретный storage slot</td></tr>
+      <tr><td><code>anvil_setCode</code></td><td>Подменить байткод контракта по адресу</td></tr>
+      <tr><td><code>anvil_impersonateAccount</code></td><td>Разрешить отправку tx от имени адреса без приватного ключа</td></tr>
+      <tr><td><code>anvil_stopImpersonatingAccount</code></td><td>Отменить имперсонацию</td></tr>
+      <tr><td><code>anvil_mine</code></td><td>Принудительно создать N блоков</td></tr>
+      <tr><td><code>anvil_setNextBlockTimestamp</code></td><td>Установить timestamp следующего блока</td></tr>
+      <tr><td><code>anvil_snapshot</code></td><td>Сделать snapshot состояния (возвращает snapshotId)</td></tr>
+      <tr><td><code>anvil_revert</code></td><td>Откатить состояние к snapshotId</td></tr>
+      <tr><td><code>anvil_dumpState</code></td><td>Экспортировать состояние в JSON</td></tr>
+      <tr><td><code>anvil_loadState</code></td><td>Импортировать ранее сохранённое состояние</td></tr>
+    </table>
+
+    <h2>5. Forge: инициализация проекта, сборка и тесты</h2>
+
+    <h3>5.1 Создание нового проекта</h3>
+
+<pre class="code-block"><code># Создать стандартный проект:
+forge init my-project
+cd my-project
+
+# Структура директорий:
+my-project/
+├─ src/
+│   └─ Counter.sol          ← пример контракта
+├─ test/
+│   └─ Counter.t.sol        ← тесты (суффикс .t.sol — конвенция)
+├─ script/
+│   └─ Counter.s.sol        ← деплой-скрипты
+├─ lib/
+│   └─ forge-std/           ← стандартная библиотека (git submodule)
+└─ foundry.toml             ← конфигурация проекта</code></pre>
+
+<pre class="code-block"><code># foundry.toml — минимальная конфигурация:
+[profile.default]
+src     = "src"
+out     = "out"
+libs    = ["lib"]
+solc    = "0.8.25"         # или omit — forge auto-detect из pragma
+
+# Настройки для форк-тестов:
+[profile.default.rpc_endpoints]
+mainnet = "${ETH_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
+arbitrum = "https://arb1.arbitrum.io/rpc"</code></pre>
+
+    <h3>5.2 Зависимости через forge install</h3>
+
+<pre class="code-block"><code># Установить OpenZeppelin Contracts:
+forge install OpenZeppelin/openzeppelin-contracts
+
+# Установить конкретный тег:
+forge install OpenZeppelin/openzeppelin-contracts@v5.0.2
+
+# Обновить все зависимости:
+forge update
+
+# Список установленных зависимостей (= git submodules):
+git submodule status</code></pre>
+
+    <h3>5.3 Компиляция</h3>
+
+<pre class="code-block"><code># Собрать все контракты в src/:
+forge build
+
+# Пересобрать с нуля:
+forge build --force
+
+# Посмотреть размер байткода (важно для контрактов < 24 KiB limit):
+forge build --sizes
+
+# Собрать и показать ABI конкретного контракта:
+forge inspect MyToken abi</code></pre>
+
+    <h3>5.4 Структура теста на Solidity</h3>
+
+    <p>
+      Тест в Foundry — обычный Solidity-контракт, наследующий <code>Test</code>
+      из <code>forge-std</code>. Каждая функция с префиксом <code>test</code>
+      — отдельный тест; <code>setUp()</code> вызывается перед каждым тестом.
+    </p>
+
+<pre class="code-block"><code>// test/Counter.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "forge-std/Test.sol";
+import "../src/Counter.sol";
+
+contract CounterTest is Test {
+    Counter public counter;
+
+    // Вызывается перед каждым тестом — чистое состояние
+    function setUp() public {
+        counter = new Counter();
+        counter.setNumber(0);
+    }
+
+    // test-функции должны начинаться с "test"
+    function test_Increment() public {
+        counter.increment();
+        assertEq(counter.number(), 1);
+    }
+
+    // testFail_ — ожидаем, что функция reverts
+    function testFail_SetNumberByStranger() public {
+        vm.prank(address(0xdead)); // следующий вызов от другого адреса
+        counter.setNumber(42);     // должен revert (если есть доступ-контроль)
+    }
+
+    // Fuzz-тест: forge автоматически подбирает граничные значения x
+    function testFuzz_SetNumber(uint256 x) public {
+        counter.setNumber(x);
+        assertEq(counter.number(), x);
+    }
+}</code></pre>
+
+<pre class="code-block"><code># Запустить все тесты:
+forge test
+
+# Запустить с подробным выводом (трассировка вызовов):
+forge test -vvv
+
+# Запустить конкретный тест по имени:
+forge test --match-test test_Increment -vvvv
+
+# Запустить тесты с форком mainnet:
+forge test --fork-url $ETH_RPC_URL -vv
+
+# Показать потребление газа:
+forge test --gas-report</code></pre>
+
+    <h3>5.5 Cheatcodes: vm.* в тестах</h3>
+
+    <p>
+      В тестах forge-std доступен объект <code>vm</code> — специальный адрес
+      <code>0x7109709ECfa91a80626fF3989D68f67F5b1DD12D</code>, через который
+      тест управляет состоянием EVM:
+    </p>
+
+<pre class="code-block"><code>// Примеры cheatcodes в тесте
+contract MyTest is Test {
+
+    function test_Cheats() public {
+        // Изменить msg.sender для следующего вызова:
+        vm.prank(address(0xAlice));
+        token.transfer(bob, 100);
+
+        // Изменить msg.sender для всего блока до stopPrank():
+        vm.startPrank(address(0xAlice));
+        token.approve(spender, 1000);
+        token.transfer(bob, 100);
+        vm.stopPrank();
+
+        // Перемотать время вперёд:
+        vm.warp(block.timestamp + 7 days);
+
+        // Перемотать блоки вперёд:
+        vm.roll(block.number + 100);
+
+        // Принудительно задать ETH-баланс адреса:
+        vm.deal(address(0xAlice), 10 ether);
+
+        // Ожидать revert со строкой (проверяет сообщение):
+        vm.expectRevert("Insufficient balance");
+        token.transfer(bob, 10_000_000 ether);
+
+        // Ожидать конкретный event:
+        vm.expectEmit(true, true, false, true);
+        emit Transfer(alice, bob, 100);
+        token.transfer(bob, 100);
+
+        // Читать environment variables в тесте:
+        string memory rpc = vm.envString("ETH_RPC_URL");
+
+        // Mock-вызов: любой вызов balanceOf вернёт 999:
+        vm.mockCall(
+            address(token),
+            abi.encodeWithSelector(IERC20.balanceOf.selector, address(this)),
+            abi.encode(999)
+        );
+    }
+}</code></pre>
+
+    <h2>6. Cast: вызов контрактов из командной строки</h2>
+
+    <p>
+      <code>cast</code> — это Swiss Army knife для работы с EVM через командную
+      строку. Работает с любым JSON-RPC endpoint: Anvil, Alchemy, Infura, llamarpc.
+    </p>
+
+    <h3>6.1 eth_call — чтение данных</h3>
+
+<pre class="code-block"><code># Вызвать view-функцию (не тратит газ, не меняет состояние):
+# Синтаксис: cast call &lt;address&gt; "&lt;signature&gt;" [args...] --rpc-url &lt;url&gt;
+
+# Баланс USDC у адреса:
+cast call 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \
+  "balanceOf(address)(uint256)" \
+  0x28C6c06298d514Db089934071355E5743bf21d60 \
+  --rpc-url $ETH_RPC_URL
+# 2500000000000000
+
+# Символ токена:
+cast call 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 \
+  "symbol()(string)" \
+  --rpc-url $ETH_RPC_URL
+# USDC
+
+# ENS: получить адрес по имени (автоматический resolve):
+cast resolve-name vitalik.eth --rpc-url $ETH_RPC_URL
+# 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+
+# Обратный resolve: имя по адресу:
+cast lookup-address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 --rpc-url $ETH_RPC_URL
+# vitalik.eth</code></pre>
+
+    <h3>6.2 Отправка транзакций</h3>
+
+<pre class="code-block"><code># Отправить ETH:
+cast send 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \
+  --value 1ether \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url http://localhost:8545
+
+# Вызвать write-функцию контракта:
+cast send 0xMY_CONTRACT \
+  "transfer(address,uint256)" \
+  0xRecipient 1000000 \
+  --private-key $PRIVATE_KEY \
+  --rpc-url http://localhost:8545
+
+# Отправить без ожидания майнинга:
+cast send ... --async
+
+# Получить receipt после:
+cast receipt 0xTX_HASH --rpc-url http://localhost:8545</code></pre>
+
+    <h3>6.3 Декодирование данных</h3>
+
+<pre class="code-block"><code># Декодировать calldata транзакции (ABI-encode):
+cast calldata-decode "transfer(address,uint256)" \
+  0xa9059cbb000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa9604500000000000000000000000000000000000000000000000000000000000f4240
+# address: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
+# uint256: 1000000
+
+# Декодировать возвращаемые данные:
+cast abi-decode "balanceOf(address)(uint256)" 0x000...00000f4240
+# 1000000
+
+# Вычислить selector функции (первые 4 байта calldata):
+cast sig "transfer(address,uint256)"
+# 0xa9059cbb
+
+# Посмотреть event signature (topic0):
+cast sig-event "Transfer(address indexed,address indexed,uint256)"
+# 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
+
+# Перевести wei в ether:
+cast to-unit 1000000000000000000 ether
+# 1.000000000000000000</code></pre>
+
+    <h3>6.4 Чтение storage slots</h3>
+
+    <p>
+      Каждый контракт хранит данные в 32-байтовых ячейках (slots). Слот 0 —
+      первая переменная контракта, слот 1 — вторая, и т.д. (для простых типов).
+      Маппинги и динамические массивы используют <code>keccak256</code>-производные
+      от ключа + slot-номера.
+    </p>
+
+<pre class="code-block"><code># Прочитать slot 0 контракта (обычно owner или другая первая переменная):
+cast storage 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 0 --rpc-url $ETH_RPC_URL
+# 0x00000000000000000000000043506849d7c04f9138d1a2050bbf3a0c054402dd
+
+# Для маппинга balances[address]:
+# slot = keccak256(abi.encode(address, uint256(slot_of_mapping)))
+# Вычислить вручную:
+cast keccak $(cast abi-encode "f(address,uint256)" 0xd8dA6BF...96045 9)
+# Используем результат как slot:
+cast storage $USDC 0x&lt;computed_slot&gt; --rpc-url $ETH_RPC_URL
+
+# Посмотреть весь layout storage (нужен ABI):
+forge inspect MyContract storageLayout</code></pre>
+
+    <h3>6.5 Полезные утилиты cast</h3>
+
+<pre class="code-block"><code># Конвертации:
+cast to-hex 1000000          # → 0xf4240
+cast to-dec 0xf4240          # → 1000000
+cast to-wei 1.5 ether        # → 1500000000000000000
+cast from-wei 1500000000000000000 ether  # → 1.500000000000000000
+
+# Информация о блоке:
+cast block latest --rpc-url $ETH_RPC_URL
+
+# Информация о транзакции:
+cast tx 0xTX_HASH --rpc-url $ETH_RPC_URL
+
+# Код контракта:
+cast code 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48 --rpc-url $ETH_RPC_URL
+
+# 4byte.directory: определить имя функции по selector:
+cast 4byte 0xa9059cbb
+# transfer(address,uint256)
+
+# Трассировка транзакции (нужен debug_traceTransaction на ноде):
+cast run 0xTX_HASH --rpc-url $ETH_RPC_URL</code></pre>
+
+    <h2>7. Четыре практические задачи</h2>
+
+    <h3>7.1 Задача №1 — запустить Anvil и задеплоить контракт через forge create</h3>
+
+    <p>
+      Создаём простой контракт, деплоим через <code>forge create</code>
+      и проверяем через <code>cast call</code>. Используем стандартный аккаунт
+      Anvil — никаких тестовых токенов, никаких Faucets.
+    </p>
+
+<pre class="code-block"><code># Шаг 1: Создать проект и написать контракт
+forge init task01 --no-git
+cat &gt; task01/src/Greeter.sol &lt;&lt; 'EOF'
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+contract Greeter {
+    string private greeting;
+    address public immutable owner;
+
+    event GreetingSet(address indexed by, string newGreeting);
+
+    constructor(string memory _greeting) {
+        greeting = _greeting;
+        owner = msg.sender;
+    }
+
+    function greet() external view returns (string memory) {
+        return greeting;
+    }
+
+    function setGreeting(string calldata _greeting) external {
+        require(msg.sender == owner, "only owner");
+        greeting = _greeting;
+        emit GreetingSet(msg.sender, _greeting);
+    }
+}
+EOF
+
+# Шаг 2: Запустить Anvil в отдельном терминале
+anvil &amp;
+ANVIL_PID=$!
+
+# Шаг 3: Задеплоить контракт
+# --private-key — первый аккаунт Anvil
+GREETER=$(forge create task01/src/Greeter.sol:Greeter \
+  --constructor-args "Hello, Foundry!" \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url http://127.0.0.1:8545 \
+  --json | jq -r '.deployedTo')
+
+echo "Greeter deployed to: $GREETER"
+
+# Шаг 4: Прочитать greeting
+cast call $GREETER "greet()(string)" --rpc-url http://127.0.0.1:8545
+# Hello, Foundry!
+
+# Шаг 5: Обновить greeting
+cast send $GREETER "setGreeting(string)" "Hello, Anvil!" \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url http://127.0.0.1:8545
+
+# Шаг 6: Убедиться, что greeting обновился
+cast call $GREETER "greet()(string)" --rpc-url http://127.0.0.1:8545
+# Hello, Anvil!
+
+# Шаг 7: Проверить event в логах последнего блока
+cast logs --rpc-url http://127.0.0.1:8545 --address $GREETER
+
+kill $ANVIL_PID</code></pre>
+
+    <div class="note">
+      <strong>forge create vs forge script.</strong> <code>forge create</code> —
+      быстрый способ для одиночного контракта прямо из CLI. Для сложных деплоев
+      с зависимостями между контрактами используйте <code>forge script</code>
+      со Solidity-скриптом в директории <code>script/</code>: он поддерживает
+      полный Solidity, cheatcodes и simulate-before-broadcast.
+    </div>
+
+    <h3>7.2 Задача №2 — форк Sepolia и вызов известного контракта через cast call</h3>
+
+    <p>
+      Форкаем Sepolia и взаимодействуем с реальным задеплоенным туда контрактом
+      без необходимости иметь Sepolia ETH или отправлять реальные транзакции.
+    </p>
+
+<pre class="code-block"><code># Шаг 1: Убедиться, что SEPOLIA_RPC_URL задан
+export SEPOLIA_RPC_URL=https://sepolia.gateway.tenderly.co
+# Альтернативы: https://rpc.sepolia.org, Alchemy Sepolia, Infura Sepolia
+
+# Шаг 2: Запустить Anvil с форком Sepolia
+anvil --fork-url $SEPOLIA_RPC_URL &amp;
+ANVIL_PID=$!
+
+# Шаг 3: Проверить chain-id (должен быть 11155111 — Sepolia)
+cast chain-id --rpc-url http://127.0.0.1:8545
+# 11155111
+
+# Шаг 4: Прочитать данные существующего Sepolia-контракта
+# WETH на Sepolia:
+WETH_SEPOLIA=0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9
+
+cast call $WETH_SEPOLIA "name()(string)" --rpc-url http://127.0.0.1:8545
+# Wrapped Ether
+
+cast call $WETH_SEPOLIA "symbol()(string)" --rpc-url http://127.0.0.1:8545
+# WETH
+
+cast call $WETH_SEPOLIA "decimals()(uint8)" --rpc-url http://127.0.0.1:8545
+# 18
+
+# Шаг 5: Имперсонировать богатый адрес (у него уже есть WETH на форкнутой цепи)
+RICH=0x1234567890123456789012345678901234567890
+cast rpc anvil_setBalance $RICH 0x56BC75E2D63100000 --rpc-url http://127.0.0.1:8545
+cast rpc anvil_impersonateAccount $RICH --rpc-url http://127.0.0.1:8545
+
+# Шаг 6: Выполнить deposit() в WETH — обернуть 1 ETH в WETH
+cast send $WETH_SEPOLIA "deposit()" \
+  --value 1ether \
+  --from $RICH \
+  --rpc-url http://127.0.0.1:8545 \
+  --unlocked
+
+# Шаг 7: Убедиться, что WETH появился
+cast call $WETH_SEPOLIA "balanceOf(address)(uint256)" $RICH \
+  --rpc-url http://127.0.0.1:8545
+# 1000000000000000000  (1 WETH)
+
+kill $ANVIL_PID</code></pre>
+
+    <h3>7.3 Задача №3 — forge test для ERC-20 transfer</h3>
+
+    <p>
+      Пишем полноценный тестовый контракт для самописного ERC-20.
+      Покрываем: transfer, transferFrom с approve, mint, burn, и фаззинг
+      на инвариантах балансов.
+    </p>
+
+<pre class="code-block"><code>// src/SimpleToken.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract SimpleToken is ERC20, Ownable {
+    constructor(string memory name_, string memory symbol_, uint256 initialSupply)
+        ERC20(name_, symbol_)
+        Ownable(msg.sender)
+    {
+        _mint(msg.sender, initialSupply * 10 ** decimals());
+    }
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+}</code></pre>
+
+<pre class="code-block"><code>// test/SimpleToken.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "forge-std/Test.sol";
+import "../src/SimpleToken.sol";
+
+contract SimpleTokenTest is Test {
+    SimpleToken token;
+    address owner   = address(0xA11CE);
+    address alice   = address(0xA1CE);
+    address bob     = address(0xB0B);
+    address carol   = address(0xCA401);
+
+    uint256 constant INITIAL_SUPPLY = 1_000_000; // 1M tokens
+
+    function setUp() public {
+        vm.startPrank(owner);
+        token = new SimpleToken("Simple Token", "SIMP", INITIAL_SUPPLY);
+        vm.stopPrank();
+    }
+
+    // --- Базовые тесты ---
+
+    function test_InitialSupply() public view {
+        assertEq(token.totalSupply(), INITIAL_SUPPLY * 1e18);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY * 1e18);
+    }
+
+    function test_Transfer() public {
+        uint256 amount = 100 * 1e18;
+        vm.prank(owner);
+        token.transfer(alice, amount);
+
+        assertEq(token.balanceOf(alice), amount);
+        assertEq(token.balanceOf(owner), (INITIAL_SUPPLY * 1e18) - amount);
+    }
+
+    function test_TransferFrom() public {
+        uint256 amount = 50 * 1e18;
+        // owner апрувит alice отправлять от его имени
+        vm.prank(owner);
+        token.approve(alice, amount);
+
+        assertEq(token.allowance(owner, alice), amount);
+
+        // alice отправляет средства owner → bob
+        vm.prank(alice);
+        token.transferFrom(owner, bob, amount);
+
+        assertEq(token.balanceOf(bob), amount);
+        assertEq(token.allowance(owner, alice), 0);
+    }
+
+    function test_RevertTransfer_InsufficientBalance() public {
+        vm.prank(alice); // у alice нет токенов
+        vm.expectRevert();
+        token.transfer(bob, 1);
+    }
+
+    function test_RevertTransferFrom_NotApproved() public {
+        vm.prank(alice); // alice не апрувнута
+        vm.expectRevert();
+        token.transferFrom(owner, bob, 1);
+    }
+
+    function test_Mint() public {
+        uint256 mintAmount = 500 * 1e18;
+        vm.prank(owner);
+        token.mint(alice, mintAmount);
+
+        assertEq(token.balanceOf(alice), mintAmount);
+        assertEq(token.totalSupply(), (INITIAL_SUPPLY * 1e18) + mintAmount);
+    }
+
+    function test_RevertMint_NotOwner() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        token.mint(alice, 1);
+    }
+
+    function test_Burn() public {
+        uint256 burnAmount = 200 * 1e18;
+        vm.prank(owner);
+        token.burn(burnAmount);
+
+        assertEq(token.balanceOf(owner), (INITIAL_SUPPLY * 1e18) - burnAmount);
+        assertEq(token.totalSupply(), (INITIAL_SUPPLY * 1e18) - burnAmount);
+    }
+
+    function test_Event_Transfer() public {
+        uint256 amount = 100 * 1e18;
+        // Ожидаем событие Transfer(owner, alice, amount)
+        vm.expectEmit(true, true, false, true, address(token));
+        emit Transfer(owner, alice, amount);
+
+        vm.prank(owner);
+        token.transfer(alice, amount);
+    }
+
+    // --- Fuzz-тесты ---
+
+    // Инвариант: сумма балансов всегда = totalSupply
+    function testFuzz_Transfer_PreservesTotalSupply(uint256 amount) public {
+        // Ограничиваем amount доступным балансом owner
+        amount = bound(amount, 0, token.balanceOf(owner));
+
+        uint256 supplyBefore = token.totalSupply();
+        vm.prank(owner);
+        token.transfer(alice, amount);
+
+        assertEq(token.totalSupply(), supplyBefore);
+        assertEq(token.balanceOf(owner) + token.balanceOf(alice), supplyBefore);
+    }
+
+    function testFuzz_Burn_DecreasesSupply(uint256 amount) public {
+        amount = bound(amount, 0, token.balanceOf(owner));
+
+        uint256 supplyBefore = token.totalSupply();
+        vm.prank(owner);
+        token.burn(amount);
+
+        assertEq(token.totalSupply(), supplyBefore - amount);
+    }
+}</code></pre>
+
+<pre class="code-block"><code># Запустить все тесты (включая fuzz с 256 прогонами по умолчанию):
+forge test --match-contract SimpleTokenTest -vv
+
+# Увеличить количество fuzz-прогонов:
+forge test --fuzz-runs 10000 -v
+
+# Вывод:
+# [PASS] test_InitialSupply() (gas: 14731)
+# [PASS] test_Transfer() (gas: 51802)
+# [PASS] test_TransferFrom() (gas: 68934)
+# [PASS] test_RevertTransfer_InsufficientBalance() (gas: 13421)
+# [PASS] test_RevertTransferFrom_NotApproved() (gas: 13211)
+# [PASS] test_Mint() (gas: 59817)
+# [PASS] test_RevertMint_NotOwner() (gas: 12874)
+# [PASS] test_Burn() (gas: 44193)
+# [PASS] test_Event_Transfer() (gas: 52104)
+# [PASS] testFuzz_Transfer_PreservesTotalSupply(uint256) (runs: 256, μ: 46123, ~: 47891)
+# [PASS] testFuzz_Burn_DecreasesSupply(uint256) (runs: 256, μ: 33847, ~: 34012)
+#
+# Test result: ok. 11 passed; 0 failed; 0 skipped</code></pre>
+
+    <h3>7.4 Задача №4 — anvil --state: dump и load для воспроизводимых тестов</h3>
+
+    <p>
+      Иногда нужно подготовить «богатое» начальное состояние (задеплоить 5
+      контрактов, наминтить токены, добавить ликвидность) и переиспользовать его
+      в нескольких тестовых прогонах. Для этого Anvil поддерживает
+      dump/load состояния.
+    </p>
+
+<pre class="code-block"><code># Шаг 1: Запустить Anvil и подготовить состояние
+anvil &amp;
+
+# Задеплоить несколько контрактов и настроить состояние
+ALICE=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+ALICE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+# Деплоим токен
+TOKEN=$(forge create src/SimpleToken.sol:SimpleToken \
+  --constructor-args "Test Token" "TST" 1000000 \
+  --private-key $ALICE_KEY \
+  --rpc-url http://localhost:8545 \
+  --json | jq -r '.deployedTo')
+
+echo "Token: $TOKEN"
+
+# Минтим токены другим аккаунтам
+BOB=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+cast send $TOKEN "mint(address,uint256)" $BOB 50000000000000000000000 \
+  --private-key $ALICE_KEY --rpc-url http://localhost:8545
+
+# Шаг 2: Дамп текущего состояния в файл
+cast rpc anvil_dumpState --rpc-url http://localhost:8545 &gt; ./test-fixtures/anvil-state.json
+
+# Можно также остановить anvil с флагом:
+# anvil --dump-state ./test-fixtures/anvil-state.json
+# (автоматически дампирует при SIGTERM / Ctrl-C)
+
+# Шаг 3: Убить текущий Anvil
+kill %1
+
+# Шаг 4: Поднять новый Anvil с сохранённым состоянием
+anvil --load-state ./test-fixtures/anvil-state.json &amp;
+
+# Шаг 5: Убедиться, что состояние восстановлено
+cast call $TOKEN "balanceOf(address)(uint256)" $BOB --rpc-url http://localhost:8545
+# 50000000000000000000000  (50k TST)
+
+cast call $TOKEN "totalSupply()(uint256)" --rpc-url http://localhost:8545
+# 1050000000000000000000000  (1M + 50k)
+
+# Шаг 6: Использовать состояние в forge test через snapshot
+forge test --fork-url http://localhost:8545 \
+  --match-contract IntegrationTest -vvv</code></pre>
+
+<pre class="code-block"><code>// Альтернатива в forge test: использовать vm.snapshot() / vm.revertTo()
+// для отката к известному состоянию внутри одного тест-файла
+
+contract IntegrationTest is Test {
+    uint256 snapshotId;
+
+    function setUp() public {
+        // Развернуть всё окружение
+        // ...
+
+        // Сохранить snapshot для reset между тестами
+        snapshotId = vm.snapshot();
+    }
+
+    function tearDown() public {
+        // Откатиться к snapshot после каждого теста
+        vm.revertTo(snapshotId);
+    }
+
+    function test_ScenarioA() public {
+        // Тест A работает с чистым состоянием
+    }
+
+    function test_ScenarioB() public {
+        // Тест B тоже работает с чистым состоянием после revert
+    }
+}</code></pre>
+
+    <div class="note">
+      <strong>Когда нужен state dump.</strong> Форм-сценарии, где
+      <code>--load-state</code> особенно полезен: (1) CI/CD — запускаете
+      integration-тесты против зафиксированного состояния, результат
+      детерминирован; (2) командная разработка — один разработчик готовит
+      стейт, остальные его скачивают и воспроизводят; (3) воспроизведение
+      on-chain состояния на произвольном блоке — форкайте с
+      <code>--fork-block-number</code>, настраивайте, дампируйте, и дальше
+      работаете без RPC-зависимости.
+    </div>
+
+    <h2>8. Chisel: интерактивная Solidity REPL</h2>
+
+    <p>
+      <code>chisel</code> — интерактивная оболочка, в которой можно писать
+      и сразу исполнять Solidity-выражения. Полезна для быстрой проверки
+      арифметики, ABI-кодирования, хэш-функций и логики смарт-контрактов.
+    </p>
+
+<pre class="code-block"><code>$ chisel
+
+Welcome to Chisel! Type `!help` to show available commands.
+
+# Арифметика и типы:
+&gt; uint256 x = 2 ** 256 - 1;
+&gt; x
+Type: uint256
+├ Hex: 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+└ Decimal: 115792089237316195423570985008687907853269984665640564039457584007913129639935
+
+# Хэш:
+&gt; keccak256(abi.encodePacked("hello"))
+Type: bytes32
+├ Hex: 0x1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8
+└ Decimal: 12739766639937610823929982767395395818797498823007832773649040394555955793608
+
+# Вычислить selector функции:
+&gt; bytes4(keccak256("transfer(address,uint256)"))
+Type: bytes4
+├ Hex: 0xa9059cbb
+└ Decimal: 2835717307
+
+# Проверить конверсию адреса:
+&gt; address(uint160(uint256(keccak256("test"))))
+Type: address
+└ 0x4a86...
+
+# Выход:
+&gt; !quit</code></pre>
+
+    <h2>9. Forge script: деплой в тестнет и mainnet</h2>
+
+    <p>
+      Для production-деплоев вместо <code>forge create</code> используют
+      <code>forge script</code>: Solidity-скрипт, который можно
+      симулировать локально и затем отправить broadcast в сеть.
+    </p>
+
+<pre class="code-block"><code>// script/Deploy.s.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "forge-std/Script.sol";
+import "../src/SimpleToken.sol";
+
+contract DeployScript is Script {
+    function run() external returns (SimpleToken token) {
+        // Считать приватный ключ из env (никогда не хардкодить!):
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerKey);
+
+        console.log("Deployer:", deployer);
+        console.log("Balance:", deployer.balance);
+
+        // Всё внутри broadcast() отправляется в сеть:
+        vm.startBroadcast(deployerKey);
+
+        token = new SimpleToken("My Token", "MTK", 1_000_000);
+        token.mint(deployer, 500_000 * 1e18);
+
+        vm.stopBroadcast();
+
+        console.log("Token deployed to:", address(token));
+    }
+}</code></pre>
+
+<pre class="code-block"><code># Симуляция (без реальной отправки):
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url $SEPOLIA_RPC_URL -vv
+
+# Деплой в Sepolia (broadcast):
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url $SEPOLIA_RPC_URL \
+  --private-key $PRIVATE_KEY \
+  --broadcast \
+  --verify \                    # автоматически верифицировать на Etherscan
+  --etherscan-api-key $ETHERSCAN_KEY \
+  -vvv</code></pre>
+
+    <h2>10. Куда дальше</h2>
+
+    <p>
+      В <strong><a href="../05/index.html">Lesson 05 — Tenderly Virtual Testnet</a></strong>
+      мы поднимем тот же Greeter-контракт в облаке через Tenderly: получим
+      постоянный URL вместо локального localhost, визуальный отладчик
+      транзакций с трассировкой вызовов, и возможность поделиться тестовым
+      окружением с командой без Docker. Anvil незаменим для локального
+      итеративного цикла; Tenderly — для отладки сложных сценариев и
+      совместной работы.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://book.getfoundry.sh/" target="_blank" rel="noopener">Foundry Book</a> — официальная документация: forge, cast, anvil, chisel.</li>
+        <li><a href="https://book.getfoundry.sh/anvil/" target="_blank" rel="noopener">Anvil Reference</a> — все флаги, чит-коды (anvil_*), fork-режим.</li>
+        <li><a href="https://book.getfoundry.sh/cast/" target="_blank" rel="noopener">Cast Reference</a> — полный список команд cast с примерами.</li>
+        <li><a href="https://book.getfoundry.sh/forge/tests" target="_blank" rel="noopener">Writing Tests — Foundry Book</a> — cheatcodes, vm.*, fuzz testing, invariant tests.</li>
+        <li><a href="https://github.com/foundry-rs/foundry" target="_blank" rel="noopener">foundry-rs/foundry</a> — исходный код на Rust, issues, changelog.</li>
+        <li><a href="https://github.com/foundry-rs/forge-std" target="_blank" rel="noopener">foundry-rs/forge-std</a> — стандартная библиотека тестов: Test.sol, Vm.sol, console.sol.</li>
+        <li><a href="https://github.com/PaulRBerg/foundry-template" target="_blank" rel="noopener">PaulRBerg/foundry-template</a> — production-ready шаблон с линтером, CI/CD, Natspec.</li>
+        <li><a href="https://github.com/transmissions11/solmate" target="_blank" rel="noopener">transmissions11/solmate</a> — оптимизированные контракты, часто используется в Foundry-проектах.</li>
+        <li><a href="https://noxx.substack.com/p/evm-deep-dives-the-path-to-shadowy" target="_blank" rel="noopener">EVM Deep Dives (noxx)</a> — понимание storage layout для cast storage.</li>
+        <li><a href="https://book.getfoundry.sh/forge/fuzz-testing" target="_blank" rel="noopener">Fuzz Testing — Foundry Book</a> — настройка fuzz-runs, seed, dictionary.</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Код-примеры в этом уроке компилируются с <code>solc 0.8.25</code> и проходят
+      <code>forge test</code> против <code>anvil 0.2.x</code>. Для контрактов,
+      использующих OpenZeppelin, необходимо выполнить
+      <code>forge install OpenZeppelin/openzeppelin-contracts</code> в корне проекта.
+      Приватные ключи из примеров — это стандартные тестовые ключи Anvil:
+      никогда не используйте их в mainnet или с реальными средствами.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

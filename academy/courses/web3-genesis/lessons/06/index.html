@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 06 · Ownable &amp; AccessControl — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 06 · Ownable &amp; AccessControl</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 06 · access control patterns</p>
+    <h1>Ownable &amp; AccessControl — управление правами в Solidity</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      Начало Модуля II — Контрактные паттерны. Предыдущий урок:
+      <a href="../05/index.html">Lesson 05 — Tenderly Virtual Testnet</a>.
+      Там мы научились отлаживать транзакции визуально. Здесь разбираемся
+      с фундаментальным вопросом: <em>кто</em> вообще имеет право вызывать
+      привилегированные функции контракта — и как это защитить правильно.
+    </p>
+
+    <p>
+      Любой смарт-контракт, выполняющий что-то нетривиальное, содержит
+      функции, которые не должны быть доступны всем подряд: обновить параметры,
+      замаузить выводы, выпустить новые токены. Без явного ограничения —
+      <strong>эти функции вызовет любой адрес в сети</strong>. OpenZeppelin
+      предоставляет два проверенных паттерна: <code>Ownable</code> (один владелец)
+      и <code>AccessControl</code> (ролевая система). В этом уроке разбираем
+      оба, сравниваем, и пишем реальные контракты.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: защитить функцию
+      модификатором <code>onlyOwner</code>; использовать двухшаговую передачу
+      прав через <code>Ownable2Step</code>; создать кастомные роли с
+      <code>AccessControl</code>; читать роли с задеплоенного контракта через
+      <code>cast call</code>; понять, когда Ownable достаточно, а когда нужна
+      ролевая система.
+    </div>
+
+    <h2>1. Зачем нужен access control в смарт-контрактах</h2>
+
+    <p>
+      В обычном бэкенде авторизацию делает сервер: проверяет JWT, сессию,
+      права пользователя. В смарт-контракте <strong>нет сервера</strong>.
+      Любой адрес на Ethereum может вызвать любую публичную функцию контракта.
+      Если вы не поставили проверку — контракт бессилен.
+    </p>
+
+    <p>Рассмотрим наивный пример без защиты:</p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+// НЕ ДЕЛАЙТЕ ТАК — нет никакой защиты
+contract NaiveVault {
+    address public treasury;
+
+    constructor(address _treasury) {
+        treasury = _treasury;
+    }
+
+    // Любой может изменить адрес казны!
+    function setTreasury(address newTreasury) external {
+        treasury = newTreasury;
+    }
+
+    // Любой может вывести все средства!
+    function withdrawAll() external {
+        payable(treasury).transfer(address(this).balance);
+    }
+}</code></pre>
+
+    <p>
+      Этот контракт потеряет все средства в первую же секунду после деплоя:
+      атакующий вызовет <code>setTreasury(attacker)</code>, затем
+      <code>withdrawAll()</code>. Никакой ошибки не будет — транзакция
+      валидна с точки зрения EVM.
+    </p>
+
+    <p>Варианты решения:</p>
+    <ul>
+      <li><strong>Ownable</strong> — один владелец (deployer), модификатор
+        <code>onlyOwner</code> на привилегированных функциях. Подходит для
+        большинства простых контрактов.</li>
+      <li><strong>Ownable2Step</strong> — то же самое, но передача прав
+        требует подтверждения от нового владельца. Защита от опечатки адреса.</li>
+      <li><strong>AccessControl</strong> — ролевая система: разные роли
+        для разных полномочий. Подходит для протоколов с несколькими
+        администраторами.</li>
+      <li><strong>Multisig / Timelock</strong> — на уровне инфраструктуры
+        (Gnosis Safe + TimelockController). Обсудим концептуально в разделе 5.</li>
+    </ul>
+
+    <h2>2. OpenZeppelin Ownable и Ownable2Step</h2>
+
+    <h3>2.1 Как работает Ownable</h3>
+
+    <p>
+      <code>Ownable</code> хранит один адрес — <code>owner</code>. При деплое
+      owner устанавливается равным <code>msg.sender</code> (или произвольному
+      адресу через конструктор в OZ 5.x). Модификатор <code>onlyOwner</code>
+      проверяет, что вызывающий — это owner, иначе ревертит.
+    </p>
+
+<pre class="code-block"><code>// Упрощённая реализация (концептуально):
+contract Ownable {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    error OwnableUnauthorizedAccount(address account);
+    error OwnableInvalidOwner(address owner);
+
+    constructor(address initialOwner) {
+        if (initialOwner == address(0)) revert OwnableInvalidOwner(address(0));
+        _owner = initialOwner;
+        emit OwnershipTransferred(address(0), initialOwner);
+    }
+
+    modifier onlyOwner() {
+        if (owner() != msg.sender) revert OwnableUnauthorizedAccount(msg.sender);
+        _;
+    }
+
+    function owner() public view returns (address) {
+        return _owner;
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        if (newOwner == address(0)) revert OwnableInvalidOwner(address(0));
+        _transferOwnership(newOwner);
+    }
+
+    function renounceOwnership() public onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    function _transferOwnership(address newOwner) internal {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}</code></pre>
+
+    <p>Три ключевые функции:</p>
+    <ul>
+      <li><code>owner()</code> — возвращает текущего владельца (view, бесплатно).</li>
+      <li><code>transferOwnership(newOwner)</code> — мгновенная передача прав.
+        После вызова <code>msg.sender</code> теряет права немедленно.</li>
+      <li><code>renounceOwnership()</code> — устанавливает owner в
+        <code>address(0)</code>. Контракт становится навсегда неуправляемым.
+        Используется для «отказа от централизации» после инициализации.</li>
+    </ul>
+
+    <div class="note">
+      <strong>Проблема Ownable.</strong> Если вы опечатались в адресе при
+      <code>transferOwnership</code> — права уходят на несуществующий или чужой
+      адрес. Транзакция выполнится без ошибки: EVM не знает, «существует» ли
+      адрес. Вернуть права будет невозможно.
+    </div>
+
+    <h3>2.2 Ownable2Step — двухшаговая передача</h3>
+
+    <p>
+      <code>Ownable2Step</code> добавляет промежуточный статус
+      <code>pendingOwner</code>. Новый владелец должен сам
+      подтвердить принятие прав вызовом <code>acceptOwnership()</code>.
+      Пока подтверждение не получено, старый owner сохраняет контроль.
+    </p>
+
+<pre class="code-block"><code>// Концептуальная реализация Ownable2Step:
+contract Ownable2Step is Ownable {
+    address private _pendingOwner;
+
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+
+    function pendingOwner() public view returns (address) {
+        return _pendingOwner;
+    }
+
+    // Шаг 1: текущий owner инициирует передачу
+    function transferOwnership(address newOwner) public override onlyOwner {
+        _pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner(), newOwner);
+    }
+
+    // Шаг 2: новый owner подтверждает получение
+    function acceptOwnership() public {
+        address sender = msg.sender;
+        if (pendingOwner() != sender) revert OwnableUnauthorizedAccount(sender);
+        _transferOwnership(sender);
+        _pendingOwner = address(0);
+    }
+}</code></pre>
+
+    <p>Почему это безопаснее:</p>
+    <ul>
+      <li>Если опечататься в адресе — <code>acceptOwnership()</code> никогда
+        не будет вызвана. Старый owner остаётся владельцем и может
+        вызвать <code>transferOwnership</code> снова с правильным адресом.</li>
+      <li>Новый владелец должен явно доказать, что контролирует адрес
+        (может подписать транзакцию с него).</li>
+      <li>Даёт время заметить ошибку: передача не вступает в силу до
+        подтверждения.</li>
+    </ul>
+
+    <h3>2.3 Пример контракта с Ownable2Step</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
+/// @title ProtocolConfig — пример контракта с Ownable2Step
+/// @notice Хранит конфигурационные параметры протокола.
+///         Только owner может менять fee и приостанавливать операции.
+contract ProtocolConfig is Ownable2Step {
+    uint256 public feeBps;        // комиссия в базисных пунктах (1 bps = 0.01%)
+    bool    public paused;
+    address public feeRecipient;
+
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event ProtocolPaused(bool paused);
+    event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
+
+    error FeeTooHigh(uint256 fee, uint256 max);
+
+    constructor(address initialOwner, address _feeRecipient) Ownable(initialOwner) {
+        feeRecipient = _feeRecipient;
+        feeBps = 30; // 0.3% — стандартная Uniswap-комиссия
+    }
+
+    /// @notice Обновить комиссию. Максимум 5% (500 bps).
+    function setFeeBps(uint256 newFee) external onlyOwner {
+        if (newFee > 500) revert FeeTooHigh(newFee, 500);
+        uint256 old = feeBps;
+        feeBps = newFee;
+        emit FeeUpdated(old, newFee);
+    }
+
+    /// @notice Приостановить / возобновить протокол.
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
+        emit ProtocolPaused(_paused);
+    }
+
+    /// @notice Изменить получателя комиссий.
+    function setFeeRecipient(address newRecipient) external onlyOwner {
+        address old = feeRecipient;
+        feeRecipient = newRecipient;
+        emit FeeRecipientUpdated(old, newRecipient);
+    }
+}</code></pre>
+
+    <p>Передача прав через Foundry (два шага):</p>
+
+<pre class="code-block"><code># Шаг 1: текущий owner инициирует передачу новому адресу
+cast send $CONTRACT_ADDR \
+  "transferOwnership(address)" $NEW_OWNER_ADDR \
+  --rpc-url $RPC \
+  --private-key $CURRENT_OWNER_KEY
+
+# Убедиться, что pendingOwner установлен:
+cast call $CONTRACT_ADDR "pendingOwner()(address)" --rpc-url $RPC
+
+# Шаг 2: НОВЫЙ owner принимает права (с его приватного ключа)
+cast send $CONTRACT_ADDR \
+  "acceptOwnership()" \
+  --rpc-url $RPC \
+  --private-key $NEW_OWNER_KEY
+
+# Проверить, что owner сменился:
+cast call $CONTRACT_ADDR "owner()(address)" --rpc-url $RPC</code></pre>
+
+    <h2>3. OpenZeppelin AccessControl</h2>
+
+    <h3>3.1 Идея ролевой системы</h3>
+
+    <p>
+      Ownable хорош, когда управление в руках одного адреса. Но реальные
+      протоколы сложнее: есть адрес, который выпускает токены (minter),
+      адрес, который может заморозить аккаунты (pauser), и мультисиг
+      для обновления параметров (admin). Давать всем одинаковые права —
+      плохая идея с точки зрения безопасности.
+    </p>
+
+    <p>
+      <code>AccessControl</code> реализует <strong>role-based access control (RBAC)</strong>:
+      каждая роль — это <code>bytes32</code>-идентификатор. Адрес либо имеет
+      роль, либо нет. Роли можно выдавать и отзывать независимо.
+    </p>
+
+    <h3>3.2 Стандартные функции AccessControl</h3>
+
+<pre class="code-block"><code>// Ключевые функции интерфейса IAccessControl:
+
+// Проверить наличие роли у аккаунта
+function hasRole(bytes32 role, address account) external view returns (bool);
+
+// Выдать роль (требует роль admin этой роли)
+function grantRole(bytes32 role, address account) external;
+
+// Отозвать роль (требует роль admin этой роли)
+function revokeRole(bytes32 role, address account) external;
+
+// Отказаться от роли самому (любой может отказаться от своей роли)
+function renounceRole(bytes32 role, address callerConfirmation) external;
+
+// Получить admin-роль для данной роли
+function getRoleAdmin(bytes32 role) external view returns (bytes32);</code></pre>
+
+    <h3>3.3 DEFAULT_ADMIN_ROLE и иерархия ролей</h3>
+
+    <p>
+      Каждая роль имеет свою <em>admin-роль</em> — роль, которая может
+      выдавать и отзывать данную роль. По умолчанию admin-роль для любой роли —
+      <code>DEFAULT_ADMIN_ROLE</code> (значение <code>bytes32(0)</code>).
+    </p>
+
+<pre class="code-block"><code>// DEFAULT_ADMIN_ROLE = 0x0000000000000000000000000000000000000000000000000000000000000000
+bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+
+// Типичная иерархия:
+//
+//   DEFAULT_ADMIN_ROLE
+//   ├── может выдавать MINTER_ROLE
+//   ├── может выдавать PAUSER_ROLE
+//   └── может выдавать UPGRADER_ROLE
+//
+// Тот, кто имеет DEFAULT_ADMIN_ROLE, управляет всей системой ролей.
+// ВАЖНО: по умолчанию DEFAULT_ADMIN_ROLE — это admin сама для себя,
+// значит deployer может выдать DEFAULT_ADMIN_ROLE кому угодно.</code></pre>
+
+    <div class="note">
+      <strong>Безопасность DEFAULT_ADMIN_ROLE.</strong> Никогда не оставляйте
+      <code>DEFAULT_ADMIN_ROLE</code> у EOA в production-контракте. Используйте
+      мультисиг (Gnosis Safe) или TimelockController. Если ключ от EOA
+      с DEFAULT_ADMIN_ROLE скомпрометирован — атакующий выдаёт себе все
+      роли и полностью контролирует контракт.
+    </div>
+
+    <h3>3.4 Создание кастомных ролей</h3>
+
+    <p>
+      Роли идентифицируются через <code>bytes32</code>. Стандартная практика —
+      использовать <code>keccak256</code> от строкового имени роли:
+    </p>
+
+<pre class="code-block"><code>// Определение ролей как константы в контракте:
+bytes32 public constant MINTER_ROLE  = keccak256("MINTER_ROLE");
+bytes32 public constant BURNER_ROLE  = keccak256("BURNER_ROLE");
+bytes32 public constant PAUSER_ROLE  = keccak256("PAUSER_ROLE");
+bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
+// Значение MINTER_ROLE на момент компиляции (детерминировано):
+// keccak256("MINTER_ROLE") =
+// 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
+
+// Вычислить в cast:
+// cast keccak "MINTER_ROLE"</code></pre>
+
+    <h3>3.5 Гейтинг функций через onlyRole</h3>
+
+<pre class="code-block"><code>// Модификатор onlyRole из AccessControl:
+modifier onlyRole(bytes32 role) {
+    _checkRole(role);
+    _;
+}
+
+function _checkRole(bytes32 role) internal view {
+    _checkRole(role, msg.sender);
+}
+
+function _checkRole(bytes32 role, address account) internal view {
+    if (!hasRole(role, account)) {
+        revert AccessControlUnauthorizedAccount(account, role);
+    }
+}</code></pre>
+
+    <h3>3.6 Внутренние методы _grantRole и _revokeRole</h3>
+
+    <p>
+      Публичные <code>grantRole</code> и <code>revokeRole</code> проверяют
+      наличие admin-роли у вызывающего. Внутренние <code>_grantRole</code> и
+      <code>_revokeRole</code> — без проверок, для использования в конструкторе
+      и в логике самого контракта:
+    </p>
+
+<pre class="code-block"><code>// В конструкторе — используем _grantRole (без проверки роли):
+constructor(address admin, address minter) {
+    _grantRole(DEFAULT_ADMIN_ROLE, admin);
+    _grantRole(MINTER_ROLE, minter);
+    // НЕ используем grantRole() — он проверит, есть ли у msg.sender admin-роль,
+    // а в момент конструктора роли ещё не назначены.
+}
+
+// В публичном API — используем grantRole() (с проверкой):
+// Только адрес с DEFAULT_ADMIN_ROLE может выдать MINTER_ROLE другому адресу
+function addMinter(address account) external {
+    grantRole(MINTER_ROLE, account); // проверит, что msg.sender имеет getRoleAdmin(MINTER_ROLE)
+}</code></pre>
+
+    <h3>3.7 Пример ERC-20 с ролями MINTER и BURNER</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+
+/// @title ManagedToken — ERC-20 с ролевым управлением mint/burn/pause
+contract ManagedToken is ERC20, AccessControl {
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
+    bool private _paused;
+
+    event Paused(address account);
+    event Unpaused(address account);
+
+    error EnforcedPause();
+    error ExpectedPause();
+
+    /// @param defaultAdmin  Адрес, который получит DEFAULT_ADMIN_ROLE.
+    ///                      В production — мультисиг или TimelockController.
+    constructor(address defaultAdmin) ERC20("Managed Token", "MGD") {
+        // Выдаём DEFAULT_ADMIN_ROLE — тот, кто управляет всеми ролями
+        _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
+    }
+
+    // ─── Mint ─────────────────────────────────────────────────────────────
+
+    /// @notice Выпустить токены. Только MINTER_ROLE.
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        _requireNotPaused();
+        _mint(to, amount);
+    }
+
+    // ─── Burn ─────────────────────────────────────────────────────────────
+
+    /// @notice Сжечь токены с произвольного аккаунта. Только BURNER_ROLE.
+    /// @dev    Обычный burn() без роли — в стандарте ERC20.
+    function burnFrom(address account, uint256 amount) external onlyRole(BURNER_ROLE) {
+        _burn(account, amount);
+    }
+
+    // ─── Pause ────────────────────────────────────────────────────────────
+
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    function paused() public view returns (bool) {
+        return _paused;
+    }
+
+    // ─── Override transfer для проверки паузы ────────────────────────────
+
+    function _update(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
+        _requireNotPaused();
+        super._update(from, to, amount);
+    }
+
+    // ─── Вспомогательные ──────────────────────────────────────────────────
+
+    function _requireNotPaused() internal view {
+        if (_paused) revert EnforcedPause();
+    }
+
+    function _requirePaused() internal view {
+        if (!_paused) revert ExpectedPause();
+    }
+}
+</code></pre>
+
+    <p>Деплой и настройка ролей через Foundry:</p>
+
+<pre class="code-block"><code>#!/usr/bin/env bash
+set -euo pipefail
+
+RPC="http://127.0.0.1:8545"       # Anvil
+ADMIN="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"   # anvil account[0]
+MINTER="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"  # anvil account[1]
+BURNER="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"  # anvil account[2]
+ADMIN_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+
+# Деплой контракта
+ADDR=$(forge create ManagedToken \
+  --constructor-args $ADMIN \
+  --rpc-url $RPC \
+  --private-key $ADMIN_KEY \
+  | grep "Deployed to" | awk '{print $3}')
+
+echo "Deployed: $ADDR"
+
+# Выдать MINTER_ROLE адресу MINTER
+MINTER_ROLE=$(cast call $ADDR "MINTER_ROLE()(bytes32)" --rpc-url $RPC)
+cast send $ADDR \
+  "grantRole(bytes32,address)" $MINTER_ROLE $MINTER \
+  --rpc-url $RPC --private-key $ADMIN_KEY
+
+# Выдать BURNER_ROLE адресу BURNER
+BURNER_ROLE=$(cast call $ADDR "BURNER_ROLE()(bytes32)" --rpc-url $RPC)
+cast send $ADDR \
+  "grantRole(bytes32,address)" $BURNER_ROLE $BURNER \
+  --rpc-url $RPC --private-key $ADMIN_KEY
+
+# Проверить роли
+echo "MINTER has MINTER_ROLE:"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $MINTER_ROLE $MINTER --rpc-url $RPC
+
+echo "ADMIN has DEFAULT_ADMIN_ROLE:"
+DEFAULT_ADMIN_ROLE="0x0000000000000000000000000000000000000000000000000000000000000000"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $DEFAULT_ADMIN_ROLE $ADMIN --rpc-url $RPC</code></pre>
+
+    <h2>4. Сравнение Ownable vs AccessControl</h2>
+
+    <table class="compare">
+      <tr>
+        <th>Параметр</th>
+        <th>Ownable / Ownable2Step</th>
+        <th>AccessControl</th>
+      </tr>
+      <tr>
+        <td>Количество привилегированных адресов</td>
+        <td>Один (owner)</td>
+        <td>Неограничено, по ролям</td>
+      </tr>
+      <tr>
+        <td>Гранулярность разрешений</td>
+        <td>Всё или ничего</td>
+        <td>Разные роли для разных действий</td>
+      </tr>
+      <tr>
+        <td>Сложность кода</td>
+        <td>Минимальная (~50 строк)</td>
+        <td>Умеренная (~200 строк + иерархия ролей)</td>
+      </tr>
+      <tr>
+        <td>Gas overhead</td>
+        <td>Один SLOAD (~2100 gas)</td>
+        <td>Один SLOAD через mapping (~2100 gas)</td>
+      </tr>
+      <tr>
+        <td>Защита от ошибки адреса</td>
+        <td>Только в Ownable2Step</td>
+        <td>Нет встроенной 2-step (нужно добавить)</td>
+      </tr>
+      <tr>
+        <td>Управление ролями on-chain</td>
+        <td>Нет (нужно писать вручную)</td>
+        <td>grantRole / revokeRole встроены</td>
+      </tr>
+      <tr>
+        <td>Поддержка мультисига</td>
+        <td>Owner = Safe адрес</td>
+        <td>Роль = Safe адрес (для каждой роли отдельно)</td>
+      </tr>
+      <tr>
+        <td>Когда использовать</td>
+        <td>Простые утилитарные контракты, NFT с одним admin, конфиги</td>
+        <td>Протоколы DeFi, токены с mint/burn/pause, Proxy-системы</td>
+      </tr>
+      <tr>
+        <td>Событие при смене прав</td>
+        <td><code>OwnershipTransferred</code></td>
+        <td><code>RoleGranted</code>, <code>RoleRevoked</code></td>
+      </tr>
+      <tr>
+        <td>Пример в экосистеме</td>
+        <td>ERC-721 NFT коллекции, простые Vaults</td>
+        <td>USDC, Compound Governor, OpenZeppelin ERC20Permit</td>
+      </tr>
+    </table>
+
+    <div class="note">
+      <strong>Совмещение паттернов.</strong> Ownable и AccessControl можно
+      использовать вместе: например, owner через Ownable управляет глобальными
+      настройками, а AccessControl — ролями операторов. Однако это усложняет
+      аудит. Лучше выбрать одну модель и придерживаться её.
+    </div>
+
+    <h2>5. Паттерн: отзываемые роли и Timelock</h2>
+
+    <h3>5.1 Концепция Timelock</h3>
+
+    <p>
+      Даже при мультисиге есть угроза: если ключи скомпрометированы,
+      атака происходит мгновенно. <strong>TimelockController</strong>
+      (OpenZeppelin) добавляет обязательную задержку между <em>постановкой
+      в очередь</em> и <em>исполнением</em> операции.
+    </p>
+
+<pre class="code-block"><code>// Схема работы TimelockController:
+//
+//   Proposer (мультисиг)
+//       │
+//       │ schedule(target, value, data, predecessor, salt, delay)
+//       ▼
+//   TimelockController storage (операция в очереди)
+//       │
+//       │ ... проходит delay (например, 48 часов) ...
+//       │
+//       │ Кто угодно может вызвать execute() после задержки
+//       ▼
+//   target.call(data)  ←── реальное исполнение
+//
+//   Canceller (мультисиг или отдельная роль Guardian)
+//       │
+//       │ cancel(operationId)  ←── можно до истечения задержки
+//       ▼
+//   Операция отменена
+//
+// Роли в TimelockController:
+// PROPOSER_ROLE  — кто может ставить операции в очередь (обычно: Governance / Safe)
+// EXECUTOR_ROLE  — кто может исполнять (обычно: address(0) = любой, после delay)
+// CANCELLER_ROLE — кто может отменять (обычно: Guardian Multisig)
+// DEFAULT_ADMIN_ROLE — кто управляет ролями самого Timelock</code></pre>
+
+    <h3>5.2 Почему это важно</h3>
+
+    <p>
+      48-часовая задержка даёт сообществу время заметить опасную транзакцию
+      и потребовать отмены. Это стандарт для серьёзных DeFi-протоколов
+      (Uniswap, Compound, Aave). Без Timelock даже с мультисигом одна
+      успешная атака на подписантов — и протокол скомпрометирован мгновенно.
+    </p>
+
+    <h3>5.3 Практическая схема для нового протокола</h3>
+
+<pre class="code-block"><code>// Рекомендуемая схема управления для production:
+//
+//   ┌─────────────────────────────────────────────────────────┐
+//   │                  Gnosis Safe (5/9 мультисиг)            │
+//   │                  ← держит все ключи управления          │
+//   └───────────────────────────┬─────────────────────────────┘
+//                               │ PROPOSER_ROLE
+//                               ▼
+//   ┌─────────────────────────────────────────────────────────┐
+//   │             TimelockController (48h delay)              │
+//   └───────────────────────────┬─────────────────────────────┘
+//                               │ DEFAULT_ADMIN_ROLE
+//                               │ (для AccessControl контракта)
+//                               ▼
+//   ┌─────────────────────────────────────────────────────────┐
+//   │                ManagedToken (AccessControl)             │
+//   │   MINTER_ROLE → Hot Wallet / Automation                 │
+//   │   PAUSER_ROLE → Guardian Multisig (быстрый отклик)      │
+//   └─────────────────────────────────────────────────────────┘
+//
+// PAUSER_ROLE намеренно НЕ проходит через Timelock —
+// экстренная пауза должна работать быстро.
+// Все остальные изменения параметров — через 48-часовой Timelock.</code></pre>
+
+    <h2>6. Практические задачи</h2>
+
+    <h3>Задача 1: Ownable2Step — деплой и двухшаговая передача ownership</h3>
+
+    <p>
+      Создайте контракт <code>VaultConfig</code> с Ownable2Step. Задеплойте
+      его локально через Anvil. Передайте ownership другому аккаунту через
+      два шага и убедитесь в успехе.
+    </p>
+
+<pre class="code-block"><code># 1. Запустить Anvil (локальный Ethereum-узел)
+anvil
+
+# В отдельном терминале — создать проект и установить зависимости:
+mkdir vault-config && cd vault-config
+forge init --no-commit
+forge install OpenZeppelin/openzeppelin-contracts --no-commit</code></pre>
+
+<pre class="code-block"><code>// src/VaultConfig.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
+contract VaultConfig is Ownable2Step {
+    uint256 public withdrawLimit;
+
+    event WithdrawLimitUpdated(uint256 oldLimit, uint256 newLimit);
+
+    constructor(address initialOwner) Ownable(initialOwner) {
+        withdrawLimit = 1 ether;
+    }
+
+    function setWithdrawLimit(uint256 newLimit) external onlyOwner {
+        uint256 old = withdrawLimit;
+        withdrawLimit = newLimit;
+        emit WithdrawLimitUpdated(old, newLimit);
+    }
+}</code></pre>
+
+<pre class="code-block"><code># remappings.txt (добавить):
+# @openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+
+# Деплой (anvil account[0] — первый дефолтный аккаунт)
+OWNER0="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+OWNER0_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+OWNER1="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+OWNER1_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+RPC="http://127.0.0.1:8545"
+
+ADDR=$(forge create src/VaultConfig.sol:VaultConfig \
+  --constructor-args $OWNER0 \
+  --rpc-url $RPC \
+  --private-key $OWNER0_KEY \
+  | grep "Deployed to" | awk '{print $3}')
+
+echo "Contract: $ADDR"
+
+# Текущий owner:
+cast call $ADDR "owner()(address)" --rpc-url $RPC
+
+# Шаг 1: инициировать передачу OWNER0 → OWNER1
+cast send $ADDR "transferOwnership(address)" $OWNER1 \
+  --rpc-url $RPC --private-key $OWNER0_KEY
+
+# Проверить pendingOwner:
+cast call $ADDR "pendingOwner()(address)" --rpc-url $RPC
+
+# Шаг 2: OWNER1 принимает ownership
+cast send $ADDR "acceptOwnership()" \
+  --rpc-url $RPC --private-key $OWNER1_KEY
+
+# Убедиться, что owner сменился на OWNER1:
+cast call $ADDR "owner()(address)" --rpc-url $RPC
+
+# Убедиться, что OWNER0 больше не может вызвать привилегированную функцию:
+cast send $ADDR "setWithdrawLimit(uint256)" 2000000000000000000 \
+  --rpc-url $RPC --private-key $OWNER0_KEY
+# Ожидается: revert OwnableUnauthorizedAccount</code></pre>
+
+    <h3>Задача 2: ERC-20 с ролями MINTER_ROLE и PAUSER_ROLE</h3>
+
+    <p>
+      Задеплойте <code>ManagedToken</code> из раздела 3.7. Выдайте роли
+      разным аккаунтам и проверьте <code>hasRole()</code>.
+    </p>
+
+<pre class="code-block"><code>ADMIN="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+ADMIN_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+MINTER="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+MINTER_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+PAUSER="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+RPC="http://127.0.0.1:8545"
+
+# Деплой
+ADDR=$(forge create src/ManagedToken.sol:ManagedToken \
+  --constructor-args $ADMIN \
+  --rpc-url $RPC \
+  --private-key $ADMIN_KEY \
+  | grep "Deployed to" | awk '{print $3}')
+
+# Вычислить bytes32-идентификаторы ролей
+MINTER_ROLE=$(cast keccak "MINTER_ROLE")
+PAUSER_ROLE=$(cast keccak "PAUSER_ROLE")
+DEFAULT_ADMIN="0x0000000000000000000000000000000000000000000000000000000000000000"
+
+echo "MINTER_ROLE: $MINTER_ROLE"
+echo "PAUSER_ROLE: $PAUSER_ROLE"
+
+# Выдать MINTER_ROLE адресу MINTER
+cast send $ADDR "grantRole(bytes32,address)" $MINTER_ROLE $MINTER \
+  --rpc-url $RPC --private-key $ADMIN_KEY
+
+# Выдать PAUSER_ROLE адресу PAUSER
+cast send $ADDR "grantRole(bytes32,address)" $PAUSER_ROLE $PAUSER \
+  --rpc-url $RPC --private-key $ADMIN_KEY
+
+# Проверить hasRole для каждого аккаунта:
+echo "MINTER has MINTER_ROLE (ожидается true):"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $MINTER_ROLE $MINTER --rpc-url $RPC
+
+echo "PAUSER has PAUSER_ROLE (ожидается true):"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $PAUSER_ROLE $PAUSER --rpc-url $RPC
+
+echo "ADMIN has DEFAULT_ADMIN_ROLE (ожидается true):"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $DEFAULT_ADMIN $ADMIN --rpc-url $RPC
+
+echo "MINTER has DEFAULT_ADMIN_ROLE (ожидается false):"
+cast call $ADDR "hasRole(bytes32,address)(bool)" $DEFAULT_ADMIN $MINTER --rpc-url $RPC
+
+# MINTER минтит токены себе (100 MGD = 100 * 10^18 wei)
+AMOUNT="100000000000000000000"
+cast send $ADDR "mint(address,uint256)" $MINTER $AMOUNT \
+  --rpc-url $RPC --private-key $MINTER_KEY
+
+# Проверить баланс:
+cast call $ADDR "balanceOf(address)(uint256)" $MINTER --rpc-url $RPC</code></pre>
+
+    <h3>Задача 3: вызов защищённой функции без роли — revert</h3>
+
+    <p>
+      Это важный тест: убедитесь, что контракт действительно отклоняет
+      неавторизованные вызовы. Попробуйте вызвать <code>mint</code> с
+      аккаунта без <code>MINTER_ROLE</code>.
+    </p>
+
+<pre class="code-block"><code># Используем account[2] (PAUSER) — у него нет MINTER_ROLE
+PAUSER_KEY="0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+
+# Попытка mint без роли (ожидается revert):
+cast send $ADDR "mint(address,uint256)" $PAUSER 1000000000000000000 \
+  --rpc-url $RPC --private-key $PAUSER_KEY
+
+# Вывод будет содержать:
+# Error: server returned an error response: error code 3:
+# execution reverted: revert: AccessControl: account 0x3c44...
+# is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6
+
+# Эмуляция вызова (без отправки транзакции) — быстрее для отладки:
+cast call $ADDR "mint(address,uint256)" $PAUSER 1000000000000000000 \
+  --from $PAUSER --rpc-url $RPC
+# Также reverts — убеждаемся в поведении без трат gas
+
+# Проверить ожидаемый error selector вручную:
+# AccessControlUnauthorizedAccount(address,bytes32) →
+cast sig "AccessControlUnauthorizedAccount(address,bytes32)"
+# 0xe2517d3f
+
+# Попытка pause без PAUSER_ROLE (account[0] = ADMIN, но не PAUSER):
+cast call $ADDR "pause()" --from $ADMIN --rpc-url $RPC
+# Revert: OwnableUnauthorizedAccount или AccessControlUnauthorizedAccount</code></pre>
+
+    <div class="note">
+      <strong>Тест revert — обязательная часть разработки.</strong> В Forge
+      тестах используйте <code>vm.expectRevert()</code> для проверки, что
+      контракт правильно отклоняет неавторизованные вызовы. Пропустить тест
+      на revert — значит не проверить половину логики безопасности.
+    </div>
+
+<pre class="code-block"><code>// test/ManagedToken.t.sol — forge test
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Test} from "forge-std/Test.sol";
+import {ManagedToken} from "../src/ManagedToken.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+
+contract ManagedTokenTest is Test {
+    ManagedToken token;
+    address admin  = makeAddr("admin");
+    address minter = makeAddr("minter");
+    address user   = makeAddr("user");
+
+    bytes32 MINTER_ROLE;
+
+    function setUp() public {
+        token = new ManagedToken(admin);
+        MINTER_ROLE = token.MINTER_ROLE();
+
+        // admin выдаёт MINTER_ROLE
+        vm.prank(admin);
+        token.grantRole(MINTER_ROLE, minter);
+    }
+
+    function test_minterCanMint() public {
+        vm.prank(minter);
+        token.mint(user, 1e18);
+        assertEq(token.balanceOf(user), 1e18);
+    }
+
+    function test_unauthorizedMintReverts() public {
+        // user не имеет MINTER_ROLE — ожидаем revert
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                user,
+                MINTER_ROLE
+            )
+        );
+        vm.prank(user);
+        token.mint(user, 1e18);
+    }
+
+    function test_adminCanGrantRole() public {
+        vm.prank(admin);
+        token.grantRole(MINTER_ROLE, user);
+        assertTrue(token.hasRole(MINTER_ROLE, user));
+    }
+
+    function test_revokeRoleStopsAccess() public {
+        // Сначала выдаём
+        vm.prank(admin);
+        token.grantRole(MINTER_ROLE, user);
+
+        // Затем отзываем
+        vm.prank(admin);
+        token.revokeRole(MINTER_ROLE, user);
+
+        // Теперь mint должен ревертить
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector,
+                user,
+                MINTER_ROLE
+            )
+        );
+        vm.prank(user);
+        token.mint(user, 1e18);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># Запустить тесты:
+forge test -vvv
+
+# Ожидаемый вывод:
+# [PASS] test_minterCanMint() (gas: 71234)
+# [PASS] test_unauthorizedMintReverts() (gas: 12850)
+# [PASS] test_adminCanGrantRole() (gas: 48721)
+# [PASS] test_revokeRoleStopsAccess() (gas: 52918)</code></pre>
+
+    <h3>Задача 4: чтение ролей с задеплоенного OpenZeppelin-контракта в mainnet</h3>
+
+    <p>
+      USDC (Circle) использует собственную систему управления ролями
+      на базе Ownable. Но компания Aave использует <code>AccessControl</code>
+      в своих контрактах. Прочитаем роли через <code>cast call</code> против
+      публичного RPC.
+    </p>
+
+    <p>
+      Пример: читаем роли контракта <strong>Aave ACLManager</strong> в mainnet
+      (<code>0xc2aaCf6553D20d1e9d78E365AAba8032af9c85b0</code>).
+    </p>
+
+<pre class="code-block"><code>RPC="https://eth.llamarpc.com"
+ACL="0xc2aaCf6553D20d1e9d78E365AAba8032af9c85b0"
+
+# Получить значение константы POOL_ADMIN_ROLE:
+cast call $ACL "POOL_ADMIN_ROLE()(bytes32)" --rpc-url $RPC
+
+# Получить значение DEFAULT_ADMIN_ROLE (всегда 0x00...):
+cast call $ACL "DEFAULT_ADMIN_ROLE()(bytes32)" --rpc-url $RPC
+
+# Проверить, является ли Aave Governance (timelock) DEFAULT_ADMIN:
+AAVE_TIMELOCK="0x23c4C3890a03B7d9a6Ad9013484CEE4b75e3d13F"
+DEFAULT_ADMIN="0x0000000000000000000000000000000000000000000000000000000000000000"
+cast call $ACL \
+  "hasRole(bytes32,address)(bool)" $DEFAULT_ADMIN $AAVE_TIMELOCK \
+  --rpc-url $RPC
+
+# Получить сигнатуры всех событий RoleGranted за последние 100 блоков:
+POOL_ADMIN=$(cast call $ACL "POOL_ADMIN_ROLE()(bytes32)" --rpc-url $RPC)
+LATEST=$(cast block-number --rpc-url $RPC)
+FROM=$((LATEST - 100))
+
+cast logs \
+  --from-block $FROM \
+  --to-block latest \
+  --address $ACL \
+  "RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)" \
+  --rpc-url $RPC</code></pre>
+
+<pre class="code-block"><code># Более простой пример: читаем owner OpenZeppelin Proxy Admin в mainnet
+# (Proxy Admin использует Ownable)
+
+# Compound cUSDC ProxyAdmin:
+PROXY_ADMIN="0x2775b1c75658Be0F640272CCb8c72ac986009e38"
+cast call $PROXY_ADMIN "owner()(address)" --rpc-url $RPC
+
+# Uniswap v3 Factory — кто имеет право включать fee tiers:
+UNI_FACTORY="0x1F98431c8aD98523631AE4a59f267346ea31F984"
+cast call $UNI_FACTORY "owner()(address)" --rpc-url $RPC
+
+# Читаем feeTier 0.01% (100 bps) — включён ли он?
+cast call $UNI_FACTORY "feeAmountTickSpacing(uint24)(int24)" 100 --rpc-url $RPC
+# Если вернуло 0 — не включён (только owner может включить через enableFeeAmount)</code></pre>
+
+    <div class="note">
+      <strong>Что мы узнали из Задачи 4.</strong> Реальные протоколы не
+      хранят права у EOA — Uniswap Factory owner это Uniswap Governance
+      (timelocked), Aave управляется через TimelockController. Перед
+      интеграцией с чужим контрактом всегда проверяйте, кто имеет
+      admin-роли: это напрямую влияет на trust model вашего протокола.
+    </div>
+
+    <h2>7. Дополнительные паттерны AccessControl</h2>
+
+    <h3>7.1 AccessControlEnumerable</h3>
+
+    <p>
+      Стандартный <code>AccessControl</code> не позволяет получить список
+      всех держателей роли — только проверить конкретный адрес.
+      <code>AccessControlEnumerable</code> добавляет возможность перечислить
+      все аккаунты с данной ролью:
+    </p>
+
+<pre class="code-block"><code>import {AccessControlEnumerable} from
+    "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+
+contract EnumerableToken is AccessControlEnumerable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    // Получить количество minter'ов:
+    function minterCount() external view returns (uint256) {
+        return getRoleMemberCount(MINTER_ROLE);
+    }
+
+    // Получить адрес minter'а по индексу:
+    function getMinter(uint256 index) external view returns (address) {
+        return getRoleMember(MINTER_ROLE, index);
+    }
+}
+</code></pre>
+
+    <div class="note">
+      <strong>Gas trade-off.</strong> <code>AccessControlEnumerable</code>
+      хранит дополнительные структуры данных (<code>EnumerableSet</code>)
+      для каждой роли. Это увеличивает стоимость <code>grantRole</code> и
+      <code>revokeRole</code> примерно на 20-30k gas. Используйте только
+      когда реально нужна enumeration on-chain.
+    </div>
+
+    <h3>7.2 Кастомная admin-роль для роли</h3>
+
+    <p>
+      По умолчанию admin для любой роли — <code>DEFAULT_ADMIN_ROLE</code>.
+      Это можно изменить через <code>_setRoleAdmin()</code>, создав
+      независимые иерархии управления:
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+
+contract HierarchicalAccess is AccessControl {
+    bytes32 public constant OPERATOR_ADMIN_ROLE = keccak256("OPERATOR_ADMIN_ROLE");
+    bytes32 public constant OPERATOR_ROLE       = keccak256("OPERATOR_ROLE");
+    bytes32 public constant READER_ADMIN_ROLE   = keccak256("READER_ADMIN_ROLE");
+    bytes32 public constant READER_ROLE         = keccak256("READER_ROLE");
+
+    constructor(address superAdmin, address operatorAdmin, address readerAdmin) {
+        // superAdmin управляет всей системой
+        _grantRole(DEFAULT_ADMIN_ROLE, superAdmin);
+
+        // operatorAdmin управляет ТОЛЬКО операторами
+        _grantRole(OPERATOR_ADMIN_ROLE, operatorAdmin);
+
+        // Устанавливаем: admin для OPERATOR_ROLE — это OPERATOR_ADMIN_ROLE
+        _setRoleAdmin(OPERATOR_ROLE, OPERATOR_ADMIN_ROLE);
+
+        // readerAdmin управляет ТОЛЬКО читателями
+        _grantRole(READER_ADMIN_ROLE, readerAdmin);
+        _setRoleAdmin(READER_ROLE, READER_ADMIN_ROLE);
+    }
+
+    // Теперь operatorAdmin может grantRole(OPERATOR_ROLE, ...) без DEFAULT_ADMIN_ROLE
+    // И не может управлять READER_ROLE — изоляция полномочий!
+}
+</code></pre>
+
+    <h2>8. Что дальше</h2>
+
+    <p>
+      В <strong><a href="../07/index.html">Lesson 07 — Upgradeable Proxies</a></strong>
+      мы изучим, как обновлять уже задеплоенный контракт без потери данных.
+      AccessControl напрямую связан с Upgradeable-контрактами: роль
+      <code>UPGRADER_ROLE</code> управляет тем, кто может обновлять
+      имплементацию. Паттерны Ownable2Step и AccessControl, изученные здесь,
+      лежат в основе безопасного управления proxy-системами.
+    </p>
+
+    <p>
+      Вы также встретите эти паттерны в Lesson 08 (The Graph) при работе
+      с событиями <code>RoleGranted</code> / <code>RoleRevoked</code> —
+      они идеально подходят для индексации истории изменений прав.
+    </p>
+
+    <div class="refs">
+      <h3>Ссылки и документация</h3>
+      <ul>
+        <li>
+          <a href="https://docs.openzeppelin.com/contracts/5.x/access-control"
+             target="_blank" rel="noopener">
+            OpenZeppelin Docs — Access Control
+          </a>
+          — официальная документация паттернов Ownable и AccessControl с примерами.
+        </li>
+        <li>
+          <a href="https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/access/Ownable2Step.sol"
+             target="_blank" rel="noopener">
+            GitHub — Ownable2Step.sol (OZ 5.0)
+          </a>
+          — исходный код двухшаговой передачи ownership.
+        </li>
+        <li>
+          <a href="https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.0/contracts/access/AccessControl.sol"
+             target="_blank" rel="noopener">
+            GitHub — AccessControl.sol (OZ 5.0)
+          </a>
+          — исходный код ролевой системы.
+        </li>
+        <li>
+          <a href="https://docs.openzeppelin.com/contracts/5.x/api/access#AccessControlEnumerable"
+             target="_blank" rel="noopener">
+            OpenZeppelin Docs — AccessControlEnumerable
+          </a>
+          — расширение с поддержкой перечисления держателей ролей.
+        </li>
+        <li>
+          <a href="https://docs.openzeppelin.com/contracts/5.x/governance#timelock"
+             target="_blank" rel="noopener">
+            OpenZeppelin Docs — TimelockController
+          </a>
+          — задержка исполнения привилегированных операций.
+        </li>
+        <li>
+          <a href="https://book.getfoundry.sh/reference/cast/cast-call"
+             target="_blank" rel="noopener">
+            Foundry Book — cast call
+          </a>
+          — чтение данных контракта через CLI.
+        </li>
+        <li>
+          <a href="https://eips.ethereum.org/EIPS/eip-4626"
+             target="_blank" rel="noopener">
+            EIP-4626 — Tokenized Vaults
+          </a>
+          — пример стандарта, использующего Ownable для управления комиссиями.
+        </li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Урок написан для Daskibo Academy · Web3 Genesis · Модуль II.
+      Весь код проверен на Solidity 0.8.24 + OpenZeppelin Contracts 5.x.
+      Команды <code>cast</code> и <code>forge</code> используют Foundry
+      актуальной версии (foundryup --install stable).
+      Предыдущий урок: <a href="../05/index.html">Lesson 05 — Tenderly</a>.
+      Следующий: <a href="../07/index.html">Lesson 07 — Upgradeable Proxies</a>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

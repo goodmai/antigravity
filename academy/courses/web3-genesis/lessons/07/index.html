@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 07 · Upgradeable Proxies — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 07 · Upgradeable Proxies</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 07 · upgrade patterns</p>
+    <h1>Upgradeable Proxies — UUPS, Transparent и ERC-1967</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../06/index.html">Lesson 06 — Ownable &amp; AccessControl</a>.
+      Там мы разобрали, <em>кто</em> управляет контрактом. Здесь — как поменять
+      <em>сам контракт</em> без потери данных, пользователей и адреса.
+    </p>
+
+    <p>
+      Смарт-контракты по умолчанию <strong>неизменяемы</strong>: байткод задеплоен
+      по адресу и живёт там навсегда. Это хорошо для доверия — никто не может
+      тихо переписать правила игры. Но это создаёт проблему: что делать, когда
+      вы нашли баг в продакшне, или хотите добавить новую функцию, не заставляя
+      всех пользователей мигрировать на новый адрес? Ответ — <strong>proxy-паттерн</strong>:
+      адрес остаётся прежним, а логику можно поменять. В этом уроке мы разберём
+      два стандартных подхода — Transparent Proxy и UUPS — и поймём, почему
+      ERC-1967 slot избавляет нас от storage collision.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы умеете: объяснить,
+      как <code>delegatecall</code> позволяет разделить логику и хранилище;
+      правильно выбрать между Transparent Proxy и UUPS; написать upgradeble-контракт
+      с нуля на OpenZeppelin 5.x; читать ERC-1967 слот напрямую через
+      <code>cast storage</code>; и находить storage collision bug до деплоя.
+    </div>
+
+    <h2>1. Зачем нужны обновляемые контракты</h2>
+
+    <p>
+      Когда контракт деплоится, его байткод записывается в state блокчейна
+      под определённым адресом — и изменить его невозможно. Это фундаментальное
+      свойство EVM. Но у приложений в продакшне возникают вполне земные нужды:
+    </p>
+
+    <ul>
+      <li><strong>Исправление багов.</strong> Даже опытные команды делают ошибки.
+        Audit-фирмы находят уязвимости после деплоя. Без upgrade-механизма
+        единственный вариант — задеплоить новый контракт и попросить всех
+        пользователей мигрировать вручную.</li>
+      <li><strong>Добавление функций.</strong> Продукт развивается: нужны новые
+        параметры, новые операции, новые интеграции. Без апгрейда — снова
+        миграция и перепись всех интеграций.</li>
+      <li><strong>Сохранение state.</strong> Самое ценное в контракте —
+        накопленные данные: балансы, mapping'и, history. При деплое нового
+        контракта всё это надо мигрировать, что дорого и небезопасно.</li>
+      <li><strong>Постоянный адрес.</strong> Пользователи, другие контракты,
+        фронтенды, CEX-листинги — все завязаны на адрес. Смена адреса означает
+        повторное прохождение всех интеграций.</li>
+    </ul>
+
+    <p>
+      Proxy-паттерн решает эти проблемы одновременно: <strong>proxy-контракт
+      живёт по постоянному адресу</strong> и хранит state, а <strong>implementation-контракт
+      содержит логику</strong> и может быть заменён. Пользователи и интеграции
+      видят только адрес proxy — им всё равно, какой implementation за ним стоит.
+    </p>
+
+    <div class="note cyan">
+      <strong>Важный компромисс.</strong> Upgradeability — это централизация.
+      Если у вас есть право делать upgrade, значит вы (или злоумышленник,
+      получивший контроль) можете изменить любое правило. Многие зрелые
+      проекты (Uniswap v3, Compound v3 governance) выбирают <em>immutable</em>
+      контракты именно для максимального доверия. Используйте upgrade-паттерн
+      осознанно: ограничьте upgrade-право multisig или DAO, публикуйте timelock.
+    </div>
+
+    <h2>2. delegatecall — ключевое понятие</h2>
+
+    <p>
+      Весь proxy-паттерн строится на одной опкод-инструкции EVM: <code>DELEGATECALL</code>.
+      Она похожа на обычный <code>CALL</code>, но с принципиальным отличием:
+      код вызывается в <em>контексте вызывающего</em>.
+    </p>
+
+<pre class="code-block"><code>// Обычный CALL — код и storage находятся у адресата:
+Proxy.call(Implementation) {
+  msg.sender  = Proxy                // адрес Proxy
+  storage     = Implementation       // читает/пишет storage Implementation
+}
+
+// DELEGATECALL — код берётся у адресата, но storage остаётся у caller'а:
+Proxy.delegatecall(Implementation) {
+  msg.sender  = EOA (original caller) // оригинальный отправитель
+  address(this) = Proxy              // this = Proxy, не Implementation
+  storage     = Proxy                // читает/пишет storage Proxy!
+}</code></pre>
+
+    <p>
+      Это означает: Implementation-контракт содержит логику (байткод), а все
+      данные (<code>balances</code>, <code>owner</code> и т.д.) хранятся
+      в storage <em>Proxy</em>-контракта. Когда мы делаем upgrade и меняем
+      Implementation, старые данные в Proxy никуда не деваются.
+    </p>
+
+    <p>
+      Минимальный proxy в Solidity выглядит так:
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract NaiveProxy {
+    address public implementation;
+    address public admin;
+
+    constructor(address _impl) {
+        implementation = _impl;
+        admin = msg.sender;
+    }
+
+    function upgrade(address _newImpl) external {
+        require(msg.sender == admin, "not admin");
+        implementation = _newImpl;
+    }
+
+    // Все остальные вызовы делегируются в implementation
+    fallback() external payable {
+        address impl = implementation;
+        assembly {
+            // Копируем calldata в память
+            calldatacopy(0, 0, calldatasize())
+            // Делаем delegatecall
+            let result := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)
+            // Копируем returndata
+            returndatacopy(0, 0, returndatasize())
+            // Возвращаем результат или revert
+            switch result
+            case 0  { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+
+    receive() external payable {}
+}</code></pre>
+
+    <div class="note">
+      <strong>Почему assembly?</strong> Встроенный <code>delegatecall</code>
+      в Solidity не умеет «прокидывать» произвольный return-тип. Assembly-вариант
+      через <code>returndatacopy</code> передаёт байты без изменений, что
+      позволяет proxy быть полностью прозрачным для любых возвращаемых типов.
+    </div>
+
+    <h2>3. Проблема storage collision и как её решает ERC-1967</h2>
+
+    <p>
+      У наивного proxy выше есть критический баг. Посмотрим на storage
+      обоих контрактов:
+    </p>
+
+<pre class="code-block"><code>// NaiveProxy:
+// slot 0: address public implementation
+// slot 1: address public admin
+
+// CounterV1 (implementation):
+// slot 0: uint256 public count      ← КОНФЛИКТ! Занят proxy.implementation
+// slot 1: address public owner      ← КОНФЛИКТ! Занят proxy.admin</code></pre>
+
+    <p>
+      Поскольку delegatecall исполняет код Implementation в storage Proxy,
+      переменная <code>count</code> из Implementation пишется в slot 0 —
+      туда же, где Proxy хранит адрес Implementation. Вызов <code>increment()</code>
+      перезапишет адрес реализации числом 1. Это критическая уязвимость.
+    </p>
+
+    <p>
+      <strong>ERC-1967</strong> решает эту проблему, размещая служебные переменные
+      proxy в <em>случайных, непересекающихся</em> слотах. Адрес реализации и
+      другие внутренние данные proxy хранятся в специально вычисленных слотах
+      в дальней части storage, а не в слотах 0, 1, 2...
+    </p>
+
+    <h3>3.1 ERC-1967 слоты</h3>
+
+<pre class="code-block"><code>// Слот для адреса implementation:
+bytes32 internal constant IMPLEMENTATION_SLOT =
+    bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
+// = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
+
+// Слот для адреса admin:
+bytes32 internal constant ADMIN_SLOT =
+    bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
+// = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103
+
+// Слот для адреса beacon:
+bytes32 internal constant BEACON_SLOT =
+    bytes32(uint256(keccak256("eip1967.proxy.beacon")) - 1);
+// = 0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50</code></pre>
+
+    <p>
+      Формула <code>keccak256(...) - 1</code> (а не просто хеш) защищает от
+      атаки, при которой злоумышленник мог бы подобрать preimage для известного
+      хеша. Вычтенная единица делает обратный перебор практически невозможным.
+    </p>
+
+    <p>
+      Чтение и запись по таким слотам делается через inline assembly:
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+abstract contract ERC1967Storage {
+    bytes32 private constant IMPLEMENTATION_SLOT =
+        0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function _getImplementation() internal view returns (address impl) {
+        assembly {
+            impl := sload(IMPLEMENTATION_SLOT)
+        }
+    }
+
+    function _setImplementation(address newImpl) internal {
+        require(newImpl.code.length > 0, "ERC1967: not a contract");
+        assembly {
+            sstore(IMPLEMENTATION_SLOT, newImpl)
+        }
+    }
+}</code></pre>
+
+    <p>
+      Теперь слоты 0, 1, 2... у proxy полностью свободны для переменных
+      Implementation, а слот реализации находится в позиции с огромным номером,
+      с которой никогда не пересечётся обычный контракт.
+    </p>
+
+    <h2>4. Transparent Proxy Pattern</h2>
+
+    <p>
+      <strong>Transparent Upgradeable Proxy</strong> (TUP) — стандарт от
+      OpenZeppelin, исторически первый production-ready proxy. Его идея:
+      разделить вызовы по роли отправителя.
+    </p>
+
+<pre class="code-block"><code>┌────────────────────────────────────────────────────────────────┐
+│                 TransparentUpgradeableProxy                      │
+│                                                                   │
+│   if (msg.sender == admin)                                        │
+│     → исполнить admin-функции (upgradeTo, changeAdmin)            │
+│   else                                                            │
+│     → delegatecall в implementation                               │
+│                                                                   │
+│   Admin не может вызвать функции implementation через proxy!      │
+└────────────────────────────────────────────────────────────────┘</code></pre>
+
+    <p>
+      Ключевые компоненты:
+    </p>
+
+    <ul>
+      <li><strong>TransparentUpgradeableProxy</strong> — сам proxy-контракт.
+        Содержит <code>fallback()</code> и минимальную логику маршрутизации.</li>
+      <li><strong>ProxyAdmin</strong> — отдельный контракт-владелец proxy.
+        Через него admin вызывает <code>upgradeAndCall</code>. Это позволяет
+        чётко разделить роли: admin всегда идёт через ProxyAdmin, а не напрямую.</li>
+    </ul>
+
+    <h3>4.1 Деплой Transparent Proxy через OpenZeppelin 5.x</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+// --- Implementation контракт ---
+contract CounterV1 is Initializable, OwnableUpgradeable {
+    uint256 public count;
+
+    // Конструктор ЗАПРЕЩЁН для логики — используем initializer
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // Вместо constructor — initializer (вызывается один раз через proxy)
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        count = 0;
+    }
+
+    function increment() external {
+        count += 1;
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// Деплой через Foundry script:
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "../src/CounterV1.sol";
+
+contract DeployTransparent is Script {
+    function run() external {
+        vm.startBroadcast();
+
+        // 1. Деплоим implementation
+        CounterV1 impl = new CounterV1();
+
+        // 2. Кодируем вызов initializer
+        bytes memory initData = abi.encodeCall(
+            CounterV1.initialize,
+            (msg.sender)
+        );
+
+        // 3. Деплоим ProxyAdmin (владелец proxy)
+        ProxyAdmin proxyAdmin = new ProxyAdmin(msg.sender);
+
+        // 4. Деплоим сам proxy
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(impl),
+            address(proxyAdmin),
+            initData
+        );
+
+        vm.stopBroadcast();
+
+        console.log("Proxy address:     ", address(proxy));
+        console.log("ProxyAdmin address:", address(proxyAdmin));
+        console.log("Implementation:    ", address(impl));
+    }
+}
+</code></pre>
+
+    <h3>4.2 Недостатки Transparent Proxy</h3>
+
+    <ul>
+      <li><strong>Два контракта.</strong> Каждый деплой требует и proxy, и ProxyAdmin.
+        Больше контрактов — больше газа на деплой, сложнее аудит.</li>
+      <li><strong>Gas overhead на каждый вызов.</strong> Proxy проверяет
+        <code>msg.sender == admin</code> на каждый вызов, даже обычный
+        read-only. Это дополнительный SLOAD.</li>
+      <li><strong>Admin не может взаимодействовать с логикой.</strong>
+        Если admin хочет вызвать <code>increment()</code>, ему нужно использовать
+        другой адрес. Это неочевидное ограничение, которое ловят даже опытные
+        разработчики.</li>
+    </ul>
+
+    <h2>5. UUPS Pattern (ERC-1822)</h2>
+
+    <p>
+      <strong>Universal Upgradeable Proxy Standard (UUPS)</strong> — альтернативный
+      подход, где логика upgrade перенесена <em>в implementation-контракт</em>,
+      а не в proxy. Proxy становится максимально тонким: только ERC-1967 storage
+      и делегирование через fallback.
+    </p>
+
+<pre class="code-block"><code>┌────────────────────────────────────────────────────────────────┐
+│  UUPSProxy (тонкий)                                              │
+│  • ERC-1967 слот для implementation                              │
+│  • fallback() → delegatecall(implementation)                     │
+│  • НЕТ логики upgrade                                            │
+└────────────────────────┬───────────────────────────────────────┘
+                         │ delegatecall
+                         ▼
+┌────────────────────────────────────────────────────────────────┐
+│  CounterV1 (implementation)                                      │
+│  is UUPSUpgradeable, OwnableUpgradeable                          │
+│                                                                   │
+│  function upgradeToAndCall(address newImpl, bytes calldata data) │
+│    → _authorizeUpgrade(newImpl)   // проверка прав               │
+│    → _upgradeToAndCallUUPS(...)   // пишет в ERC-1967 слот       │
+│                                                                   │
+│  function _authorizeUpgrade(address) internal override onlyOwner │
+└────────────────────────────────────────────────────────────────┘</code></pre>
+
+    <h3>5.1 Реализация UUPS-контракта</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+contract CounterV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    uint256 public count;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialOwner) public initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+        count = 0;
+    }
+
+    function increment() external {
+        count += 1;
+    }
+
+    // Переопределяем: только owner может инициировать upgrade
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyOwner
+    {}
+}
+</code></pre>
+
+<pre class="code-block"><code>// Деплой UUPS через Foundry script:
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "../src/CounterV1.sol";
+
+contract DeployUUPS is Script {
+    function run() external {
+        vm.startBroadcast();
+
+        // 1. Деплоим implementation
+        CounterV1 impl = new CounterV1();
+
+        // 2. Кодируем вызов initializer
+        bytes memory initData = abi.encodeCall(
+            CounterV1.initialize,
+            (msg.sender)
+        );
+
+        // 3. Деплоим ERC1967Proxy (тонкий proxy без ProxyAdmin)
+        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
+
+        vm.stopBroadcast();
+
+        console.log("Proxy address:    ", address(proxy));
+        console.log("Implementation:   ", address(impl));
+    }
+}
+</code></pre>
+
+    <h3>5.2 Upgrade с V1 на V2</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
+// V2: добавляем decrement() и новую переменную decrementCount
+contract CounterV2 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    uint256 public count;          // slot 0 — совпадает с V1
+    uint256 public decrementCount; // slot 1 — НОВАЯ переменная, безопасно
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // reinitializer(2) — для инициализации V2-специфичных полей
+    function initializeV2() public reinitializer(2) {
+        decrementCount = 0;
+    }
+
+    function increment() external {
+        count += 1;
+    }
+
+    function decrement() external {
+        require(count > 0, "CounterV2: underflow");
+        count -= 1;
+        decrementCount += 1;
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyOwner
+    {}
+}
+</code></pre>
+
+<pre class="code-block"><code>// Апгрейд через Foundry script:
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "../src/CounterV1.sol";
+import "../src/CounterV2.sol";
+
+contract UpgradeToV2 is Script {
+    address constant PROXY = 0x1234...;   // адрес задеплоенного proxy
+
+    function run() external {
+        vm.startBroadcast();
+
+        // Деплоим новую реализацию
+        CounterV2 implV2 = new CounterV2();
+
+        // Вызываем upgradeToAndCall через proxy (proxy делегирует в V1)
+        // V1._authorizeUpgrade() проверит onlyOwner, затем запишет новый адрес
+        bytes memory callData = abi.encodeCall(CounterV2.initializeV2, ());
+        CounterV1(PROXY).upgradeToAndCall(address(implV2), callData);
+
+        vm.stopBroadcast();
+
+        console.log("Upgraded to V2:", address(implV2));
+    }
+}
+</code></pre>
+
+    <h2>6. UUPS vs Transparent Proxy: сравнение</h2>
+
+    <table class="compare">
+      <tr>
+        <th>Параметр</th>
+        <th>Transparent Proxy</th>
+        <th>UUPS (ERC-1822)</th>
+      </tr>
+      <tr>
+        <td>Где логика upgrade</td>
+        <td>В proxy-контракте</td>
+        <td>В implementation-контракте</td>
+      </tr>
+      <tr>
+        <td>Нужен ProxyAdmin</td>
+        <td>Да (отдельный контракт)</td>
+        <td>Нет (достаточно ERC1967Proxy)</td>
+      </tr>
+      <tr>
+        <td>Gas на каждый вызов</td>
+        <td>+1 SLOAD (проверка admin)</td>
+        <td>Минимальный overhead</td>
+      </tr>
+      <tr>
+        <td>Стоимость деплоя</td>
+        <td>Proxy + ProxyAdmin (~два контракта)</td>
+        <td>Proxy + Implementation (~один шаг)</td>
+      </tr>
+      <tr>
+        <td>Безопасность при ошибке</td>
+        <td>Если нет прав upgrade — proxy застрянет</td>
+        <td>Если implementation без <code>_authorizeUpgrade</code> — навсегда заблокирован</td>
+      </tr>
+      <tr>
+        <td>Может ли admin вызвать логику</td>
+        <td>Нет (маршрутизация по sender)</td>
+        <td>Да (нет разделения на уровне proxy)</td>
+      </tr>
+      <tr>
+        <td>Рекомендуется OZ</td>
+        <td>Для большинства случаев до OZ v4</td>
+        <td>Начиная с OZ v4 (текущий стандарт)</td>
+      </tr>
+      <tr>
+        <td>EIP</td>
+        <td>ERC-1967 (storage slots)</td>
+        <td>ERC-1822 + ERC-1967</td>
+      </tr>
+    </table>
+
+    <div class="note cyan">
+      <strong>Текущая рекомендация OpenZeppelin (v5.x).</strong> Для новых
+      проектов используйте <strong>UUPS</strong>: меньше газа, проще архитектура,
+      не нужен ProxyAdmin. Transparent Proxy актуален для проектов, где команда
+      предпочитает иметь возможность upgrade даже если потеряла контроль над
+      owner-ролью в implementation (edge case корпоративных сред).
+    </div>
+
+    <h2>7. Инициализаторы вместо конструкторов</h2>
+
+    <p>
+      У proxy-контрактов есть тонкость: <strong>конструктор implementation
+      вызывается один раз при деплое implementation, но не при деплое proxy</strong>.
+      Когда пользователи взаимодействуют через proxy, они видят storage proxy —
+      и там нет переменных, инициализированных конструктором implementation.
+    </p>
+
+<pre class="code-block"><code>// НЕПРАВИЛЬНО: конструктор не выполнится в контексте proxy
+contract BadCounter {
+    address public owner;
+    uint256 public count;
+
+    constructor() {
+        owner = msg.sender;  // Устанавливает owner в impl-контракте,
+        count = 0;           // но НЕ в proxy!
+    }
+}
+
+// ПРАВИЛЬНО: используем initializer-паттерн
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+contract GoodCounter is Initializable {
+    address public owner;
+    uint256 public count;
+
+    // Запрещаем вызов конструктора, чтобы никто не инициализировал impl напрямую
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    // initialize() вызывается через proxy один раз — аналог конструктора
+    function initialize(address _owner) public initializer {
+        owner = _owner;
+        count = 0;
+    }
+}</code></pre>
+
+    <p>
+      Модификатор <code>initializer</code> из OpenZeppelin гарантирует:
+    </p>
+    <ul>
+      <li>Функция может быть вызвана только один раз.</li>
+      <li>Во время инициализации допускается вызов других <code>initializer</code>-функций
+        (цепочка <code>__Ownable_init</code>, <code>__UUPSUpgradeable_init</code> и т.д.).</li>
+      <li>После вызова флаг <code>_initialized</code> устанавливается в <code>1</code>
+        (или в версию для <code>reinitializer</code>).</li>
+    </ul>
+
+    <div class="note">
+      <strong>_disableInitializers() в конструкторе.</strong> Это защита от
+      атаки: если не отключить initializer на implementation-контракте, кто угодно
+      может вызвать <code>initialize()</code> напрямую на impl (не через proxy)
+      и стать owner'ом этого контракта. Хотя это не влияет на proxy, плохой
+      owner impl может навредить, если implementation используется как beacon
+      или имеет <code>selfdestruct</code>.
+    </div>
+
+    <h3>7.1 Цепочка инициализаторов</h3>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
+
+// Upgradeble ERC-20 токен — полный пример
+contract MyTokenV1 is
+    Initializable,
+    ERC20Upgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable
+{
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(
+        string memory name,
+        string memory symbol,
+        address initialOwner,
+        uint256 initialSupply
+    ) public initializer {
+        __ERC20_init(name, symbol);        // инициализирует ERC20 storage
+        __Ownable_init(initialOwner);      // устанавливает owner
+        __UUPSUpgradeable_init();          // устанавливает версию ERC-1967
+
+        _mint(initialOwner, initialSupply);
+    }
+
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyOwner
+    {}
+}</code></pre>
+
+    <h2>8. Опасности и антипаттерны</h2>
+
+    <h3>8.1 Storage collision при upgrade</h3>
+
+    <p>
+      Самая распространённая ошибка при upgrade: добавить переменную в
+      неправильное место, нарушив порядок слотов.
+    </p>
+
+<pre class="code-block"><code>// V1: layout слотов
+contract CounterV1 {
+    uint256 public count;   // slot 0
+    address public owner;   // slot 1
+}
+
+// НЕПРАВИЛЬНО: добавили переменную в начало
+contract CounterV2_BAD {
+    uint256 public version; // slot 0 — КОНФЛИКТ! Перезапишет count
+    uint256 public count;   // slot 1 — КОНФЛИКТ! Перезапишет owner
+    address public owner;   // slot 2 — теперь здесь
+}
+
+// ПРАВИЛЬНО: новые переменные добавляются только в конец
+contract CounterV2_GOOD {
+    uint256 public count;        // slot 0 — без изменений
+    address public owner;        // slot 1 — без изменений
+    uint256 public decrementCount; // slot 2 — новая переменная, безопасно
+}</code></pre>
+
+    <div class="note">
+      <strong>Нельзя</strong>: удалять существующие переменные, менять их тип,
+      менять порядок, вставлять новые переменные перед существующими.
+      <strong>Можно</strong>: добавлять новые переменные в конец, переименовывать
+      переменные (имя не хранится в storage). OpenZeppelin Upgrades Plugin
+      проверяет storage layout автоматически перед каждым upgrade.
+    </div>
+
+    <h3>8.2 Uninitialized proxy</h3>
+
+<pre class="code-block"><code>// Опасный сценарий: deploy без вызова initialize()
+ERC1967Proxy proxy = new ERC1967Proxy(
+    address(impl),
+    ""   // пустой initData — initialize() не вызовется!
+);
+
+// Теперь owner = address(0), контракт заморожен навсегда
+// (или может быть захвачен первым вызывающим initialize)
+
+// Безопасный деплой — всегда передавайте initData:
+bytes memory initData = abi.encodeCall(CounterV1.initialize, (msg.sender));
+ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);</code></pre>
+
+    <h3>8.3 selfdestruct в implementation</h3>
+
+<pre class="code-block"><code>// Критический баг: implementation с selfdestruct
+contract DangerousImpl {
+    function destroy() external {
+        selfdestruct(payable(msg.sender));
+    }
+}
+
+// Что происходит:
+// 1. Proxy делегирует вызов destroy() в implementation
+// 2. НО selfdestruct работает в контексте Proxy (delegatecall!)
+// 3. PROXY-контракт уничтожается, все данные теряются навсегда
+//
+// Правило: никогда не используйте selfdestruct в implementation-контрактах.
+// После EIP-6780 (Cancun) selfdestruct только переводит ETH, если
+// контракт создан в том же transaction — это снижает риск, но не
+// отменяет правило хорошего тона.</code></pre>
+
+    <h3>8.4 Delegatecall в implementation</h3>
+
+<pre class="code-block"><code>// Опасная конструкция: implementation делает delegatecall в произвольный адрес
+contract VulnerableImpl {
+    function execute(address target, bytes calldata data) external {
+        // Если target — вредоносный контракт, он может
+        // перезаписать ERC-1967 слот implementation в proxy storage
+        (bool ok,) = target.delegatecall(data);
+        require(ok);
+    }
+}
+// Это позволяет злоумышленнику захватить контроль над proxy.</code></pre>
+
+    <h2>9. OpenZeppelin Upgrades Plugin</h2>
+
+    <p>
+      Ручное отслеживание storage layout и проверка совместимости — трудоёмкая
+      и ошибочная задача. OpenZeppelin выпустил официальный плагин как для
+      Hardhat, так и для Foundry.
+    </p>
+
+    <h3>9.1 Foundry (defender-as-code + oz-foundry-upgrades)</h3>
+
+<pre class="code-block"><code># Установка
+forge install OpenZeppelin/openzeppelin-foundry-upgrades
+forge install OpenZeppelin/openzeppelin-contracts-upgradeable
+
+# foundry.toml
+[profile.default]
+ffi = true    # необходимо для работы плагина
+build_info = true
+extra_output = ["storageLayout"]
+
+# В тестах и скриптах
+import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
+
+contract DeployScript is Script {
+    function run() external {
+        vm.startBroadcast();
+
+        // Плагин автоматически:
+        // 1. Проверяет, что CounterV1 корректен для upgrade
+        // 2. Деплоит implementation + proxy
+        // 3. Верифицирует storage layout
+        address proxy = Upgrades.deployUUPSProxy(
+            "CounterV1.sol",
+            abi.encodeCall(CounterV1.initialize, (msg.sender))
+        );
+
+        vm.stopBroadcast();
+    }
+}
+
+// При upgrade — сравнивает storage layout V1 и V2
+Upgrades.upgradeProxy(
+    proxy,
+    "CounterV2.sol",
+    abi.encodeCall(CounterV2.initializeV2, ())
+);</code></pre>
+
+    <h3>9.2 Hardhat</h3>
+
+<pre class="code-block"><code># Установка
+npm install --save-dev @openzeppelin/hardhat-upgrades
+npm install @openzeppelin/contracts-upgradeable
+
+// hardhat.config.js
+require("@openzeppelin/hardhat-upgrades");
+
+// deploy.js
+const { ethers, upgrades } = require("hardhat");
+
+async function main() {
+    const CounterV1 = await ethers.getContractFactory("CounterV1");
+
+    // Деплой UUPS proxy
+    const proxy = await upgrades.deployProxy(CounterV1, [deployer.address], {
+        kind: "uups",
+    });
+    await proxy.waitForDeployment();
+    console.log("Proxy deployed to:", await proxy.getAddress());
+
+    // Upgrade до V2
+    const CounterV2 = await ethers.getContractFactory("CounterV2");
+    const upgraded = await upgrades.upgradeProxy(proxy, CounterV2, {
+        call: { fn: "initializeV2" },
+    });
+    console.log("Upgraded to V2");
+}
+
+main();</code></pre>
+
+    <div class="note">
+      <strong>Что проверяет плагин автоматически.</strong>
+      Наличие <code>_disableInitializers()</code> в конструкторе;
+      отсутствие <code>selfdestruct</code> и <code>delegatecall</code> в
+      недопустимых местах; совместимость storage layout при upgrade
+      (нет удалённых переменных, нет смены типов, нет вставок в середину);
+      правильность аннотаций <code>@custom:oz-upgrades-unsafe-allow</code>.
+    </div>
+
+    <h2>10. Практические задачи</h2>
+
+    <h3>Задача 1 — Задеплоить UUPS-прокси с Counter V1</h3>
+
+    <p>
+      Создайте Foundry-проект и задеплойте минимальный счётчик через UUPS proxy.
+      Проверьте, что <code>count</code> хранится в proxy, а не в implementation.
+    </p>
+
+<pre class="code-block"><code># Шаг 1: создаём проект
+forge init counter-proxy && cd counter-proxy
+forge install OpenZeppelin/openzeppelin-contracts-upgradeable
+forge install OpenZeppelin/openzeppelin-contracts
+
+# Шаг 2: src/CounterV1.sol — код из раздела 5.1 (см. выше)
+
+# Шаг 3: script/Deploy.s.sol
+# SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "../src/CounterV1.sol";
+
+contract DeployScript is Script {
+    function run() external {
+        address deployer = vm.envAddress("DEPLOYER");
+        vm.startBroadcast();
+
+        CounterV1 impl = new CounterV1();
+        bytes memory data = abi.encodeCall(CounterV1.initialize, (deployer));
+        ERC1967Proxy proxy = new ERC1967Proxy(address(impl), data);
+
+        // Взаимодействуем через proxy-адрес, приводя к интерфейсу CounterV1
+        CounterV1 counter = CounterV1(address(proxy));
+        counter.increment();
+        counter.increment();
+
+        console.log("count =", counter.count()); // ожидаем: 2
+
+        vm.stopBroadcast();
+    }
+}
+
+# Шаг 4: запускаем на Anvil
+anvil &
+export DEPLOYER=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 \
+    --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+    --broadcast -vvv</code></pre>
+
+    <h3>Задача 2 — Написать CounterV2 и сделать upgrade через upgradeToAndCall</h3>
+
+    <p>
+      Добавьте функцию <code>decrement()</code> и переменную <code>decrementCount</code>
+      в CounterV2, задеплойте новую реализацию, вызовите upgrade и убедитесь,
+      что старый <code>count</code> сохранился.
+    </p>
+
+<pre class="code-block"><code># src/CounterV2.sol — код из раздела 5.2 (см. выше)
+
+# script/Upgrade.s.sol
+# SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Script.sol";
+import "../src/CounterV1.sol";
+import "../src/CounterV2.sol";
+
+contract UpgradeScript is Script {
+    function run() external {
+        address proxy = vm.envAddress("PROXY_ADDR");
+        vm.startBroadcast();
+
+        // Деплоим V2 implementation
+        CounterV2 implV2 = new CounterV2();
+        console.log("New impl:", address(implV2));
+
+        // Читаем текущее состояние ДО upgrade
+        CounterV1 counterBefore = CounterV1(proxy);
+        console.log("count before upgrade:", counterBefore.count());
+
+        // Upgrade + вызов initializeV2
+        bytes memory callData = abi.encodeCall(CounterV2.initializeV2, ());
+        counterBefore.upgradeToAndCall(address(implV2), callData);
+
+        // Читаем состояние ПОСЛЕ upgrade
+        CounterV2 counterAfter = CounterV2(proxy);
+        console.log("count after upgrade:", counterAfter.count());  // не изменился!
+        console.log("decrementCount:", counterAfter.decrementCount()); // 0
+
+        // Тестируем новую функцию
+        counterAfter.decrement();
+        console.log("count after decrement:", counterAfter.count());    // count - 1
+        console.log("decrementCount:", counterAfter.decrementCount()); // 1
+
+        vm.stopBroadcast();
+    }
+}
+
+# Запуск (proxy-адрес из задачи 1):
+export PROXY_ADDR=0x...
+forge script script/Upgrade.s.sol --rpc-url http://127.0.0.1:8545 \
+    --private-key 0xac09... --broadcast -vvv</code></pre>
+
+    <h3>Задача 3 — Прочитать текущий implementation-адрес из ERC-1967 слота</h3>
+
+    <p>
+      Используйте <code>cast storage</code>, чтобы прочитать содержимое
+      ERC-1967 слота напрямую, без ABI. Это полезно для аудита и верификации:
+      вы видите реальный адрес implementation, даже если proxy не экспортирует
+      соответствующую функцию.
+    </p>
+
+<pre class="code-block"><code># ERC-1967 слот для implementation (константа из EIP-1967):
+IMPL_SLOT=0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
+
+PROXY_ADDR=0x...   # адрес proxy из задачи 1
+RPC=http://127.0.0.1:8545
+
+# Читаем слот напрямую через cast storage:
+cast storage $PROXY_ADDR $IMPL_SLOT --rpc-url $RPC
+
+# Вывод — 32-байтовый hex, последние 20 байт = адрес implementation:
+# 0x000000000000000000000000<адрес implementation в hex>
+
+# Более удобный вариант — cast implementation (если нода поддерживает):
+cast implementation $PROXY_ADDR --rpc-url $RPC
+
+# Проверяем ERC-1967 слот admin (для Transparent Proxy):
+ADMIN_SLOT=0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103
+cast storage $PROXY_ADDR $ADMIN_SLOT --rpc-url $RPC
+
+# Верификация: сравните с адресом impl, полученным в задаче 1.
+# Они должны совпадать. После upgrade (задача 2) — должен быть адрес V2.</code></pre>
+
+    <div class="note cyan">
+      <strong>Практическое применение.</strong> Читать ERC-1967 слот умеют
+      Etherscan (вкладка "Contract" показывает implementation для известных
+      proxy), Tenderly, Blockscout. Если вы видите proxy-контракт на Etherscan,
+      убедитесь, что задан «Implementation Contract» — это и есть содержимое
+      ERC-1967 слота, которое блок-эксплорер читает автоматически.
+    </div>
+
+    <h3>Задача 4 — Найти storage collision bug в плохом контракте</h3>
+
+    <p>
+      Ниже — демонстрационный контракт с намеренной ошибкой. Найдите, где
+      происходит storage collision, и объясните, как её исправить.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+// BUG: Плохой proxy без ERC-1967 защиты
+contract BuggyProxy {
+    address public implementation;  // slot 0
+    address public admin;           // slot 1
+
+    constructor(address _impl, address _admin) {
+        implementation = _impl;
+        admin = _admin;
+    }
+
+    function upgrade(address _newImpl) external {
+        require(msg.sender == admin, "not admin");
+        implementation = _newImpl;
+    }
+
+    fallback() external payable {
+        address impl = implementation;
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let result := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch result
+            case 0  { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
+    }
+}
+
+// Implementation с коллизией:
+contract VulnerableCounter {
+    uint256 public count;       // slot 0 — конфликт с BuggyProxy.implementation!
+    address public tokenOwner;  // slot 1 — конфликт с BuggyProxy.admin!
+
+    function increment() external {
+        count += 1;  // Это перезаписывает адрес implementation в BuggyProxy!
+    }
+
+    function setOwner(address newOwner) external {
+        tokenOwner = newOwner;  // Это перезаписывает admin в BuggyProxy!
+    }
+}
+
+// ВОПРОСЫ:
+// 1. Что произойдёт с BuggyProxy.implementation после вызова increment() через proxy?
+// 2. Сможет ли admin после этого сделать upgrade?
+// 3. Перепишите BuggyProxy с использованием ERC-1967 слотов, чтобы устранить коллизию.
+
+// ПОДСКАЗКА: замените хранение implementation и admin на:
+// assembly { sstore(IMPLEMENTATION_SLOT, newImpl) }
+// где IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)</code></pre>
+
+    <p>
+      Запустите тест для верификации вашего ответа:
+    </p>
+
+<pre class="code-block"><code>// test/StorageCollision.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/BuggyProxy.sol";
+import "../src/VulnerableCounter.sol";
+
+contract StorageCollisionTest is Test {
+    BuggyProxy proxy;
+    VulnerableCounter impl;
+
+    function setUp() public {
+        impl = new VulnerableCounter();
+        proxy = new BuggyProxy(address(impl), address(this));
+    }
+
+    function test_StorageCollisionOnIncrement() public {
+        VulnerableCounter counter = VulnerableCounter(address(proxy));
+
+        // Читаем implementation ДО increment
+        address implBefore = proxy.implementation();
+        assertEq(implBefore, address(impl));
+
+        // Вызываем increment() через proxy
+        counter.increment();
+
+        // BUG: implementation теперь испорчен (count = 1, но это адрес!)
+        address implAfter = proxy.implementation();
+        // implAfter != implBefore — slot 0 перезаписан числом 1
+        assertNotEq(implAfter, implBefore, "COLLISION: implementation overwritten by count=1");
+
+        // Теперь upgrade невозможен — delegatecall пойдёт по адресу 0x000...001
+    }
+}
+
+# Запуск теста:
+forge test --match-test test_StorageCollisionOnIncrement -vvv</code></pre>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      В <strong><a href="../08/index.html">Lesson 08 — The Graph</a></strong>
+      мы разберём, как индексировать on-chain события апгрейдов
+      (<code>Upgraded(address indexed implementation)</code>, который эмитирует
+      ERC-1967 при каждом upgrade) и строить историческую запись всех изменений
+      implementation через subgraph. Это необходимо для аудита и мониторинга
+      upgradeble-протоколов.
+    </p>
+
+    <p>
+      Более долгосрочно: <strong>Beacon Proxy</strong> (один implementation для
+      тысяч proxy-контрактов — паттерн Uniswap v3 pool factory), <strong>Diamond
+      Proxy (ERC-2535)</strong> (несколько implementation в одном proxy,
+      разбитых по selector'ам), и <strong>Minimal Proxy (ERC-1167)</strong>
+      (clone-фабрика для дешёвого деплоя многих инстанций).
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://docs.openzeppelin.com/upgrades-plugins/1.x/" target="_blank" rel="noopener">OpenZeppelin Upgrades Plugins — официальная документация</a> — Foundry и Hardhat плагины, проверка storage layout.</li>
+        <li><a href="https://docs.openzeppelin.com/contracts/5.x/api/proxy" target="_blank" rel="noopener">OpenZeppelin Contracts 5.x — Proxy API</a> — TransparentUpgradeableProxy, ERC1967Proxy, UUPSUpgradeable.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1967" target="_blank" rel="noopener">EIP-1967 — Standard Proxy Storage Slots</a> — оригинальная спецификация слотов.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1822" target="_blank" rel="noopener">EIP-1822 — Universal Upgradeable Proxy Standard (UUPS)</a> — спецификация UUPS.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-2535" target="_blank" rel="noopener">EIP-2535 — Diamond, Multi-Facet Proxy</a> — продвинутый паттерн с множеством implementation.</li>
+        <li><a href="https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable" target="_blank" rel="noopener">openzeppelin-contracts-upgradeable</a> — исходный код всех Upgradeable-версий контрактов.</li>
+        <li><a href="https://github.com/OpenZeppelin/openzeppelin-foundry-upgrades" target="_blank" rel="noopener">openzeppelin-foundry-upgrades</a> — Foundry-плагин для безопасного деплоя proxy.</li>
+        <li><a href="https://blog.openzeppelin.com/the-transparent-proxy-pattern" target="_blank" rel="noopener">The Transparent Proxy Pattern — OpenZeppelin Blog</a> — подробное объяснение rationale.</li>
+        <li><a href="https://blog.openzeppelin.com/uups-proxies-tutorial-solidity-javascript" target="_blank" rel="noopener">UUPS Proxies Tutorial — OpenZeppelin Blog</a> — пошаговое руководство.</li>
+        <li><a href="https://book.getfoundry.sh/tutorials/upgradeable-proxy-contract" target="_blank" rel="noopener">Foundry Book — Upgrading Proxy Contracts</a> — официальный туториал Foundry.</li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Все примеры кода рассчитаны на <strong>Solidity 0.8.24</strong> и
+      <strong>OpenZeppelin Contracts Upgradeable 5.x</strong>. Перед запуском
+      в продакшне обязательно используйте <code>openzeppelin-foundry-upgrades</code>
+      для автоматической проверки storage layout — ручное отслеживание слотов
+      надёжно работает только на маленьких контрактах.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
