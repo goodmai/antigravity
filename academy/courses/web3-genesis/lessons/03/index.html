@@ -470,7 +470,22 @@ L2 → L1 (withdraw, slow: ~7 дней!)
       стороне фронтенда — экономит квоту провайдера.</li>
     </ul>
 
-    <h2>8. Куда дальше</h2>
+    <h2>8. Песочница — настоящий live-RPC</h2>
+    <p>
+      Мок выше отдаёт стабильные данные, потому что важна была форма запроса.
+      Теперь — то же самое, но против реальной публичной ноды. Выберите метод и
+      параметр, нажмите «Вызвать»: браузер отправит POST на <code>eth.llamarpc.com</code>
+      (или <code>rpc.sepolia.org</code>), и вы увидите неотредактированный
+      JSON-RPC ответ.
+    </p>
+
+    <div class="sandbox" data-embed="rpc-live" data-network="ethereum"
+      data-title="Live JSON-RPC · Ethereum mainnet (eth.llamarpc.com)"></div>
+
+    <div class="sandbox" data-embed="rpc-live" data-network="sepolia"
+      data-title="Live JSON-RPC · Sepolia (rpc.sepolia.org)"></div>
+
+    <h2>9. Куда дальше</h2>
     <p>
       В <strong>Lesson 04 — Anvil &amp; Foundry</strong> мы развернём собственный
       локальный node, форкнем mainnet, и напишем <code>forge test</code> для
@@ -479,12 +494,129 @@ L2 → L1 (withdraw, slow: ~7 дней!)
       контракт в облаке и подружим с визуальным отладчиком.
     </p>
 
+    <section class="lesson-quiz" data-lesson="03">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 03 · JSON-RPC, ноды, L2",
+  "intro": "Семь multiple-вопросов плюс четыре практические задачи. Для задач используйте live-RPC песочницу выше — все ответы можно получить из реальной mainnet ноды.",
+  "questions": [
+    {
+      "q": "Сколько процессов составляют «полную ноду» Ethereum после The Merge?",
+      "kind": "multiple",
+      "options": [
+        "Один — обновлённый Geth",
+        "Два: execution layer (Geth/Reth/Erigon/Nethermind/Besu) + consensus layer (Lighthouse/Prysm/Teku/Nimbus/Lodestar)",
+        "Три: EL, CL и MEV-relay",
+        "Четыре: EL, CL, indexer, mempool"
+      ],
+      "answerIndex": 1,
+      "explain": "Engine API связывает EL и CL. Mempool — внутри EL, indexer (Graph/Substreams) — отдельно от ноды."
+    },
+    {
+      "q": "Tag <code>finalized</code> в <code>eth_getBlockByNumber</code> — это…",
+      "kind": "multiple",
+      "options": [
+        "Последний блок, который видит наша нода",
+        "Блок ≥ 6 confirmations назад (как в Bitcoin)",
+        "Блок, после которого прошло два justified epoch'а (Casper FFG)",
+        "Любой блок, прошедший <code>safe</code> + 1 час"
+      ],
+      "answerIndex": 2,
+      "explain": "FFG — два последовательных justified epoch финализируют первый. Это ~12.8 минуты на mainnet."
+    },
+    {
+      "q": "EOA vs Contract: какой метод JSON-RPC даёт однозначный ответ «это контракт»?",
+      "kind": "multiple",
+      "options": [
+        "<code>eth_getBalance</code> вернёт > 0",
+        "<code>eth_getCode</code> вернёт что-то длиннее <code>\"0x\"</code>",
+        "<code>eth_getTransactionCount</code> вернёт 0",
+        "<code>eth_call</code> вернёт ABI"
+      ],
+      "answerIndex": 1,
+      "explain": "EOA не имеет кода — eth_getCode на EOA возвращает ровно строку '0x'. EIP-7702 нарушает это правило, но это редкое исключение."
+    },
+    {
+      "q": "Сколько газа сожгла транзакция = …",
+      "kind": "multiple",
+      "options": [
+        "<code>gasLimit × gasPrice</code>",
+        "<code>gasUsed × effectiveGasPrice</code> — берём из receipt",
+        "<code>baseFee × gasLimit</code>",
+        "<code>nonce × tip</code>"
+      ],
+      "answerIndex": 1,
+      "explain": "gasUsed — реально потреблённый газ (не gasLimit, который только потолок), effectiveGasPrice — фактическая цена с учётом EIP-1559 баз/тип."
+    },
+    {
+      "q": "Chain ID Arbitrum One?",
+      "kind": "multiple",
+      "options": [
+        "1",
+        "10 (0xa)",
+        "42161 (0xa4b1)",
+        "8453 (0x2105)"
+      ],
+      "answerIndex": 2,
+      "explain": "10 — это OP Mainnet, 8453 — Base, 1 — Ethereum mainnet."
+    },
+    {
+      "q": "Почему withdraw L2 → L1 на Optimistic Rollup занимает ~7 дней?",
+      "kind": "multiple",
+      "options": [
+        "Bridge физически не успевает обработать заявку быстрее",
+        "Это <em>challenge window</em>: время, в течение которого watcher может оспорить state root через fraud proof",
+        "EIP-7702 ограничение",
+        "Sequencer пакует withdraw'ы раз в неделю"
+      ],
+      "answerIndex": 1,
+      "explain": "На zk-rollup'ах окна нет — проверка криптографическая, withdraw практически моментальный (минус подтверждение L1)."
+    },
+    {
+      "q": "JSON-RPC batch: можно ли в одном HTTP-запросе выполнить несколько методов?",
+      "kind": "multiple",
+      "options": [
+        "Нет — каждый метод требует отдельный POST",
+        "Да — отправить JSON-массив запросов; ответ придёт массивом в том же порядке id",
+        "Только GET с query-параметрами",
+        "Только через WebSocket"
+      ],
+      "answerIndex": 1,
+      "explain": "Batch — стандартная фича JSON-RPC 2.0. На публичных RPC обычно лимит 10–25 методов в одном batch."
+    },
+    {
+      "q": "Practical: используя live-RPC песочницу выше, узнайте текущий <code>chainId</code> mainnet и Sepolia. Сравните с константами в lesson.",
+      "kind": "task",
+      "answer": "В обеих песочницах выбираем <code>eth_chainId</code>, нажимаем «Вызвать». Mainnet → <code>\"0x1\"</code> (1), Sepolia → <code>\"0xaa36a7\"</code> (11155111). Совпадает с табличкой 6.3."
+    },
+    {
+      "q": "Practical: проверьте через <code>eth_getCode</code>, является ли адрес Uniswap V2 Router <code>0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D</code> контрактом.",
+      "kind": "task",
+      "answer": "В mainnet-песочнице: method=<code>eth_getCode</code>, param=<code>0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D</code>. Ответ — длинная hex-строка ≠ <code>\"0x\"</code> → контракт. Для сравнения проверьте свой EOA-адрес — получите <code>\"0x\"</code>."
+    },
+    {
+      "q": "Practical: возьмите <code>txHash</code> любой mainnet транзакции (например, с https://etherscan.io/txs) и через <code>eth_getTransactionReceipt</code> в песочнице посчитайте fee в wei.",
+      "kind": "task",
+      "answer": "method=<code>eth_getTransactionReceipt</code>, param=<code>0x...txhash</code>. Из ответа берём <code>gasUsed</code> и <code>effectiveGasPrice</code> (обе hex). Конвертируем в десятичное и умножаем: <code>parseInt(gasUsed,16) * parseInt(effectiveGasPrice,16)</code> = fee в wei. Поделите на <code>1e18</code> → fee в ETH."
+    },
+    {
+      "q": "Practical: сравните номера блоков <code>latest</code> / <code>safe</code> / <code>finalized</code> на mainnet через live-песочницу. Какой разрыв в блоках вы видите?",
+      "kind": "task",
+      "answer": "method=<code>eth_getBlockByNumber</code>, param=<code>latest</code> / <code>safe</code> / <code>finalized</code> по очереди. Из ответа берите <code>.result.number</code> (hex → decimal). Типично: latest − safe ≈ 32 блока (1 эпоха), latest − finalized ≈ 64–96 блоков (2 эпохи + лаг). Это и есть «потолок реорг-риска» для критичных операций."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Файл <code>academy/courses/web3-genesis/assets/rpc-helpers.js</code> —
       чистый ESM-модуль (42 vitest-теста) с логикой кодирования envelope'а,
       detect'а контрактов, расчёта fee и классификации финальности.
       Тот же модуль использует встроенная песочница и тесты — никаких
-      расхождений между «что в уроке» и «что в коде».
+      расхождений между «что в уроке» и «что в коде». Live-песочницы выше
+      шлют POST напрямую на публичные RPC — никакого прокси Daskibo
+      между вами и нодой нет.
     </div>
   </div>
 
@@ -492,5 +624,7 @@ L2 → L1 (withdraw, slow: ~7 дней!)
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
   <script type="module" src="../../assets/rpc-playground.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

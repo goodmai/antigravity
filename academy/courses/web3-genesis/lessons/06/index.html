@@ -1081,7 +1081,52 @@ contract HierarchicalAccess is AccessControl {
 }
 </code></pre>
 
-    <h2>8. Что дальше</h2>
+    <h2>8. Песочница · ManagedToken в Remix (с OpenZeppelin импортами)</h2>
+
+    <p>
+      Remix умеет резолвить <code>import "@openzeppelin/..."</code> прямо в
+      браузере: GitHub-импорты подтягиваются по HTTP. Iframe ниже открывает
+      полный ManagedToken (ERC-20 + AccessControl + Pausable) — можно сразу
+      деплоить в Remix VM и проверять <code>grantRole</code> / <code>hasRole</code>
+      без локального Foundry.
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · ManagedToken.sol (ERC-20 + AccessControl + Pausable)"
+      data-filename="ManagedToken.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/token/ERC20/ERC20.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/access/AccessControl.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/utils/Pausable.sol";
+
+contract ManagedToken is ERC20, AccessControl, Pausable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
+    constructor(address admin) ERC20("Managed", "MGD") {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(MINTER_ROLE,        admin);
+        _grantRole(PAUSER_ROLE,        admin);
+    }
+
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
+        _mint(to, amount);
+    }
+
+    function pause() external onlyRole(PAUSER_ROLE) { _pause(); }
+    function unpause() external onlyRole(PAUSER_ROLE) { _unpause(); }
+
+    function _update(address from, address to, uint256 value)
+        internal override whenNotPaused
+    {
+        super._update(from, to, value);
+    }
+}</pre>
+    </div>
+
+    <h2>9. Что дальше</h2>
 
     <p>
       В <strong><a href="../07/index.html">Lesson 07 — Upgradeable Proxies</a></strong>
@@ -1153,6 +1198,116 @@ contract HierarchicalAccess is AccessControl {
       </ul>
     </div>
 
+    <section class="lesson-quiz" data-lesson="06">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 06 · Ownable / AccessControl",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Для задач можно использовать Remix-iframe выше или локальный Anvil (см. Lesson 04).",
+  "questions": [
+    {
+      "q": "Чем Ownable2Step безопаснее Ownable?",
+      "kind": "multiple",
+      "options": [
+        "Поддерживает мультиподпись из коробки",
+        "Требует двух шагов: <code>transferOwnership</code> (от owner) → <code>acceptOwnership</code> (от нового owner). Защищает от опечатки в адресе.",
+        "Использует ECDSA для подтверждения",
+        "Хранит owner в ERC-1967 слоте"
+      ],
+      "answerIndex": 1,
+      "explain": "Ownable передаёт ownership одной транзакцией. Если опечатались — контракт «потерян». Ownable2Step требует, чтобы новый owner подписал acceptOwnership."
+    },
+    {
+      "q": "Чему равен <code>DEFAULT_ADMIN_ROLE</code> в AccessControl OZ?",
+      "kind": "multiple",
+      "options": [
+        "<code>keccak256(\"DEFAULT_ADMIN_ROLE\")</code>",
+        "<code>0x00…00</code> (bytes32(0))",
+        "<code>0xFF…FF</code> (bytes32 max)",
+        "<code>keccak256(\"OPERATOR\")</code>"
+      ],
+      "answerIndex": 1,
+      "explain": "Намеренно zero. <code>hasRole(0x00, addr)</code> = это super-admin, может grant/revoke любую роль (если не переопределили admin отдельной роли)."
+    },
+    {
+      "q": "Что делает <code>_setRoleAdmin(OPERATOR_ROLE, OPERATOR_ADMIN_ROLE)</code>?",
+      "kind": "multiple",
+      "options": [
+        "Удаляет DEFAULT_ADMIN_ROLE",
+        "Делает OPERATOR_ADMIN_ROLE единственной ролью, которая может grant/revoke OPERATOR_ROLE — независимо от super-admin",
+        "Эмитирует событие AdminChanged",
+        "Заменяет роль на новую"
+      ],
+      "answerIndex": 1,
+      "explain": "Создаёт изолированные иерархии управления. Пример: operatorAdmin управляет операторами, но не может вмешиваться в readerAdmin'а."
+    },
+    {
+      "q": "Когда вызов привилегированной функции без роли ревертится — что Solidity бросает?",
+      "kind": "multiple",
+      "options": [
+        "Строку «Unauthorized»",
+        "Custom error <code>AccessControlUnauthorizedAccount(address account, bytes32 neededRole)</code> (в OZ 5.x)",
+        "Panic(0x11)",
+        "Опкод STOP"
+      ],
+      "answerIndex": 1,
+      "explain": "Custom errors дешевле, чем require со строкой. Selector — <code>cast sig 'AccessControlUnauthorizedAccount(address,bytes32)'</code> = 0xe2517d3f."
+    },
+    {
+      "q": "Чем AccessControlEnumerable отличается от AccessControl?",
+      "kind": "multiple",
+      "options": [
+        "Поддерживает grant/revoke по индексу",
+        "Хранит дополнительные EnumerableSet для каждой роли — позволяет <code>getRoleMemberCount</code> и <code>getRoleMember(idx)</code>, но дороже по газу",
+        "Использует mapping(uint256 => address) вместо bytes32",
+        "Несовместим с AccessControl"
+      ],
+      "answerIndex": 1,
+      "explain": "Лишние +20-30k gas на grant/revoke за возможность перечислить держателей on-chain. Если такая enumeration нужна для UI — обычно дешевле взять её из subgraph (RoleGranted/RoleRevoked events)."
+    },
+    {
+      "q": "Зачем в production-системах между admin EOA и контрактом ставят TimelockController?",
+      "kind": "multiple",
+      "options": [
+        "Чтобы экономить газ",
+        "Чтобы критичные изменения параметров вступали в силу только через N часов после публикации намерения — даёт пользователям время выйти, аудиторам — увидеть атаку",
+        "Чтобы admin не мог терять приватный ключ",
+        "Это требование EIP-1559"
+      ],
+      "answerIndex": 1,
+      "explain": "Compound Governor Bravo, Aave Governance, Maker — все добавляют 24-48h delay. Pauser-роль обычно не проходит через timelock (быстрая реакция важнее)."
+    },
+    {
+      "q": "Multisig (например, Safe) — это…",
+      "kind": "multiple",
+      "options": [
+        "Стандарт ERC-20",
+        "Smart-wallet, где execute требует подписи M из N owner'ов; сам контракт — это «admin» в Ownable",
+        "Технология PKI",
+        "Расширение AccessControl"
+      ],
+      "answerIndex": 1,
+      "explain": "Safe Wallet — самый распространённый multisig для DAO. Снижает риск одной утечки ключа, но не защищает от уязвимости в самом контракте."
+    },
+    {
+      "q": "Practical: задеплойте ManagedToken через Remix iframe выше. Узнайте значение <code>MINTER_ROLE</code> и <code>PAUSER_ROLE</code>. Совпадают ли они с <code>cast keccak \"MINTER_ROLE\"</code>?",
+      "kind": "task",
+      "answer": "Должны совпадать с точностью до hex. <code>cast keccak \"MINTER_ROLE\"</code> = <code>0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6</code>. Это позволяет в любом скрипте посчитать ID роли без вызова контракта."
+    },
+    {
+      "q": "Practical: в Remix VM выдайте MINTER_ROLE второму аккаунту и попробуйте <code>mint</code> с него. Затем переключитесь обратно на admin, вызовите <code>pause()</code>, и снова попробуйте <code>mint</code> с MINTER. Что произойдёт и почему?",
+      "kind": "task",
+      "answer": "После pause контракт переходит в Paused-состояние; модификатор <code>whenNotPaused</code> на mint (и на _update) сразу ревертит транзакцию с <code>EnforcedPause()</code>, даже если у вызывающего есть MINTER_ROLE. Это и есть «kill switch» — права остаются, но операции временно заблокированы до unpause."
+    },
+    {
+      "q": "Practical: прочитайте через cast call, кто является DEFAULT_ADMIN_ROLE на Aave ACLManager (<code>0xc2aaCf6553D20d1e9d78E365AAba8032af9c85b0</code>) в mainnet. Это EOA?",
+      "kind": "task",
+      "answer": "<pre>cast call 0xc2aaCf6553D20d1e9d78E365AAba8032af9c85b0 \\\n  \"hasRole(bytes32,address)(bool)\" \\\n  0x00..00 \\\n  &lt;ACE_CONTRACT&gt; \\\n  --rpc-url https://eth.llamarpc.com</pre>На практике admin — это <code>0x23c4...d13F</code> (Aave Timelock Executor). Это <em>контракт</em>, а не EOA: <code>cast code &lt;addr&gt;</code> вернёт байткод. Trust model Aave опирается на этот timelock + governance vote."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Урок написан для Daskibo Academy · Web3 Genesis · Модуль II.
       Весь код проверен на Solidity 0.8.24 + OpenZeppelin Contracts 5.x.
@@ -1166,5 +1321,7 @@ contract HierarchicalAccess is AccessControl {
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

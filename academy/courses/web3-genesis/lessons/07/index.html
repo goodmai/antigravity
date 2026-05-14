@@ -1111,7 +1111,45 @@ contract StorageCollisionTest is Test {
 # Запуск теста:
 forge test --match-test test_StorageCollisionOnIncrement -vvv</code></pre>
 
-    <h2>11. Что дальше</h2>
+    <h2>11. Песочница · UUPS Counter в Remix</h2>
+
+    <p>
+      Iframe ниже открывает CounterV1 (UUPSUpgradeable) сразу с импортами
+      OpenZeppelin-Upgradeable. В Remix → Deploy &amp; run выберите
+      «<em>Deploy with proxy</em>» — Remix сам деплоит ERC1967Proxy и связывает
+      его с implementation. После этого можно сразу вызывать
+      <code>increment()</code> через proxy-адрес и видеть, что
+      <code>count</code> хранится <em>в proxy</em>, а не в implementation.
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · CounterV1.sol (UUPSUpgradeable)"
+      data-filename="CounterV1.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/v5.0.2/contracts/proxy/utils/Initializable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/v5.0.2/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable/blob/v5.0.2/contracts/access/OwnableUpgradeable.sol";
+
+contract CounterV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    uint256 public count;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() { _disableInitializers(); }
+
+    function initialize(address initialOwner) external initializer {
+        __Ownable_init(initialOwner);
+        __UUPSUpgradeable_init();
+    }
+
+    function increment() external { count += 1; }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+}</pre>
+    </div>
+
+    <h2>12. Что дальше</h2>
 
     <p>
       В <strong><a href="../08/index.html">Lesson 08 — The Graph</a></strong>
@@ -1146,6 +1184,109 @@ forge test --match-test test_StorageCollisionOnIncrement -vvv</code></pre>
       </ul>
     </div>
 
+    <section class="lesson-quiz" data-lesson="07">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 07 · Upgradeable proxies",
+  "intro": "Семь концептуальных вопросов и три задачи. Задачи проще всего проверить в Remix-iframe выше — там сразу видны два адреса (proxy и implementation) и можно подёргать storage.",
+  "questions": [
+    {
+      "q": "Чему равен ERC-1967 implementation slot?",
+      "kind": "multiple",
+      "options": [
+        "0x00…00",
+        "<code>bytes32(uint256(keccak256(\"eip1967.proxy.implementation\")) - 1)</code> = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+        "<code>keccak256(\"IMPLEMENTATION\")</code>",
+        "0xff..ff"
+      ],
+      "answerIndex": 1,
+      "explain": "Минус единица гарантирует, что нет коллизии: keccak любого preimage не даст это значение. То же правило — для admin и beacon слотов."
+    },
+    {
+      "q": "В чём разница между Transparent Proxy и UUPS Proxy?",
+      "kind": "multiple",
+      "options": [
+        "Никакой, синонимы",
+        "Transparent: логика upgrade в proxy (фильтрует admin от user-call'ов); UUPS: логика upgrade в implementation — proxy меньше и дешевле",
+        "Transparent поддерживает только OZ, UUPS — любой Solidity",
+        "UUPS требует EIP-712"
+      ],
+      "answerIndex": 1,
+      "explain": "UUPS экономит ~700 байт байткода proxy. Но требует, чтобы каждый новый implementation тоже содержал _authorizeUpgrade — иначе upgrade сломан."
+    },
+    {
+      "q": "Почему конструктор upgradeable-контракта пуст, а инициализация вынесена в <code>initialize()</code>?",
+      "kind": "multiple",
+      "options": [
+        "Так короче",
+        "Конструктор пишет в storage <em>самой implementation</em>, а не proxy. Proxy при первом делегировании ничего не «получит» — нужен initialize(), который runs <em>в контексте proxy</em>",
+        "Solidity не поддерживает конструкторы в библиотеках",
+        "Это требование Etherscan"
+      ],
+      "answerIndex": 1,
+      "explain": "Поэтому почти всегда видите <code>constructor() { _disableInitializers(); }</code> — чтобы никто не смог инициализировать implementation напрямую."
+    },
+    {
+      "q": "Storage collision: добавляем в V2 новую переменную <em>в начало</em> контракта. Что произойдёт после upgrade?",
+      "kind": "multiple",
+      "options": [
+        "Ничего — Solidity сам перераспределит слоты",
+        "Все существующие slot'ы сместятся; данные V1 будут читаться как «не свои» → катастрофа",
+        "Только лишний газ",
+        "Solidity 0.8+ выдаст compile error"
+      ],
+      "answerIndex": 1,
+      "explain": "Правило: новые переменные всегда <em>в конец</em>. Используйте openzeppelin-foundry-upgrades для автоматической проверки layout перед upgrade."
+    },
+    {
+      "q": "Что делает <code>upgradeToAndCall(newImpl, data)</code>?",
+      "kind": "multiple",
+      "options": [
+        "Только меняет ERC-1967 implementation slot",
+        "Меняет slot + делает delegatecall в newImpl с calldata=data (обычно вызов initializeV2)",
+        "Деплоит новую копию implementation",
+        "Создаёт snapshot перед upgrade"
+      ],
+      "answerIndex": 1,
+      "explain": "Атомарность важна: иначе между upgrade и initializeV2 атакующий может «фронтраннуть» собственный initializeV2 и захватить контроль."
+    },
+    {
+      "q": "Что в ERC-1967 живёт в admin-слоте Transparent Proxy?",
+      "kind": "multiple",
+      "options": [
+        "Адрес owner'а governance",
+        "Адрес ProxyAdmin контракта (отдельный контракт, который и держит право на upgrade)",
+        "Любой EOA, который был задеплоил proxy",
+        "address(0) пока кто-то не «займёт» роль"
+      ],
+      "answerIndex": 1,
+      "explain": "ProxyAdmin позволяет передавать управление через Ownable/AccessControl без замены админ-EOA. UUPS этого слоя не имеет — авторизация прямо в implementation."
+    },
+    {
+      "q": "Beacon Proxy: для чего он используется?",
+      "kind": "open",
+      "answer": "Beacon Proxy — паттерн, когда тысячи прокси-контрактов читают свой implementation из <em>одного beacon-контракта</em>. Обновление beacon = одновременный upgrade всех клонов. Пример: Uniswap v3 PoolFactory создаёт сотни пулов как Minimal Proxy (ERC-1167) или Beacon Proxy — это даёт O(1) деплой и единый upgrade-flow. Альтернатива: каждый pool — отдельный proxy с собственным storage слотом implementation, что дороже и сложнее поддерживать."
+    },
+    {
+      "q": "Practical: задеплойте CounterV1 в Remix через «Deploy with proxy». Прочитайте ERC-1967 слот напрямую: <code>cast storage &lt;PROXY&gt; 0x36089...382bbc</code>. Что вернётся?",
+      "kind": "task",
+      "answer": "32-байтовый hex; младшие 20 байт — адрес CounterV1 implementation. Например <code>0x000000000000000000000000abcd...1234</code>. Это и есть та самая «связь», по которой proxy делает delegatecall."
+    },
+    {
+      "q": "Practical: вызовите increment() через proxy (5 раз). Прочитайте slot 0 у proxy и у implementation отдельно через <code>cast storage</code>. Где count?",
+      "kind": "task",
+      "answer": "slot 0 proxy = 0x05 (count=5). slot 0 implementation = 0x00. Это и есть демонстрация ключевого принципа: storage хранится в context'е caller (proxy), а код выполняется из callee (implementation)."
+    },
+    {
+      "q": "Practical: воспроизведите storage collision из задачи 4 (BuggyProxy/VulnerableCounter). Какое значение implementation становится после <code>increment()</code>?",
+      "kind": "task",
+      "answer": "Slot 0 в BuggyProxy = <code>implementation</code>. Slot 0 в VulnerableCounter = <code>count</code>. После increment() <code>count = 1</code>, что записывается в slot 0 proxy → теперь implementation = <code>0x0000…0001</code>. Следующий delegatecall пойдёт на «адрес 0x1» (это reserved precompile ecrecover) — proxy «потерян». Лечение: ERC-1967 slot для implementation, как в CounterV1 выше."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Все примеры кода рассчитаны на <strong>Solidity 0.8.24</strong> и
       <strong>OpenZeppelin Contracts Upgradeable 5.x</strong>. Перед запуском
@@ -1158,5 +1299,7 @@ forge test --match-test test_StorageCollisionOnIncrement -vvv</code></pre>
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

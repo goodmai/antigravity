@@ -765,7 +765,38 @@ console.log("Total transferred:", total);</code></pre>
         него ключ может быть украден и использован чужим dApp.</li>
     </ul>
 
-    <h2>13. Куда дальше</h2>
+    <h2>13. Песочница · Subgraph Studio и Graph Explorer</h2>
+
+    <p>
+      The Graph не работает «в браузере» как Remix, но весь рабочий процесс —
+      от написания до публикации subgraph'а — доступен через две веб-точки
+      входа без локальной установки <code>graph-cli</code>:
+    </p>
+
+    <div class="sandbox" data-embed="tenderly" data-network="1" data-slug="indexer-target"
+      data-title="Tenderly · Virtual Testnet для теста индексации mainnet-фокаса"></div>
+
+    <p>
+      Прямые ссылки на ключевые места:
+    </p>
+
+    <ul>
+      <li><a href="https://thegraph.com/studio/" target="_blank" rel="noopener"><strong>Subgraph Studio</strong></a>
+        — создание subgraph'а в одном UI: указали контракт + ABI → Studio
+        сгенерировала schema/manifest/mappings → нажали «Deploy».</li>
+      <li><a href="https://thegraph.com/explorer" target="_blank" rel="noopener"><strong>Graph Explorer</strong></a>
+        — каталог тысяч публичных subgraph'ов. Внутри каждого встроен
+        <em>GraphQL Playground</em> — можно сразу писать запросы против
+        задеплоенного индекса (например, Uniswap v3).</li>
+      <li><a href="https://thegraph.com/docs/en/quick-start/" target="_blank" rel="noopener"><strong>Quick Start</strong></a>
+        — пошаговое создание первого subgraph'а локально через
+        <code>graph init --from-contract</code>.</li>
+      <li><a href="https://thegraph.com/hosted-service/subgraph/uniswap/uniswap-v3" target="_blank" rel="noopener"><strong>Uniswap v3 — reference subgraph</strong></a>
+        — production-grade пример с десятками сущностей; запросите там 10
+        последних swap'ов USDC/ETH 0.05% pool — это и есть Задача 11.4.</li>
+    </ul>
+
+    <h2>14. Куда дальше</h2>
     <p>
       В <strong>Lesson 09</strong> мы разберём типичные уязвимости (reentrancy,
       checks-effects-interactions). В <strong>Lesson 12</strong> подключим
@@ -792,17 +823,124 @@ console.log("Total transferred:", total);</code></pre>
       </ul>
     </div>
 
+    <section class="lesson-quiz" data-lesson="08">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 08 · The Graph и индексеры",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Задачи требуют либо локальной установки graph-cli, либо использования Subgraph Studio (см. ссылки выше).",
+  "questions": [
+    {
+      "q": "Что indexer The Graph НЕ умеет делать?",
+      "kind": "multiple",
+      "options": [
+        "Слушать events контрактов",
+        "Делать join'ы по сущностям при ответе на GraphQL",
+        "Записывать что-то <em>обратно в блокчейн</em>",
+        "Реагировать на block / call handler'ы"
+      ],
+      "answerIndex": 2,
+      "explain": "Subgraph — это read-only индекс. Чтобы изменить state, нужна обычная транзакция."
+    },
+    {
+      "q": "Зачем в schema.graphql писать <code>@entity(immutable: true)</code>?",
+      "kind": "multiple",
+      "options": [
+        "Чтобы запретить пользователям читать сущность",
+        "Чтобы graph-node не индексировал её",
+        "Чтобы graph-node не хранил историю изменений (не использует <em>updates table</em>) — синк ускоряется в 2–3 раза для high-write сущностей вроде Transfer / Swap",
+        "Для совместимости с GraphQL Federation"
+      ],
+      "answerIndex": 2,
+      "explain": "Mutable-сущности хранят полную историю в отдельной таблице — это дорого. Immutable нельзя обновить, только перезаписать новый ID."
+    },
+    {
+      "q": "Что вернёт <code>{ _meta { block { number } hasIndexingErrors } }</code>?",
+      "kind": "multiple",
+      "options": [
+        "Текущий L1 block number",
+        "Последний блок, который индексер обработал, и флаг наличия ошибок индексации",
+        "Метаданные subgraph manifest'а",
+        "Список ABI"
+      ],
+      "answerIndex": 1,
+      "explain": "Это служебная сущность; используется для проверки актуальности и fault-detection."
+    },
+    {
+      "q": "На запросе <code>transfers(first: 1000, skip: 100000)</code> вы получаете тайм-аут. Почему?",
+      "kind": "multiple",
+      "options": [
+        "Subgraph DN ограничивает first ≤ 100",
+        "skip-пагинация требует от Postgres OFFSET 100000 — O(n) проход, не использует индекс. Решение — cursor через id_gt",
+        "Только Substreams поддерживают такие запросы",
+        "GraphQL не умеет offset"
+      ],
+      "answerIndex": 1,
+      "explain": "После ~5000 записей skip становится медленнее, чем cursor по id. Это стандартная анти-паттерн для любой БД."
+    },
+    {
+      "q": "Что такое Substreams в экосистеме The Graph?",
+      "kind": "multiple",
+      "options": [
+        "Альтернативное название subgraph",
+        "Rust-based потоковый процессор данных, использующий Firehose; даёт O(1) синк (по сравнению с O(blocks) для AssemblyScript-маппингов)",
+        "Бэкап-сервис для subgraph",
+        "GraphQL-расширение"
+      ],
+      "answerIndex": 1,
+      "explain": "Подходит для аналитики, low-latency индексов и multi-chain агрегаций. Сложнее в разработке, чем classic subgraph."
+    },
+    {
+      "q": "Чем Dune SQL отличается от The Graph?",
+      "kind": "multiple",
+      "options": [
+        "Никакой разницы, синонимы",
+        "Dune — заранее проиндексированные таблицы для аналитики (запросы SQL без своего subgraph). The Graph — real-time индекс конкретных контрактов под ваш dApp",
+        "Dune быстрее во всех сценариях",
+        "Dune использует AssemblyScript"
+      ],
+      "answerIndex": 1,
+      "explain": "Dune — для аналитики и dashboards (без real-time SLA). The Graph — для UI, где запросы привязаны к фронтенду."
+    },
+    {
+      "q": "Какие параметры обязательны в <code>subgraph.yaml</code> для contract data source?",
+      "kind": "open",
+      "answer": "Минимально: <code>kind: ethereum/contract</code>, <code>network</code> (mainnet/sepolia/arbitrum-one), <code>source.address</code>, <code>source.abi</code>, <code>source.startBlock</code> (без него полный sync с блока 0). В блоке <code>mapping</code>: <code>file</code> (путь к TS-маппингу), список <code>eventHandlers</code> с сигнатурой и handler-функцией, ABI-файлы (внешние или встроенные), entities (для типизации). Production-конфиг также добавляет <code>features</code> (nonFatalErrors, fullTextSearch)."
+    },
+    {
+      "q": "Practical: создайте в Subgraph Studio (ссылка выше) пустой subgraph с именем web3-genesis-lesson08. Сгенерируйте deploy key. Какие команды нужно выполнить локально, чтобы залить subgraph?",
+      "kind": "task",
+      "answer": "<pre>npm install -g @graphprotocol/graph-cli\n\ngraph auth --studio &lt;DEPLOY_KEY&gt;\ngraph init --product subgraph-studio \\\n  --from-contract 0x... \\\n  --network mainnet \\\n  web3-genesis-lesson08\ncd web3-genesis-lesson08\ngraph codegen && graph build\ngraph deploy --studio web3-genesis-lesson08</pre>В Studio появится новая версия — её можно опубликовать в Decentralised Network."
+    },
+    {
+      "q": "Practical: используя GraphQL playground Uniswap v3 (ссылка выше), напишите запрос «последние 10 свапов USDC/ETH 0.05% pool с amount > 1e6 USDC». Какой ключ нужен в фильтре?",
+      "kind": "task",
+      "answer": "<pre>{\n  swaps(\n    first: 10\n    where: {\n      pool: \"0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640\"\n      amountUSD_gt: \"1000000\"\n    }\n    orderBy: timestamp\n    orderDirection: desc\n  ) { id amountUSD amount0 amount1 timestamp }\n}</pre>Pool 0x88e6...5640 = USDC/ETH 500bps (0.05%). amountUSD_gt — диапазонный фильтр (числа в subgraph хранятся как строки)."
+    },
+    {
+      "q": "Practical: запустите тот же запрос «10 последних swap'ов» (a) через eth_getLogs к публичному RPC, (b) через subgraph. Какая разница в latency и в полноте данных?",
+      "kind": "task",
+      "answer": "(a) eth_getLogs — нужно сканировать ~50 последних блоков (60s интервал) и декодировать Swap-event руками; типично 1-3 сек на запрос + дополнительный eth_call для метаданных pool. (b) subgraph — один GraphQL-запрос с join'ом по pool и tokens; 50-200мс. Subgraph выигрывает на 1-2 порядка по latency и сразу даёт декодированные значения. RPC выигрывает по «свежести» — последний блок виден на ноде сразу, а subgraph отстаёт на 1-3 блока."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Этот урок написан как <em>дидактический</em> разбор: код-примеры
       компилируемы и проходят <code>graph build</code>, но опираются на
       внешние ABI и контракты mainnet — поэтому in-browser песочница в
       этом уроке не используется. Локально воспроизведите через
-      <code>graph-cli init --from-contract</code> и убедитесь сами.
+      <code>graph-cli init --from-contract</code> и убедитесь сами. Ссылки
+      Subgraph Studio / Graph Explorer выше ведут на официальные сайты The
+      Graph — никаких прокси нет.
     </div>
   </div>
 
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>
