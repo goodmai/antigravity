@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 09 · wagmi: React dApp — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 09 · wagmi: React dApp</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 09 · React dApp с кошельком</p>
+    <h1>Lab 09 · wagmi: React dApp</h1>
+
+    <p>
+      <strong>wagmi</strong> — это коллекция React-хуков для работы с EVM,
+      построенная поверх viem. Он берёт на себя управление состоянием подключения
+      кошелька, кэширование запросов через TanStack Query и реактивные обновления
+      при смене аккаунта или сети. <strong>RainbowKit</strong> добавляет
+      готовый UI-компонент «Connect Wallet» с поддержкой 50+ кошельков.
+      В этом лабе вы соберёте полноценный React dApp: подключение MetaMask,
+      чтение баланса, отправка трансфера, real-time события и управление сетью.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      настраивать <code>WagmiProvider</code> с RainbowKit; подключать MetaMask
+      и читать данные аккаунта; использовать <code>useReadContract</code> для
+      отображения баланса ERC-20; отправлять транзакции через
+      <code>useWriteContract</code> и отслеживать их статус; подписываться на
+      real-time события контракта; строить UX с состояниями idle/pending/success/error;
+      обрабатывать смену сети через <code>useSwitchChain</code>.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Инициализируйте Vite React приложение и установите весь необходимый стек.
+    </p>
+
+<pre class="code-block"><code># Создаём Vite + React + TypeScript проект:
+npm create vite@latest my-dapp -- --template react-ts
+cd my-dapp
+
+# Основные зависимости:
+npm install wagmi viem @tanstack/react-query
+npm install @rainbow-me/rainbowkit
+
+# Не забудьте peer-зависимости (обычно уже есть в Vite-template):
+# react react-dom</code></pre>
+
+    <h3>Структура проекта</h3>
+<pre class="code-block"><code>src/
+├── wagmi.config.ts      # конфигурация wagmi + цепочки
+├── main.tsx             # провайдеры (обёртки)
+├── App.tsx              # корневой компонент
+└── components/
+    ├── TokenBalance.tsx  # Задание 3
+    ├── TransferForm.tsx  # Задание 4
+    ├── EventFeed.tsx     # Задание 5
+    └── NetworkGuard.tsx  # Задание 7</code></pre>
+
+    <h2>Задание 2</h2>
+    <p>
+      Настройте <code>WagmiProvider</code> с Sepolia и добавьте кнопку
+      подключения кошелька через RainbowKit.
+    </p>
+
+    <h3>src/wagmi.config.ts</h3>
+<pre class="code-block"><code>import { http, createConfig } from "wagmi";
+import { sepolia } from "wagmi/chains";
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+
+export const wagmiConfig = getDefaultConfig({
+  appName: "My ERC-20 dApp",
+  projectId: "YOUR_WALLETCONNECT_PROJECT_ID", // получить на cloud.walletconnect.com
+  chains: [sepolia],
+  transports: {
+    [sepolia.id]: http("https://rpc.sepolia.org"),
+  },
+});</code></pre>
+
+    <h3>src/main.tsx</h3>
+<pre class="code-block"><code>import React from "react";
+import ReactDOM from "react-dom/client";
+import { WagmiProvider } from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import "@rainbow-me/rainbowkit/styles.css";
+
+import { wagmiConfig } from "./wagmi.config";
+import App from "./App";
+
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  &lt;React.StrictMode&gt;
+    &lt;WagmiProvider config={wagmiConfig}&gt;
+      &lt;QueryClientProvider client={queryClient}&gt;
+        &lt;RainbowKitProvider&gt;
+          &lt;App /&gt;
+        &lt;/RainbowKitProvider&gt;
+      &lt;/QueryClientProvider&gt;
+    &lt;/WagmiProvider&gt;
+  &lt;/React.StrictMode&gt;
+);</code></pre>
+
+    <h3>src/App.tsx</h3>
+<pre class="code-block"><code>import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAccount } from "wagmi";
+import { NetworkGuard } from "./components/NetworkGuard";
+import { TokenBalance } from "./components/TokenBalance";
+import { TransferForm } from "./components/TransferForm";
+import { EventFeed } from "./components/EventFeed";
+
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+
+export default function App() {
+  const { address, isConnected } = useAccount();
+
+  return (
+    &lt;div className="app"&gt;
+      &lt;header&gt;
+        &lt;h1&gt;ERC-20 dApp&lt;/h1&gt;
+        &lt;ConnectButton /&gt;      {/* RainbowKit: автоматически переключается между Connect и Account */}
+      &lt;/header&gt;
+
+      {isConnected ? (
+        &lt;NetworkGuard&gt;
+          &lt;TokenBalance tokenAddress={TOKEN_ADDRESS} account={address!} /&gt;
+          &lt;TransferForm tokenAddress={TOKEN_ADDRESS} /&gt;
+          &lt;EventFeed tokenAddress={TOKEN_ADDRESS} /&gt;
+        &lt;/NetworkGuard&gt;
+      ) : (
+        &lt;p&gt;Подключите кошелёк для начала работы&lt;/p&gt;
+      )}
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 3</h2>
+    <p>
+      Используйте <code>useReadContract</code> для отображения баланса ERC-20
+      подключённого аккаунта. Добавьте автообновление.
+    </p>
+
+    <h3>src/components/TokenBalance.tsx</h3>
+<pre class="code-block"><code>import { useReadContract, useReadContracts } from "wagmi";
+import { formatUnits } from "viem";
+
+const ERC20_ABI = [
+  { name: "name",      type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { name: "symbol",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
+  { name: "decimals",  type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
+  { name: "balanceOf", type: "function", stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }] },
+] as const;
+
+interface Props {
+  tokenAddress: `0x${string}`;
+  account: `0x${string}`;
+}
+
+export function TokenBalance({ tokenAddress, account }: Props) {
+  // useReadContracts — batched multicall: один HTTP-запрос вместо четырёх
+  const { data, isLoading, isError } = useReadContracts({
+    contracts: [
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "name" },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "symbol" },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "decimals" },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "balanceOf", args: [account] },
+    ],
+    // Автообновление каждые 12 секунд (≈1 блок Ethereum):
+    query: { refetchInterval: 12_000 },
+  });
+
+  if (isLoading) return &lt;div className="card"&gt;Загрузка...&lt;/div&gt;;
+  if (isError || !data)  return &lt;div className="card"&gt;Ошибка чтения контракта&lt;/div&gt;;
+
+  const [name, symbol, decimals, balance] = data.map((d) =&gt; d.result);
+
+  return (
+    &lt;div className="card"&gt;
+      &lt;h3&gt;{name as string} ({symbol as string})&lt;/h3&gt;
+      &lt;p&gt;Ваш баланс: {formatUnits(balance as bigint, decimals as number)} {symbol as string}&lt;/p&gt;
+      &lt;small&gt;Адрес: {account}&lt;/small&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 4</h2>
+    <p>
+      Реализуйте форму трансфера с <code>useWriteContract</code>
+      и <code>useWaitForTransactionReceipt</code>.
+    </p>
+
+    <h3>src/components/TransferForm.tsx</h3>
+<pre class="code-block"><code>import { useState } from "react";
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseUnits, isAddress } from "viem";
+
+const ERC20_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to",    type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+interface Props { tokenAddress: `0x${string}`; }
+
+export function TransferForm({ tokenAddress }: Props) {
+  const [to, setTo]         = useState("");
+  const [amount, setAmount] = useState("");
+
+  // Шаг 1: writeContract отправляет транзакцию
+  const { writeContract, data: txHash, isPending, error } = useWriteContract();
+
+  // Шаг 2: waitForTransactionReceipt ожидает включения в блок
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    if (!isAddress(to)) { alert("Неверный адрес"); return; }
+
+    writeContract({
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: "transfer",
+      args: [to as `0x${string}`, parseUnits(amount, 6)],
+    });
+  };
+
+  return (
+    &lt;div className="card"&gt;
+      &lt;h3&gt;Отправить токены&lt;/h3&gt;
+      &lt;form onSubmit={handleSubmit}&gt;
+        &lt;input
+          placeholder="Адрес получателя (0x...)"
+          value={to}
+          onChange={(e) =&gt; setTo(e.target.value)}
+          required
+        /&gt;
+        &lt;input
+          type="number"
+          placeholder="Сумма (USDC)"
+          value={amount}
+          onChange={(e) =&gt; setAmount(e.target.value)}
+          min="0.000001"
+          step="0.000001"
+          required
+        /&gt;
+        &lt;button type="submit" disabled={isPending || isConfirming}&gt;
+          {isPending     ? "Подтвердите в кошельке..." :
+           isConfirming  ? "Ожидание блока..." :
+           "Отправить"}
+        &lt;/button&gt;
+      &lt;/form&gt;
+
+      {txHash   &amp;&amp; &lt;p&gt;Tx: &lt;a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank"&gt;{txHash.slice(0,10)}...&lt;/a&gt;&lt;/p&gt;}
+      {isSuccess &amp;&amp; &lt;p className="success"&gt;Трансфер подтверждён!&lt;/p&gt;}
+      {error    &amp;&amp; &lt;p className="error"&gt;{error.message}&lt;/p&gt;}
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 5</h2>
+    <p>
+      Подпишитесь на события <code>Transfer</code> в реальном времени
+      с помощью <code>useWatchContractEvent</code>.
+    </p>
+
+    <h3>src/components/EventFeed.tsx</h3>
+<pre class="code-block"><code>import { useState } from "react";
+import { useWatchContractEvent } from "wagmi";
+import { formatUnits } from "viem";
+
+const TRANSFER_ABI = [
+  {
+    name: "Transfer",
+    type: "event",
+    inputs: [
+      { name: "from",  type: "address", indexed: true },
+      { name: "to",    type: "address", indexed: true },
+      { name: "value", type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+interface TransferEvent {
+  from: string;
+  to:   string;
+  value: bigint;
+  blockNumber: bigint;
+}
+
+interface Props { tokenAddress: `0x${string}`; }
+
+export function EventFeed({ tokenAddress }: Props) {
+  const [events, setEvents] = useState&lt;TransferEvent[]&gt;([]);
+
+  // useWatchContractEvent создаёт WebSocket или polling подписку
+  useWatchContractEvent({
+    address: tokenAddress,
+    abi: TRANSFER_ABI,
+    eventName: "Transfer",
+    onLogs(logs) {
+      const newEvents = logs.map((log) =&gt; ({
+        from:        log.args.from!,
+        to:          log.args.to!,
+        value:       log.args.value!,
+        blockNumber: log.blockNumber!,
+      }));
+      // Добавляем новые события в начало списка (максимум 20):
+      setEvents((prev) =&gt; [...newEvents, ...prev].slice(0, 20));
+    },
+  });
+
+  return (
+    &lt;div className="card"&gt;
+      &lt;h3&gt;Последние трансферы (live)&lt;/h3&gt;
+      {events.length === 0 &amp;&amp; &lt;p&gt;Ожидание событий...&lt;/p&gt;}
+      &lt;ul&gt;
+        {events.map((ev, i) =&gt; (
+          &lt;li key={i}&gt;
+            Блок {ev.blockNumber.toString()}:
+            {ev.from.slice(0,8)}... → {ev.to.slice(0,8)}...
+            &lt;strong&gt; {formatUnits(ev.value, 6)} USDC&lt;/strong&gt;
+          &lt;/li&gt;
+        ))}
+      &lt;/ul&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 6</h2>
+    <p>
+      Добавьте управление статусами транзакции с toast-уведомлениями.
+    </p>
+
+<pre class="code-block"><code>npm install react-hot-toast</code></pre>
+
+    <h3>Интеграция toast в TransferForm.tsx</h3>
+<pre class="code-block"><code>import toast, { Toaster } from "react-hot-toast";
+import { useEffect } from "react";
+
+// Добавьте &lt;Toaster /&gt; в корневой App.tsx
+
+// В TransferForm добавьте useEffect для отслеживания состояний:
+useEffect(() =&gt; {
+  if (isPending)    toast.loading("Подтвердите в MetaMask...", { id: "tx" });
+  if (isConfirming) toast.loading("Ожидание подтверждения...", { id: "tx" });
+  if (isSuccess)    toast.success("Трансфер выполнен!", { id: "tx" });
+  if (error)        toast.error(error.message.slice(0, 80), { id: "tx" });
+}, [isPending, isConfirming, isSuccess, error]);</code></pre>
+
+    <p>
+      Жизненный цикл транзакции в wagmi:
+    </p>
+
+    <table class="compare">
+      <tr><th>Состояние</th><th>Флаг</th><th>Значение</th></tr>
+      <tr><td>Ожидание подписи</td><td><code>isPending</code></td><td>MetaMask открыт, пользователь видит popup подтверждения</td></tr>
+      <tr><td>Отправлена</td><td><code>txHash</code> задан</td><td>Транзакция в mempool, известен hash</td></tr>
+      <tr><td>Включена в блок</td><td><code>isConfirming</code></td><td>waitForTransactionReceipt опрашивает ноду</td></tr>
+      <tr><td>Подтверждена</td><td><code>isSuccess</code></td><td>receipt.status === "success"</td></tr>
+      <tr><td>Ошибка</td><td><code>isError</code></td><td>Пользователь отклонил или revert</td></tr>
+    </table>
+
+    <h2>Задание 7</h2>
+    <p>
+      Обработайте ситуацию «неправильная сеть»: если пользователь подключён
+      не к Sepolia — показать кнопку переключения через <code>useSwitchChain</code>.
+    </p>
+
+    <h3>src/components/NetworkGuard.tsx</h3>
+<pre class="code-block"><code>import { useAccount, useChainId, useSwitchChain } from "wagmi";
+import { sepolia } from "wagmi/chains";
+import type { ReactNode } from "react";
+
+interface Props { children: ReactNode; }
+
+export function NetworkGuard({ children }: Props) {
+  const chainId = useChainId();
+  const { isConnected } = useAccount();
+  const { switchChain, isPending } = useSwitchChain();
+
+  // Если кошелёк не подключён — показываем children (App сам обработает)
+  if (!isConnected) return &lt;&gt;{children}&lt;/&gt;;
+
+  // Если подключены к нужной сети — всё хорошо
+  if (chainId === sepolia.id) return &lt;&gt;{children}&lt;/&gt;;
+
+  // Иначе — предупреждение и кнопка переключения
+  return (
+    &lt;div className="network-warning"&gt;
+      &lt;p&gt;
+        Вы подключены к сети с chainId {chainId}.
+        Это приложение работает только с &lt;strong&gt;Sepolia (chainId 11155111)&lt;/strong&gt;.
+      &lt;/p&gt;
+      &lt;button
+        onClick={() =&gt; switchChain({ chainId: sepolia.id })}
+        disabled={isPending}
+      &gt;
+        {isPending ? "Переключение..." : "Переключиться на Sepolia"}
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <p>
+      <code>useSwitchChain</code> вызывает <code>wallet_switchEthereumChain</code>
+      (EIP-3326). Если сеть не добавлена в MetaMask — автоматически предложит
+      <code>wallet_addEthereumChain</code>. Конфигурация цепочки (RPC URL, название,
+      нативная валюта) берётся из объекта <code>sepolia</code> пакета <code>viem/chains</code>.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-09">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 09 · wagmi",
+  "intro": "Семь вопросов по React-разработке с wagmi и RainbowKit. Multiple-выбор подсвечивает верный ответ; открытые вопросы и задачи оцените самостоятельно.",
+  "questions": [
+    {
+      "q": "Зачем wagmi требует обёртку `QueryClientProvider` от TanStack Query?",
+      "kind": "multiple",
+      "options": [
+        "Для совместимости с Redux DevTools",
+        "wagmi использует TanStack Query как слой кэширования и управления состоянием асинхронных запросов к блокчейну",
+        "Это необходимо только для useWaitForTransactionReceipt",
+        "TanStack Query обеспечивает безопасность Web3-запросов"
+      ],
+      "answerIndex": 1,
+      "explain": "Каждый хук чтения в wagmi (useReadContract, useBalance и т.д.) под капотом использует TanStack Query useQuery. QueryClient управляет кэшированием, дедупликацией запросов, инвалидацией и перепросами. Без QueryClientProvider wagmi не запустится."
+    },
+    {
+      "q": "В чём преимущество `useReadContracts` перед несколькими вызовами `useReadContract`?",
+      "kind": "multiple",
+      "options": [
+        "useReadContracts поддерживает только view-функции, useReadContract — и pure",
+        "useReadContracts объединяет все вызовы в один Multicall3-запрос, снижая количество RPC-запросов и latency",
+        "useReadContracts автоматически обновляет данные каждые 5 секунд",
+        "Разницы нет, это просто синтаксический сахар"
+      ],
+      "answerIndex": 1,
+      "explain": "useReadContracts использует контракт Multicall3 (0xcA11bde05977b3631167028862bE2a173976CA11), задеплоенный на всех EVM-сетях. Все вызовы батчатся в одну eth_call, что многократно снижает latency, особенно для компонентов с 5+ чтениями."
+    },
+    {
+      "q": "Что происходит когда пользователь отклоняет транзакцию в MetaMask?",
+      "kind": "open",
+      "answer": "При отклонении MetaMask выбрасывает ошибку с кодом 4001 (User rejected the request). wagmi перехватывает её и переводит useWriteContract в состояние isError = true, записывает в error. txHash при этом остаётся undefined — транзакция не была отправлена в сеть. В UX нужно обработать этот случай отдельно (например, показать toast с сообщением 'Вы отклонили транзакцию')."
+    },
+    {
+      "q": "Хук `useWatchContractEvent` работает через polling или WebSocket?",
+      "kind": "multiple",
+      "options": [
+        "Всегда через WebSocket",
+        "Зависит от транспорта: если в wagmiConfig указан webSocket() — WebSocket, если http() — polling через интервал",
+        "Всегда через polling (eth_getLogs каждые 4 секунды)",
+        "Всегда через long-polling HTTP"
+      ],
+      "answerIndex": 1,
+      "explain": "wagmi адаптируется к транспорту: webSocket() транспорт создаёт реальную подписку eth_subscribe; http() транспорт эмулирует реальное время через периодические eth_getLogs запросы. Для production real-time приложений рекомендуется webSocket()."
+    },
+    {
+      "q": "Почему в `getDefaultConfig` от RainbowKit нужен `projectId` от WalletConnect?",
+      "kind": "open",
+      "answer": "WalletConnect — это протокол подключения мобильных кошельков через QR-код. RainbowKit использует WalletConnect SDK для поддержки мобильных кошельков (Rainbow, MetaMask Mobile, Trust Wallet и т.д.). WalletConnect Bridge — это relay-сервер, через который проходят зашифрованные сессии. projectId идентифицирует ваше приложение на bridge-сервере и необходим для работы WalletConnect v2. Без него работают только browser-extension кошельки (MetaMask browser extension), но не мобильные."
+    },
+    {
+      "q": "Practical: напишите хук `useTokenBalance(tokenAddress, account)`, который возвращает форматированный баланс и обновляется автоматически каждые 12 секунд.",
+      "kind": "task",
+      "answer": "function useTokenBalance(tokenAddress: Address, account: Address) {\n  const { data, isLoading } = useReadContracts({\n    contracts: [\n      { address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' },\n      { address: tokenAddress, abi: ERC20_ABI, functionName: 'symbol' },\n      { address: tokenAddress, abi: ERC20_ABI, functionName: 'balanceOf', args: [account] },\n    ],\n    query: { refetchInterval: 12_000 },\n  });\n  const decimals = data?.[0].result as number ?? 18;\n  const symbol   = data?.[1].result as string ?? '';\n  const raw      = data?.[2].result as bigint ?? 0n;\n  return { formatted: formatUnits(raw, decimals), symbol, isLoading };\n}"
+    },
+    {
+      "q": "Пользователь подключён к Polygon (chainId 137) вместо Sepolia. `useSwitchChain` вызван с `chainId: 11155111`, но MetaMask показывает ошибку. Какова наиболее вероятная причина?",
+      "kind": "open",
+      "answer": "MetaMask не знает о сети Sepolia — она не добавлена в список сетей кошелька. wallet_switchEthereumChain (EIP-3326) работает только с уже добавленными сетями. В этом случае нужно использовать wallet_addEthereumChain (EIP-3085), который добавляет сеть с полными параметрами (название, RPC, chainId, символ нативной валюты, explorer). wagmi/useSwitchChain автоматически фолбэчится на wallet_addEthereumChain, если сети нет в MetaMask, но для этого конфигурация chain в wagmiConfig должна содержать все необходимые данные."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      wagmi v2 требует viem v2 и TanStack Query v5 как peer-зависимости.
+      RainbowKit v2 поддерживает только wagmi v2. При установке проверяйте
+      совместимость версий. Полная документация: wagmi.sh и rainbowkit.com.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

