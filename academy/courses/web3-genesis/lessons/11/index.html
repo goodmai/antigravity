@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11 · viem PublicClient/WalletClient — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 11 · viem</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 11 · viem · TypeScript · JSON-RPC</p>
+    <h1>viem — PublicClient, WalletClient и type-safe контракты</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → переход из Модуля II (Solidity) в Модуль III (Frontend). Контракты у нас
+      уже есть; теперь учимся к ним подключаться из JS/TS.
+    </p>
+
+    <p>
+      <strong>viem</strong> — современный TypeScript-клиент для EVM-цепей,
+      созданный авторами wagmi (Tom Meagher, Jake Moxey). Ключевые преимущества
+      над ethers.js: полная типизация ABI, tree-shaking, отсутствие BigNumber-объекта
+      (используется нативный <code>bigint</code>), модульная архитектура,
+      превосходящая производительность. С 2024 года — стандарт де-факто в новых
+      dApp-стэках (Next.js + wagmi + viem).
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: создать
+      <code>PublicClient</code> и читать любой контракт с typesafe ABI;
+      создать <code>WalletClient</code> и подписывать/отправлять транзакции;
+      декодировать события <code>Transfer</code> с типизированным <code>args</code>;
+      рассчитать газ через <code>estimateGas</code> и
+      <code>estimateFeesPerGas</code>; работать с multicall для батчинга чтений.
+    </div>
+
+    <h2>1. Архитектура viem</h2>
+
+    <p>
+      viem строится вокруг двух клиентов:
+    </p>
+
+    <ul>
+      <li><strong>PublicClient</strong> — read-only клиент для JSON-RPC: блоки,
+        состояние, логи, eth_call, eth_estimateGas. Не требует приватного ключа.</li>
+      <li><strong>WalletClient</strong> — write-клиент: подписывает транзакции
+        и сообщения. Подключается к источнику ключа: MetaMask, Ledger, raw private
+        key, mnemonic. Внутри использует тот же transport, что и PublicClient.</li>
+    </ul>
+
+    <p>
+      Под обоими — <strong>Transport</strong>: HTTP, WebSocket, IPC, custom
+      (например, EIP-1193 provider от MetaMask). Один transport может быть
+      разделён двумя клиентами, что экономит ресурсы.
+    </p>
+
+<pre class="code-block"><code>import { createPublicClient, createWalletClient, http, custom } from 'viem'
+import { mainnet, sepolia } from 'viem/chains'
+
+// Read-only клиент для Sepolia
+const publicClient = createPublicClient({
+  chain: sepolia,
+  transport: http('https://rpc.sepolia.org'),
+})
+
+// Write-клиент, использующий window.ethereum (MetaMask)
+const walletClient = createWalletClient({
+  chain: sepolia,
+  transport: custom(window.ethereum),
+})
+
+// Базовые операции
+const blockNumber = await publicClient.getBlockNumber()
+console.log('Sepolia block:', blockNumber)             // bigint
+
+const [address] = await walletClient.getAddresses()   // adress: 0x...
+const balance   = await publicClient.getBalance({ address })
+console.log('Balance:', balance, 'wei')               // bigint</code></pre>
+
+    <h2>2. Type-safe ABI и readContract</h2>
+
+    <p>
+      Главная супер-сила viem — типизация ABI прямо из импортированного JSON.
+      TypeScript видит структуру функций и эвентов, поэтому подсказывает имена,
+      типы аргументов и возвращаемых значений. Никаких <code>any</code>.
+    </p>
+
+<pre class="code-block"><code>// abi/erc20.ts — обычный JS-объект, помеченный `as const`
+export const erc20Abi = [
+  {
+    type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs:  [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '',        type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs:  [
+      { name: 'to',     type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    type: 'event',
+    name: 'Transfer',
+    inputs: [
+      { name: 'from',   type: 'address', indexed: true  },
+      { name: 'to',     type: 'address', indexed: true  },
+      { name: 'value',  type: 'uint256', indexed: false },
+    ],
+  },
+] as const   // ← КРИТИЧНО: as const делает все строки литералами для TS
+
+// Использование:
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
+
+const balance: bigint = await publicClient.readContract({
+  address: USDC,
+  abi: erc20Abi,
+  functionName: 'balanceOf',         // ← IDE подсказывает только реальные имена
+  args: ['0x1234...abcd'],           // ← TS проверяет, что массив подходит сигнатуре
+})
+
+// balance — bigint, без BigNumber.toNumber() и прочих рудиментов ethers</code></pre>
+
+    <div class="note cyan">
+      <strong>Где взять <code>as const</code>.</strong> Если ABI приходит из
+      <code>artifacts/MyContract.json</code> от Foundry/Hardhat — оборачивайте:
+      <code>import abi from '...json'; export const myAbi = abi.abi as const;</code>.
+      <strong>wagmi CLI</strong> делает это автоматически и кодогенерит готовые
+      React-хуки (об этом — следующий урок).
+    </div>
+
+    <h2>3. writeContract и отправка транзакции</h2>
+
+<pre class="code-block"><code>// Стандартный flow: simulate → write → wait
+
+// 1. simulateContract — pre-flight check, ловит revert ДО подписи
+const { request } = await publicClient.simulateContract({
+  address: USDC,
+  abi: erc20Abi,
+  functionName: 'transfer',
+  args: ['0xRecipient...', 100_000n],     // 0.1 USDC (6 decimals)
+  account: '0xMyAddress...',
+})
+
+// 2. walletClient.writeContract — отправка с подписью кошелька
+const hash = await walletClient.writeContract(request)
+console.log('Tx hash:', hash)            // 0x...
+
+// 3. publicClient.waitForTransactionReceipt — ждём подтверждения
+const receipt = await publicClient.waitForTransactionReceipt({ hash })
+console.log('Status:', receipt.status)   // 'success' | 'reverted'
+console.log('Gas used:', receipt.gasUsed)</code></pre>
+
+    <p>
+      Паттерн <strong>simulate → write</strong> важен: simulate выполняет
+      <code>eth_call</code> с тем же calldata и сразу видит revert-cause.
+      Если без simulate сразу делать <code>writeContract</code>, пользователь
+      может подписать заведомо неудачную транзакцию и потерять газ.
+    </p>
+
+    <h2>4. Декодирование событий</h2>
+
+    <p>
+      ERC-20 <code>Transfer</code> — каноничный пример. viem декодирует
+      <code>logs</code> в строго типизированный объект:
+    </p>
+
+<pre class="code-block"><code>import { decodeEventLog, parseAbiItem } from 'viem'
+
+// Через ABI всего контракта
+const logs = await publicClient.getLogs({
+  address: USDC,
+  event: parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)'),
+  fromBlock: 18_000_000n,
+  toBlock:   18_000_100n,
+  args: { to: '0xMyAddress...' as `0x${string}` },   // фильтр по indexed-полю
+})
+
+for (const log of logs) {
+  // log.args: { from: 0x..., to: 0x..., value: 1234567n } — типизировано
+  console.log(`${log.args.from} → ${log.args.to}: ${log.args.value}`)
+}
+
+// Или подписаться на real-time через WebSocket transport:
+const unwatch = publicClient.watchContractEvent({
+  address: USDC,
+  abi: erc20Abi,
+  eventName: 'Transfer',
+  onLogs: (logs) =&gt; {
+    for (const l of logs) console.log('Transfer:', l.args)
+  },
+})
+
+// Когда не нужно — отписаться
+// unwatch()</code></pre>
+
+    <h2>5. Multicall — батч чтений за один RPC-вызов</h2>
+
+    <p>
+      Если нужно прочитать 20 балансов — это 20 RPC-запросов. Дорого по latency
+      и по rate-limit на публичных нодах. <strong>Multicall3</strong> — контракт,
+      задеплоенный на всех major chains по детерминированному адресу
+      <code>0xcA11bde05977b3631167028862bE2a173976CA11</code> — батчит вызовы
+      на уровне EVM.
+    </p>
+
+<pre class="code-block"><code>const tokens = [
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+  '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
+]
+
+const calls = tokens.map(addr =&gt; ({
+  address: addr,
+  abi: erc20Abi,
+  functionName: 'balanceOf',
+  args: [myAddress],
+}))
+
+const results = await publicClient.multicall({ contracts: calls })
+// results: [{ result: 1234n, status: 'success' }, { result: 5678n, ... }, ...]
+
+results.forEach((r, i) =&gt; {
+  if (r.status === 'success') {
+    console.log(tokens[i], '→', r.result, 'wei')
+  } else {
+    console.warn(tokens[i], '→ failed:', r.error)
+  }
+})
+
+// 1 HTTP-запрос вместо 3. На 50 чтениях экономия — секунды.</code></pre>
+
+    <h2>6. Газ и EIP-1559</h2>
+
+    <p>
+      viem полностью поддерживает EIP-1559 транзакции (с
+      <code>maxFeePerGas</code> + <code>maxPriorityFeePerGas</code>). Для legacy
+      chains, всё ещё использующих <code>gasPrice</code>, viem автоматически
+      деградирует на правильный формат, основываясь на возможностях chain.
+    </p>
+
+<pre class="code-block"><code>// Узнать актуальные fee предложения (вычисляется из последних блоков)
+const fees = await publicClient.estimateFeesPerGas()
+console.log('maxFeePerGas:', fees.maxFeePerGas)             // bigint, в wei
+console.log('maxPriorityFee:', fees.maxPriorityFeePerGas)   // bigint, в wei
+
+// Оценка газа для конкретного вызова
+const gas = await publicClient.estimateContractGas({
+  address: USDC,
+  abi: erc20Abi,
+  functionName: 'transfer',
+  args: ['0xRecipient...', 100_000n],
+  account: myAddress,
+})
+console.log('Estimated gas:', gas)
+
+// Итоговая стоимость:
+const totalCostWei = gas * fees.maxFeePerGas
+console.log('Max cost in ETH:', Number(totalCostWei) / 1e18)
+
+// Кастомный приоритет (например, удвоенный, чтобы tx прошла быстрее):
+const hash = await walletClient.writeContract({
+  ...request,
+  maxFeePerGas: fees.maxFeePerGas * 2n,
+  maxPriorityFeePerGas: fees.maxPriorityFeePerGas * 2n,
+})</code></pre>
+
+    <h2>7. parseUnits / formatUnits — никаких потерь точности</h2>
+
+<pre class="code-block"><code>import { parseUnits, formatUnits, parseEther, formatEther } from 'viem'
+
+// ETH: 18 decimals
+const wei = parseEther('1.5')              // 1_500_000_000_000_000_000n
+const eth = formatEther(wei)               // "1.5"
+
+// USDC: 6 decimals
+const usdc = parseUnits('100.5', 6)        // 100_500_000n
+const back = formatUnits(usdc, 6)          // "100.5"
+
+// Никогда: parseFloat / Number(bigint).toString() — теряет точность для больших сумм.
+// При работе с ценами/балансами всегда BigInt + parseUnits/formatUnits.</code></pre>
+
+    <h2>8. Тестирование с anvil-fork и viem</h2>
+
+    <p>
+      Локальный fork mainnet через Anvil + <code>createTestClient</code> позволяет
+      делать снапшоты, перематывать блок, выставлять баланс — для интеграционных
+      тестов это золотой стандарт.
+    </p>
+
+<pre class="code-block"><code>import { createTestClient, http } from 'viem'
+import { anvil } from 'viem/chains'
+
+const testClient = createTestClient({
+  chain: anvil,
+  mode: 'anvil',
+  transport: http('http://127.0.0.1:8545'),
+})
+
+// Поставить балансу WHALE_ADDR 1000 ETH
+await testClient.setBalance({
+  address: '0x...whale...',
+  value: 1000_000000000000000000n,
+})
+
+// Снапшот state
+const snap = await testClient.snapshot()
+
+// ...сделать какие-то транзакции...
+
+// Откатить state
+await testClient.revert({ id: snap })
+
+// Перемотать время для тестов времени-зависимых протоколов:
+await testClient.increaseTime({ seconds: 86400 })       // +1 день
+await testClient.mine({ blocks: 1 })                    // майним один блок</code></pre>
+
+    <h2>9. Практические задачи</h2>
+
+    <h3>Задача 1 — Создать PublicClient и прочитать USDC totalSupply</h3>
+
+<pre class="code-block"><code># Шаг 1: проект
+mkdir viem-lab && cd viem-lab
+npm init -y
+npm i viem
+npm i -D typescript tsx @types/node
+npx tsc --init
+
+# Шаг 2: src/read.ts
+import { createPublicClient, http, formatUnits } from 'viem'
+import { mainnet } from 'viem/chains'
+
+const erc20Abi = [
+  {
+    type: 'function',
+    name: 'totalSupply',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'symbol',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }],
+  },
+] as const
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http('https://eth.llamarpc.com'),
+})
+
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
+
+const [supply, symbol] = await Promise.all([
+  client.readContract({ address: USDC, abi: erc20Abi, functionName: 'totalSupply' }),
+  client.readContract({ address: USDC, abi: erc20Abi, functionName: 'symbol' }),
+])
+
+console.log(`Total ${symbol} supply:`, formatUnits(supply, 6))
+# Ожидаемый вывод: ≈ 35_000_000_000 USDC (точное число зависит от блока)
+
+# Шаг 3: запуск
+npx tsx src/read.ts</code></pre>
+
+    <h3>Задача 2 — Отправить токены через simulate → write → wait</h3>
+
+    <p>
+      В этой задаче мы запускаем Anvil-fork mainnet, прикидываемся одним из
+      whale-аккаунтов через <code>impersonate</code> и переводим USDC. Это
+      даёт полностью реалистичный тест без потери настоящего ETH.
+    </p>
+
+<pre class="code-block"><code># Терминал 1: запустить fork
+anvil --fork-url https://eth.llamarpc.com --auto-impersonate
+
+# Терминал 2: src/transfer.ts
+import { createPublicClient, createWalletClient, http, parseUnits } from 'viem'
+import { foundry } from 'viem/chains'
+import { erc20Abi } from './abi/erc20'   // тот же ABI с transfer
+
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
+const WHALE = '0x55FE002aefF02F77364de339a1292923A15844B8' as const  // Circle hot wallet
+const RECIPIENT = '0x0000000000000000000000000000000000000001' as const
+
+const publicClient = createPublicClient({
+  chain: foundry,
+  transport: http('http://127.0.0.1:8545'),
+})
+
+const walletClient = createWalletClient({
+  chain: foundry,
+  account: WHALE,                          // на forked chain с impersonate — работает без приватного ключа
+  transport: http('http://127.0.0.1:8545'),
+})
+
+// 1. Simulate
+const { request } = await publicClient.simulateContract({
+  account: WHALE,
+  address: USDC,
+  abi: erc20Abi,
+  functionName: 'transfer',
+  args: [RECIPIENT, parseUnits('100', 6)],
+})
+
+// 2. Write
+const hash = await walletClient.writeContract(request)
+console.log('Tx hash:', hash)
+
+// 3. Wait
+const receipt = await publicClient.waitForTransactionReceipt({ hash })
+console.log('Status:', receipt.status, '| gas:', receipt.gasUsed)
+
+# Запуск:
+npx tsx src/transfer.ts</code></pre>
+
+    <h3>Задача 3 — Получить последние 100 Transfer-логов USDC</h3>
+
+<pre class="code-block"><code>// src/logs.ts
+import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem'
+import { mainnet } from 'viem/chains'
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http('https://eth.llamarpc.com'),
+})
+
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
+const transferEvent = parseAbiItem(
+  'event Transfer(address indexed from, address indexed to, uint256 value)'
+)
+
+const latest = await client.getBlockNumber()
+const logs = await client.getLogs({
+  address: USDC,
+  event: transferEvent,
+  fromBlock: latest - 100n,
+  toBlock: latest,
+})
+
+for (const log of logs.slice(-10)) {
+  console.log(
+    `${log.args.from?.slice(0,6)}… → ${log.args.to?.slice(0,6)}…`,
+    formatUnits(log.args.value ?? 0n, 6),
+    'USDC',
+  )
+}
+
+# Запуск (используйте свой RPC с большим лимитом, llamarpc может реджектить):
+npx tsx src/logs.ts</code></pre>
+
+    <h3>Задача 4 — Multicall: 5 балансов за один запрос</h3>
+
+<pre class="code-block"><code>// src/multicall.ts
+import { createPublicClient, http, formatUnits } from 'viem'
+import { mainnet } from 'viem/chains'
+import { erc20Abi } from './abi/erc20'
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: http('https://eth.llamarpc.com'),
+  batch: { multicall: true },     // включить автоматический multicall для readContract
+})
+
+const HOLDER = '0x28C6c06298d514Db089934071355E5743bf21d60' as const  // Binance 14
+const TOKENS = [
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+  '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
+  '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', // WBTC
+  '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', // WETH
+] as const
+
+// Способ 1: явный multicall
+const results = await client.multicall({
+  contracts: TOKENS.map(addr =&gt; ({
+    address: addr,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [HOLDER],
+  })),
+})
+
+results.forEach((r, i) =&gt; {
+  if (r.status === 'success')
+    console.log(TOKENS[i].slice(0, 8), '→', r.result)
+})
+
+// Способ 2: с batch: { multicall: true } можно использовать параллельные readContract,
+// и viem сам соберёт их в один multicall
+const balances = await Promise.all(
+  TOKENS.map(addr =&gt; client.readContract({
+    address: addr,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [HOLDER],
+  }))
+)
+console.log(balances)
+
+# Запуск:
+npx tsx src/multicall.ts</code></pre>
+
+    <h2>10. Песочница · live JSON-RPC чтения</h2>
+
+    <p>
+      viem — это типизированная обёртка вокруг JSON-RPC. Чтобы убедиться,
+      что под капотом — обычный <code>eth_call</code>, посмотрите ниже
+      live-RPC sandbox. Все запросы, которые делает viem, можно повторить
+      руками: блок, баланс, eth_call с calldata.
+    </p>
+
+    <div class="sandbox" data-embed="rpc-live" data-network="ethereum"
+      data-title="Live JSON-RPC · Ethereum mainnet"></div>
+
+    <p style="margin-top:1rem">
+      А вот полноценный StackBlitz-проект с viem + TypeScript — клонируйте,
+      измените адрес/токен и сразу запускайте в браузерном Node:
+    </p>
+
+    <div class="sandbox" data-embed="stackblitz"
+      data-title="StackBlitz · viem starter (PublicClient + readContract)"
+      data-src="https://stackblitz.com/edit/typescript-viem-starter?embed=1&file=index.ts"
+      data-desc="Минимальный viem-проект: <code>createPublicClient(mainnet)</code> + <code>readContract(USDC.balanceOf)</code>. Откройте <code>index.ts</code>, замените адрес и нажмите Run. Logs справа — реальные числа из mainnet."></div>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      <strong><a href="../12/index.html">Lesson 12 — wagmi: React-хуки</a></strong>
+      строится поверх viem: те же клиенты, та же типизация ABI, но обёрнуто в
+      React hooks (<code>useReadContract</code>, <code>useWriteContract</code>,
+      <code>useWatchContractEvent</code>). Если viem — это «как», wagmi —
+      это «куда» в компонент.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://viem.sh/" target="_blank" rel="noopener">viem официальная документация</a> — полный API-reference и гайды.</li>
+        <li><a href="https://viem.sh/docs/clients/public" target="_blank" rel="noopener">viem · PublicClient</a> — список всех методов.</li>
+        <li><a href="https://viem.sh/docs/clients/wallet" target="_blank" rel="noopener">viem · WalletClient</a>.</li>
+        <li><a href="https://viem.sh/docs/contract/multicall" target="_blank" rel="noopener">viem · Multicall guide</a>.</li>
+        <li><a href="https://abitype.dev/" target="_blank" rel="noopener">ABIType</a> — TS-библиотека, которая делает <code>as const</code> ABI магию.</li>
+        <li><a href="https://github.com/wevm/viem" target="_blank" rel="noopener">viem на GitHub</a>.</li>
+        <li><a href="https://www.multicall3.com/" target="_blank" rel="noopener">Multicall3 — детерминированные адреса на всех chains</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1193" target="_blank" rel="noopener">EIP-1193 — Ethereum Provider JavaScript API</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1559" target="_blank" rel="noopener">EIP-1559 — Fee Market</a> (база для maxFeePerGas).</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="11">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 11 · viem",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все примеры выполняются через <code>npx tsx ...</code> на проекте из задачи 1.",
+  "questions": [
+    {
+      "q": "Чем PublicClient отличается от WalletClient?",
+      "kind": "multiple",
+      "options": [
+        "Нет разницы, синонимы",
+        "PublicClient — read-only (JSON-RPC, getBlock, readContract, getLogs); WalletClient умеет подписывать (writeContract, signMessage, signTypedData), требует source ключа",
+        "PublicClient работает только на mainnet",
+        "WalletClient не поддерживает виртуальные testnet"
+      ],
+      "answerIndex": 1,
+      "explain": "Разделение упрощает безопасность: PublicClient можно безопасно использовать в SSR/server-side, WalletClient — только в browser/secure runtime, где у нас есть доступ к ключу."
+    },
+    {
+      "q": "Почему важно <code>as const</code> на ABI в viem?",
+      "kind": "multiple",
+      "options": [
+        "Это требование runtime",
+        "Сжимает bundle",
+        "Превращает строки в литеральные типы, поэтому TS видит «balanceOf» как уникальный тип и подсказывает: <code>functionName: 'balanceOf'</code> — авто-комплит и проверка typesafety аргументов",
+        "Это для совместимости с ESLint"
+      ],
+      "answerIndex": 2,
+      "explain": "Без <code>as const</code> TS видит type как <code>string</code> и не может вывести сигнатуру. wagmi CLI генерирует ABI с <code>as const</code> автоматически из artifacts."
+    },
+    {
+      "q": "Какой паттерн рекомендуется для write-операций?",
+      "kind": "multiple",
+      "options": [
+        "writeContract сразу, без simulate",
+        "simulate → write → wait: simulateContract делает eth_call для pre-flight check, writeContract отправляет, waitForTransactionReceipt дожидается включения",
+        "wait → write → simulate",
+        "Только writeContract, без waitForTransactionReceipt"
+      ],
+      "answerIndex": 1,
+      "explain": "simulate ловит revert ДО подписи (бесплатно). write посылает (подпись). wait — дожидается onchain (network latency). Пропуск simulate = пользователь подписывает заведомо неудачную tx."
+    },
+    {
+      "q": "Что такое Multicall3 и зачем он нужен?",
+      "kind": "multiple",
+      "options": [
+        "Альтернатива JSON-RPC",
+        "Контракт по адресу <code>0xcA11bde05977b3631167028862bE2a173976CA11</code> на всех major chains, который батчит eth_call'ы в один — экономит latency и rate-limit; viem использует его автоматически если <code>batch: { multicall: true }</code>",
+        "Способ деплоить 3 контракта одной транзакцией",
+        "Замена ABI"
+      ],
+      "answerIndex": 1,
+      "explain": "Без multicall: 20 readContract = 20 HTTP-запросов. С multicall: 20 readContract = 1 HTTP-запрос + 1 eth_call в Multicall3. Латенси падает с ~5s до ~200ms."
+    },
+    {
+      "q": "Как viem обрабатывает большие числа (балансы, totalSupply)?",
+      "kind": "multiple",
+      "options": [
+        "Использует BigNumber из bn.js",
+        "Преобразует в Number (float)",
+        "Использует нативный JavaScript <code>bigint</code>, с утилитами <code>parseUnits</code>/<code>formatUnits</code> для конверсии",
+        "Хранит как строки и парсит при необходимости"
+      ],
+      "answerIndex": 2,
+      "explain": "В ethers v5 был BigNumber-объект с .toNumber()/.toString() — это вес и потеря точности. viem использует bigint, который Solidity-friendly: 1_500_000_000_000_000_000n буквально пишется в коде как литерал."
+    },
+    {
+      "q": "Что такое <code>watchContractEvent</code>?",
+      "kind": "multiple",
+      "options": [
+        "Метод одноразовой загрузки эвентов из бэкенда",
+        "Long-polling/WebSocket-подписка на новые эвенты конкретного контракта; callback <code>onLogs</code> вызывается при каждом матчинге; возвращает <code>unwatch()</code> для отписки",
+        "Анимация транзакции в UI",
+        "Этап тестирования"
+      ],
+      "answerIndex": 1,
+      "explain": "Для HTTP transport viem делает long-polling (eth_getLogs каждые N блоков). Для WebSocket — настоящая subscribe. Всегда вызывайте unwatch() при unmount компонента, иначе утечка."
+    },
+    {
+      "q": "Что такое <code>createTestClient(mode: 'anvil')</code>?",
+      "kind": "multiple",
+      "options": [
+        "Клиент-симулятор без подключения к RPC",
+        "Расширение PublicClient для test-RPC методов Anvil/Hardhat: <code>setBalance</code>, <code>impersonateAccount</code>, <code>increaseTime</code>, <code>snapshot</code>/<code>revert</code>, <code>mine</code>",
+        "Только для tests in CI",
+        "Wrapper над WalletClient"
+      ],
+      "answerIndex": 1,
+      "explain": "createTestClient даёт доступ к admin-методам development-нод. Используется для интеграционных тестов с forked mainnet — самый продуктивный способ тестировать DeFi-интеграции."
+    },
+    {
+      "q": "Practical: задача 1 — какой <code>totalSupply</code> USDC примерно ожидать в 2025+?",
+      "kind": "task",
+      "answer": "USDC totalSupply на mainnet — 30-50 миллиардов (значение в decimals 6, т.е. ~30..50 × 10^15). После <code>formatUnits(supply, 6)</code> получите строку вида \"34800000000.000000\" (≈ $34.8B). Точное число зависит от текущего mint/burn — Circle публикует ежемесячные отчёты."
+    },
+    {
+      "q": "Practical: задача 2 — почему impersonate работает на Anvil-fork, но не на mainnet?",
+      "kind": "task",
+      "answer": "<code>anvil_impersonateAccount</code> — non-standard RPC метод, которым Anvil/Hardhat позволяют отправлять транзакции от любого адреса без приватного ключа (вы притворяетесь Circle hot wallet). На реальном mainnet ноды не имеют ключей чужих адресов; единственный способ подписать tx — иметь приватный ключ. Поэтому impersonate работает только на dev-нодах с включённым флагом."
+    },
+    {
+      "q": "Practical: задача 4 — какой выигрыш по latency даёт multicall на 10 readContract?",
+      "kind": "task",
+      "answer": "Без multicall — 10 HTTP roundtrip'ов. Если RPC-нода даёт 50ms latency каждый, итог — ~500ms (последовательно) или ~50-150ms (параллельно с HTTP/2 + connection reuse). С multicall: 1 HTTP-запрос + 1 eth_call к Multicall3 — суммарно ~70-100ms. На 50+ читать — экономия порядка 5-10x. Бонус: один rate-limit-tick вместо 10, что критично на бесплатных публичных нодах."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Все примеры рассчитаны на <strong>viem ≥2.0</strong> и
+      <strong>TypeScript ≥5.0</strong>. На viem 1.x API чуть отличается
+      (особенно <code>simulateContract</code>) — миграционный гайд есть в
+      официальной документации.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
