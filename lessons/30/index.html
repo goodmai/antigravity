@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 30: Web3 — Основы Solidity | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid var(--glass-border);
+        margin: 2rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+        <h1>Урок 30: Web3 — Основы Solidity</h1>
+
+        <p>Solidity — это статически типизированный язык программирования для написания смарт-контрактов на Ethereum и EVM-совместимых блокчейнах. Контракт — это автономная программа, хранящаяся прямо в блокчейне: она выполняется детерминированно, неизменяема после деплоя и управляет токенами, NFT, DAO и любой другой децентрализованной логикой.</p>
+
+        <hr />
+
+        <h2>1. Версии Solidity</h2>
+
+        <p>Первая строка любого <code>.sol</code>-файла — директива <code>pragma</code>, фиксирующая совместимую версию компилятора.</p>
+
+        <pre><code>// Точная версия
+pragma solidity 0.8.24;
+
+// Диапазон: от 0.8.0 включительно до (не включая) 0.9.0
+pragma solidity ^0.8.0;
+
+// Явный диапазон
+pragma solidity &gt;=0.8.0 &lt;0.9.0;</code></pre>
+
+        <h3>Ключевые вехи версий</h3>
+
+        <table>
+          <thead>
+            <tr><th>Версия</th><th>Главное нововведение</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>0.4.x</td><td>Первые стабильные релизы, функции <code>fallback</code></td></tr>
+            <tr><td>0.5.x</td><td>Явное указание <code>payable</code>, <code>address payable</code></td></tr>
+            <tr><td>0.6.x</td><td><code>try/catch</code>, виртуальные функции, <code>override</code></td></tr>
+            <tr><td>0.7.x</td><td>Убраны <code>now</code> и <code>suicide</code>, улучшен синтаксис</td></tr>
+            <tr><td>0.8.x</td><td>Переполнение проверяется по умолчанию, пользовательские ошибки (<code>error</code>), <code>unchecked</code></td></tr>
+          </tbody>
+        </table>
+
+        <blockquote><strong>Рекомендация:</strong> Используйте <code>^0.8.20</code> или выше для новых проектов — встроенная защита от overflow/underflow без SafeMath.</blockquote>
+
+        <hr />
+
+        <h2>2. Типы данных</h2>
+
+        <h3>2.1 Целые числа</h3>
+
+        <pre><code>uint8   public smallNum = 255;       // беззнаковое, 8 бит (0..255)
+uint256 public bigNum   = 1e18;      // беззнаковое, 256 бит (по умолчанию uint)
+int256  public signed   = -100;      // знаковое, 256 бит
+int8    public tiny     = -128;      // знаковое, 8 бит (-128..127)</code></pre>
+
+        <p>Шаг: кратные 8 битам (<code>uint8</code>, <code>uint16</code>, … <code>uint256</code>).</p>
+
+        <h3>2.2 Булев тип</h3>
+
+        <pre><code>bool public isActive = true;
+bool public flag     = false;</code></pre>
+
+        <h3>2.3 Адрес</h3>
+
+        <pre><code>address public owner;                       // 20-байтовый адрес (160 бит)
+address payable public treasury;            // адрес, принимающий ETH
+
+owner = msg.sender;                         // адрес отправителя транзакции
+uint256 bal = owner.balance;                // баланс в wei
+treasury.transfer(1 ether);                 // отправка ETH</code></pre>
+
+        <h3>2.4 Строки и байты</h3>
+
+        <pre><code>string public name   = "AntiGravity";       // динамическая строка UTF-8
+bytes  public data   = hex"deadbeef";       // динамический массив байт
+bytes32 public hash  = keccak256("hello");  // фиксированные байты (газ дешевле)</code></pre>
+
+        <h3>2.5 Массивы</h3>
+
+        <pre><code>// Статический
+uint256[3] public trio = [1, 2, 3];
+
+// Динамический (хранилище)
+uint256[] public scores;
+scores.push(42);
+scores.push(99);
+uint256 len = scores.length;   // 2
+delete scores[0];              // обнуляет элемент, не сдвигает</code></pre>
+
+        <h3>2.6 Маппинги (словари)</h3>
+
+        <pre><code>mapping(address =&gt; uint256) public balances;
+mapping(address =&gt; mapping(address =&gt; bool)) public approved;
+
+balances[msg.sender] = 100;
+approved[msg.sender][spender] = true;</code></pre>
+
+        <p>Маппинги не итерируемы и не имеют размера — значения по умолчанию равны нулю.</p>
+
+        <h3>2.7 Структуры</h3>
+
+        <pre><code>struct Player {
+    string name;
+    uint256 score;
+    bool active;
+}
+
+Player public alice = Player({ name: "Alice", score: 9001, active: true });
+
+// Маппинг структур
+mapping(address =&gt; Player) public players;
+players[msg.sender] = Player("Bob", 0, true);</code></pre>
+
+        <h3>2.8 Перечисления</h3>
+
+        <pre><code>enum Status { Pending, Active, Closed }
+
+Status public state = Status.Pending;
+
+function activate() external {
+    state = Status.Active;
+}</code></pre>
+
+        <h3>2.9 Специальные глобальные переменные</h3>
+
+        <table>
+          <thead>
+            <tr><th>Переменная</th><th>Значение</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>msg.sender</code></td><td>Адрес вызывающего</td></tr>
+            <tr><td><code>msg.value</code></td><td>Количество wei в вызове</td></tr>
+            <tr><td><code>block.timestamp</code></td><td>Unix-время текущего блока</td></tr>
+            <tr><td><code>block.number</code></td><td>Номер текущего блока</td></tr>
+            <tr><td><code>tx.origin</code></td><td>Адрес инициатора транзакции</td></tr>
+          </tbody>
+        </table>
+
+        <hr />
+
+        <h2>3. Функции</h2>
+
+        <h3>3.1 Объявление функции</h3>
+
+        <pre><code>function имя(типы параметров) видимость модификаторы returns (типы возврата) {
+    // тело
+}</code></pre>
+
+        <h3>3.2 Примеры</h3>
+
+        <pre><code>// Простая функция без возврата
+function setName(string calldata _name) external {
+    name = _name;
+}
+
+// Функция с возвратом
+function getScore(address player) external view returns (uint256) {
+    return scores[player];
+}
+
+// Несколько возвращаемых значений
+function getInfo() public pure returns (string memory, uint256) {
+    return ("AntiGravity", 30);
+}
+
+// Именованные возвращаемые значения
+function divmod(uint256 a, uint256 b) public pure returns (uint256 quot, uint256 rem) {
+    quot = a / b;
+    rem  = a % b;
+}</code></pre>
+
+        <h3>3.3 Модификаторы состояния</h3>
+
+        <table>
+          <thead>
+            <tr><th>Модификатор</th><th>Чтение storage</th><th>Запись storage</th><th>Стоимость газа</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><em>(нет)</em></td><td>✅</td><td>✅</td><td>Полная</td></tr>
+            <tr><td><code>view</code></td><td>✅</td><td>❌</td><td>Бесплатно при внешнем вызове</td></tr>
+            <tr><td><code>pure</code></td><td>❌</td><td>❌</td><td>Бесплатно при внешнем вызове</td></tr>
+          </tbody>
+        </table>
+
+        <h3>3.4 <code>payable</code> — приём ETH</h3>
+
+        <pre><code>function deposit() external payable {
+    balances[msg.sender] += msg.value;
+}
+
+// Специальные функции для приёма ETH
+receive() external payable {}          // вызывается при пустых данных
+fallback() external payable {}         // вызывается при неизвестной сигнатуре</code></pre>
+
+        <h3>3.5 Пользовательские модификаторы</h3>
+
+        <pre><code>modifier onlyOwner() {
+    require(msg.sender == owner, "Not owner");
+    _;   // точка вставки — здесь выполнится тело функции
+}
+
+modifier nonZero(uint256 amount) {
+    require(amount &gt; 0, "Zero amount");
+    _;
+}
+
+function withdraw(uint256 amount) external onlyOwner nonZero(amount) {
+    payable(msg.sender).transfer(amount);
+}</code></pre>
+
+        <hr />
+
+        <h2>4. Видимость функций и переменных</h2>
+
+        <pre><code>contract Visibility {
+    uint256 private   secret   = 1;   // только этот контракт
+    uint256 internal  shared   = 2;   // этот + наследники
+    uint256 public    exposed  = 3;   // все + авто-getter
+    // external — только для функций, не переменных
+}</code></pre>
+
+        <h3>Сводная таблица</h3>
+
+        <table>
+          <thead>
+            <tr><th>Модификатор</th><th style="text-align:center">Внешние аккаунты/контракты</th><th style="text-align:center">Наследники</th><th style="text-align:center">Сам контракт</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>public</code></td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+            <tr><td><code>external</code></td><td style="text-align:center">✅</td><td style="text-align:center">❌*</td><td style="text-align:center">❌</td></tr>
+            <tr><td><code>internal</code></td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+            <tr><td><code>private</code></td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td></tr>
+          </tbody>
+        </table>
+
+        <p>* Наследник может вызвать через <code>this.функция()</code>, но это тратит газ.</p>
+
+        <pre><code>contract Base {
+    function _internalHelper() internal pure returns (uint256) { return 42; }
+}
+
+contract Child is Base {
+    function useHelper() external pure returns (uint256) {
+        return _internalHelper();   // OK — inherited internal
+    }
+}</code></pre>
+
+        <hr />
+
+        <h2>5. Обработка ошибок — <code>require</code>, <code>revert</code>, <code>assert</code>, <code>try/catch</code></h2>
+
+        <h3>5.1 <code>require</code> — проверка входных данных</h3>
+
+        <pre><code>function transfer(address to, uint256 amount) external {
+    require(to != address(0), "Zero address");
+    require(balances[msg.sender] &gt;= amount, "Insufficient balance");
+
+    balances[msg.sender] -= amount;
+    balances[to]         += amount;
+}</code></pre>
+
+        <p><code>require</code> откатывает транзакцию и <strong>возвращает неиспользованный газ</strong>.</p>
+
+        <h3>5.2 <code>revert</code> — явный откат с сообщением</h3>
+
+        <pre><code>function buy(uint256 qty) external payable {
+    if (qty == 0) revert("Zero qty");
+    if (msg.value &lt; qty * PRICE) revert("Insufficient ETH");
+    // ...
+}</code></pre>
+
+        <h3>5.3 Пользовательские ошибки (Solidity ≥ 0.8.4)</h3>
+
+        <p>Экономят газ и позволяют передавать структурированные данные:</p>
+
+        <pre><code>error InsufficientBalance(address user, uint256 has, uint256 needs);
+error Unauthorized(address caller);
+
+function withdraw(uint256 amount) external {
+    if (msg.sender != owner) revert Unauthorized(msg.sender);
+    if (address(this).balance &lt; amount)
+        revert InsufficientBalance(msg.sender, address(this).balance, amount);
+    payable(msg.sender).transfer(amount);
+}</code></pre>
+
+        <h3>5.4 <code>assert</code> — инварианты</h3>
+
+        <pre><code>function invariant() internal view {
+    assert(totalSupply == sumOfBalances());  // должен быть всегда истинен
+}</code></pre>
+
+        <p><code>assert</code> потребляет <strong>весь газ</strong> при срабатывании — используется только для инвариантов, не для проверки входных данных.</p>
+
+        <h3>5.5 <code>try/catch</code> — вызов внешних контрактов с перехватом ошибок</h3>
+
+        <pre><code>interface IToken {
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+contract Caller {
+    function safeTransfer(address token, address to, uint256 amount) external {
+        try IToken(token).transfer(to, amount) returns (bool ok) {
+            require(ok, "Transfer returned false");
+        } catch Error(string memory reason) {
+            // revert/require с сообщением
+            emit TransferFailed(reason);
+        } catch (bytes memory lowLevelData) {
+            // любой другой откат (custom error, panic)
+            emit TransferFailedRaw(lowLevelData);
+        }
+    }
+
+    event TransferFailed(string reason);
+    event TransferFailedRaw(bytes data);
+}</code></pre>
+
+        <hr />
+
+        <h2>6. Вызов других контрактов</h2>
+
+        <h3>6.1 Через интерфейс (рекомендуется)</h3>
+
+        <pre><code>interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+}
+
+contract DeFiApp {
+    IERC20 public token;
+
+    constructor(address _token) {
+        token = IERC20(_token);
+    }
+
+    function getMyBalance() external view returns (uint256) {
+        return token.balanceOf(msg.sender);
+    }
+
+    function deposit(uint256 amount) external {
+        bool ok = token.transfer(address(this), amount);
+        require(ok, "Transfer failed");
+    }
+}</code></pre>
+
+        <h3>6.2 Низкоуровневый <code>call</code></h3>
+
+        <pre><code>(bool success, bytes memory data) = target.call{value: 1 ether, gas: 50000}(
+    abi.encodeWithSignature("transfer(address,uint256)", recipient, amount)
+);
+require(success, "Call failed");</code></pre>
+
+        <p>Используйте <code>call</code> только когда ABI неизвестен заранее.</p>
+
+        <h3>6.3 <code>delegatecall</code> — выполнение кода в контексте вызывающего</h3>
+
+        <pre><code>// Паттерн прокси-контракта
+(bool ok, ) = implementation.delegatecall(msg.data);
+require(ok, "Delegatecall failed");</code></pre>
+
+        <p><code>delegatecall</code> использует <strong>хранилище и баланс</strong> вызывающего контракта, но <strong>код</strong> из <code>implementation</code>. Основа upgrade-паттернов.</p>
+
+        <h3>6.4 Отправка ETH</h3>
+
+        <pre><code>// transfer: 2300 gas, revert при ошибке (устарело)
+payable(recipient).transfer(amount);
+
+// send: 2300 gas, возвращает bool (устарело)
+bool ok = payable(recipient).send(amount);
+
+// call: гибкий газ, рекомендован (CEI-паттерн + проверка)
+(bool success, ) = payable(recipient).call{value: amount}("");
+require(success, "ETH transfer failed");</code></pre>
+
+        <hr />
+
+        <h2>7. Паттерны Solidity</h2>
+
+        <h3>7.1 Ownable — контроль доступа</h3>
+
+        <pre><code>contract Ownable {
+    address public owner;
+
+    event OwnershipTransferred(address indexed prev, address indexed next);
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Ownable: not owner");
+        _;
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Zero address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+}</code></pre>
+
+        <h3>7.2 CEI — Checks-Effects-Interactions (защита от re-entrancy)</h3>
+
+        <pre><code>function withdraw(uint256 amount) external {
+    // 1. Checks
+    require(balances[msg.sender] &gt;= amount, "Insufficient");
+
+    // 2. Effects — обновляем состояние ДО внешнего вызова
+    balances[msg.sender] -= amount;
+
+    // 3. Interactions — внешний вызов идёт последним
+    (bool ok, ) = payable(msg.sender).call{value: amount}("");
+    require(ok, "Transfer failed");
+}</code></pre>
+
+        <h3>7.3 ReentrancyGuard</h3>
+
+        <pre><code>contract ReentrancyGuard {
+    uint256 private _status = 1;   // 1 = not entered
+
+    modifier nonReentrant() {
+        require(_status == 1, "Reentrant call");
+        _status = 2;
+        _;
+        _status = 1;
+    }
+}
+
+contract Vault is ReentrancyGuard {
+    mapping(address =&gt; uint256) public balances;
+
+    function withdraw() external nonReentrant {
+        uint256 amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        require(ok, "Transfer failed");
+    }
+}</code></pre>
+
+        <h3>7.4 Pull Payment (вместо прямых переводов)</h3>
+
+        <pre><code>contract PullPayment {
+    mapping(address =&gt; uint256) public pendingWithdrawals;
+
+    function _asyncTransfer(address dest, uint256 amount) internal {
+        pendingWithdrawals[dest] += amount;
+    }
+
+    function withdrawPayments() external {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        pendingWithdrawals[msg.sender] = 0;
+        (bool ok, ) = payable(msg.sender).call{value: amount}("");
+        require(ok, "Withdraw failed");
+    }
+}</code></pre>
+
+        <h3>7.5 Events — логирование</h3>
+
+        <pre><code>event Transfer(address indexed from, address indexed to, uint256 value);
+event Approval(address indexed owner, address indexed spender, uint256 value);
+
+function transfer(address to, uint256 amount) external {
+    balances[msg.sender] -= amount;
+    balances[to]         += amount;
+    emit Transfer(msg.sender, to, amount);
+}</code></pre>
+
+        <p><code>indexed</code> поля индексируются блокчейном — по ним можно фильтровать события.</p>
+
+        <hr />
+
+        <h2>8. Полный пример контракта</h2>
+
+        <pre><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+interface IERC20Minimal {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+}
+
+error Unauthorized(address caller);
+error InsufficientFunds(uint256 available, uint256 required);
+
+contract SimpleVault {
+    address public owner;
+    IERC20Minimal public token;
+    mapping(address =&gt; uint256) public deposits;
+    uint256 private _locked = 1;
+
+    event Deposited(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized(msg.sender);
+        _;
+    }
+
+    modifier nonReentrant() {
+        require(_locked == 1, "Reentrant");
+        _locked = 2;
+        _;
+        _locked = 1;
+    }
+
+    constructor(address _token) {
+        owner = msg.sender;
+        token = IERC20Minimal(_token);
+    }
+
+    function deposit(uint256 amount) external nonReentrant {
+        require(amount &gt; 0, "Zero amount");
+        bool ok = token.transfer(address(this), amount);
+        require(ok, "Token transfer failed");
+        deposits[msg.sender] += amount;
+        emit Deposited(msg.sender, amount);
+    }
+
+    function withdraw(uint256 amount) external nonReentrant {
+        uint256 available = deposits[msg.sender];
+        if (available &lt; amount) revert InsufficientFunds(available, amount);
+
+        deposits[msg.sender] -= amount;    // Effects перед Interactions
+
+        try token.transfer(msg.sender, amount) returns (bool ok) {
+            require(ok, "Token transfer returned false");
+        } catch Error(string memory reason) {
+            deposits[msg.sender] += amount; // откат изменения состояния
+            revert(reason);
+        }
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function recoverETH() external onlyOwner {
+        (bool ok, ) = payable(owner).call{value: address(this).balance}("");
+        require(ok, "ETH recovery failed");
+    }
+
+    receive() external payable {}
+}</code></pre>
+
+        <hr />
+
+        <h2>Практические задания</h2>
+
+        <ol>
+          <li><strong>Типы данных</strong>: Напишите контракт <code>Registry</code>, хранящий маппинг <code>address → struct { string name; uint8 level; bool verified; }</code>. Добавьте функции <code>register</code>, <code>getInfo</code> и <code>verify</code> (только owner).</li>
+          <li><strong>Видимость</strong>: Создайте контракт с 4 функциями разной видимости и убедитесь в Remix, что <code>private</code>/<code>internal</code> не вызываются снаружи.</li>
+          <li><strong>Обработка ошибок</strong>: Переделайте пример выше, заменив все <code>require</code> на пользовательские ошибки (<code>error</code>). Измерьте экономию газа в Remix.</li>
+          <li><strong>Вызов контракта</strong>: Напишите контракт <code>Router</code>, который вызывает функцию другого контракта через интерфейс, перехватывая ошибки через <code>try/catch</code>.</li>
+          <li><strong>Паттерн CEI + ReentrancyGuard</strong>: Реализуйте мини-банк с депозитом и выводом ETH, защищённый от атаки повторного входа. Напишите контракт-атакующий и убедитесь, что защита работает.</li>
+          <li><strong>Версии</strong>: Откройте Remix, создайте один контракт с <code>pragma solidity 0.7.6</code> и один с <code>^0.8.0</code>. Попробуйте вызвать переполнение <code>uint256</code> в обоих — сравните поведение.</li>
+        </ol>
+
+        <hr />
+
+        <h2>Ключевые концепции</h2>
+
+        <ul>
+          <li><strong>pragma solidity</strong> — фиксирует версию компилятора; используйте <code>^0.8.x</code></li>
+          <li><strong>Типы данных</strong> — uint/int, bool, address, bytes, string, array, mapping, struct, enum</li>
+          <li><strong>Видимость</strong> — <code>public &gt; external / internal &gt; private</code>; <code>external</code> дешевле <code>public</code> для функций</li>
+          <li><strong>Модификаторы состояния</strong> — <code>view</code> (читает), <code>pure</code> (нет доступа к storage)</li>
+          <li><strong>CEI-паттерн</strong> — Checks → Effects → Interactions защищает от re-entrancy</li>
+          <li><strong>Пользовательские ошибки</strong> — экономят газ, передают структурированные данные</li>
+          <li><strong>try/catch</strong> — единственный способ перехватить ошибку внешнего контракта</li>
+          <li><strong>Интерфейс</strong> — правильный способ вызвать другой контракт с типобезопасностью</li>
+        </ul>
+
+        <hr />
+
+        <h2>Рекомендуемые источники</h2>
+
+        <ol>
+          <li><a href="https://docs.soliditylang.org" style="color: var(--accent-primary)">Solidity Documentation</a> — официальная документация</li>
+          <li><a href="https://remix.ethereum.org" style="color: var(--accent-primary)">Remix IDE</a> — браузерная IDE для быстрого прототипирования</li>
+          <li><a href="https://github.com/OpenZeppelin/openzeppelin-contracts" style="color: var(--accent-primary)">OpenZeppelin Contracts</a> — боевые реализации паттернов</li>
+          <li><a href="https://cryptozombies.io" style="color: var(--accent-primary)">CryptoZombies</a> — интерактивный курс Solidity</li>
+          <li><a href="https://solidity-by-example.org" style="color: var(--accent-primary)">Solidity by Example</a> — сборник примеров</li>
+        </ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>
