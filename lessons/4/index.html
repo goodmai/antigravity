@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x423;&#x440;&#x43E;&#x43A; 4: &#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x410;&#x433;&#x435;&#x43D;&#x442;&#x430; (Agent
+    <title>�������� 4: ������������ ������������ (Agent
 Skills) | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -85,6 +85,7 @@ Skills) | Anti-Gravity Academy</title>
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -142,6 +143,30 @@ Skills) | Anti-Gravity Academy</title>
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -155,220 +180,376 @@ Skills) | Anti-Gravity Academy</title>
   <body>
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
       </header>
       <main>
-        <h1 id="&#x443;&#x440;&#x43E;&#x43A;-4-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;-&#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;-agent-skills">&#x423;&#x440;&#x43E;&#x43A; 4: &#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x410;&#x433;&#x435;&#x43D;&#x442;&#x430;
+        <h1 id="урок-4-навыки-агента-agent-skills">Урок 4: Навыки Агента
         (Agent Skills)</h1>
-        <p>&#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x2014; &#x44D;&#x442;&#x43E; &#x43E;&#x442;&#x43A;&#x440;&#x44B;&#x442;&#x44B;&#x439; &#x441;&#x442;&#x430;&#x43D;&#x434;&#x430;&#x440;&#x442; &#x434;&#x43B;&#x44F; &#x440;&#x430;&#x441;&#x448;&#x438;&#x440;&#x435;&#x43D;&#x438;&#x44F; &#x432;&#x43E;&#x437;&#x43C;&#x43E;&#x436;&#x43D;&#x43E;&#x441;&#x442;&#x435;&#x439;
-        &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;. &#x41D;&#x430;&#x432;&#x44B;&#x43A; &#x43F;&#x440;&#x435;&#x434;&#x441;&#x442;&#x430;&#x432;&#x43B;&#x44F;&#x435;&#x442; &#x441;&#x43E;&#x431;&#x43E;&#x439; &#x43F;&#x430;&#x43F;&#x43A;&#x443;, &#x441;&#x43E;&#x434;&#x435;&#x440;&#x436;&#x430;&#x449;&#x443;&#x44E; &#x444;&#x430;&#x439;&#x43B;
-        <code>SKILL.md</code> &#x441; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x44F;&#x43C;&#x438;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x43C; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43B;&#x435;&#x434;&#x443;&#x435;&#x442; &#x43F;&#x440;&#x438;
-        &#x432;&#x44B;&#x43F;&#x43E;&#x43B;&#x43D;&#x435;&#x43D;&#x438;&#x438; &#x43E;&#x43F;&#x440;&#x435;&#x434;&#x435;&#x43B;&#x435;&#x43D;&#x43D;&#x44B;&#x445; &#x437;&#x430;&#x434;&#x430;&#x447;.</p>
-        <h2 id="&#x447;&#x442;&#x43E;-&#x442;&#x430;&#x43A;&#x43E;&#x435;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;">&#x427;&#x442;&#x43E; &#x442;&#x430;&#x43A;&#x43E;&#x435; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;?</h2>
-        <p>&#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x2014; &#x44D;&#x442;&#x43E; &#x43F;&#x435;&#x440;&#x435;&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C;&#x44B;&#x435; &#x43F;&#x430;&#x43A;&#x435;&#x442;&#x44B; &#x437;&#x43D;&#x430;&#x43D;&#x438;&#x439;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435;
-        &#x440;&#x430;&#x441;&#x448;&#x438;&#x440;&#x44F;&#x44E;&#x442; &#x444;&#x443;&#x43D;&#x43A;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;. &#x41A;&#x430;&#x436;&#x434;&#x44B;&#x439; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x441;&#x43E;&#x434;&#x435;&#x440;&#x436;&#x438;&#x442;:</p>
+        <blockquote>
+        <p>Открытый стандарт для упаковки знаний и инструкций, которые
+        агент Antigravity подгружает на лету. Скилл — это директория с
+        одним обязательным файлом <code>SKILL.md</code> и опциональными
+        скриптами, шаблонами и примерами.</p>
+        </blockquote>
+        <hr />
+        <h2 id="1-зачем-нужны-скиллы">1. Зачем нужны скиллы</h2>
+        <p>Без скиллов агент использует только встроенные эвристики и
+        контекст текущего диалога. Каждый раз вам приходится:</p>
         <ul>
-        <li><strong>&#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x438;</strong> &#x43E; &#x442;&#x43E;&#x43C;, &#x43A;&#x430;&#x43A; &#x43F;&#x43E;&#x434;&#x445;&#x43E;&#x434;&#x438;&#x442;&#x44C; &#x43A;
-        &#x43A;&#x43E;&#x43D;&#x43A;&#x440;&#x435;&#x442;&#x43D;&#x43E;&#x43C;&#x443; &#x442;&#x438;&#x43F;&#x443; &#x437;&#x430;&#x434;&#x430;&#x447;.</li>
-        <li><strong>&#x41B;&#x443;&#x447;&#x448;&#x438;&#x435; &#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438;</strong> &#x438; &#x441;&#x43E;&#x433;&#x43B;&#x430;&#x448;&#x435;&#x43D;&#x438;&#x44F;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435;
-        &#x441;&#x43B;&#x435;&#x434;&#x443;&#x435;&#x442; &#x441;&#x43E;&#x431;&#x43B;&#x44E;&#x434;&#x430;&#x442;&#x44C;.</li>
-        <li><strong>&#x414;&#x43E;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x44B; &#x438; &#x440;&#x435;&#x441;&#x443;&#x440;&#x441;&#x44B;</strong>, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435;
-        &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C; (&#x43E;&#x43F;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;).</li>
+        <li>повторно объяснять конвенции проекта;</li>
+        <li>копировать длинные инструкции;</li>
+        <li>держать в голове последовательность шагов сложного
+        процесса.</li>
         </ul>
-        <p>&#x41A;&#x43E;&#x433;&#x434;&#x430; &#x432;&#x44B; &#x43D;&#x430;&#x447;&#x438;&#x43D;&#x430;&#x435;&#x442;&#x435; &#x434;&#x438;&#x430;&#x43B;&#x43E;&#x433;, &#x430;&#x433;&#x435;&#x43D;&#x442; &#x432;&#x438;&#x434;&#x438;&#x442; &#x441;&#x43F;&#x438;&#x441;&#x43E;&#x43A; &#x434;&#x43E;&#x441;&#x442;&#x443;&#x43F;&#x43D;&#x44B;&#x445;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432; &#x441; &#x438;&#x445; &#x43D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x44F;&#x43C;&#x438; &#x438; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x44F;&#x43C;&#x438;. &#x415;&#x441;&#x43B;&#x438; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x43A;&#x430;&#x436;&#x435;&#x442;&#x441;&#x44F;
-        &#x43F;&#x43E;&#x434;&#x445;&#x43E;&#x434;&#x44F;&#x449;&#x438;&#x43C; &#x434;&#x43B;&#x44F; &#x432;&#x430;&#x448;&#x435;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438;, &#x430;&#x433;&#x435;&#x43D;&#x442; &#x447;&#x438;&#x442;&#x430;&#x435;&#x442; &#x43F;&#x43E;&#x43B;&#x43D;&#x44B;&#x435; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x438; &#x438;
-        &#x441;&#x43B;&#x435;&#x434;&#x443;&#x435;&#x442; &#x438;&#x43C;.</p>
-        <h2 id="&#x433;&#x434;&#x435;-&#x445;&#x440;&#x430;&#x43D;&#x44F;&#x442;&#x441;&#x44F;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;">&#x413;&#x434;&#x435; &#x445;&#x440;&#x430;&#x43D;&#x44F;&#x442;&#x441;&#x44F; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;</h2>
-        <p>Antigravity &#x43F;&#x43E;&#x434;&#x434;&#x435;&#x440;&#x436;&#x438;&#x432;&#x430;&#x435;&#x442; &#x434;&#x432;&#x430; &#x442;&#x438;&#x43F;&#x430; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432;:</p>
+        <p>Скилл решает эту проблему: один раз описанный «способ работы»
+        становится переиспользуемым активом — как функция в коде.</p>
         <table>
-        <colgroup>
-        <col style="width: 53%" />
-        <col style="width: 46%" />
-        </colgroup>
         <thead>
         <tr class="header">
-        <th style="text-align: left;">&#x420;&#x430;&#x441;&#x43F;&#x43E;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x435;</th>
-        <th style="text-align: left;">&#x41E;&#x431;&#x43B;&#x430;&#x441;&#x442;&#x44C; &#x432;&#x438;&#x434;&#x438;&#x43C;&#x43E;&#x441;&#x442;&#x438;</th>
+        <th style="text-align: left;">Без скилла</th>
+        <th style="text-align: left;">Со скиллом</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;">Длинный системный промпт в каждом
+        диалоге</td>
+        <td style="text-align: left;">Короткое описание + автоматическая
+        активация</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Знание живёт у одного
+        разработчика</td>
+        <td style="text-align: left;">Знание лежит в репозитории и
+        версионируется</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Нет тестируемости</td>
+        <td style="text-align: left;">Скилл можно проверить через
+        <code>qa-skill-tester</code> (урок 7)</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="2-анатомия-скилла">2. Анатомия скилла</h2>
+        <h3 id="21-где-лежат-скиллы">2.1. Где лежат скиллы</h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Расположение</th>
+        <th style="text-align: left;">Область действия</th>
         </tr>
         </thead>
         <tbody>
         <tr class="odd">
         <td
-        style="text-align: left;"><code>&lt;workspace-root&gt;/.agent/skills/&lt;skill-folder&gt;/</code></td>
-        <td style="text-align: left;">&#x422;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x434;&#x43B;&#x44F; &#x442;&#x435;&#x43A;&#x443;&#x449;&#x435;&#x433;&#x43E; &#x440;&#x430;&#x431;&#x43E;&#x447;&#x435;&#x433;&#x43E;
-        &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x440;&#x430;&#x43D;&#x441;&#x442;&#x432;&#x430;</td>
+        style="text-align: left;"><code>&lt;workspace&gt;/.agent/skills/&lt;name&gt;/</code></td>
+        <td style="text-align: left;">Локально для проекта (коммитится в
+        репозиторий команды)</td>
         </tr>
         <tr class="even">
         <td
-        style="text-align: left;"><code>~/.gemini/antigravity/skills/&lt;skill-folder&gt;/</code></td>
-        <td style="text-align: left;">&#x413;&#x43B;&#x43E;&#x431;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; (&#x434;&#x43B;&#x44F; &#x432;&#x441;&#x435;&#x445;
-        &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x43E;&#x432;)</td>
+        style="text-align: left;"><code>~/.gemini/antigravity/skills/&lt;name&gt;/</code></td>
+        <td style="text-align: left;">Глобально для пользователя</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><code>skills/&lt;name&gt;/</code>
+        в корне Antigravity</td>
+        <td style="text-align: left;">Поставляются «из коробки» (см.
+        урок 5)</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>&#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x440;&#x430;&#x431;&#x43E;&#x447;&#x435;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x440;&#x430;&#x43D;&#x441;&#x442;&#x432;&#x430;</strong> &#x43E;&#x442;&#x43B;&#x438;&#x447;&#x43D;&#x43E;
-        &#x43F;&#x43E;&#x434;&#x445;&#x43E;&#x434;&#x44F;&#x442; &#x434;&#x43B;&#x44F; &#x441;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x438;&#x445; &#x440;&#x430;&#x431;&#x43E;&#x447;&#x438;&#x445; &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x43E;&#x432; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;, &#x442;&#x430;&#x43A;&#x438;&#x445; &#x43A;&#x430;&#x43A;
-        &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441; &#x440;&#x430;&#x437;&#x432;&#x435;&#x440;&#x442;&#x44B;&#x432;&#x430;&#x43D;&#x438;&#x44F; &#x432;&#x430;&#x448;&#x435;&#x439; &#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x44B; &#x438;&#x43B;&#x438; &#x441;&#x43E;&#x433;&#x43B;&#x430;&#x448;&#x435;&#x43D;&#x438;&#x44F; &#x43F;&#x43E;
-        &#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44E;.</p>
-        <p><strong>&#x413;&#x43B;&#x43E;&#x431;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;</strong> &#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;&#x44E;&#x442; &#x432;&#x43E; &#x432;&#x441;&#x435;&#x445; &#x432;&#x430;&#x448;&#x438;&#x445;
-        &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;&#x445;. &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435; &#x438;&#x445; &#x434;&#x43B;&#x44F; &#x43B;&#x438;&#x447;&#x43D;&#x44B;&#x445; &#x443;&#x442;&#x438;&#x43B;&#x438;&#x442; &#x438;&#x43B;&#x438; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x43E;&#x432;
-        &#x43E;&#x431;&#x449;&#x435;&#x433;&#x43E; &#x43D;&#x430;&#x437;&#x43D;&#x430;&#x447;&#x435;&#x43D;&#x438;&#x44F;.</p>
-        <h2 id="&#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x435;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;">&#x421;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x435; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;</h2>
-        <p>&#x427;&#x442;&#x43E;&#x431;&#x44B; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x442;&#x44C; &#x43D;&#x430;&#x432;&#x44B;&#x43A;:</p>
-        <ol type="1">
-        <li>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x43F;&#x430;&#x43F;&#x43A;&#x443; &#x434;&#x43B;&#x44F; &#x432;&#x430;&#x448;&#x435;&#x433;&#x43E; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430; &#x432; &#x43E;&#x434;&#x43D;&#x43E;&#x439; &#x438;&#x437; &#x434;&#x438;&#x440;&#x435;&#x43A;&#x442;&#x43E;&#x440;&#x438;&#x439;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432;.</li>
-        <li>&#x414;&#x43E;&#x431;&#x430;&#x432;&#x44C;&#x442;&#x435; &#x444;&#x430;&#x439;&#x43B; <code>SKILL.md</code> &#x432;&#x43D;&#x443;&#x442;&#x440;&#x44C; &#x44D;&#x442;&#x43E;&#x439; &#x43F;&#x430;&#x43F;&#x43A;&#x438;.</li>
-        </ol>
-        <pre class="text"><code>.agent/skills/
-&#x2514;&#x2500;&#x2500;&#x2500; my-skill/
-    &#x2514;&#x2500;&#x2500;&#x2500; SKILL.md</code></pre>
-        <p>&#x41A;&#x430;&#x436;&#x434;&#x43E;&#x43C;&#x443; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x443; &#x43D;&#x435;&#x43E;&#x431;&#x445;&#x43E;&#x434;&#x438;&#x43C; &#x444;&#x430;&#x439;&#x43B; <code>SKILL.md</code> &#x441;
-        YAML-&#x437;&#x430;&#x433;&#x43E;&#x43B;&#x43E;&#x432;&#x43A;&#x43E;&#x43C; (frontmatter) &#x432; &#x432;&#x435;&#x440;&#x445;&#x43D;&#x435;&#x439; &#x447;&#x430;&#x441;&#x442;&#x438;:</p>
+        <h3 id="22-минимальная-структура">2.2. Минимальная
+        структура</h3>
+        <pre class="text"><code>.agent/skills/my-skill/
+├── SKILL.md          # обязательный файл с инструкциями
+├── scripts/          # вспомогательные исполняемые скрипты
+├── examples/         # эталонные примеры результата
+└── resources/        # шаблоны, JSON-схемы, ассеты</code></pre>
+        <h3 id="23-frontmatter-yaml-заголовок">2.3. Frontmatter
+        (YAML-заголовок)</h3>
         <div class="sourceCode" id="cb2"><pre
         class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> my-skill</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> &#x41F;&#x43E;&#x43C;&#x43E;&#x433;&#x430;&#x435;&#x442; &#x441; &#x43A;&#x43E;&#x43D;&#x43A;&#x440;&#x435;&#x442;&#x43D;&#x43E;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;&#x435;&#x439;. &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435;, &#x43A;&#x43E;&#x433;&#x434;&#x430; &#x43D;&#x443;&#x436;&#x43D;&#x43E; &#x441;&#x434;&#x435;&#x43B;&#x430;&#x442;&#x44C; X &#x438;&#x43B;&#x438; Y.</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu"># &#x41C;&#x43E;&#x439; &#x43D;&#x430;&#x432;&#x44B;&#x43A;</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>&#x417;&#x434;&#x435;&#x441;&#x44C; &#x440;&#x430;&#x441;&#x43F;&#x43E;&#x43B;&#x430;&#x433;&#x430;&#x44E;&#x442;&#x441;&#x44F; &#x43F;&#x43E;&#x434;&#x440;&#x43E;&#x431;&#x43D;&#x44B;&#x435; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x438; &#x434;&#x43B;&#x44F; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;.</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fu">## &#x41A;&#x43E;&#x433;&#x434;&#x430; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x44D;&#x442;&#x43E;&#x442; &#x43D;&#x430;&#x432;&#x44B;&#x43A;</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435; &#x44D;&#x442;&#x43E;, &#x43A;&#x43E;&#x433;&#x434;&#x430;...</span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>&#x42D;&#x442;&#x43E; &#x43F;&#x43E;&#x43B;&#x435;&#x437;&#x43D;&#x43E; &#x434;&#x43B;&#x44F;...</span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## &#x41A;&#x430;&#x43A; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C;</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>&#x41F;&#x43E;&#x448;&#x430;&#x433;&#x43E;&#x432;&#x43E;&#x435; &#x440;&#x443;&#x43A;&#x43E;&#x432;&#x43E;&#x434;&#x441;&#x442;&#x432;&#x43E;, &#x441;&#x43E;&#x433;&#x43B;&#x430;&#x448;&#x435;&#x43D;&#x438;&#x44F; &#x438; &#x448;&#x430;&#x431;&#x43B;&#x43E;&#x43D;&#x44B;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x43C; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x441;&#x43B;&#x435;&#x434;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x430;&#x433;&#x435;&#x43D;&#x442;.</span></code></pre></div>
-        <h3 id="&#x43F;&#x43E;&#x43B;&#x44F;-&#x437;&#x430;&#x433;&#x43E;&#x43B;&#x43E;&#x432;&#x43A;&#x430;-frontmatter">&#x41F;&#x43E;&#x43B;&#x44F; &#x437;&#x430;&#x433;&#x43E;&#x43B;&#x43E;&#x432;&#x43A;&#x430;
-        (Frontmatter)</h3>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> pr-review</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Делает структурированный ревью pull request по чек-листу команды. Применяется, когда пользователь просит «проверить PR», «сделать ревью» или передаёт ссылку на GitHub PR.</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span></code></pre></div>
         <table>
-        <colgroup>
-        <col style="width: 10%" />
-        <col style="width: 7%" />
-        <col style="width: 81%" />
-        </colgroup>
         <thead>
         <tr class="header">
-        <th style="text-align: left;">&#x41F;&#x43E;&#x43B;&#x435;</th>
-        <th style="text-align: left;">&#x41E;&#x431;&#x44F;&#x437;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E;</th>
-        <th style="text-align: left;">&#x41E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435;</th>
+        <th style="text-align: left;">Поле</th>
+        <th style="text-align: left;">Обязательно</th>
+        <th style="text-align: left;">Назначение</th>
         </tr>
         </thead>
         <tbody>
         <tr class="odd">
-        <td style="text-align: left;"><strong>name</strong></td>
-        <td style="text-align: left;">&#x41D;&#x435;&#x442;</td>
-        <td style="text-align: left;">&#x423;&#x43D;&#x438;&#x43A;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; &#x438;&#x434;&#x435;&#x43D;&#x442;&#x438;&#x444;&#x438;&#x43A;&#x430;&#x442;&#x43E;&#x440; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;
-        (&#x441;&#x442;&#x440;&#x43E;&#x447;&#x43D;&#x44B;&#x43C;&#x438; &#x431;&#x443;&#x43A;&#x432;&#x430;&#x43C;&#x438;, &#x434;&#x435;&#x444;&#x438;&#x441;&#x44B; &#x432;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x43F;&#x440;&#x43E;&#x431;&#x435;&#x43B;&#x43E;&#x432;). &#x41F;&#x43E; &#x443;&#x43C;&#x43E;&#x43B;&#x447;&#x430;&#x43D;&#x438;&#x44E;
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x442;&#x441;&#x44F; &#x438;&#x43C;&#x44F; &#x43F;&#x430;&#x43F;&#x43A;&#x438;.</td>
+        <td style="text-align: left;"><code>name</code></td>
+        <td style="text-align: left;">нет (по умолчанию — имя
+        папки)</td>
+        <td style="text-align: left;">Уникальный идентификатор
+        <code>kebab-case</code></td>
         </tr>
         <tr class="even">
-        <td style="text-align: left;"><strong>description</strong></td>
-        <td style="text-align: left;">&#x414;&#x430;</td>
-        <td style="text-align: left;">&#x427;&#x435;&#x442;&#x43A;&#x43E;&#x435; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435; &#x442;&#x43E;&#x433;&#x43E;, &#x447;&#x442;&#x43E; &#x434;&#x435;&#x43B;&#x430;&#x435;&#x442;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x438; &#x43A;&#x43E;&#x433;&#x434;&#x430; &#x435;&#x433;&#x43E; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C;. &#x42D;&#x442;&#x43E; &#x442;&#x43E;, &#x447;&#x442;&#x43E; &#x432;&#x438;&#x434;&#x438;&#x442; &#x430;&#x433;&#x435;&#x43D;&#x442;, &#x440;&#x435;&#x448;&#x430;&#x44F;,
-        &#x43F;&#x440;&#x438;&#x43C;&#x435;&#x43D;&#x438;&#x442;&#x44C; &#x43B;&#x438; &#x43D;&#x430;&#x432;&#x44B;&#x43A;.</td>
+        <td style="text-align: left;"><code>description</code></td>
+        <td style="text-align: left;"><strong>да</strong></td>
+        <td style="text-align: left;">Триггер для агента: что делает
+        скилл и <strong>когда</strong> его применять</td>
         </tr>
         </tbody>
         </table>
         <blockquote>
-        <p>[!TIP] &#x41F;&#x438;&#x448;&#x438;&#x442;&#x435; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435; &#x432; &#x442;&#x440;&#x435;&#x442;&#x44C;&#x435;&#x43C; &#x43B;&#x438;&#x446;&#x435; &#x438; &#x432;&#x43A;&#x43B;&#x44E;&#x447;&#x430;&#x439;&#x442;&#x435; &#x43A;&#x43B;&#x44E;&#x447;&#x435;&#x432;&#x44B;&#x435;
-        &#x441;&#x43B;&#x43E;&#x432;&#x430;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435; &#x43F;&#x43E;&#x43C;&#x43E;&#x433;&#x443;&#x442; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x443; &#x440;&#x430;&#x441;&#x43F;&#x43E;&#x437;&#x43D;&#x430;&#x442;&#x44C; &#x440;&#x435;&#x43B;&#x435;&#x432;&#x430;&#x43D;&#x442;&#x43D;&#x43E;&#x441;&#x442;&#x44C; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;.
-        &#x41D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;: &#x201C;&#x413;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x435;&#x442; &#x44E;&#x43D;&#x438;&#x442;-&#x442;&#x435;&#x441;&#x442;&#x44B; &#x434;&#x43B;&#x44F; &#x43A;&#x43E;&#x434;&#x430; &#x43D;&#x430; Python, &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F;
-        &#x441;&#x43E;&#x433;&#x43B;&#x430;&#x448;&#x435;&#x43D;&#x438;&#x44F; pytest&#x201D;.</p>
+        <p>[!IMPORTANT] Описание читается агентом первым. Если оно
+        расплывчатое — скилл не активируется. Хорошее описание содержит:
+        <strong>глагол действия</strong>, <strong>объект</strong>,
+        <strong>ключевые слова-триггеры</strong> на языке
+        пользователя.</p>
         </blockquote>
-        <h2 id="&#x441;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x430;-&#x43F;&#x430;&#x43F;&#x43A;&#x438;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;">&#x421;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x430; &#x43F;&#x430;&#x43F;&#x43A;&#x438; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;</h2>
-        <p>&#x425;&#x43E;&#x442;&#x44F; <code>SKILL.md</code> &#x44F;&#x432;&#x43B;&#x44F;&#x435;&#x442;&#x441;&#x44F; &#x435;&#x434;&#x438;&#x43D;&#x441;&#x442;&#x432;&#x435;&#x43D;&#x43D;&#x44B;&#x43C; &#x43E;&#x431;&#x44F;&#x437;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x43C;
-        &#x444;&#x430;&#x439;&#x43B;&#x43E;&#x43C;, &#x432;&#x44B; &#x43C;&#x43E;&#x436;&#x435;&#x442;&#x435; &#x432;&#x43A;&#x43B;&#x44E;&#x447;&#x438;&#x442;&#x44C; &#x434;&#x43E;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x440;&#x435;&#x441;&#x443;&#x440;&#x441;&#x44B;:</p>
-        <pre class="text"><code>.agent/skills/my-skill/
-&#x251C;&#x2500;&#x2500;&#x2500; SKILL.md       # &#x41E;&#x441;&#x43D;&#x43E;&#x432;&#x43D;&#x44B;&#x435; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x438; (&#x43E;&#x431;&#x44F;&#x437;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E;)
-&#x251C;&#x2500;&#x2500;&#x2500; scripts/       # &#x412;&#x441;&#x43F;&#x43E;&#x43C;&#x43E;&#x433;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x44B; (&#x43E;&#x43F;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;)
-&#x251C;&#x2500;&#x2500;&#x2500; examples/      # &#x41F;&#x440;&#x438;&#x43C;&#x435;&#x440;&#x44B; &#x440;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x438; (&#x43E;&#x43F;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;)
-&#x2514;&#x2500;&#x2500;&#x2500; resources/     # &#x428;&#x430;&#x431;&#x43B;&#x43E;&#x43D;&#x44B; &#x438; &#x434;&#x440;&#x443;&#x433;&#x438;&#x435; &#x430;&#x43A;&#x442;&#x438;&#x432;&#x44B; (&#x43E;&#x43F;&#x446;&#x438;&#x43E;&#x43D;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;)</code></pre>
-        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x447;&#x438;&#x442;&#x430;&#x442;&#x44C; &#x44D;&#x442;&#x438; &#x444;&#x430;&#x439;&#x43B;&#x44B; &#x43F;&#x440;&#x438; &#x432;&#x44B;&#x43F;&#x43E;&#x43B;&#x43D;&#x435;&#x43D;&#x438;&#x438; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x439; &#x432;&#x430;&#x448;&#x435;&#x433;&#x43E;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;.</p>
-        <h2 id="&#x43A;&#x430;&#x43A;-&#x430;&#x433;&#x435;&#x43D;&#x442;-&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x442;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;">&#x41A;&#x430;&#x43A; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x442;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x438;</h2>
-        <p>&#x41D;&#x430;&#x432;&#x44B;&#x43A;&#x438; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;&#x44E;&#x442; &#x43F;&#x43E; &#x43F;&#x440;&#x438;&#x43D;&#x446;&#x438;&#x43F;&#x443; &#x43F;&#x440;&#x43E;&#x433;&#x440;&#x435;&#x441;&#x441;&#x438;&#x432;&#x43D;&#x43E;&#x433;&#x43E; &#x440;&#x430;&#x441;&#x43A;&#x440;&#x44B;&#x442;&#x438;&#x44F;:</p>
+        <hr />
+        <h2 id="3-прогрессивное-раскрытие">3. Прогрессивное
+        раскрытие</h2>
+        <p>Агент работает по трёхфазной модели:</p>
         <ol type="1">
-        <li><strong>&#x41E;&#x431;&#x43D;&#x430;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x435;</strong>: &#x412; &#x43D;&#x430;&#x447;&#x430;&#x43B;&#x435; &#x440;&#x430;&#x437;&#x433;&#x43E;&#x432;&#x43E;&#x440;&#x430; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x432;&#x438;&#x434;&#x438;&#x442;
-        &#x441;&#x43F;&#x438;&#x441;&#x43E;&#x43A; &#x434;&#x43E;&#x441;&#x442;&#x443;&#x43F;&#x43D;&#x44B;&#x445; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432; (&#x438;&#x43C;&#x435;&#x43D;&#x430; &#x438; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x44F;).</li>
-        <li><strong>&#x410;&#x43A;&#x442;&#x438;&#x432;&#x430;&#x446;&#x438;&#x44F;</strong>: &#x415;&#x441;&#x43B;&#x438; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x43A;&#x430;&#x436;&#x435;&#x442;&#x441;&#x44F; &#x440;&#x435;&#x43B;&#x435;&#x432;&#x430;&#x43D;&#x442;&#x43D;&#x44B;&#x43C;
-        &#x432;&#x430;&#x448;&#x435;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;&#x435;, &#x430;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x447;&#x438;&#x442;&#x44B;&#x432;&#x430;&#x435;&#x442; &#x43F;&#x43E;&#x43B;&#x43D;&#x43E;&#x435; &#x441;&#x43E;&#x434;&#x435;&#x440;&#x436;&#x430;&#x43D;&#x438;&#x435;
-        <code>SKILL.md</code>.</li>
-        <li><strong>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x43D;&#x435;&#x43D;&#x438;&#x435;</strong>: &#x410;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43B;&#x435;&#x434;&#x443;&#x435;&#x442; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x44F;&#x43C;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430; &#x432; &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x435; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B; &#x43D;&#x430;&#x434; &#x432;&#x430;&#x448;&#x435;&#x439; &#x437;&#x430;&#x434;&#x430;&#x447;&#x435;&#x439;.</li>
+        <li><strong>Discovery</strong> — видит только имена и
+        <code>description</code> всех скиллов.</li>
+        <li><strong>Activation</strong> — если описание совпадает с
+        задачей, загружается полный <code>SKILL.md</code>.</li>
+        <li><strong>Execution</strong> — агент следует инструкциям, при
+        необходимости подгружая файлы из <code>scripts/</code> и
+        <code>resources/</code>.</li>
         </ol>
-        <p>&#x412;&#x430;&#x43C; &#x43D;&#x435; &#x43D;&#x443;&#x436;&#x43D;&#x43E; &#x44F;&#x432;&#x43D;&#x43E; &#x443;&#x43A;&#x430;&#x437;&#x44B;&#x432;&#x430;&#x442;&#x44C; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x443; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x2014; &#x43E;&#x43D;
-        &#x43F;&#x440;&#x438;&#x43D;&#x438;&#x43C;&#x430;&#x435;&#x442; &#x440;&#x435;&#x448;&#x435;&#x43D;&#x438;&#x435; &#x43D;&#x430; &#x43E;&#x441;&#x43D;&#x43E;&#x432;&#x435; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x43A;&#x441;&#x442;&#x430;. &#x422;&#x435;&#x43C; &#x43D;&#x435; &#x43C;&#x435;&#x43D;&#x435;&#x435;, &#x432;&#x44B; &#x43C;&#x43E;&#x436;&#x435;&#x442;&#x435;
-        &#x443;&#x43F;&#x43E;&#x43C;&#x44F;&#x43D;&#x443;&#x442;&#x44C; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x43F;&#x43E; &#x438;&#x43C;&#x435;&#x43D;&#x438;, &#x435;&#x441;&#x43B;&#x438; &#x445;&#x43E;&#x442;&#x438;&#x442;&#x435; &#x433;&#x430;&#x440;&#x430;&#x43D;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x435;&#x433;&#x43E;
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;.</p>
-        <h2 id="&#x43B;&#x443;&#x447;&#x448;&#x438;&#x435;-&#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438;">&#x41B;&#x443;&#x447;&#x448;&#x438;&#x435; &#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438;</h2>
+        <p>Это экономит контекстное окно: нерелевантные скиллы не
+        занимают токены.</p>
+        <hr />
+        <h2 id="4-дизайн-качественного-скилла">4. Дизайн качественного
+        скилла</h2>
+        <h3 id="41-один-скилл--одна-ответственность">4.1. Один скилл —
+        одна ответственность</h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Плохо</th>
+        <th style="text-align: left;">Хорошо</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><code>dev-helper</code> (всё
+        подряд)</td>
+        <td style="text-align: left;"><code>pr-review</code>,
+        <code>release-notes</code>, <code>migration-writer</code></td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="42-дерево-решений-внутри-скилла">4.2. Дерево решений
+        внутри скилла</h3>
+        <p>Если у скилла несколько режимов работы, добавьте секцию
+        «Когда что делать»:</p>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## Decision tree</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Пользователь просит «отревьюй» → запустить полный чек-лист.</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Пользователь прислал diff → анализировать только изменённые файлы.</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Пользователь указал риск-зону (security, perf) → углубить соответствующий раздел.</span></code></pre></div>
+        <h3 id="43-скрипты-как-чёрные-ящики">4.3. Скрипты как чёрные
+        ящики</h3>
+        <p>Если скилл содержит <code>scripts/foo.py</code>, в
+        <code>SKILL.md</code> пишите:</p>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Запусти <span class="in">`python scripts/foo.py --help`</span> чтобы увидеть аргументы.</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>Не читай исходник целиком — он длинный.</span></code></pre></div>
+        <p>Так агент экономит контекст.</p>
+        <h3 id="44-якоря-на-примеры">4.4. Якоря на примеры</h3>
+        <p>Ссылайтесь на файлы в <code>examples/</code> через
+        относительные пути — агент дочитает их при необходимости:</p>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>Используй формат из <span class="in">`examples/release-notes-2026-Q1.md`</span>.</span></code></pre></div>
+        <hr />
+        <h2 id="5-пример-скилл-pr-review">5. Пример: скилл
+        <code>pr-review</code></h2>
+        <pre class="text"><code>.agent/skills/pr-review/
+├── SKILL.md
+├── scripts/
+│   └── extract_diff.py
+├── examples/
+│   ├── good-review.md
+│   └── bad-review.md
+└── resources/
+    └── checklist.yaml</code></pre>
+        <p><strong><code>SKILL.md</code>:</strong></p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="an">name:</span><span class="co"> pr-review</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Делает структурированный ревью pull request. Используется когда пользователь просит «проверить PR», «сделать review», передаёт ссылку на GitHub PR или прикладывает diff.</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="fu"># PR Review</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Когда использовать</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Запросы вида: «отревьюй PR #123», «глянь мои изменения», ссылка на GitHub PR.</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="fu">## Алгоритм</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Получи diff: <span class="in">`python scripts/extract_diff.py --pr &lt;url&gt;`</span>.</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Прогони его по чек-листу из <span class="in">`resources/checklist.yaml`</span>.</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Сформируй отчёт по шаблону из <span class="in">`examples/good-review.md`</span>.</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="fu">## Что НЕ делать</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Не комментируй стилистические правки, если в проекте есть форматтер.</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Не предлагай рефакторинг вне scope PR.</span></code></pre></div>
+        <hr />
+        <h2 id="6-жизненный-цикл-скилла">6. Жизненный цикл скилла</h2>
+        <pre><code>draft → test → publish → maintain → deprecate</code></pre>
         <ul>
-        <li><strong>&#x424;&#x43E;&#x43A;&#x443;&#x441;&#x438;&#x440;&#x443;&#x439;&#x442;&#x435;&#x441;&#x44C; &#x43D;&#x430; &#x43E;&#x434;&#x43D;&#x43E;&#x43C;</strong>: &#x41A;&#x430;&#x436;&#x434;&#x44B;&#x439; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D;
-        &#x434;&#x435;&#x43B;&#x430;&#x442;&#x44C; &#x447;&#x442;&#x43E;-&#x442;&#x43E; &#x43E;&#x434;&#x43D;&#x43E;, &#x43D;&#x43E; &#x434;&#x435;&#x43B;&#x430;&#x442;&#x44C; &#x44D;&#x442;&#x43E; &#x445;&#x43E;&#x440;&#x43E;&#x448;&#x43E;. &#x412;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x43E;&#x434;&#x43D;&#x43E;&#x433;&#x43E; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;
-        &#x201C;&#x434;&#x43B;&#x44F; &#x432;&#x441;&#x435;&#x433;&#x43E;&#x201D;, &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x43D;&#x435;&#x441;&#x43A;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x43E;&#x442;&#x434;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x445; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432; &#x434;&#x43B;&#x44F; &#x440;&#x430;&#x437;&#x43D;&#x44B;&#x445;
-        &#x437;&#x430;&#x434;&#x430;&#x447;.</li>
-        <li><strong>&#x41F;&#x438;&#x448;&#x438;&#x442;&#x435; &#x447;&#x435;&#x442;&#x43A;&#x438;&#x435; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x44F;</strong>: &#x41E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435; &#x2014; &#x44D;&#x442;&#x43E; &#x442;&#x43E;,
-        &#x43A;&#x430;&#x43A; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43E;&#x43F;&#x440;&#x435;&#x434;&#x435;&#x43B;&#x44F;&#x435;&#x442;, &#x43F;&#x43E;&#x43B;&#x435;&#x437;&#x435;&#x43D; &#x43B;&#x438; &#x43D;&#x430;&#x432;&#x44B;&#x43A;. &#x411;&#x443;&#x434;&#x44C;&#x442;&#x435; &#x442;&#x43E;&#x447;&#x43D;&#x44B; &#x432; &#x442;&#x43E;&#x43C;, &#x447;&#x442;&#x43E;
-        &#x43E;&#x43D; &#x434;&#x435;&#x43B;&#x430;&#x435;&#x442;.</li>
-        <li><strong>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435; &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x44B; &#x43A;&#x430;&#x43A; &#x201C;&#x447;&#x435;&#x440;&#x43D;&#x44B;&#x435; &#x44F;&#x449;&#x438;&#x43A;&#x438;&#x201D;</strong>:
-        &#x415;&#x441;&#x43B;&#x438; &#x432;&#x430;&#x448; &#x43D;&#x430;&#x432;&#x44B;&#x43A; &#x432;&#x43A;&#x43B;&#x44E;&#x447;&#x430;&#x435;&#x442; &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x44B;, &#x43F;&#x43E;&#x43E;&#x449;&#x440;&#x44F;&#x439;&#x442;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430; &#x441;&#x43D;&#x430;&#x447;&#x430;&#x43B;&#x430;
-        &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;&#x442;&#x44C; &#x438;&#x445; &#x441; &#x444;&#x43B;&#x430;&#x433;&#x43E;&#x43C; <code>--help</code>, &#x43F;&#x440;&#x435;&#x436;&#x434;&#x435; &#x447;&#x435;&#x43C; &#x447;&#x438;&#x442;&#x430;&#x442;&#x44C;
-        &#x432;&#x435;&#x441;&#x44C; &#x438;&#x441;&#x445;&#x43E;&#x434;&#x43D;&#x44B;&#x439; &#x43A;&#x43E;&#x434;. &#x42D;&#x442;&#x43E; &#x43F;&#x43E;&#x43C;&#x43E;&#x433;&#x430;&#x435;&#x442; &#x434;&#x435;&#x440;&#x436;&#x430;&#x442;&#x44C; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x43A;&#x441;&#x442; &#x441;&#x444;&#x43E;&#x43A;&#x443;&#x441;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x43D;&#x44B;&#x43C;
-        &#x43D;&#x430; &#x437;&#x430;&#x434;&#x430;&#x447;&#x435;.</li>
-        <li><strong>&#x412;&#x43A;&#x43B;&#x44E;&#x447;&#x430;&#x439;&#x442;&#x435; &#x434;&#x435;&#x440;&#x435;&#x432;&#x44C;&#x44F; &#x440;&#x435;&#x448;&#x435;&#x43D;&#x438;&#x439;</strong>: &#x414;&#x43B;&#x44F; &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x44B;&#x445;
-        &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x43E;&#x432; &#x434;&#x43E;&#x431;&#x430;&#x432;&#x44C;&#x442;&#x435; &#x440;&#x430;&#x437;&#x434;&#x435;&#x43B;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x43F;&#x43E;&#x43C;&#x43E;&#x436;&#x435;&#x442; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x443; &#x432;&#x44B;&#x431;&#x440;&#x430;&#x442;&#x44C;
-        &#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; &#x43F;&#x43E;&#x434;&#x445;&#x43E;&#x434; &#x432; &#x437;&#x430;&#x432;&#x438;&#x441;&#x438;&#x43C;&#x43E;&#x441;&#x442;&#x438; &#x43E;&#x442; &#x441;&#x438;&#x442;&#x443;&#x430;&#x446;&#x438;&#x438;.</li>
+        <li><strong>draft</strong> — лежит локально в
+        <code>.agent/skills/</code>, описание помечено
+        <code>[WIP]</code>.</li>
+        <li><strong>test</strong> — проверен через
+        <code>qa-skill-tester</code> (урок 7) на 3+ кейсах.</li>
+        <li><strong>publish</strong> — описание финализировано, PR в
+        репозиторий команды.</li>
+        <li><strong>maintain</strong> — версия и changelog в комментарии
+        <code>SKILL.md</code>.</li>
+        <li><strong>deprecate</strong> — в <code>description</code>
+        добавлено <code>[DEPRECATED — use X instead]</code>.</li>
         </ul>
         <hr />
-        <h2 id="&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;-&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;-algorithmic-art">&#x41F;&#x440;&#x438;&#x43C;&#x435;&#x440;
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;: <code>algorithmic-art</code></h2>
-        <p>&#x41D;&#x430;&#x432;&#x44B;&#x43A; <code>skills/algorithmic-art</code> &#x43F;&#x440;&#x435;&#x434;&#x43D;&#x430;&#x437;&#x43D;&#x430;&#x447;&#x435;&#x43D; &#x434;&#x43B;&#x44F;
-        &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x43E;&#x433;&#x43E; &#x438;&#x441;&#x43A;&#x443;&#x441;&#x441;&#x442;&#x432;&#x430; &#x441; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x43C; &#x431;&#x438;&#x431;&#x43B;&#x438;&#x43E;&#x442;&#x435;&#x43A;&#x438;
-        p5.js. &#x41E;&#x43D; &#x43D;&#x430;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x435;&#x442; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430; &#x441;&#x43D;&#x430;&#x447;&#x430;&#x43B;&#x430; &#x43D;&#x430; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x435; &#x201C;&#x430;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x43E;&#x439;
-        &#x444;&#x438;&#x43B;&#x43E;&#x441;&#x43E;&#x444;&#x438;&#x438;&#x201D;, &#x430; &#x437;&#x430;&#x442;&#x435;&#x43C; &#x43D;&#x430; &#x440;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44E; &#x44D;&#x442;&#x43E;&#x439; &#x444;&#x438;&#x43B;&#x43E;&#x441;&#x43E;&#x444;&#x438;&#x438; &#x432; &#x43A;&#x43E;&#x434;&#x435;.</p>
-        <p><strong>&#x41F;&#x440;&#x438;&#x43C;&#x435;&#x440; &#x437;&#x430;&#x43F;&#x440;&#x43E;&#x441;&#x430; &#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x435;&#x43B;&#x44F;:</strong></p>
+        <h2 id="7-анти-паттерны">7. Анти-паттерны</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Анти-паттерн</th>
+        <th style="text-align: left;">Симптом</th>
+        <th style="text-align: left;">Что делать</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>God-skill</strong></td>
+        <td style="text-align: left;"><code>SKILL.md</code> &gt; 500
+        строк, описывает 10 разных задач</td>
+        <td style="text-align: left;">Разбить на 3–5 узких скиллов</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Magic-skill</strong></td>
+        <td style="text-align: left;">Описание «помогает с кодом» —
+        слишком общее</td>
+        <td style="text-align: left;">Указать триггеры и предметную
+        область</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Stale-skill</strong></td>
+        <td style="text-align: left;">Ссылается на удалённые
+        файлы/команды</td>
+        <td style="text-align: left;">Добавить smoke-test в CI</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Silent-skill</strong></td>
+        <td style="text-align: left;">Не активируется, потому что
+        описание на английском, а пользователь пишет на русском</td>
+        <td style="text-align: left;">Перечислить триггеры на обоих
+        языках</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="8-практические-задания">8. Практические задания</h2>
         <blockquote>
-        <p>&#x201C;&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x43E;&#x435; &#x438;&#x441;&#x43A;&#x443;&#x441;&#x441;&#x442;&#x432;&#x43E; &#x43D;&#x430; &#x442;&#x435;&#x43C;&#x443; &#x2018;&#x413;&#x43B;&#x443;&#x431;&#x43E;&#x43A;&#x43E;&#x432;&#x43E;&#x434;&#x43D;&#x430;&#x44F;
-        &#x431;&#x438;&#x43E;&#x43B;&#x44E;&#x43C;&#x438;&#x43D;&#x435;&#x441;&#x446;&#x435;&#x43D;&#x446;&#x438;&#x44F;&#x2019;&#x201D;</p>
+        <p>Каждое задание выполняется в репозитории-песочнице. После
+        выполнения сделайте коммит с префиксом
+        <code>lesson-4: task-N</code>.</p>
         </blockquote>
-        <h3 id="&#x440;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;-&#x430;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x430;&#x44F;-&#x444;&#x438;&#x43B;&#x43E;&#x441;&#x43E;&#x444;&#x438;&#x44F;">1.
-        &#x420;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;: &#x410;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x430;&#x44F; &#x444;&#x438;&#x43B;&#x43E;&#x441;&#x43E;&#x444;&#x438;&#x44F;</h3>
-        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43D;&#x430;&#x447;&#x430;&#x43B;&#x430; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x435;&#x442; &#x434;&#x43E;&#x43A;&#x443;&#x43C;&#x435;&#x43D;&#x442; &#x441; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435;&#x43C; &#x43A;&#x43E;&#x43D;&#x446;&#x435;&#x43F;&#x446;&#x438;&#x438;:</p>
+        <h3 id="задание-1--hello-skill">Задание 1 — Hello-skill</h3>
+        <p>Создайте скилл <code>hello-author</code> в
+        <code>.agent/skills/hello-author/</code>. Frontmatter:
+        <code>name</code>, <code>description</code> («Здоровается с
+        автором проекта, используя имя из <code>package.json</code> поля
+        <code>author</code>»). Тело — 3 шага алгоритма. Проверка:
+        запросите у агента «поприветствуй меня» — он должен прочитать
+        <code>package.json</code> и обратиться по имени.</p>
+        <h3 id="задание-2--decision-tree">Задание 2 — Decision tree</h3>
+        <p>Расширьте <code>hello-author</code>: добавьте секцию
+        «Decision tree» с тремя ветками — если автор не указан, если
+        указана организация, если указан email. Проверка: уберите поле
+        <code>author</code> из <code>package.json</code> — агент должен
+        пойти по соответствующей ветке.</p>
+        <h3 id="задание-3--скрипт-как-чёрный-ящик">Задание 3 — Скрипт
+        как чёрный ящик</h3>
+        <p>Добавьте <code>scripts/whoami.py</code>, который выводит имя
+        автора в stdout. В <code>SKILL.md</code> укажите: «не читай
+        исходник, запусти <code>python scripts/whoami.py --help</code>».
+        Реализуйте флаг <code>--help</code>. Проверка: попросите агента
+        «расскажи, что делает scripts/whoami.py» — он должен ответить по
+        <code>--help</code>, а не процитировать код.</p>
+        <h3 id="задание-4--описание-триггер">Задание 4 —
+        Описание-триггер</h3>
+        <p>Создайте второй скилл <code>release-notes-ru</code> с
+        описанием на русском, содержащим триггеры: «релиз-ноуты»,
+        «changelog», «что нового». В одном диалоге попросите «составь
+        changelog по последним коммитам» — должен активироваться именно
+        этот скилл, а не общий помощник.</p>
+        <h3 id="задание-5--examples-якорь">Задание 5 —
+        Examples-якорь</h3>
+        <p>Создайте <code>release-notes-ru/examples/v1.2.0.md</code> с
+        эталонным форматом (Added / Changed / Fixed). В
+        <code>SKILL.md</code> сошлитесь на него фразой «используй формат
+        из <code>examples/v1.2.0.md</code>». Проверка: сгенерированные
+        релиз-ноуты должны повторять структуру эталона.</p>
+        <h3 id="задание-6--глобальный-vs-локальный">Задание 6 —
+        Глобальный vs локальный</h3>
+        <p>Скопируйте <code>hello-author</code> в
+        <code>~/.gemini/antigravity/skills/hello-author/</code>
+        (глобально) и оставьте версию в <code>.agent/skills/</code>
+        (локально). В локальной версии измените приветствие. Проверка: в
+        проекте агент должен использовать локальную версию (она имеет
+        приоритет), в другом проекте — глобальную.</p>
+        <h3 id="задание-7--анти-паттерн--рефакторинг">Задание 7 —
+        Анти-паттерн → рефакторинг</h3>
+        <p>Намеренно создайте «god-skill» <code>dev-helper</code> с
+        описанием «помогает разработчику с любыми задачами». Запросите у
+        агента три разных задачи (форматирование, ревью, документация).
+        Зафиксируйте, что скилл активируется хаотично. Разбейте его на
+        три узких скилла с конкретными триггерами. Опишите в
+        <code>index.html</code> песочницы: что изменилось в поведении
+        агента и почему.</p>
+        <hr />
+        <h2 id="9-критерии-готовности-definition-of-done">9. Критерии
+        готовности (Definition of Done)</h2>
+        <p>Скилл считается «готовым», когда:</p>
+        <ul class="task-list">
+        <li><label><input type="checkbox" /><code>description</code>
+        содержит минимум 3 триггер-слова из лексикона
+        пользователей;</label></li>
+        <li><label><input type="checkbox" /><code>SKILL.md</code> короче
+        300 строк или разбит на под-скиллы;</label></li>
+        <li><label><input type="checkbox" />все упомянутые скрипты
+        поддерживают <code>--help</code>;</label></li>
+        <li><label><input type="checkbox" />есть минимум один пример в
+        <code>examples/</code>;</label></li>
+        <li><label><input type="checkbox" />скилл активируется на 3
+        разных формулировках одной задачи;</label></li>
+        <li><label><input type="checkbox" />скилл не активируется на 3
+        нерелевантных задачах (нет false positives).</label></li>
+        </ul>
+        <hr />
+        <h2 id="10-что-дальше">10. Что дальше</h2>
+        <ul>
+        <li><strong>Урок 5</strong> — каталог из 17 стандартных скиллов,
+        которые поставляются с Antigravity.</li>
+        <li><strong>Урок 6</strong> — оркестрация нескольких скиллов в
+        автономный воркфлоу.</li>
+        <li><strong>Урок 7</strong> — тестирование скиллов через
+        мета-скилл <code>qa-skill-tester</code>.</li>
+        </ul>
         <blockquote>
-        <p><strong>&#x41D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x434;&#x432;&#x438;&#x436;&#x435;&#x43D;&#x438;&#x44F;</strong>: &#x201C;&#x42D;&#x43C;&#x435;&#x440;&#x434;&#x436;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x435; &#x441;&#x438;&#x44F;&#x43D;&#x438;&#x435;&#x201D;</p>
-        <p><strong>&#x424;&#x438;&#x43B;&#x43E;&#x441;&#x43E;&#x444;&#x438;&#x44F;</strong>: &#x41C;&#x44B; &#x438;&#x441;&#x441;&#x43B;&#x435;&#x434;&#x443;&#x435;&#x43C; &#x442;&#x430;&#x43D;&#x435;&#x446; &#x441;&#x432;&#x435;&#x442;&#x430; &#x432;
-        &#x430;&#x431;&#x441;&#x43E;&#x43B;&#x44E;&#x442;&#x43D;&#x43E;&#x439; &#x442;&#x435;&#x43C;&#x43D;&#x43E;&#x442;&#x435;. &#x41A;&#x440;&#x430;&#x441;&#x43E;&#x442;&#x430; &#x43D;&#x435; &#x432; &#x441;&#x430;&#x43C;&#x438;&#x445; &#x441;&#x443;&#x449;&#x435;&#x441;&#x442;&#x432;&#x430;&#x445;, &#x430; &#x432; &#x441;&#x43B;&#x435;&#x434;&#x430;&#x445;,
-        &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435; &#x43E;&#x43D;&#x438; &#x43E;&#x441;&#x442;&#x430;&#x432;&#x43B;&#x44F;&#x44E;&#x442; &#x432; &#x442;&#x43E;&#x43B;&#x449;&#x435; &#x432;&#x43E;&#x434;&#x44B;.</p>
-        <p><strong>&#x410;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x43E;&#x435; &#x432;&#x44B;&#x440;&#x430;&#x436;&#x435;&#x43D;&#x438;&#x435;</strong>: &#x420;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F; &#x447;&#x435;&#x440;&#x435;&#x437;
-        &#x43F;&#x43E;&#x43B;&#x44F; &#x43F;&#x43E;&#x442;&#x43E;&#x43A;&#x43E;&#x432; (flow fields), &#x443;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x435;&#x43C;&#x44B;&#x435; &#x43C;&#x43D;&#x43E;&#x433;&#x43E;&#x441;&#x43B;&#x43E;&#x439;&#x43D;&#x44B;&#x43C; &#x448;&#x443;&#x43C;&#x43E;&#x43C;
-        &#x41F;&#x435;&#x440;&#x43B;&#x438;&#x43D;&#x430;. &#x422;&#x44B;&#x441;&#x44F;&#x447;&#x438; &#x441;&#x432;&#x435;&#x442;&#x44F;&#x449;&#x438;&#x445;&#x441;&#x44F; &#x447;&#x430;&#x441;&#x442;&#x438;&#x446; &#x434;&#x432;&#x438;&#x436;&#x443;&#x442;&#x441;&#x44F; &#x43F;&#x43E; &#x432;&#x435;&#x43A;&#x442;&#x43E;&#x440;&#x43D;&#x44B;&#x43C;
-        &#x442;&#x440;&#x430;&#x435;&#x43A;&#x442;&#x43E;&#x440;&#x438;&#x44F;&#x43C;, &#x43E;&#x441;&#x442;&#x430;&#x432;&#x43B;&#x44F;&#x44F; &#x437;&#x430; &#x441;&#x43E;&#x431;&#x43E;&#x439; &#x437;&#x430;&#x442;&#x443;&#x445;&#x430;&#x44E;&#x449;&#x438;&#x435; &#x448;&#x43B;&#x435;&#x439;&#x444;&#x44B;. &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;
-        &#x430;&#x434;&#x434;&#x438;&#x442;&#x438;&#x432;&#x43D;&#x43E;&#x433;&#x43E; &#x441;&#x43C;&#x435;&#x448;&#x438;&#x432;&#x430;&#x43D;&#x438;&#x44F; &#x446;&#x432;&#x435;&#x442;&#x43E;&#x432; &#x434;&#x43B;&#x44F; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x44D;&#x444;&#x444;&#x435;&#x43A;&#x442;&#x430; &#x441;&#x432;&#x435;&#x447;&#x435;&#x43D;&#x438;&#x44F;.</p>
+        <p>[!TIP] Лучший способ научиться писать скиллы — открыть
+        <code>skills/skill-creator/SKILL.md</code> и пройти его
+        пошагово.</p>
         </blockquote>
-        <h3 id="&#x440;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B;-&#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;-&#x438;&#x43D;&#x442;&#x435;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x439;-&#x430;&#x440;&#x442;">2. &#x420;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442;
-        &#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;: &#x418;&#x43D;&#x442;&#x435;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x439; &#x430;&#x440;&#x442;</h3>
-        <p>&#x417;&#x430;&#x442;&#x435;&#x43C; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x435;&#x442; &#x441;&#x430;&#x43C;&#x43E;&#x434;&#x43E;&#x441;&#x442;&#x430;&#x442;&#x43E;&#x447;&#x43D;&#x44B;&#x439; HTML-&#x444;&#x430;&#x439;&#x43B; &#x441; &#x43A;&#x43E;&#x434;&#x43E;&#x43C;
-        p5.js.</p>
-        <p><img
-        src="/home/g/antigravity/lessons/4/bioluminescence_art.png"
-        alt="&#x41F;&#x440;&#x438;&#x43C;&#x435;&#x440; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x43E;&#x433;&#x43E; &#x438;&#x441;&#x43A;&#x443;&#x441;&#x441;&#x442;&#x432;&#x430;" /> <em>&#x412;&#x438;&#x437;&#x443;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x44F;
-        &#x430;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C;&#x430; &#x201C;&#x42D;&#x43C;&#x435;&#x440;&#x434;&#x436;&#x435;&#x43D;&#x442;&#x43D;&#x43E;&#x435; &#x441;&#x438;&#x44F;&#x43D;&#x438;&#x435;&#x201D;, &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x43D;&#x430;&#x44F; &#x441; &#x43F;&#x43E;&#x43C;&#x43E;&#x449;&#x44C;&#x44E; &#x43D;&#x430;&#x432;&#x44B;&#x43A;&#x430;
-        algorithmic-art.</em></p>
-        <p>&#x41F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x442;&#x435;&#x43B;&#x44C; &#x43F;&#x43E;&#x43B;&#x443;&#x447;&#x430;&#x435;&#x442; &#x438;&#x43D;&#x442;&#x435;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x439; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;, &#x433;&#x434;&#x435; &#x43E;&#x43D; &#x43C;&#x43E;&#x436;&#x435;&#x442;
-        &#x43C;&#x435;&#x43D;&#x44F;&#x442;&#x44C; &#x43F;&#x430;&#x440;&#x430;&#x43C;&#x435;&#x442;&#x440;&#x44B; (&#x43F;&#x43B;&#x43E;&#x442;&#x43D;&#x43E;&#x441;&#x442;&#x44C; &#x447;&#x430;&#x441;&#x442;&#x438;&#x446;, &#x441;&#x43A;&#x43E;&#x440;&#x43E;&#x441;&#x442;&#x44C; &#x442;&#x435;&#x447;&#x435;&#x43D;&#x438;&#x44F;, &#x446;&#x432;&#x435;&#x442;&#x43E;&#x432;&#x443;&#x44E;
-        &#x433;&#x430;&#x43C;&#x43C;&#x443;) &#x438; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x43D;&#x43E;&#x432;&#x44B;&#x435; &#x432;&#x430;&#x440;&#x438;&#x430;&#x446;&#x438;&#x438; &#x441; &#x43F;&#x43E;&#x43C;&#x43E;&#x449;&#x44C;&#x44E; &#x438;&#x437;&#x43C;&#x435;&#x43D;&#x435;&#x43D;&#x438;&#x44F;
-        <code>seed</code>.</p>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>
