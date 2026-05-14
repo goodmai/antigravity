@@ -1,0 +1,26 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: triple-channel
+  group_by: [alertname, cluster, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - match: { severity: critical }
+      receiver: triple-channel
+    - match: { severity: warning }
+      receiver: triple-channel
+
+inhibit_rules:
+  - source_match: { severity: critical }
+    target_match: { severity: warning }
+    equal: [alertname, instance]
+
+receivers:
+  # Один webhook — Apprise разводит в TG/Slack/Discord
+  - name: triple-channel
+    webhook_configs:
+      - url: http://apprise:8000/notify
+        send_resolved: true

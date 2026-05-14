@@ -1,0 +1,52 @@
+version: "3.8"
+# Sandbox: cloud-lite — LocalStack (AWS) + Azurite (Azure) + fake-gcs (GCP) +
+# Atlantis для PR-driven IaC
+
+services:
+  localstack:
+    image: localstack/localstack:3.7
+    environment:
+      SERVICES: s3,iam,sts,kms,secretsmanager,lambda,dynamodb,sqs
+      DEBUG: 0
+      DATA_DIR: /var/lib/localstack/data
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.31
+    command: ["azurite", "--blobHost", "0.0.0.0", "--queueHost", "0.0.0.0", "--tableHost", "0.0.0.0"]
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+
+  fake-gcs:
+    image: fsouza/fake-gcs-server:1.49
+    command: ["-scheme", "http", "-port", "4443"]
+    ports:
+      - "4443:4443"
+
+  atlantis:
+    image: ghcr.io/runatlantis/atlantis:v0.29
+    command:
+      - server
+      - --gh-user=demo
+      - --gh-token=demo
+      - --gh-webhook-secret=demo-secret
+      - --repo-allowlist=github.com/your-org/*
+      - --atlantis-url=http://localhost:4141
+    ports: ["4141:4141"]
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: eu-west-1
+    volumes:
+      - atlantis-data:/atlantis-data
+
+volumes:
+  localstack-data: {}
+  atlantis-data: {}
