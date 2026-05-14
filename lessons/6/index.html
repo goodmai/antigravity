@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x41B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F; &#x420;&#x430;&#x431;&#x43E;&#x442;&#x430; &#x2116;1: Senior AI Engineering &amp;
-Autonomous Workflows | Anti-Gravity Academy</title>
+    <title>�������� 6: ���������������������� AI-���������������� ���
+�������������������� ��������������������������������
+�������������� | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -85,6 +86,7 @@ Autonomous Workflows | Anti-Gravity Academy</title>
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -142,6 +144,30 @@ Autonomous Workflows | Anti-Gravity Academy</title>
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -155,125 +181,390 @@ Autonomous Workflows | Anti-Gravity Academy</title>
   <body>
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
       </header>
       <main>
         <h1
-        id="&#x43B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;-1-senior-ai-engineering-autonomous-workflows">&#x41B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F;
-        &#x420;&#x430;&#x431;&#x43E;&#x442;&#x430; &#x2116;1: Senior AI Engineering &amp; Autonomous Workflows</h1>
-        <p>&#x414;&#x43E;&#x431;&#x440;&#x43E; &#x43F;&#x43E;&#x436;&#x430;&#x43B;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x432; &#x432;&#x44B;&#x441;&#x448;&#x443;&#x44E; &#x43B;&#x438;&#x433;&#x443;. &#x412; &#x44D;&#x442;&#x43E;&#x439; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x435; &#x43C;&#x44B; &#x43F;&#x43E;&#x441;&#x442;&#x440;&#x43E;&#x438;&#x43C;
-        <strong>Fully Autonomous Self-Healing Security System</strong>,
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; 4 &#x441;&#x43F;&#x435;&#x446;&#x438;&#x430;&#x43B;&#x438;&#x437;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x43D;&#x44B;&#x445; AI-&#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x430;.</p>
-        <p>&#x41C;&#x44B; &#x43E;&#x442;&#x43A;&#x430;&#x436;&#x435;&#x43C;&#x441;&#x44F; &#x43E;&#x442; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x44B;&#x445; bash-&#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x43E;&#x432; &#x432; &#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;
-        &#x43A;&#x440;&#x43E;&#x441;&#x441;&#x43F;&#x43B;&#x430;&#x442;&#x444;&#x43E;&#x440;&#x43C;&#x435;&#x43D;&#x43D;&#x43E;&#x439; &#x430;&#x440;&#x445;&#x438;&#x442;&#x435;&#x43A;&#x442;&#x443;&#x440;&#x44B; &#x43D;&#x430; Python.</p>
+        id="урок-6-продвинутые-ai-воркфлоу--автономная-самоисцеляющаяся-система">Урок
+        6: Продвинутые AI-воркфлоу — автономная самоисцеляющаяся
+        система</h1>
+        <blockquote>
+        <p>В этом уроке мы соединяем скиллы из урока 5 в
+        <strong>автономный конвейер</strong>, который сам аудитит код,
+        ревьюит его, чинит баги и останавливается только когда отчёт
+        чист. Это уровень Senior AI Engineering.</p>
+        </blockquote>
         <hr />
-        <h2 id="phase-0-infrastructure-setup">&#x1F3D7;&#xFE0F; Phase 0: Infrastructure
-        Setup</h2>
-        <p>&#x41A;&#x430;&#x43A; Senior Engineer, &#x432;&#x44B; &#x43D;&#x430;&#x447;&#x438;&#x43D;&#x430;&#x435;&#x442;&#x435; &#x441; &#x444;&#x443;&#x43D;&#x434;&#x430;&#x43C;&#x435;&#x43D;&#x442;&#x430;.</p>
-        <h3 id="gemini-cli-core">1. Gemini CLI &amp; Core</h3>
-        <p>&#x423;&#x441;&#x442;&#x430;&#x43D;&#x43E;&#x432;&#x438;&#x442;&#x435; &#x44F;&#x434;&#x440;&#x43E; &#x43D;&#x430;&#x448;&#x435;&#x439; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x44B;:</p>
-        <div class="sourceCode" id="cb1"><pre
-        class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install <span class="at">-g</span> @google/gemini-cli</span></code></pre></div>
-        <h3 id="extensions-the-tools">2. Extensions (The Tools)</h3>
-        <p>&#x423;&#x441;&#x442;&#x430;&#x43D;&#x43E;&#x432;&#x438;&#x442;&#x435; &#x43D;&#x435;&#x43E;&#x431;&#x445;&#x43E;&#x434;&#x438;&#x43C;&#x44B;&#x435; &#x440;&#x430;&#x441;&#x448;&#x438;&#x440;&#x435;&#x43D;&#x438;&#x44F;:</p>
+        <h2 id="цель-урока">Цель урока</h2>
+        <p>Построить <strong>Self-Healing Security &amp; Quality
+        System</strong> на четырёх специализированных AI-агентах:</p>
+        <pre><code>┌──────────────────────┐
+│  Prompt Optimizer    │  ← анализирует проект, генерирует промпты для исполнителей
+└──────────┬───────────┘
+           ▼
+┌──────────────────────┐     ┌──────────────────────┐
+│  Auditor (security)  │  +  │  Reviewer (quality)  │
+└──────────┬───────────┘     └──────────┬───────────┘
+           └──────────┬─────────────────┘
+                      ▼
+           ┌──────────────────────┐
+           │   Fixer (rewriter)   │
+           └──────────┬───────────┘
+                      ▼
+              [loop until clean]</code></pre>
+        <p>Архитектура кроссплатформенная (Python), а не bash-скрипты —
+        потому что <strong>наблюдаемость, повторяемость и
+        трассируемость</strong> важнее лаконичности.</p>
+        <hr />
+        <h2 id="phase-0-инфраструктура">Phase 0. Инфраструктура</h2>
+        <h3 id="01-установка-ядра">0.1. Установка ядра</h3>
         <div class="sourceCode" id="cb2"><pre
-        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gemini</span> install code-review</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gemini</span> install gemini-cli-security</span></code></pre></div>
-        <h3 id="environment-secrets-management">3. Environment (Secrets
-        Management)</h3>
-        <p><strong>&#x41D;&#x438;&#x43A;&#x43E;&#x433;&#x434;&#x430;</strong> &#x43D;&#x435; &#x445;&#x440;&#x430;&#x43D;&#x438;&#x442;&#x435; &#x43A;&#x43B;&#x44E;&#x447;&#x438; &#x432; &#x43A;&#x43E;&#x434;&#x435;.</p>
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install <span class="at">-g</span> @google/gemini-cli</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gemini</span> install code-review</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">gemini</span> install gemini-cli-security</span></code></pre></div>
+        <h3 id="02-секреты">0.2. Секреты</h3>
+        <p>Ключи <strong>никогда</strong> не хранятся в коде или
+        коммитах.</p>
         <div class="sourceCode" id="cb3"><pre
-        class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">GEMINI_API_KEY</span><span class="op">=</span><span class="st">&quot;&#x432;&#x430;&#x448;_&#x43A;&#x43B;&#x44E;&#x447;&quot;</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co"># export QWEN_API_KEY=&quot;&#x432;&#x430;&#x448;_&#x43A;&#x43B;&#x44E;&#x447;&quot; (&#x435;&#x441;&#x43B;&#x438; &#x43F;&#x440;&#x438;&#x43C;&#x435;&#x43D;&#x438;&#x43C;&#x43E;)</span></span></code></pre></div>
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">GEMINI_API_KEY</span><span class="op">=</span><span class="st">&quot;…&quot;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">QWEN_API_KEY</span><span class="op">=</span><span class="st">&quot;…&quot;</span>     <span class="co"># опционально, для ревью</span></span></code></pre></div>
+        <p>Проверка:
+        <code>python -c "import os; assert os.getenv('GEMINI_API_KEY'), 'missing key'"</code>.</p>
+        <h3 id="03-структура-артефактов">0.3. Структура артефактов</h3>
+        <pre><code>artifacts/
+├── config/                 # сгенерированные системные промпты
+│   ├── sec_prompt.txt
+│   └── qwen_prompt.txt
+└── 2026-05-14T12-03-22_audit.txt
+    2026-05-14T12-03-22_review.txt
+    2026-05-14T12-04-10_fix.diff</code></pre>
+        <p>Имя файла = ISO-timestamp + тип — это даёт идемпотентность и
+        историю.</p>
         <hr />
-        <h2 id="phase-1-the-brain-prompt-optimizer">&#x1F9E0; Phase 1: The
-        &#x201C;Brain&#x201D; (Prompt Optimizer)</h2>
-        <p>&#x41F;&#x435;&#x440;&#x432;&#x44B;&#x439; &#x441;&#x43A;&#x438;&#x43B;&#x43B; &#x2014; <strong>Prompt Optimizer</strong>. &#x41E;&#x43D; &#x43D;&#x435; &#x43F;&#x438;&#x448;&#x435;&#x442;
-        &#x43A;&#x43E;&#x434;, &#x43E;&#x43D; &#x430;&#x43D;&#x430;&#x43B;&#x438;&#x437;&#x438;&#x440;&#x443;&#x435;&#x442; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442; &#x438; &#x201C;&#x43F;&#x440;&#x43E;&#x433;&#x440;&#x430;&#x43C;&#x43C;&#x438;&#x440;&#x443;&#x435;&#x442;&#x201D; &#x434;&#x440;&#x443;&#x433;&#x438;&#x445; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x432;.</p>
-        <ul>
-        <li><strong>Logic</strong>: &#x421;&#x43A;&#x430;&#x43D;&#x438;&#x440;&#x443;&#x435;&#x442; &#x441;&#x442;&#x440;&#x443;&#x43A;&#x442;&#x443;&#x440;&#x443; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;
-        (Python/Web/FullStack).</li>
-        <li><strong>Output</strong>: &#x413;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x443;&#x435;&#x442; &#x444;&#x430;&#x439;&#x43B;&#x44B;
-        <code>qwen_prompt.txt</code> &#x438; <code>sec_prompt.txt</code> &#x432;
-        &#x43F;&#x430;&#x43F;&#x43A;&#x435; <code>artifacts/config</code>.</li>
-        <li><strong>&#x41C;&#x435;&#x442;&#x43E;&#x434;&#x43E;&#x43B;&#x43E;&#x433;&#x438;&#x44F;</strong>: CO-STAR Framework.</li>
-        </ul>
-        <p><strong>&#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A;:</strong></p>
-        <div class="sourceCode" id="cb4"><pre
-        class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> skills/prompt-optimizer/scripts/optimize_prompts.py <span class="at">--project-dir</span> .</span></code></pre></div>
-        <hr />
-        <h2 id="phase-2-the-execution-team">&#x1F6E1;&#xFE0F; Phase 2: The &#x201C;Execution
-        Team&#x201D;</h2>
-        <p>&#x41C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C; 3 &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x445; &#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x430;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435;
-        <strong>&#x43F;&#x43E;&#x442;&#x440;&#x435;&#x431;&#x43B;&#x44F;&#x44E;&#x442;</strong> &#x43A;&#x43E;&#x43D;&#x444;&#x438;&#x433;&#x443;&#x440;&#x430;&#x446;&#x438;&#x44E; &#x43E;&#x442; &#x41E;&#x43F;&#x442;&#x438;&#x43C;&#x438;&#x437;&#x430;&#x442;&#x43E;&#x440;&#x430;.</p>
+        <h2 id="phase-1-мозг--prompt-optimizer">Phase 1. «Мозг» — Prompt
+        Optimizer</h2>
+        <p>Первый агент <strong>не пишет код</strong>. Он программирует
+        других агентов.</p>
+        <h3 id="11-что-он-делает">1.1. Что он делает</h3>
         <ol type="1">
-        <li><strong>Auditor (Security Checker)</strong>:
+        <li>Сканирует проект: <code>pyproject.toml</code>,
+        <code>package.json</code>, языки файлов.</li>
+        <li>Классифицирует тип: <code>python-lib</code>,
+        <code>web-frontend</code>, <code>fullstack</code>,
+        <code>infra</code>.</li>
+        <li>Применяет <strong>CO-STAR-фреймворк</strong> для генерации
+        системных промптов:
         <ul>
-        <li>&#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;: <code>gemini-cli-security</code>.</li>
-        <li>&#x420;&#x43E;&#x43B;&#x44C;: Paranoid Security Expert.</li>
-        <li>Config:
-        <code>--system-prompt artifacts/config/sec_prompt.txt</code>.</li>
-        </ul></li>
-        <li><strong>Reviewer (Qwen Code Review)</strong>:
-        <ul>
-        <li>&#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;: <code>code-review</code>.</li>
-        <li>&#x420;&#x43E;&#x43B;&#x44C;: Lead Python Developer.</li>
-        <li>Config:
-        <code>--system-prompt artifacts/config/qwen_prompt.txt</code>.</li>
-        </ul></li>
-        <li><strong>Fixer (Gemini Fixer)</strong>:
-        <ul>
-        <li>&#x418;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;: Gemini 1.5 Pro.</li>
-        <li>&#x420;&#x43E;&#x43B;&#x44C;: Senior Software Engineer.</li>
-        <li>&#x417;&#x430;&#x434;&#x430;&#x447;&#x430;: &#x418;&#x441;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x442;&#x44C; &#x43A;&#x43E;&#x434; &#x43D;&#x430; &#x43E;&#x441;&#x43D;&#x43E;&#x432;&#x435; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x43E;&#x432; &#x43E;&#x442; Auditor &#x438;
-        Reviewer.</li>
+        <li><strong>C</strong> ontext — что за проект.</li>
+        <li><strong>O</strong> bjective — конкретная роль (Paranoid
+        Security Expert / Senior Python Dev).</li>
+        <li><strong>S</strong> tyle — формат отчёта.</li>
+        <li><strong>T</strong> one — корпоративный / нейтральный.</li>
+        <li><strong>A</strong> udience — другие AI-агенты.</li>
+        <li><strong>R</strong> esponse — JSON / Markdown / unified
+        diff.</li>
         </ul></li>
         </ol>
-        <hr />
-        <h2 id="phase-3-the-orchestrator-autonomous-loop">&#x1F504; Phase 3:
-        The Orchestrator (Autonomous Loop)</h2>
-        <p>&#x412;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x44B;&#x445; &#x441;&#x43A;&#x440;&#x438;&#x43F;&#x442;&#x43E;&#x432; &#x43C;&#x44B; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C;
-        <code>lab_orchestrator.py</code> &#x43D;&#x430; Python.</p>
-        <p><strong>&#x410;&#x43B;&#x433;&#x43E;&#x440;&#x438;&#x442;&#x43C; &#x41E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x430;:</strong></p>
-        <ol type="1">
-        <li><strong>Optimization</strong>: &#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;&#x435;&#x442; Prompt
-        Optimizer.</li>
-        <li><strong>Loop</strong>:
-        <ul>
-        <li>&#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;&#x435;&#x442; <strong>Auditor</strong> &#x438;
-        <strong>Reviewer</strong> &#x441; &#x442;&#x44E;&#x43D;&#x438;&#x43D;&#x433;&#x43E;&#x432;&#x430;&#x43D;&#x43D;&#x44B;&#x43C;&#x438; &#x43F;&#x440;&#x43E;&#x43C;&#x43F;&#x442;&#x430;&#x43C;&#x438;.</li>
-        <li>&#x421;&#x43E;&#x445;&#x440;&#x430;&#x43D;&#x44F;&#x435;&#x442; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x44B; &#x432;
-        <code>artifacts/&lt;timestamp&gt;_&lt;type&gt;.txt</code>.</li>
-        <li><strong>Check</strong>: &#x415;&#x441;&#x43B;&#x438; <code>No critical issues</code>
-        -&gt; EXIT.</li>
-        <li><strong>Fix</strong>: &#x415;&#x441;&#x43B;&#x438; issues &#x435;&#x441;&#x442;&#x44C; -&gt; &#x432;&#x44B;&#x437;&#x44B;&#x432;&#x430;&#x435;&#x442;
-        <strong>Fixer</strong> &#x441; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x43A;&#x441;&#x442;&#x43E;&#x43C; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x43E;&#x432;.</li>
-        <li>&#x41F;&#x43E;&#x432;&#x442;&#x43E;&#x440;&#x44F;&#x435;&#x442; &#x446;&#x438;&#x43A;&#x43B;.</li>
-        </ul></li>
-        </ol>
-        <h3 id="&#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;-&#x43F;&#x43E;&#x43B;&#x43D;&#x43E;&#x439;-&#x43B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x438;&#x438;">&#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A; &#x43F;&#x43E;&#x43B;&#x43D;&#x43E;&#x439;
-        &#x43B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x438;&#x438;:</h3>
+        <h3 id="12-запуск">1.2. Запуск</h3>
         <div class="sourceCode" id="cb5"><pre
-        class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># &#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x443;&#x44F;&#x437;&#x432;&#x438;&#x43C;&#x44B;&#x439; &#x444;&#x430;&#x439;&#x43B; &#x434;&#x43B;&#x44F; &#x442;&#x435;&#x441;&#x442;&#x430;</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&quot;import os; os.system(&#39;rm -rf /&#39;)&quot;</span> <span class="op">&gt;</span> vulnerable_app.py</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># &#x417;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x435; &#x430;&#x432;&#x442;&#x43E;&#x43D;&#x43E;&#x43C;&#x43D;&#x443;&#x44E; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x443;</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> lessons/6/scripts/lab_orchestrator.py</span></code></pre></div>
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> skills/prompt-optimizer/scripts/optimize_prompts.py <span class="at">--project-dir</span> .</span></code></pre></div>
+        <p>Результат — два файла в <code>artifacts/config/</code>. Их
+        читают агенты Phase 2.</p>
+        <blockquote>
+        <p>[!IMPORTANT] Без Phase 1 промпты исполнителей оказываются
+        «универсально средними». Адаптация под проект — то, что отличает
+        игрушечный пайплайн от боевого.</p>
+        </blockquote>
         <hr />
-        <h2 id="&#x438;&#x442;&#x43E;&#x433;">&#x418;&#x442;&#x43E;&#x433;</h2>
-        <p>&#x412;&#x44B; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43B;&#x438; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x443; &#x443;&#x440;&#x43E;&#x432;&#x43D;&#x44F; Enterprise:</p>
-        <ol type="1">
-        <li><strong>Optimization</strong>: &#x410;&#x433;&#x435;&#x43D;&#x442;&#x44B; &#x430;&#x434;&#x430;&#x43F;&#x442;&#x438;&#x440;&#x443;&#x44E;&#x442;&#x441;&#x44F; &#x43F;&#x43E;&#x434;
-        &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;.</li>
-        <li><strong>Traceability</strong>: &#x412;&#x441;&#x435; &#x440;&#x435;&#x448;&#x435;&#x43D;&#x438;&#x44F;
-        &#x437;&#x430;&#x434;&#x43E;&#x43A;&#x443;&#x43C;&#x435;&#x43D;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x44B;.</li>
-        <li><strong>Self-Healing</strong>: &#x421;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x430; &#x441;&#x430;&#x43C;&#x430; &#x447;&#x438;&#x43D;&#x438;&#x442; &#x431;&#x430;&#x433;&#x438;, &#x43F;&#x43E;&#x43A;&#x430;
-        &#x43D;&#x435; &#x441;&#x442;&#x430;&#x43D;&#x435;&#x442; &#x201C;&#x447;&#x438;&#x441;&#x442;&#x43E;&#x439;&#x201D;.</li>
-        </ol>
+        <h2
+        id="phase-2-исполнители--три-специализированных-агента">Phase 2.
+        «Исполнители» — три специализированных агента</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Агент</th>
+        <th style="text-align: left;">Инструмент</th>
+        <th style="text-align: left;">Роль</th>
+        <th style="text-align: left;">Вход</th>
+        <th style="text-align: left;">Выход</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Auditor</strong></td>
+        <td
+        style="text-align: left;"><code>gemini-cli-security</code></td>
+        <td style="text-align: left;">Paranoid Security Expert</td>
+        <td style="text-align: left;">код +
+        <code>sec_prompt.txt</code></td>
+        <td style="text-align: left;"><code>audit.txt</code></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Reviewer</strong></td>
+        <td style="text-align: left;"><code>code-review</code>
+        (Qwen)</td>
+        <td style="text-align: left;">Lead Python Developer</td>
+        <td style="text-align: left;">код +
+        <code>qwen_prompt.txt</code></td>
+        <td style="text-align: left;"><code>review.txt</code></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Fixer</strong></td>
+        <td style="text-align: left;"><code>gemini</code> 1.5 Pro</td>
+        <td style="text-align: left;">Senior Software Engineer</td>
+        <td style="text-align: left;">код + два отчёта</td>
+        <td style="text-align: left;">unified-diff
+        <code>fix.diff</code></td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="контракт-между-агентами">Контракт между агентами</h3>
+        <p>Все отчёты обязаны содержать JSON-секцию:</p>
+        <div class="sourceCode" id="cb6"><pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;critical&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="er">...</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;major&quot;</span><span class="fu">:</span>    <span class="ot">[</span><span class="er">...</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;minor&quot;</span><span class="fu">:</span>    <span class="ot">[</span><span class="er">...</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;verdict&quot;</span><span class="fu">:</span>  <span class="st">&quot;FAIL&quot;</span> <span class="er">|</span> <span class="st">&quot;PASS&quot;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+        <p>Только наличие этой секции даёт оркестратору однозначный
+        сигнал «чисто / не чисто».</p>
+        <hr />
+        <h2 id="phase-3-оркестратор--автономный-цикл">Phase 3.
+        Оркестратор — автономный цикл</h2>
+        <p><code>lab_orchestrator.py</code> управляет жизненным
+        циклом:</p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> run():</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    optimize_prompts()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> iteration <span class="kw">in</span> <span class="bu">range</span>(MAX_ITER):</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        audit  <span class="op">=</span> run_auditor()</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        review <span class="op">=</span> run_reviewer()</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> is_clean(audit) <span class="kw">and</span> is_clean(review):</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>            log(<span class="st">&quot;✅ No critical issues — exiting clean.&quot;</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        diff <span class="op">=</span> run_fixer(audit, review)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        apply_diff(diff)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        snapshot_artifacts(iteration)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">raise</span> <span class="pp">RuntimeError</span>(<span class="st">&quot;Reached MAX_ITER — manual review required.&quot;</span>)</span></code></pre></div>
+        <h3 id="защитные-механизмы">Защитные механизмы</h3>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Риск</th>
+        <th style="text-align: left;">Защита</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;">Бесконечный цикл</td>
+        <td style="text-align: left;"><code>MAX_ITER = 5</code>, выход с
+        ненулевым кодом</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Fixer ломает тесты</td>
+        <td style="text-align: left;">После каждого
+        <code>apply_diff</code> — <code>pytest --maxfail=1</code></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Регресс по метрикам</td>
+        <td style="text-align: left;">Перед stop — сравнение
+        <code>radon cc</code> до/после</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Утечка ключей в логи</td>
+        <td style="text-align: left;">Логгер маскирует переменные с
+        <code>KEY</code>, <code>TOKEN</code>, <code>SECRET</code></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Откат при провале</td>
+        <td style="text-align: left;"><code>git stash</code> перед
+        apply; <code>git stash pop</code> при ошибке</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="phase-4-запуск-и-наблюдение">Phase 4. Запуск и
+        наблюдение</h2>
+        <h3 id="41-готовим-уязвимый-файл">4.1. Готовим уязвимый
+        файл</h3>
+        <div class="sourceCode" id="cb8"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> vulnerable_app.py <span class="op">&lt;&lt;&#39;EOF&#39;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="st">import os, pickle</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="st">def handle(user_input):</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="st">    os.system(f&quot;echo {user_input}&quot;)            # command injection</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="st">    return pickle.loads(user_input.encode())   # insecure deserialization</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span></code></pre></div>
+        <h3 id="42-запуск">4.2. Запуск</h3>
+        <div class="sourceCode" id="cb9"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> lessons/6/scripts/lab_orchestrator.py <span class="at">--target</span> vulnerable_app.py</span></code></pre></div>
+        <h3 id="43-чего-ждать-в-выводе">4.3. Чего ждать в выводе</h3>
+        <pre><code>[iter 1] auditor:  3 critical, 1 major
+[iter 1] reviewer: 2 major
+[iter 1] fixer:    diff applied (12 lines changed)
+[iter 2] auditor:  0 critical, 0 major
+[iter 2] reviewer: 0 critical, 0 major
+✅ No critical issues — exiting clean after 2 iterations.</code></pre>
+        <p>Все промежуточные отчёты лежат в
+        <code>artifacts/&lt;timestamp&gt;_*.txt</code>.</p>
+        <hr />
+        <h2 id="phase-5-наблюдаемость">Phase 5. Наблюдаемость</h2>
+        <p>Без неё автономия — это чёрный ящик.</p>
+        <ul>
+        <li><strong>Trace ID</strong> — каждой итерации присваивается
+        UUID, он пробрасывается во все артефакты.</li>
+        <li><strong>Metrics</strong> — orchestrator пишет
+        <code>metrics.json</code>: <code>iterations</code>,
+        <code>critical_at_start</code>, <code>critical_at_end</code>,
+        <code>duration_s</code>.</li>
+        <li><strong>Cost guard</strong> — порог по токенам; при
+        превышении пайплайн останавливается с понятной ошибкой.</li>
+        <li><strong>Audit log</strong> — <code>events.jsonl</code> для
+        постфактум-разбора.</li>
+        </ul>
+        <blockquote>
+        <p>[!TIP] Воркфлоу <code>securcheck</code> (в
+        <code>.agent/workflows/</code>) — это «обёртка» над
+        оркестратором, которую вы вызываете командой
+        <code>/securcheck</code> прямо из чата.</p>
+        </blockquote>
+        <hr />
+        <h2 id="анти-паттерны-при-сборке-воркфлоу">Анти-паттерны при
+        сборке воркфлоу</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Анти-паттерн</th>
+        <th style="text-align: left;">Симптом</th>
+        <th style="text-align: left;">Лечение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td
+        style="text-align: left;"><strong>Bash-портянка</strong></td>
+        <td style="text-align: left;">Один <code>.sh</code> на 400
+        строк</td>
+        <td style="text-align: left;">Разбить на Python-модули с
+        unit-тестами</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Жёстко зашитые
+        промпты</strong></td>
+        <td style="text-align: left;">Промпт в исходнике</td>
+        <td style="text-align: left;">Вынести в
+        <code>artifacts/config/</code>, генерировать через Phase 1</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Нет лимита
+        итераций</strong></td>
+        <td style="text-align: left;">Пайплайн крутится час</td>
+        <td style="text-align: left;"><code>MAX_ITER</code> +
+        cost-guard</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Молчаливый
+        Fixer</strong></td>
+        <td style="text-align: left;">Diff применился, но мы не знаем
+        что</td>
+        <td style="text-align: left;">Diff пишется как артефакт +
+        summary в commit-message</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>One-shot
+        review</strong></td>
+        <td style="text-align: left;">Один прогон без итераций</td>
+        <td style="text-align: left;">Цикл с проверкой verdict</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="практические-задания">Практические задания</h2>
+        <blockquote>
+        <p>Все артефакты — в <code>artifacts/lesson-6/task-N/</code>. По
+        каждому заданию — отдельный коммит с тегом
+        <code>lesson-6: task-N</code>.</p>
+        </blockquote>
+        <h3 id="задание-1--bootstrap">Задание 1 — Bootstrap</h3>
+        <p>Установите <code>gemini-cli</code> и оба расширения.
+        Экспортируйте ключи в <code>.env</code>. Проверьте, что
+        <code>gemini --version</code> и
+        <code>gemini-cli-security --help</code> работают. В
+        <code>notes.md</code> запишите версии. Зафиксируйте
+        <code>.env</code> в <code>.gitignore</code>.</p>
+        <h3 id="задание-2--prompt-optimizer-на-трёх-проектах">Задание 2
+        — Prompt Optimizer на трёх проектах</h3>
+        <p>Запустите <code>optimize_prompts.py</code> на трёх разных
+        репозиториях: чистый Python, фронтенд (React), смешанный.
+        Сравните сгенерированные <code>sec_prompt.txt</code>. Опишите в
+        <code>diff.md</code>, какие три параметра меняются сильнее всего
+        и почему.</p>
+        <h3 id="задание-3--контракт-отчёта">Задание 3 — Контракт
+        отчёта</h3>
+        <p>Возьмите дефолтный промпт Auditor и допишите: «верни
+        JSON-секцию <code>{critical, major, minor, verdict}</code> в
+        конце». Прогоните на <code>vulnerable_app.py</code>. Распарсите
+        вывод через <code>json.loads</code> и assert-ните
+        <code>verdict == "FAIL"</code>.</p>
+        <h3 id="задание-4--оркестратор-hello-loop">Задание 4 —
+        Оркестратор «hello-loop»</h3>
+        <p>Напишите упрощённый <code>mini_orchestrator.py</code> (≤ 80
+        строк): запускает Auditor → Fixer в цикле до
+        <code>verdict == "PASS"</code> или <code>MAX_ITER=3</code>. Без
+        Reviewer. Покройте unit-тестом случай «уже чистый файл — 0
+        итераций».</p>
+        <h3 id="задание-5--защита-от-регресса">Задание 5 — Защита от
+        регресса</h3>
+        <p>Добавьте в свой оркестратор шаг <code>pytest -q</code> после
+        <code>apply_diff</code>. Если тесты упали —
+        <code>git stash pop</code>, итерация считается failed, переход к
+        следующей с дополнительным контекстом «прошлый фикс сломал
+        тесты». Воспроизведите ситуацию искусственно: внесите тест,
+        который Fixer сломает.</p>
+        <h3 id="задание-6--наблюдаемость">Задание 6 — Наблюдаемость</h3>
+        <p>Добавьте структурное логирование: <code>events.jsonl</code>
+        (по событию на строку) + <code>metrics.json</code> после
+        завершения. Минимум полей: <code>trace_id</code>,
+        <code>iter</code>, <code>phase</code>, <code>duration_ms</code>,
+        <code>tokens_in</code>, <code>tokens_out</code>. Постройте
+        простую визуализацию через <code>web-artifacts-builder</code>
+        (timeline-диаграмму).</p>
+        <h3 id="задание-7--self-healing-на-реальном-проекте">Задание 7 —
+        Self-healing на реальном проекте</h3>
+        <p>Возьмите любой open-source Python-репозиторий (≤ 2 000
+        строк). Прогоните полный пайплайн (<code>securcheck</code>).
+        Зафиксируйте: сколько итераций, что было исправлено, что
+        осталось ручному ревьюверу. Отчёт оформите через
+        <code>doc-coauthoring</code> → <code>pdf</code>. Не коммитьте
+        чужой код — только метрики и комментарии.</p>
+        <hr />
+        <h2 id="definition-of-done-урока">Definition of Done урока</h2>
+        <ul class="task-list">
+        <li><label><input type="checkbox" />Phase 1 (Optimizer)
+        запускается на трёх разных проектах.</label></li>
+        <li><label><input type="checkbox" />Phase 2-агенты возвращают
+        валидный JSON-вердикт.</label></li>
+        <li><label><input type="checkbox" />Phase 3-оркестратор
+        корректно завершает цикл (либо PASS, либо
+        MAX_ITER).</label></li>
+        <li><label><input type="checkbox" />Есть
+        <code>metrics.json</code> и <code>events.jsonl</code> после
+        прогона.</label></li>
+        <li><label><input type="checkbox" />Реальный проект из задания 7
+        прошёл хотя бы 2 итерации с реальными
+        исправлениями.</label></li>
+        </ul>
+        <hr />
+        <h2 id="что-дальше">Что дальше</h2>
+        <p>Когда у вас есть <strong>исполнители</strong> (урок 5) и
+        <strong>оркестратор</strong> (урок 6), остаётся научиться
+        <strong>тестировать сами скиллы</strong> — для этого в уроке 7
+        мы соберём мета-скилл <code>qa-skill-tester</code>.</p>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>

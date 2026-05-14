@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x41B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F; &#x420;&#x430;&#x431;&#x43E;&#x442;&#x430; &#x2116;2: QA Architect (&#x423;&#x440;&#x43E;&#x43A;
-7) | Anti-Gravity Academy</title>
+    <title>�������� 7: QA Architect ��� ��������-����������
+`qa-skill-tester` | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -85,6 +85,7 @@
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -142,6 +143,30 @@
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -155,98 +180,383 @@
   <body>
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
       </header>
       <main>
-        <h1 id="&#x43B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;-2-qa-architect-&#x443;&#x440;&#x43E;&#x43A;-7">&#x41B;&#x430;&#x431;&#x43E;&#x440;&#x430;&#x442;&#x43E;&#x440;&#x43D;&#x430;&#x44F;
-        &#x420;&#x430;&#x431;&#x43E;&#x442;&#x430; &#x2116;2: QA Architect (&#x423;&#x440;&#x43E;&#x43A; 7)</h1>
-        <h2 id="&#x446;&#x435;&#x43B;&#x44C;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B;">&#x426;&#x435;&#x43B;&#x44C; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x44B;</h2>
-        <p>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x442;&#x44C; &#x438; &#x432;&#x43D;&#x435;&#x434;&#x440;&#x438;&#x442;&#x44C; &#x43C;&#x435;&#x442;&#x430;-&#x441;&#x43A;&#x438;&#x43B;&#x43B; <code>qa-skill-tester</code>
-        &#x434;&#x43B;&#x44F; &#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x437;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x43D;&#x43E;&#x433;&#x43E; &#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F; &#x434;&#x440;&#x443;&#x433;&#x438;&#x445; &#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x43E;&#x432; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x44B;
-        Antigravity.</p>
-        <p>&#x412;&#x44B; &#x431;&#x443;&#x434;&#x435;&#x442;&#x435; &#x432;&#x44B;&#x441;&#x442;&#x443;&#x43F;&#x430;&#x442;&#x44C; &#x432; &#x440;&#x43E;&#x43B;&#x438; <strong>Lead QA Automation
-        Engineer</strong>.</p>
-        <h2 id="&#x441;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x43A;&#x430;&#x446;&#x438;&#x44F;-qa-skill-tester">&#x421;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x43A;&#x430;&#x446;&#x438;&#x44F;
-        <code>qa-skill-tester</code></h2>
-        <p>&#x41C;&#x435;&#x442;&#x430;-&#x441;&#x43A;&#x438;&#x43B;&#x43B; &#x434;&#x43E;&#x43B;&#x436;&#x435;&#x43D; &#x432;&#x44B;&#x43F;&#x43E;&#x43B;&#x43D;&#x44F;&#x442;&#x44C; &#x43F;&#x43E;&#x43B;&#x43D;&#x44B;&#x439; &#x446;&#x438;&#x43A;&#x43B; &#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;:</p>
-        <ol type="1">
-        <li><strong>Preparation</strong>:
+        <h1 id="урок-7-qa-architect--мета-скилл-qa-skill-tester">Урок 7:
+        QA Architect — мета-скилл <code>qa-skill-tester</code></h1>
+        <blockquote>
+        <p>До сих пор мы <strong>создавали</strong> скиллы и
+        <strong>запускали</strong> их. Этот урок переводит вас в роль
+        <strong>Test Architect</strong>: вы строите систему, которая
+        автоматически тестирует другие скиллы Antigravity. Качество
+        вашего инструментария теперь — измеряемая величина.</p>
+        </blockquote>
+        <hr />
+        <h2 id="проблема-которую-решаем">Проблема, которую решаем</h2>
+        <p>Скиллы — это код, который пишут люди для агента. У него
+        есть:</p>
         <ul>
-        <li>&#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x43D;&#x44B;&#x445; &#x43F;&#x440;&#x43E;&#x43C;&#x43F;&#x442;&#x43E;&#x432; &#x434;&#x43B;&#x44F; &#x43F;&#x435;&#x440;&#x441;&#x43E;&#x43D; &#x201C;QA Lead&#x201D; (Qwen) &#x438;
-        &#x201C;Test Architect&#x201D; (Gemini).</li>
-        <li>&#x41A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x430;:
-        <code>python skills/qa-skill-tester/scripts/optimize_qa_prompts.py</code></li>
-        </ul></li>
-        <li><strong>Validation Loop (Orchestrator)</strong>:
-        <ul>
-        <li>&#x421;&#x43A;&#x440;&#x438;&#x43F;&#x442;: <code>run_qa.py</code> (&#x432; &#x432;&#x438;&#x440;&#x442;&#x443;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x43C;
-        &#x43E;&#x43A;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x438;).</li>
-        <li><strong>&#x412;&#x445;&#x43E;&#x434;</strong>: &#x41F;&#x443;&#x442;&#x44C; &#x43A; &#x446;&#x435;&#x43B;&#x435;&#x432;&#x43E;&#x43C;&#x443; &#x441;&#x43A;&#x438;&#x43B;&#x43B;&#x443; (&#x43D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;,
-        <code>skills/qwen-code-review</code>).</li>
-        <li><strong>&#x414;&#x435;&#x439;&#x441;&#x442;&#x432;&#x438;&#x44F;</strong>:
-        <ul>
-        <li><strong>Test Plan</strong>: Gemini &#x430;&#x43D;&#x430;&#x43B;&#x438;&#x437;&#x438;&#x440;&#x443;&#x435;&#x442;
-        <code>SKILL.md</code> &#x438; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x435;&#x442; &#x43F;&#x43B;&#x430;&#x43D; &#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;.</li>
-        <li><strong>Checklist</strong>: &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; <code>.xlsx</code>
-        &#x444;&#x430;&#x439;&#x43B;&#x430; &#x441; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x430;&#x43C;&#x438; (Frontend, API, Readability, Overlaps, Broken
-        Links).</li>
-        <li><strong>Execution</strong>: &#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A; &#x43A;&#x435;&#x439;&#x441;&#x43E;&#x432; (&#x441;&#x438;&#x43C;&#x443;&#x43B;&#x44F;&#x446;&#x438;&#x44F; &#x438;&#x43B;&#x438;
-        &#x440;&#x435;&#x430;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;).</li>
-        <li><strong>Validate</strong>: Qwen &#x432;&#x430;&#x43B;&#x438;&#x434;&#x438;&#x440;&#x443;&#x435;&#x442; &#x440;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442;&#x44B; &#x442;&#x435;&#x441;&#x442;&#x43E;&#x432;
-        &#x43A;&#x430;&#x43A; QA Lead.</li>
-        <li><strong>Reporting</strong>: &#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x430; &#x43E; &#x431;&#x430;&#x433;&#x430;&#x445; &#x432;
-        <code>.docx</code>.</li>
-        <li><strong>Archival</strong>: &#x421;&#x43E;&#x445;&#x440;&#x430;&#x43D;&#x435;&#x43D;&#x438;&#x435; &#x432;&#x441;&#x435;&#x445; &#x430;&#x440;&#x442;&#x435;&#x444;&#x430;&#x43A;&#x442;&#x43E;&#x432; &#x432;
-        <code>artifacts/&lt;skill&gt;/test/&lt;timestamp&gt;</code>
-        (&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; <code>artifact-archival</code>).</li>
-        </ul></li>
-        </ul></li>
-        <li><strong>Visual Proof</strong>:
-        <ul>
-        <li>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435; &#x441;&#x43A;&#x440;&#x438;&#x43D;&#x448;&#x43E;&#x442;&#x43E;&#x432; &#x447;&#x435;&#x440;&#x435;&#x437; <code>@/SCR</code>
-        (<code>flameshot</code>) &#x434;&#x43B;&#x44F; &#x444;&#x438;&#x43A;&#x441;&#x430;&#x446;&#x438;&#x438; UI &#x431;&#x430;&#x433;&#x43E;&#x432;.</li>
-        </ul></li>
-        </ol>
-        <h2 id="&#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;">&#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;</h2>
-        <ol type="1">
-        <li><strong>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; Pitch Deck</strong>:
-        <ul>
-        <li>&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; &#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x443;:
-        <code>skills/qa-skill-tester/.venv/bin/python3 skills/qa-skill-tester/scripts/create_lab2_materials.py</code></li>
-        <li>&#x420;&#x435;&#x437;&#x443;&#x43B;&#x44C;&#x442;&#x430;&#x442;: <code>lab2_pitch_deck.pptx</code>.</li>
-        </ul></li>
-        <li><strong>&#x417;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x435; QA Cycle</strong>:
-        <ul>
-        <li>&#x41F;&#x440;&#x43E;&#x442;&#x435;&#x441;&#x442;&#x438;&#x440;&#x443;&#x439;&#x442;&#x435; &#x441;&#x430;&#x43C; &#x441;&#x43A;&#x438;&#x43B;&#x43B; <code>qa-skill-tester</code> &#x43D;&#x430; &#x441;&#x435;&#x431;&#x435;
-        (Self-Test).</li>
-        <li>&#x41A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x430;: <code>workflow qa-suite</code>.</li>
-        </ul></li>
-        <li><strong>&#x41F;&#x440;&#x435;&#x437;&#x435;&#x43D;&#x442;&#x430;&#x446;&#x438;&#x44F;</strong>:
-        <ul>
-        <li>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x432;&#x435;&#x431;-&#x441;&#x442;&#x440;&#x430;&#x43D;&#x438;&#x446;&#x443; &#x43E;&#x442;&#x447;&#x435;&#x442;&#x430; &#x447;&#x435;&#x440;&#x435;&#x437;
-        <code>skills/web-artifacts-builder</code>.</li>
-        <li>&#x41F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x44C;&#x442;&#x435; &#x435;&#x451; &#x447;&#x435;&#x440;&#x435;&#x437; <code>skills/webapp-testing</code>.</li>
-        </ul></li>
-        </ol>
-        <h2 id="&#x442;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;-&#x43A;-ui-&#x442;&#x435;&#x441;&#x442;&#x430;&#x43C;">&#x422;&#x440;&#x435;&#x431;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F; &#x43A; UI &#x442;&#x435;&#x441;&#x442;&#x430;&#x43C;</h2>
-        <p>&#x412; &#x447;&#x435;&#x43A;-&#x43B;&#x438;&#x441;&#x442;&#x430;&#x445; (<code>xlsx</code>) &#x43E;&#x431;&#x44F;&#x437;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E; &#x434;&#x43E;&#x43B;&#x436;&#x43D;&#x44B; &#x431;&#x44B;&#x442;&#x44C;
-        &#x43F;&#x443;&#x43D;&#x43A;&#x442;&#x44B;:</p>
-        <ul class="task-list">
-        <li><label><input type="checkbox" />&#x427;&#x438;&#x442;&#x430;&#x435;&#x43C;&#x43E;&#x441;&#x442;&#x44C; &#x432;&#x441;&#x435;&#x445;
-        &#x44D;&#x43B;&#x435;&#x43C;&#x435;&#x43D;&#x442;&#x43E;&#x432;.</label></li>
-        <li><label><input type="checkbox" />&#x41A;&#x43B;&#x438;&#x43A;&#x430;&#x431;&#x435;&#x43B;&#x44C;&#x43D;&#x43E;&#x441;&#x442;&#x44C; &#x43D;&#x443;&#x436;&#x43D;&#x44B;&#x445;
-        &#x44D;&#x43B;&#x435;&#x43C;&#x435;&#x43D;&#x442;&#x43E;&#x432;.</label></li>
-        <li><label><input type="checkbox" />&#x41E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x438;&#x435; &#x431;&#x438;&#x442;&#x44B;&#x445; &#x441;&#x441;&#x44B;&#x43B;&#x43E;&#x43A;
-        (404).</label></li>
-        <li><label><input type="checkbox" />&#x41E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x438;&#x435; &#x43E;&#x432;&#x435;&#x440;&#x43B;&#x430;&#x43F;&#x43E;&#x432;
-        (&#x43D;&#x430;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x439;).</label></li>
+        <li><strong>API-поверхность</strong> (триггеры, аргументы,
+        ожидаемый выход);</li>
+        <li><strong>side-effects</strong> (создаёт файлы, дёргает API,
+        тратит токены);</li>
+        <li><strong>регрессии</strong> (новая версия описания убивает
+        старые триггеры).</li>
         </ul>
-        <p>&#x42D;&#x442;&#x43E;&#x442; &#x443;&#x440;&#x43E;&#x43A; &#x43F;&#x435;&#x440;&#x435;&#x432;&#x43E;&#x434;&#x438;&#x442; &#x432;&#x430;&#x441; &#x438;&#x437; &#x440;&#x43E;&#x43B;&#x438; &#x420;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x447;&#x438;&#x43A;&#x430; &#x432; &#x440;&#x43E;&#x43B;&#x44C; Test
-        Architect&#x2019;&#x430;.</p>
+        <p>Ручное тестирование 17+ скиллов невозможно. Нужен мета-скилл,
+        который превращает QA в воспроизводимый автоматический
+        процесс.</p>
+        <hr />
+        <h2 id="архитектура-qa-skill-tester">Архитектура
+        <code>qa-skill-tester</code></h2>
+        <pre><code>┌──────────────────────────┐
+│ 0. Persona Generation    │  Qwen → &quot;QA Lead&quot;,  Gemini → &quot;Test Architect&quot;
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 1. Test Plan             │  читает SKILL.md, формирует план в .md
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 2. Checklist (.xlsx)     │  Frontend / API / Readability / Overlaps / Links
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 3. Execution             │  реальный запуск скилла + сбор артефактов
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 4. Validation (QA Lead)  │  Qwen валидирует каждый чек по чек-листу
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 5. Bug Report (.docx)    │  severity, repro, expected/actual
+└────────────┬─────────────┘
+             ▼
+┌──────────────────────────┐
+│ 6. Archival              │  artifacts/&lt;skill&gt;/test/&lt;timestamp&gt;/
+└──────────────────────────┘</code></pre>
+        <hr />
+        <h2 id="слой-0-персонажи-co-star">Слой 0. Персонажи
+        (CO-STAR)</h2>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> skills/qa-skill-tester/scripts/optimize_qa_prompts.py</span></code></pre></div>
+        <p>Генерируются два промпта:</p>
+        <ul>
+        <li><strong><code>qa_lead_prompt.txt</code></strong> — Qwen в
+        роли «QA Lead»: критичен, проверяет читаемость, ищет
+        противоречия.</li>
+        <li><strong><code>test_architect_prompt.txt</code></strong> —
+        Gemini в роли «Test Architect»: строит план и чек-лист по
+        <code>SKILL.md</code>.</li>
+        </ul>
+        <blockquote>
+        <p>[!IMPORTANT] Разделение ролей даёт <strong>независимое второе
+        мнение</strong>: один и тот же скилл не может «защитить сам
+        себя» — план составляет один агент, оценивает другой.</p>
+        </blockquote>
+        <hr />
+        <h2 id="слой-1-test-plan">Слой 1. Test Plan</h2>
+        <p>Test Architect читает <code>SKILL.md</code> и строит
+        план:</p>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Test plan: skills/pptx</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Scope</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Создание .pptx</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Изменение существующего .pptx</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Совместимость с LibreOffice</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Inputs</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T1: «Создай питч-дек продукта на 5 слайдов»</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T2: «Добавь слайд с диаграммой в presentation.pptx»</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T3: невалидный запрос «открой .pptx» (out of scope → должен отказать)</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="fu">## Expected</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T1: файл существует, 5 слайдов, заголовки заполнены</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T2: 6 слайдов, новый — последний, диаграмма читается</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>T3: вежливый отказ + предложение альтернативы</span></code></pre></div>
+        <hr />
+        <h2 id="слой-2-checklist-xlsx">Слой 2. Checklist (.xlsx)</h2>
+        <p>Обязательные пять колонок проверок:</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Категория</th>
+        <th style="text-align: left;">Что проверяем</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Frontend</strong></td>
+        <td style="text-align: left;">Читаемость текста, отсутствие
+        наложений (overlap), кликабельность</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>API</strong></td>
+        <td style="text-align: left;">Корректность аргументов скрипта,
+        exit code, формат вывода</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Readability</strong></td>
+        <td style="text-align: left;"><code>SKILL.md</code> понятен
+        новичку, нет жаргона без расшифровки</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Overlaps</strong></td>
+        <td style="text-align: left;">Скилл не дублирует другой
+        (например, два «PR review»)</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Broken links</strong></td>
+        <td style="text-align: left;">Все <code>@/path</code> и URL в
+        <code>SKILL.md</code> ведут к существующим ресурсам</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Файл генерируется через <code>skills/xlsx</code> с
+        формулами-счётчиками <code>PASS/FAIL/SKIP</code>.</p>
+        <hr />
+        <h2 id="слой-3-execution">Слой 3. Execution</h2>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">.venv/bin/python</span> skills/qa-skill-tester/scripts/run_qa.py <span class="dt">\</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--target</span> skills/pptx <span class="dt">\</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--inputs</span> artifacts/qa/pptx/test_plan.md</span></code></pre></div>
+        <p>Что происходит:</p>
+        <ol type="1">
+        <li>Для каждого <code>Tn</code> из плана агент реально дёргает
+        скилл.</li>
+        <li>Выход (файлы, stdout, скриншоты) сохраняется в
+        <code>artifacts/&lt;skill&gt;/test/&lt;ts&gt;/run-&lt;n&gt;/</code>.</li>
+        <li>UI-баги фиксируются через <code>@/SCR</code> (flameshot) —
+        скрин прикладывается как <strong>доказательство</strong>.</li>
+        </ol>
+        <blockquote>
+        <p>[!TIP] Никогда не верьте «выходному» отчёту скилла. Доверяйте
+        только артефактам, которые можно открыть в браузере /
+        LibreOffice / <code>pdftotext</code> сторонним инструментом.</p>
+        </blockquote>
+        <hr />
+        <h2 id="слой-4-validation-qa-lead-persona">Слой 4. Validation
+        (QA Lead persona)</h2>
+        <p>Qwen с промптом <code>qa_lead_prompt.txt</code> получает:</p>
+        <ul>
+        <li>план;</li>
+        <li>чек-лист;</li>
+        <li>артефакты;</li>
+        <li>сырой вывод скилла.</li>
+        </ul>
+        <p>И выдаёт построчно по чек-листу: <code>PASS</code> /
+        <code>FAIL: &lt;причина&gt;</code> /
+        <code>SKIP: &lt;условие&gt;</code>.</p>
+        <p>Контракт: ответ обязан содержать секцию:</p>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;total&quot;</span><span class="fu">:</span> <span class="dv">27</span><span class="fu">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;pass&quot;</span><span class="fu">:</span>  <span class="dv">24</span><span class="fu">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;fail&quot;</span><span class="fu">:</span>  <span class="dv">2</span><span class="fu">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;skip&quot;</span><span class="fu">:</span>  <span class="dv">1</span><span class="fu">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;verdict&quot;</span><span class="fu">:</span> <span class="st">&quot;FAIL&quot;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+        <p>Этого достаточно, чтобы <code>qa-suite</code> в CI поставил
+        статус сборки.</p>
+        <hr />
+        <h2 id="слой-5-bug-report-docx">Слой 5. Bug Report (.docx)</h2>
+        <p>Для каждого <code>FAIL</code> Test Architect генерирует
+        карточку:</p>
+        <pre><code>ID:        BUG-2026-05-14-003
+Severity:  Major
+Skill:     skills/pptx
+Steps:     1) prompt &quot;Создай питч 5 слайдов&quot;
+           2) открыть presentation.pptx в LibreOffice
+Expected:  5 слайдов с заполненными заголовками
+Actual:    4 слайда, 3-й — пустой
+Evidence:  artifacts/pptx/test/2026-05-14T12-03/run-1/screenshot.png</code></pre>
+        <p>Документ собирается через <code>skills/docx</code> и кладётся
+        рядом с чек-листом.</p>
+        <hr />
+        <h2 id="слой-6-archival">Слой 6. Archival</h2>
+        <p>Все артефакты группируются по принципу «одно тестирование —
+        одна папка»:</p>
+        <pre><code>artifacts/
+└── pptx/
+    └── test/
+        └── 2026-05-14T12-03-22/
+            ├── test_plan.md
+            ├── checklist.xlsx
+            ├── run-1/
+            ├── run-2/
+            ├── bug_report.docx
+            └── summary.json</code></pre>
+        <p>Архивация запускается воркфлоу <code>artifact-archival</code>
+        (см. <code>.agent/workflows/</code>).</p>
+        <hr />
+        <h2 id="ci-интеграция">CI-интеграция</h2>
+        <p><code>workflow qa-suite</code> запускает полный цикл и
+        возвращает exit code:</p>
+        <ul>
+        <li><code>0</code> — все скиллы зелёные.</li>
+        <li><code>1</code> — есть <code>FAIL</code> (см.
+        <code>summary.json</code>).</li>
+        <li><code>2</code> — инфраструктурная ошибка (нет ключей, скилл
+        не найден).</li>
+        </ul>
+        <p>В GitHub Actions это превращается в обязательную проверку для
+        PR, меняющих <code>skills/</code>.</p>
+        <hr />
+        <h2 id="анти-паттерны">Анти-паттерны</h2>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Анти-паттерн</th>
+        <th style="text-align: left;">Симптом</th>
+        <th style="text-align: left;">Лечение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>QA-самосуд</strong></td>
+        <td style="text-align: left;">Скилл сам себя валидирует</td>
+        <td style="text-align: left;">Разделение ролей: Test Architect ≠
+        QA Lead</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Слепые тесты</strong></td>
+        <td style="text-align: left;">Только stdout, нет визуальных
+        артефактов</td>
+        <td style="text-align: left;">Скриншоты через <code>@/SCR</code>
+        обязательны для UI</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Зелёная
+        пустота</strong></td>
+        <td style="text-align: left;">Все тесты PASS, потому что все
+        SKIP</td>
+        <td style="text-align: left;">В контракте <code>verdict</code>
+        зависит от ratio <code>pass / (total - skip)</code></td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;"><strong>Тест-данные в
+        репо</strong></td>
+        <td style="text-align: left;">Гигабайты <code>.pptx</code> в
+        git</td>
+        <td style="text-align: left;">Хранить в <code>artifacts/</code>
+        (gitignore) + хэш в <code>summary.json</code></td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;"><strong>Хрупкие
+        триггеры</strong></td>
+        <td style="text-align: left;">Тест ломается от смены
+        формулировки</td>
+        <td style="text-align: left;">Использовать 3 синонимичных
+        промпта на один кейс</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="практические-задания">Практические задания</h2>
+        <blockquote>
+        <p>Все результаты складывайте в
+        <code>artifacts/lesson-7/task-N/</code>. Отдельный коммит на
+        задание.</p>
+        </blockquote>
+        <h3 id="задание-1--bootstrap-окружения">Задание 1 — Bootstrap
+        окружения</h3>
+        <p>Поднимите <code>.venv</code> под
+        <code>qa-skill-tester</code>, установите зависимости из
+        <code>requirements.txt</code>. Сгенерируйте обе персоны командой
+        <code>optimize_qa_prompts.py</code>. Сравните два промпта, в
+        <code>personas.md</code> опишите минимум три отличия в тоне и
+        фокусе.</p>
+        <h3 id="задание-2--test-plan-руками">Задание 2 — Test plan
+        руками</h3>
+        <p>Для скилла <code>skills/pptx</code> напишите вручную
+        <code>test_plan.md</code> (минимум 5 кейсов: 3 happy-path + 2
+        negative). Затем сгенерируйте план через Test Architect
+        автоматически. Сравните покрытие. Что упустил человек? Что —
+        машина?</p>
+        <h3 id="задание-3--checklist">Задание 3 — Checklist</h3>
+        <p>Через <code>skills/xlsx</code> создайте
+        <code>checklist.xlsx</code> с пятью обязательными категориями
+        (Frontend / API / Readability / Overlaps / Broken links).
+        Минимум 5 строк в каждой категории. Добавьте формулу-счётчик
+        <code>=COUNTIF(D:D,"PASS")/COUNTA(D:D)</code> в шапку.</p>
+        <h3 id="задание-4--self-test">Задание 4 — Self-test</h3>
+        <p>Прогоните <code>qa-skill-tester</code> сам на себе командой
+        <code>workflow qa-suite --target skills/qa-skill-tester</code>.
+        Зафиксируйте: сколько багов найдено, какие из них — реальные,
+        какие — false positive. Открытие: мета-инструменты часто
+        проваливают свои же чек-листы.</p>
+        <h3 id="задание-5--visual-proof">Задание 5 — Visual proof</h3>
+        <p>Сделайте артефакт с заведомым UI-багом (например, через
+        <code>web-artifacts-builder</code> — кнопка перекрывает текст).
+        Прогоните <code>webapp-testing</code> +
+        <code>qa-skill-tester</code>. Убедитесь, что в
+        <code>bug_report.docx</code> приложен скриншот через
+        <code>@/SCR</code>. Без скриншота — задание не зачтено.</p>
+        <h3 id="задание-6--report-веб-страница">Задание 6 —
+        Report-веб-страница</h3>
+        <p>Через <code>skills/web-artifacts-builder</code> соберите
+        HTML-страницу отчёта: круговая диаграмма pass/fail/skip +
+        таблица багов с фильтрами по severity. Прогоните
+        <code>webapp-testing</code>-ом два сценария: «фильтр Critical
+        показывает только critical-баги», «клик по строке открывает
+        evidence-скрин».</p>
+        <h3 id="задание-7--ci-gate">Задание 7 — CI gate</h3>
+        <p>Настройте GitHub Action, который на PR в
+        <code>skills/**</code> запускает <code>workflow qa-suite</code>
+        и <strong>блокирует merge</strong> при
+        <code>verdict == "FAIL"</code>. Pull request с намеренно
+        сломанным скиллом должен получить красный чек. PR с фиксом —
+        зелёный. Приложите ссылки на оба запуска в
+        <code>ci.md</code>.</p>
+        <hr />
+        <h2 id="definition-of-done-урока">Definition of Done урока</h2>
+        <ul class="task-list">
+        <li><label><input type="checkbox" />Обе персоны сгенерированы и
+        заметно различаются.</label></li>
+        <li><label><input type="checkbox" /><code>qa-skill-tester</code>
+        прогнан минимум на 3 разных целевых скиллах.</label></li>
+        <li><label><input type="checkbox" />В каждом прогоне есть
+        <code>test_plan.md</code>, <code>checklist.xlsx</code>,
+        <code>bug_report.docx</code>,
+        <code>summary.json</code>.</label></li>
+        <li><label><input type="checkbox" />Хотя бы один реальный баг
+        найден и записан с visual proof.</label></li>
+        <li><label><input type="checkbox" />CI-gate из задания 7
+        работает на тестовом PR.</label></li>
+        </ul>
+        <hr />
+        <h2 id="что-вы-получили">Что вы получили</h2>
+        <p>Вы — <strong>Test Architect</strong>. Ваш инструментарий
+        теперь:</p>
+        <ol type="1">
+        <li>Самодокументируется (план + чек-лист).</li>
+        <li>Самовалидируется (две независимые персоны).</li>
+        <li>Самоархивируется (timestamped папки).</li>
+        <li>Самоинтегрируется в CI (<code>qa-suite</code>).</li>
+        </ol>
+        <p>С этого момента любой новый скилл в <code>skills/</code>
+        обязан пройти <code>qa-suite</code> — иначе он не попадает в
+        main. Качество перестало быть мнением и стало процессом.</p>
+        <hr />
+        <h2 id="что-дальше">Что дальше</h2>
+        <ul>
+        <li><strong>Урок 8</strong> — оркестрация групп задач (Task
+        Groups), когда нужно гонять <code>qa-suite</code> параллельно по
+        17+ скиллам.</li>
+        <li><strong>Урок 11</strong> — безопасность терминала: как не
+        дать <code>qa-skill-tester</code> уронить продакшен при
+        execution-фазе.</li>
+        <li><strong>Урок 23</strong> — мульти-агентная оркестрация:
+        персон становится больше двух.</li>
+        </ul>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>
