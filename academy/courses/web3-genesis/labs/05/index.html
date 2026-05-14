@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 05 · Gas Optimization — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 05 · Gas Optimization</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 05 · gas</p>
+    <h1>Lab 05 · Gas Optimization</h1>
+
+    <p>
+      Каждая инструкция EVM стоит газ — а газ стоит денег. В этой лабораторной работе
+      вы напишете «наивный» контракт, измерите его базовое потребление и применените
+      семь классических техник оптимизации. После каждого шага будете измерять
+      результат через <code>forge gas-report</code> и <code>forge snapshot</code>,
+      чтобы чётко видеть, сколько газа сэкономила каждая техника. В финале вы поймёте,
+      какие оптимизации дают наибольший эффект при наименьшей сложности кода.
+    </p>
+
+    <div class="note">
+      <strong>Что вы сделаете:</strong>
+      <ul>
+        <li>Напишете наивный контракт с динамическим массивом и циклом.</li>
+        <li>Измерите базовый gas через <code>forge test --gas-report</code> и снимок <code>forge snapshot</code>.</li>
+        <li>Упакуете struct в один storage slot (uint128+uint128) и измерите улучшение.</li>
+        <li>Замените <code>memory</code> на <code>calldata</code> для read-only параметров.</li>
+        <li>Заменёте <code>require(msg, string)</code> на custom errors.</li>
+        <li>Используете <code>immutable</code> и <code>constant</code> вместо storage.</li>
+        <li>Примените <code>unchecked {}</code> для overflow-safe арифметики.</li>
+      </ul>
+      <strong>Что сдать:</strong> таблицу сравнения gas cost до и после каждой оптимизации
+      (из <code>forge snapshot --diff</code>) с комментариями.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Напишите наивный контракт <code>src/NaiveStorage.sol</code> с динамическим массивом
+      <code>uint256[] public items</code> и функцией <code>sumAll()</code>, суммирующей
+      все элементы в цикле. Добавьте функцию <code>addItem(uint256)</code> и
+      <code>getItem(uint256 index)</code>. Используйте намеренно неэффективный подход:
+      <code>items.length</code> вычисляется на каждой итерации.
+    </p>
+
+<pre class="code-block"><code>// src/NaiveStorage.sol — намеренно неэффективный
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract NaiveStorage {
+    uint256[] public items;
+    string    public name;
+    address   public admin;
+    uint256   public fee;        // Читается из storage при каждом вызове
+
+    error Unauthorized();
+    // (пока не используется — добавим в задании 5)
+
+    constructor(string memory _name, address _admin, uint256 _fee) {
+        name  = _name;
+        admin = _admin;
+        fee   = _fee;
+    }
+
+    function addItem(uint256 value) external {
+        // ❌ Запись в storage без проверки — дорогостоящая операция
+        items.push(value);
+    }
+
+    /// @notice Суммирует все элементы — намеренно неэффективно
+    function sumAll(uint256[] memory input) external pure returns (uint256 total) {
+        // ❌ memory вместо calldata (лишнее копирование)
+        // ❌ items.length вычисляется на каждой итерации цикла
+        for (uint256 i = 0; i < input.length; i++) {
+            total += input[i];
+        }
+    }
+
+    function requireAdmin() external view {
+        // ❌ Строковые ошибки тратят больше газа
+        require(msg.sender == admin, "NaiveStorage: caller is not admin");
+    }
+
+    struct UserData {
+        uint256 balance;    // ❌ Занимает целый 32-байтный слот
+        uint256 timestamp;  // ❌ Ещё один слот — итого 2 SSTORE
+    }
+
+    mapping(address => UserData) public userData;
+
+    function setUserData(address user, uint256 balance, uint256 ts) external {
+        userData[user] = UserData(balance, ts);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> контракт компилируется; напишите тест
+      <code>test_NaiveGasBaseline</code>, измеряющий gas для <code>addItem</code>,
+      <code>sumAll</code> и <code>setUserData</code>.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Снимите baseline gas-метрики. Используйте <code>forge test --gas-report</code>
+      для таблицы по функциям и <code>forge snapshot</code> для снимка всех тестов.
+    </p>
+
+<pre class="code-block"><code># Запуск с gas-report
+forge test --gas-report 2>&1 | tee gas-baseline.txt
+
+# Создание снимка (сохраняется в .gas-snapshot)
+forge snapshot
+
+# Просмотр снимка
+cat .gas-snapshot
+</code></pre>
+
+<pre class="code-block"><code>// test/GasTest.t.sol — базовый тест для бенчмарка
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/NaiveStorage.sol";
+
+contract GasTest is Test {
+    NaiveStorage naive;
+
+    function setUp() public {
+        naive = new NaiveStorage("Test", address(this), 100);
+    }
+
+    function test_AddItemGas() public {
+        naive.addItem(42);
+    }
+
+    function test_SumAllGas_10items() public pure {
+        // Создаём массив из 10 элементов для измерения
+        NaiveStorage n = new NaiveStorage("T", address(1), 1);
+        uint256[] memory arr = new uint256[](10);
+        for (uint256 i = 0; i < 10; i++) arr[i] = i;
+        n.sumAll(arr);
+    }
+
+    function test_SetUserDataGas() public {
+        naive.setUserData(address(1), 1000, block.timestamp);
+    }
+}
+</code></pre>
+
+    <p>
+      Запишите исходные значения в таблицу:
+    </p>
+
+    <table class="compare">
+      <tr>
+        <th>Функция</th>
+        <th>Gas (до)</th>
+        <th>Gas (после)</th>
+        <th>Экономия</th>
+      </tr>
+      <tr><td>addItem()</td><td><em>baseline</em></td><td>—</td><td>—</td></tr>
+      <tr><td>sumAll(10)</td><td><em>baseline</em></td><td>—</td><td>—</td></tr>
+      <tr><td>setUserData()</td><td><em>baseline</em></td><td>—</td><td>—</td></tr>
+      <tr><td>requireAdmin()</td><td><em>baseline</em></td><td>—</td><td>—</td></tr>
+    </table>
+
+    <p>
+      <strong>Критерий приёмки:</strong> файл <code>gas-baseline.txt</code> сохранён;
+      таблица заполнена baseline-значениями из <code>forge test --gas-report</code>.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Оптимизируйте struct-паттерн: упакуйте <code>UserData</code> в один storage slot,
+      заменив два <code>uint256</code> на <code>uint128</code> + <code>uint128</code>.
+      Один slot = 32 байта; два uint128 помещаются в один slot — одна операция SSTORE
+      вместо двух.
+    </p>
+
+<pre class="code-block"><code>// src/OptimizedStorage.sol — с упакованным struct
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract OptimizedStorage {
+
+    // ✅ ОПТИМИЗАЦИЯ 1: Storage packing — оба поля в одном 32-байтном слоте
+    struct UserData {
+        uint128 balance;    // 16 байт
+        uint128 timestamp;  // 16 байт  ← вместе = 32 байта = 1 storage slot
+    }
+
+    mapping(address => UserData) public userData;
+
+    function setUserData(address user, uint128 balance, uint128 ts) external {
+        // ✅ Одна запись в storage вместо двух
+        userData[user] = UserData(balance, ts);
+    }
+
+    function getUserBalance(address user) external view returns (uint128) {
+        return userData[user].balance;   // ✅ Один SLOAD, достаём оба поля сразу
+    }
+}
+</code></pre>
+
+    <div class="note cyan">
+      <strong>Правило упаковки.</strong> Solidity упаковывает переменные в storage
+      последовательно — если следующая переменная помещается в текущий слот (32 байта),
+      она туда добавляется. Убедитесь, что uint128+uint128 стоят рядом в struct —
+      если между ними вставить uint256, упаковка сломается.
+    </div>
+
+<pre class="code-block"><code># Сравниваем с baseline
+forge snapshot --diff
+# Вывод покажет разницу gas для каждого теста:
+# testSetUserData  -4 700 gas (-30%)  ← ожидаемое улучшение
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> <code>forge snapshot --diff</code> показывает
+      значительное улучшение (ожидаемо ~40-50% для setUserData); заполните колонку
+      «Gas (после)» в таблице задания 2.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Замените <code>memory</code> на <code>calldata</code> для read-only параметров
+      функций, принимающих массивы или struct'ы. <code>calldata</code> — это
+      read-only область, не требующая копирования данных в память.
+    </p>
+
+<pre class="code-block"><code>// В OptimizedStorage.sol замените:
+
+// ❌ До: memory — данные копируются из calldata в memory
+function sumAll(uint256[] memory input) external pure returns (uint256 total) {
+    for (uint256 i = 0; i < input.length; i++) {
+        total += input[i];
+    }
+}
+
+// ✅ После: calldata — данные читаются напрямую, без копирования
+function sumAll(uint256[] calldata input) external pure returns (uint256 total) {
+    for (uint256 i = 0; i < input.length; i++) {
+        total += input[i];
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// Аналогично для struct-параметров:
+
+// ❌ До:
+function processUser(UserData memory data) external pure returns (uint256) {
+    return data.balance + data.timestamp;
+}
+
+// ✅ После:
+function processUser(UserData calldata data) external pure returns (uint256) {
+    return data.balance + data.timestamp;
+}
+</code></pre>
+
+    <p>
+      Когда <code>calldata</code> нельзя использовать: если вы модифицируете параметр
+      внутри функции (например, <code>arr[0] = 42</code>) — нужен <code>memory</code>,
+      так как calldata read-only.
+    </p>
+
+    <p>
+      <strong>Критерий приёмки:</strong> <code>forge snapshot --diff</code> после замены
+      показывает экономию ~200-500 gas на вызов для массива из 10 элементов;
+      таблица обновлена.
+    </p>
+
+    <h2>Задание 5</h2>
+    <p>
+      Замените строковые <code>require</code>-ошибки на <strong>custom errors</strong>.
+      Строки в Solidity кодируются как ABI-данные (минимум 64 байт на короткую строку);
+      custom errors кодируются как 4-байтный selector + аргументы.
+    </p>
+
+<pre class="code-block"><code>// ❌ До: строковая ошибка — ~200+ газа за storage строки в revert
+function requireAdmin() external view {
+    require(msg.sender == admin, "NaiveStorage: caller is not admin");
+}
+
+// ✅ После: custom error — 4 байта selector
+error Unauthorized(address caller);
+
+function requireAdmin() external view {
+    if (msg.sender != admin) revert Unauthorized(msg.sender);
+}
+</code></pre>
+
+<pre class="code-block"><code>// Ещё примеры custom errors с параметрами:
+error InsufficientBalance(address account, uint256 required, uint256 available);
+error DeadlineExpired(uint256 deadline, uint256 current);
+error InvalidAmount(uint256 amount);
+
+// Использование:
+function withdraw(uint256 amount) external {
+    uint256 bal = balances[msg.sender];
+    if (amount > bal) revert InsufficientBalance(msg.sender, amount, bal);
+    // ...
+}
+</code></pre>
+
+    <p>
+      Измерьте разницу в gas для revert-кейса: создайте тест, который ожидает revert,
+      и сравните gas до и после замены.
+    </p>
+
+<pre class="code-block"><code>function test_RequireAdminReverts() public {
+    vm.prank(address(0x1234)); // не admin
+    vm.expectRevert(abi.encodeWithSelector(OptimizedStorage.Unauthorized.selector, address(0x1234)));
+    optimized.requireAdmin();
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест с expectRevert по custom error selector
+      проходит; в gas-report видно снижение gas для функций с revert (~50-100 gas
+      на каждый revert).
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Перенесите фиксированные значения из storage в <code>immutable</code> и
+      <code>constant</code>. <code>constant</code> — compile-time константы (вшиваются
+      в байткод); <code>immutable</code> — задаются в конструкторе и тоже вшиваются
+      в байткод, не занимая storage slot.
+    </p>
+
+<pre class="code-block"><code>// ❌ До: fee читается из storage при каждом вызове (SLOAD = 2100 gas cold)
+contract NaiveStorage {
+    uint256 public fee;    // storage slot
+
+    constructor(uint256 _fee) {
+        fee = _fee;
+    }
+
+    function getFeeTotal(uint256 amount) external view returns (uint256) {
+        return amount * fee / 10_000;  // ❌ SLOAD здесь
+    }
+}
+
+// ✅ После: immutable вшивается в байткод деплоя (3 gas вместо 2100)
+contract OptimizedStorage {
+    uint256 public immutable FEE;       // immutable — задаётся в constructor
+    uint256 public constant MAX_ITEMS = 1000;  // constant — compile-time
+
+    constructor(uint256 _fee) {
+        FEE = _fee;
+    }
+
+    function getFeeTotal(uint256 amount) external view returns (uint256) {
+        return amount * FEE / 10_000;  // ✅ Читает из байткода, не storage
+    }
+
+    function addItem(uint256[] storage items, uint256 value) external {
+        require(items.length < MAX_ITEMS, "Max items reached");
+        items.push(value);
+    }
+}
+</code></pre>
+
+    <table class="compare">
+      <tr>
+        <th>Ключевое слово</th>
+        <th>Где хранится</th>
+        <th>Когда задаётся</th>
+        <th>Gas на чтение</th>
+      </tr>
+      <tr>
+        <td><code>storage</code></td>
+        <td>Merkle Patricia Trie контракта</td>
+        <td>В любое время</td>
+        <td>2100 (cold) / 100 (warm)</td>
+      </tr>
+      <tr>
+        <td><code>immutable</code></td>
+        <td>Байткод контракта (CODECOPY)</td>
+        <td>Только в конструкторе</td>
+        <td>~3 (как PUSH)</td>
+      </tr>
+      <tr>
+        <td><code>constant</code></td>
+        <td>Вшивается компилятором inline</td>
+        <td>Compile-time</td>
+        <td>~3 (как PUSH)</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>Критерий приёмки:</strong> <code>forge snapshot --diff</code> показывает
+      экономию ~2000 gas на каждое чтение заменённой переменной.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Применените <code>unchecked {}</code> для арифметики, где overflow/underflow
+      невозможен по логике программы. С Solidity 0.8+ все операции проверяются
+      по умолчанию (~13 доп. opcodes); <code>unchecked</code> снимает это, возвращая
+      поведение до 0.8.
+    </p>
+
+<pre class="code-block"><code>// ❌ До: каждое i++ содержит overflow-проверку
+function sumAll(uint256[] calldata input) external pure returns (uint256 total) {
+    for (uint256 i = 0; i < input.length; i++) {   // i++ — проверяемый increment
+        total += input[i];                          // total += — проверяемое сложение
+    }
+}
+
+// ✅ После: unchecked для счётчика цикла (никогда не overflow — length <= 2^256-1)
+function sumAllOptimized(uint256[] calldata input)
+    external
+    pure
+    returns (uint256 total)
+{
+    uint256 len = input.length;      // ✅ Кэшируем length в memory (избегаем повторный MLOAD)
+    for (uint256 i = 0; i < len; ) {
+        total += input[i];
+        unchecked { ++i; }           // ✅ ++i дешевле i++; unchecked убирает проверку
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// Ещё пример: безопасный unchecked для downcast
+function safePack(uint256 a, uint256 b)
+    external
+    pure
+    returns (uint128 packedA, uint128 packedB)
+{
+    require(a <= type(uint128).max, "a overflow");
+    require(b <= type(uint128).max, "b overflow");
+    unchecked {
+        packedA = uint128(a);   // Безопасно — проверено выше
+        packedB = uint128(b);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code># Финальное сравнение всех оптимизаций
+forge test --gas-report 2>&1 | tee gas-optimized.txt
+forge snapshot --diff
+
+# diff покажет итоговую экономию по каждому тесту
+# Ожидаемый результат для sumAll(100 items):
+# NaiveStorage:     ~50 000 gas
+# OptimizedStorage: ~20 000 gas  (-60%)
+</code></pre>
+
+    <table class="compare">
+      <tr>
+        <th>Техника</th>
+        <th>Экономия газа</th>
+        <th>Сложность</th>
+        <th>Риски</th>
+      </tr>
+      <tr>
+        <td>Storage packing (uint128×2 → 1 slot)</td>
+        <td>~15 000 gas / write</td>
+        <td>Низкая</td>
+        <td>Потеря точности при downcasting</td>
+      </tr>
+      <tr>
+        <td>calldata вместо memory</td>
+        <td>200–1000 gas / вызов</td>
+        <td>Минимальная</td>
+        <td>Нельзя модифицировать параметр</td>
+      </tr>
+      <tr>
+        <td>Custom errors</td>
+        <td>50–200 gas / revert</td>
+        <td>Минимальная</td>
+        <td>Нет</td>
+      </tr>
+      <tr>
+        <td>immutable/constant</td>
+        <td>~2000 gas / read</td>
+        <td>Минимальная</td>
+        <td>immutable нельзя изменить после deploy</td>
+      </tr>
+      <tr>
+        <td>unchecked arithmetic</td>
+        <td>~13 gas / операция</td>
+        <td>Средняя</td>
+        <td>Overflow без защиты — нужна ручная проверка</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>Критерий приёмки:</strong> финальная таблица заполнена реальными данными
+      из <code>forge snapshot --diff</code>; итоговая экономия для сложного теста
+      (sumAll 100 элементов) — не менее 40%.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-05">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 05 · Gas Optimization",
+  "intro": "Семь вопросов об оптимизации газа в Solidity.",
+  "questions": [
+    {
+      "q": "Почему два поля <code>uint128</code> в struct дешевле двух полей <code>uint256</code> при записи?",
+      "kind": "multiple",
+      "options": [
+        "uint128 использует другой opcode для записи",
+        "Два uint128 помещаются в один 32-байтный storage slot — одна операция SSTORE вместо двух; SSTORE в холодный слот стоит 20 000 gas",
+        "uint128 не требует gas для хранения",
+        "Solidity оптимизирует uint128 на уровне компилятора автоматически"
+      ],
+      "answerIndex": 1,
+      "explain": "Storage slot = 32 байта. uint128 = 16 байт. Два uint128 = 32 байта = 1 слот. Одна холодная SSTORE = 20 000 gas. Два uint256 = 2 слота = 40 000 gas. Экономия = 20 000 gas."
+    },
+    {
+      "q": "В каком случае нельзя использовать <code>calldata</code> вместо <code>memory</code> для параметра?",
+      "kind": "multiple",
+      "options": [
+        "Когда параметр — массив",
+        "Когда параметр — struct",
+        "Когда функция модифицирует содержимое параметра внутри (например arr[0] = 42)",
+        "Когда функция помечена как external"
+      ],
+      "answerIndex": 2,
+      "explain": "calldata — read-only область. Любая попытка записи в calldata-параметр приведёт к ошибке компилятора. Используйте memory, если нужно изменять параметр внутри функции."
+    },
+    {
+      "q": "Что делает <code>forge snapshot --diff</code>?",
+      "kind": "multiple",
+      "options": [
+        "Показывает diff исходного кода контракта",
+        "Сравнивает текущее потребление газа с сохранённым снимком в .gas-snapshot и показывает изменения",
+        "Делает снимок состояния блокчейна для форка",
+        "Генерирует diff между двумя версиями ABI"
+      ],
+      "answerIndex": 1,
+      "explain": "forge snapshot создаёт .gas-snapshot файл. Повторный запуск с --diff сравнивает текущие значения с сохранёнными. Красный = регрессия (больше gas), зелёный = улучшение (меньше gas)."
+    },
+    {
+      "q": "Сколько газа экономит замена строковой ошибки <code>require(cond, \"long string\")</code> на custom error?",
+      "kind": "multiple",
+      "options": [
+        "0 — только читаемость улучшается",
+        "Примерно 50–200 gas в зависимости от длины строки: строка кодируется в ABI (минимум 64 байта), custom error = 4 байта selector",
+        "Ровно 21 000 gas (base transaction cost)",
+        "Только при revert в другом контракте"
+      ],
+      "answerIndex": 1,
+      "explain": "При revert со строкой EVM должен закодировать её в ABI: selector(4) + offset(32) + length(32) + data(N bytes padded to 32). Для строки '10 chars' = минимум 100 байт. Custom error: 4 байта. Разница = память + calldata gas."
+    },
+    {
+      "q": "В чём разница между <code>constant</code> и <code>immutable</code>?",
+      "kind": "multiple",
+      "options": [
+        "constant только для uint, immutable для любого типа",
+        "constant задаётся на этапе компиляции (inline в байткод), immutable задаётся в конструкторе и вшивается в байткод деплоя; оба не занимают storage",
+        "immutable дороже constant на 100 gas",
+        "Нет разницы — это синонимы"
+      ],
+      "answerIndex": 1,
+      "explain": "constant = литеральное значение в исходнике, встраивается компилятором повсюду. immutable = значение из конструктора, записывается в байткод контракта при деплое (CODECOPY). Оба читаются как PUSH (~3 gas), не как SLOAD (2100 gas)."
+    },
+    {
+      "q": "Почему <code>++i</code> дешевле <code>i++</code> в Solidity?",
+      "kind": "multiple",
+      "options": [
+        "++i — другой opcode",
+        "i++ создаёт временную переменную для хранения старого значения, ++i — нет; в unchecked блоке разница минимальна, но в checked — ++i экономит ~5 gas",
+        "++i отключает overflow-проверку",
+        "Нет разницы, компилятор оптимизирует оба варианта одинаково"
+      ],
+      "answerIndex": 1,
+      "explain": "i++ возвращает значение до инкремента — компилятор создаёт временную переменную. ++i возвращает значение после — временная переменная не нужна. В циклах, где возвращаемое значение не используется, компилятор обычно оптимизирует оба варианта, но явный ++i — хорошая практика."
+    },
+    {
+      "q": "Когда безопасно использовать <code>unchecked { i++; }</code> в цикле по массиву?",
+      "kind": "multiple",
+      "options": [
+        "Никогда — это всегда опасно",
+        "Когда длина массива не превышает 2^256-1, что всегда истинно в Solidity, так как array.length имеет тип uint256; счётчик цикла, ограниченный length, никогда не переполнится",
+        "Только когда массив имеет тип bytes",
+        "Только при компиляции с --optimize"
+      ],
+      "answerIndex": 1,
+      "explain": "i < array.length гарантирует, что i не достигнет type(uint256).max (array.length <= type(uint256).max). Поэтому i++ внутри этого цикла никогда не overflow — unchecked безопасен и экономит ~13 gas на итерацию."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Бенчмарки выполняются через Foundry forge test --gas-report и forge snapshot.
+      Значения gas зависят от версии компилятора и настроек оптимизатора.
+      Измеряйте с одинаковыми настройками в foundry.toml для корректного сравнения.
+      Справочник стоимости opcodes: <a href="https://evm.codes" target="_blank" rel="noopener">evm.codes</a>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
