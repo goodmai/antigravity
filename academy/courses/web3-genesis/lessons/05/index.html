@@ -1,0 +1,1211 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 05 · Tenderly Virtual Testnet — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 05 · Tenderly Virtual Testnet</span>
+    </div>
+
+    <p class="lesson-meta">Модуль I · Lesson 05 · cloud devnet &amp; simulation</p>
+    <h1>Tenderly Virtual Testnet — облачный fork и Simulation API</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      &rarr; продолжение <a href="../04/index.html">Lesson 04 &mdash; Anvil &amp; Foundry</a>.
+      Там мы поднимали локальный fork командой <code>anvil --fork-url</code>.
+      Здесь мы делаем то же самое в облаке, добавляем визуальный отладчик
+      транзакций и Simulation API, который позволяет проверить вызов контракта
+      <em>до</em> отправки в сеть.
+    </p>
+
+    <p>
+      Tenderly &mdash; это платформа для разработки, отладки и мониторинга
+      смарт-контрактов. Её ключевой инструмент для разработки &mdash;
+      <strong>Virtual Testnet</strong>: управляемый облачный форк любой EVM-сети
+      с публичным RPC, Simulation API, визуальным трассировщиком вызовов
+      и возможностью изменять состояние блокчейна без деплоя. В этом уроке
+      мы разбираем Virtual Testnet от создания до отладки упавших транзакций
+      и решаем четыре практические задачи.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы умеете: создать
+      Virtual Testnet через UI и через REST API; подключить его к viem и ethers;
+      симулировать транзакцию через Simulation API с state overrides; читать
+      пошаговый execution trace в визуальном отладчике; и воспроизвести
+      упавшую транзакцию без доступа к live-сети.
+    </div>
+
+    <h2>1. Что такое Tenderly и когда нужен Virtual Testnet</h2>
+
+    <p>
+      Tenderly предоставляет несколько инструментов, которые часто путают:
+    </p>
+
+    <table class="compare">
+      <tr>
+        <th>Инструмент</th>
+        <th>Что делает</th>
+        <th>Когда использовать</th>
+      </tr>
+      <tr>
+        <td><strong>Virtual Testnet</strong></td>
+        <td>Облачный форк сети: постоянный RPC, управляемое состояние, общий доступ по URL</td>
+        <td>Командная разработка, staging-окружение, интеграционные тесты поверх mainnet-состояния</td>
+      </tr>
+      <tr>
+        <td><strong>Simulation API</strong></td>
+        <td>Симулировать одну транзакцию или пачку транзакций без отправки, с state overrides</td>
+        <td>Проверить вызов до отправки, посчитать gas, протестировать edge-cases без стоимости</td>
+      </tr>
+      <tr>
+        <td><strong>Debugger / Trace</strong></td>
+        <td>Пошаговый визуальный trace EVM-исполнения: opcodes, стек, storage diff</td>
+        <td>Разобрать упавшую транзакцию, найти источник revert, проанализировать gas-потребление</td>
+      </tr>
+      <tr>
+        <td><strong>Monitoring / Alerts</strong></td>
+        <td>Мониторинг транзакций на mainnet в реальном времени, вебхуки и Slack-уведомления</td>
+        <td>Production-мониторинг: атаки, неожиданные вызовы, превышение порогов</td>
+      </tr>
+      <tr>
+        <td><strong>Web3 Gateway (Node RPC)</strong></td>
+        <td>Managed RPC endpoint к реальным сетям (аналог Alchemy / Infura)</td>
+        <td>Production-RPC с трейсингом «из коробки»</td>
+      </tr>
+    </table>
+
+    <p>
+      В этом уроке фокус &mdash; <strong>Virtual Testnet</strong> и
+      <strong>Simulation API</strong>. Мониторинг и Gateway &mdash; отдельная тема.
+    </p>
+
+    <h3>1.1 Virtual Testnet vs Anvil: когда что выбрать</h3>
+
+    <p>
+      Оба инструмента &mdash; форки EVM-сети. Разница &mdash; в где они живут
+      и что умеют сверх базового RPC. Детальное сравнение &mdash; в разделе 9.
+      Коротко: Anvil лучше для unit-тестов и CI, Virtual Testnet &mdash; для
+      командного staging и ручной отладки через UI.
+    </p>
+
+    <div class="note cyan">
+      <strong>Аккаунт Tenderly.</strong> Для этого урока нужен аккаунт на
+      <a href="https://dashboard.tenderly.co" target="_blank" rel="noopener">dashboard.tenderly.co</a>.
+      Бесплатный план включает 1 Virtual Testnet, 50 000 симуляций в месяц
+      и доступ к Debugger. Для задач урока этого достаточно.
+    </div>
+
+    <h2>2. Создание Virtual Testnet через UI (Tenderly Dashboard)</h2>
+
+    <p>
+      Самый быстрый способ &mdash; через браузер. Последовательность действий:
+    </p>
+
+    <ol>
+      <li>Войдите в <strong>dashboard.tenderly.co</strong> &rarr; выберите или создайте
+      проект.</li>
+      <li>В левом меню &mdash; <strong>Virtual Testnets</strong> &rarr; кнопка
+      <strong>Create Virtual Testnet</strong>.</li>
+      <li>Заполните форму:
+        <ul>
+          <li><strong>Network</strong> &mdash; сеть для форка. Доступны Ethereum mainnet,
+          Sepolia, Arbitrum, Optimism, Base, Polygon и другие.</li>
+          <li><strong>Fork Block</strong> &mdash; номер блока. Оставьте пустым для
+          форка от последнего блока. Для воспроизводимых тестов &mdash; зафиксируйте
+          конкретный номер.</li>
+          <li><strong>Chain ID</strong> &mdash; ID для форка. По умолчанию &mdash;
+          <code>73571</code>. Можно задать произвольный, но не совпадающий с реальными
+          сетями во избежание путаницы в кошельке.</li>
+          <li><strong>Slug</strong> &mdash; короткое имя для URL. Станет частью RPC
+          endpoint'а.</li>
+          <li><strong>Public/Private</strong> &mdash; публичный testnet доступен
+          по прямой ссылке без аутентификации; приватный требует токена.</li>
+        </ul>
+      </li>
+      <li>Нажмите <strong>Create</strong>. Через 5&ndash;10 секунд вы получите
+      готовый RPC endpoint вида:</li>
+    </ol>
+
+<pre class="code-block"><code>https://virtual.mainnet.rpc.tenderly.co/&lt;YOUR-SLUG&gt;
+
+# Или с явным проектом и токеном (для приватного testnet):
+https://virtual.mainnet.rpc.tenderly.co/&lt;ACCOUNT&gt;/&lt;PROJECT&gt;/&lt;SLUG&gt;</code></pre>
+
+    <p>
+      После создания на странице Virtual Testnet вы увидите:
+    </p>
+    <ul>
+      <li><strong>RPC URL</strong> &mdash; главный endpoint для MetaMask, viem, cast.</li>
+      <li><strong>Admin RPC URL</strong> &mdash; для управляющих методов:
+      <code>tenderly_setBalance</code>, <code>tenderly_setStorageAt</code>,
+      <code>evm_snapshot</code> и т.д.</li>
+      <li><strong>Explorer URL</strong> &mdash; встроенный block explorer, где
+      видны все транзакции на вашем форке.</li>
+      <li><strong>Block number</strong> &mdash; от какого блока сделан форк.</li>
+    </ul>
+
+    <div class="note">
+      <strong>Admin RPC vs Public RPC.</strong> Tenderly разделяет два endpoint'а.
+      Основной RPC работает как обычная нода &mdash; только стандартные ETH-методы.
+      Admin RPC добавляет методы управления: установка баланса, манипуляция
+      storage, пауза/продолжение майнинга блоков. В коде держите их раздельно
+      и никогда не отдавайте Admin RPC во фронтенд.
+    </div>
+
+    <h2>3. Создание через CLI и REST API</h2>
+
+    <p>
+      В CI/CD и скриптах создавать testnet через браузер неудобно. Tenderly
+      предоставляет REST API и официальный CLI.
+    </p>
+
+    <h3>3.1 Tenderly CLI</h3>
+
+<pre class="code-block"><code># Установка CLI (требует Node.js 18+)
+npm install -g @tenderly/cli
+
+# Авторизация (откроет браузер или предложит ввести токен)
+tenderly login
+
+# Создать Virtual Testnet для проекта my-project в аккаунте my-account
+tenderly virtual-testnet create \
+  --project    my-project \
+  --account    my-account \
+  --network-id 1 \
+  --block-number latest \
+  --display-name "mainnet-staging" \
+  --slug       mainnet-staging
+
+# Вывод:
+# RPC URL: https://virtual.mainnet.rpc.tenderly.co/my-account/my-project/mainnet-staging
+# Admin RPC: https://virtual.mainnet.rpc.tenderly.co/my-account/my-project/mainnet-staging/admin
+
+# Список всех testnet'ов в проекте
+tenderly virtual-testnet list --project my-project --account my-account
+
+# Удалить testnet
+tenderly virtual-testnet delete &lt;TESTNET_ID&gt; --project my-project</code></pre>
+
+    <h3>3.2 REST API</h3>
+
+    <p>
+      REST API &mdash; более гибкий вариант. Нужен API-ключ: в Dashboard &rarr;
+      Account Settings &rarr; Authorization &rarr; Generate API Key.
+    </p>
+
+<pre class="code-block"><code>#!/usr/bin/env bash
+# Создать Virtual Testnet через REST API
+TENDERLY_ACCOUNT="my-account"
+TENDERLY_PROJECT="my-project"
+TENDERLY_TOKEN="YOUR_API_KEY"
+
+curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data '{
+    "slug":          "mainnet-staging",
+    "display_name":  "Mainnet Staging Fork",
+    "fork_config": {
+      "network_id":    1,
+      "block_number":  "latest"
+    },
+    "virtual_network_config": {
+      "chain_config": {
+        "chain_id": 73571
+      }
+    },
+    "sync_state_config": {
+      "enabled": true
+    },
+    "explorer_page": {
+      "enabled": true
+    }
+  }' | jq '{
+    id:       .id,
+    rpc_url:  .rpcs[0].url,
+    admin_rpc: .rpcs[1].url
+  }'</code></pre>
+
+    <p>
+      Ответ содержит массив <code>rpcs</code>: первый элемент &mdash; публичный
+      RPC, второй &mdash; Admin RPC. В скрипте сохраните оба в переменные
+      окружения и передайте в следующие шаги CI.
+    </p>
+
+<pre class="code-block"><code># Пример скрипта CI (GitHub Actions): создать testnet, запустить тесты, удалить
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 1. Создать testnet
+RESPONSE=$(curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data "{
+    \"slug\": \"ci-run-${GITHUB_RUN_ID}\",
+    \"display_name\": \"CI Run ${GITHUB_RUN_ID}\",
+    \"fork_config\": { \"network_id\": 1, \"block_number\": \"latest\" },
+    \"virtual_network_config\": { \"chain_config\": { \"chain_id\": 73571 } }
+  }")
+
+VNET_ID=$(echo "$RESPONSE" | jq -r '.id')
+RPC_URL=$(echo  "$RESPONSE" | jq -r '.rpcs[0].url')
+ADMIN_RPC=$(echo "$RESPONSE" | jq -r '.rpcs[1].url')
+
+export RPC_URL ADMIN_RPC
+
+# 2. Запустить forge-тесты
+forge test --rpc-url "$RPC_URL" -vvv
+
+# 3. Удалить testnet (cleanup)
+curl -s -X DELETE \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${VNET_ID}" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}"</code></pre>
+
+    <h2>4. Подключение через viem и ethers</h2>
+
+    <p>
+      С точки зрения клиентской библиотеки Virtual Testnet &mdash; это обычный
+      JSON-RPC endpoint. Никаких специальных SDK не нужно.
+    </p>
+
+    <h3>4.1 viem</h3>
+
+<pre class="code-block"><code>// viem v2 — подключение к Virtual Testnet
+import { createPublicClient, createWalletClient, http, defineChain } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+
+// Описываем цепочку (chain ID должен совпадать с тем, что задали при создании)
+const tenderlyVnet = defineChain({
+  id:   73571,
+  name: "Tenderly Virtual Testnet",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: ["https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG"],
+    },
+  },
+});
+
+// Публичный клиент — для чтения
+const publicClient = createPublicClient({
+  chain:     tenderlyVnet,
+  transport: http(),
+});
+
+// Кошелёк для отправки транзакций
+const account = privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+const walletClient = createWalletClient({
+  account,
+  chain:     tenderlyVnet,
+  transport: http(),
+});
+
+// Проверяем подключение
+const blockNumber = await publicClient.getBlockNumber();
+console.log("Block:", blockNumber);
+
+// Читаем баланс
+const balance = await publicClient.getBalance({
+  address: account.address,
+});
+console.log("Balance:", balance); // BigInt в wei</code></pre>
+
+    <h3>4.2 ethers v6</h3>
+
+<pre class="code-block"><code>// ethers v6
+import { JsonRpcProvider, Wallet } from "ethers";
+
+const RPC_URL   = "https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG";
+const ADMIN_RPC = "https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG/admin";
+
+const provider = new JsonRpcProvider(RPC_URL, {
+  chainId: 73571,
+  name:    "tenderly-vnet",
+});
+
+// Для admin-методов — отдельный провайдер
+const adminProvider = new JsonRpcProvider(ADMIN_RPC, {
+  chainId: 73571,
+  name:    "tenderly-vnet-admin",
+});
+
+const signer = new Wallet(
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+  provider
+);
+
+const block = await provider.getBlockNumber();
+console.log("Block:", block);</code></pre>
+
+    <h3>4.3 cast и curl</h3>
+
+<pre class="code-block"><code># Foundry Cast работает с любым RPC-URL
+export RPC_URL="https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG"
+
+# Проверить номер блока
+cast block-number --rpc-url "$RPC_URL"
+
+# Баланс адреса
+cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --ether --rpc-url "$RPC_URL"
+
+# Отправить ETH (тестовый приватный ключ Foundry #0)
+cast send \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url "$RPC_URL" \
+  --value 1ether \
+  0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+
+# curl — базовая проверка
+curl -s -X POST "$RPC_URL" \
+  -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
+  | jq -r '.result | tonumber | "Block: \(.)"'</code></pre>
+
+    <h2>5. Simulation API — симуляция транзакций до отправки</h2>
+
+    <p>
+      Simulation API &mdash; самая мощная возможность Tenderly. Он принимает
+      параметры транзакции (from, to, data, value) и возвращает полный результат
+      исполнения: возвращаемые значения, потреблённый газ, все события (logs),
+      storage diff и execution trace &mdash; всё это <em>не отправляя</em>
+      транзакцию в сеть и не тратя реальный газ.
+    </p>
+
+    <h3>5.1 Базовый запрос симуляции</h3>
+
+<pre class="code-block"><code>#!/usr/bin/env bash
+# Симулировать вызов ERC-20 transfer
+
+TENDERLY_ACCOUNT="my-account"
+TENDERLY_PROJECT="my-project"
+TENDERLY_TOKEN="YOUR_API_KEY"
+
+# Адрес USDC на mainnet
+USDC="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+
+# Кодируем calldata для transfer(address,uint256)
+# transfer(0x70997970..., 1000_000) = 1 USDC (6 decimals)
+# ABI-кодирование функции transfer:
+#   selector: a9059cbb
+#   to:       000000000000000000000000 70997970c51812dc3a010c7d01b50e0d17dc79c8
+#   amount:   00000000000000000000000000000000000000000000000000000000000f4240
+
+curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data '{
+    "network_id":   "1",
+    "from":         "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "to":           "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "input":        "0xa9059cbb00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000f4240",
+    "gas":          100000,
+    "gas_price":    "0",
+    "value":        "0",
+    "save":         true,
+    "save_if_fails": true
+  }' | jq '{
+    status:   .transaction.status,
+    gas_used: .transaction.gas_used,
+    logs:     [.transaction.transaction_info.logs[]?.raw.topics],
+    revert:   .transaction.error_message
+  }'</code></pre>
+
+    <p>Ответ при успешной симуляции:</p>
+
+<pre class="code-block"><code>{
+  "status":   true,
+  "gas_used": 34217,
+  "logs":     [
+    ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+     "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+     "0x00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8"]
+  ],
+  "revert": null
+}</code></pre>
+
+    <p>
+      Первый topic в <code>logs</code> &mdash; это keccak256 сигнатуры события
+      <code>Transfer(address,address,uint256)</code>. Мы видим, что симуляция
+      выпустила Transfer-событие, то есть <code>transfer()</code> завершился
+      успешно, хотя ни одна реальная транзакция в сеть не отправлялась.
+    </p>
+
+    <h3>5.2 State Overrides в симуляции</h3>
+
+    <p>
+      Главная возможность &mdash; указать <strong>state overrides</strong>:
+      переопределить баланс, код контракта или конкретные storage-слоты
+      <em>только для этой симуляции</em>, не изменяя реальное состояние сети.
+    </p>
+
+<pre class="code-block"><code># Симуляция с state overrides: устанавливаем баланс USDC для адреса before simulate
+# Это позволяет проверить transfer от адреса, у которого нет USDC на mainnet
+
+curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data '{
+    "network_id": "1",
+    "from":       "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "to":         "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    "input":      "0xa9059cbb00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000f4240",
+    "gas":        100000,
+    "gas_price":  "0",
+    "value":      "0",
+    "state_objects": {
+      "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": {
+        "balance": "0xDE0B6B3A7640000"
+      },
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+        "storage": {
+          "0x10d6a54a4754c8869d6886b5f5d7fbfa5b4522237ea5c60d11bc4e7a1ff9390b":
+            "0x0000000000000000000000000000000000000000000000000000000005F5E100"
+        }
+      }
+    },
+    "save": true
+  }'</code></pre>
+
+    <div class="note">
+      <strong>Вычисление storage slot для mapping.</strong> В ERC-20 (OpenZeppelin)
+      балансы хранятся в <code>mapping(address =&gt; uint256) _balances</code>
+      (slot 0). Slot для конкретного ключа: <code>keccak256(abi.encode(address, slot_index))</code>.
+      Для адреса <code>0xf39F...</code> и slot 0 вычисляем:
+      <code>cast index address 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 0</code>.
+      Для USDC (upgradeable proxy) структура другая &mdash; сначала проверьте
+      layout через <code>forge inspect USDC storage-layout</code> или Tenderly
+      Storage Inspector.
+    </div>
+
+    <h3>5.3 Batch-симуляция (несколько транзакций за раз)</h3>
+
+<pre class="code-block"><code># Симуляция последовательности транзакций: approve + transferFrom
+# Первая транзакция: approve(spender, amount)
+# Вторая транзакция: transferFrom(owner, recipient, amount)
+# Каждая следующая видит state после предыдущей
+
+curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate-bundle" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data '{
+    "simulations": [
+      {
+        "network_id": "1",
+        "from":       "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "to":         "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "input":      "0x095ea7b300000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000f4240",
+        "gas":        80000,
+        "gas_price":  "0",
+        "value":      "0",
+        "save":       true
+      },
+      {
+        "network_id": "1",
+        "from":       "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+        "to":         "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "input":      "0x23b872dd000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000090f79bf6eb2c4f870365e785982e1f101e93b9060000000000000000000000000000000000000000000000000000000000000001",
+        "gas":        80000,
+        "gas_price":  "0",
+        "value":      "0",
+        "save":       true
+      }
+    ]
+  }' | jq '[.[] | { status: .transaction.status, gas_used: .transaction.gas_used }]'</code></pre>
+
+    <h3>5.4 Simulation API через Virtual Testnet RPC (tenderly_simulateTransaction)</h3>
+
+    <p>
+      Если у вас уже есть Virtual Testnet, симуляцию можно запустить прямо
+      через его RPC endpoint методом <code>tenderly_simulateTransaction</code>
+      &mdash; без обращения к основному API:
+    </p>
+
+<pre class="code-block"><code># Симулировать через RPC Virtual Testnet
+curl -s -X POST "$ADMIN_RPC" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "jsonrpc": "2.0",
+    "id":      1,
+    "method":  "tenderly_simulateTransaction",
+    "params": [
+      {
+        "from":  "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+        "to":    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        "data":  "0xa9059cbb00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c800000000000000000000000000000000000000000000000000000000000f4240",
+        "gas":   "0x186A0"
+      },
+      "latest"
+    ]
+  }' | jq '{
+    status:   .result.status,
+    gas_used: .result.gasUsed
+  }'</code></pre>
+
+    <h2>6. Визуальный отладчик &mdash; trace execution шаг за шагом</h2>
+
+    <p>
+      Каждая симуляция с параметром <code>"save": true</code>, а также каждая
+      транзакция, отправленная через Virtual Testnet, появляется в списке
+      <strong>Simulations</strong> или <strong>Transactions</strong> в Dashboard.
+      Нажмите на любую из них, чтобы открыть Debugger.
+    </p>
+
+    <h3>6.1 Execution Trace</h3>
+
+    <p>
+      Центральный элемент Debugger &mdash; <strong>Execution Trace</strong>:
+      дерево вызовов, где каждая строка &mdash; один <code>CALL</code>,
+      <code>STATICCALL</code>, <code>DELEGATECALL</code> или внутренний вызов
+      функции. Для каждого вызова видны:
+    </p>
+    <ul>
+      <li>Вызываемая функция (декодированное имя, если контракт верифицирован).</li>
+      <li>Параметры вызова (декодированные из calldata).</li>
+      <li>Возвращаемое значение.</li>
+      <li>Gas spent на этот вызов.</li>
+      <li>Статус: success / revert (и причина revert).</li>
+    </ul>
+
+<pre class="code-block"><code>Пример Execution Trace для USDC transfer():
+
+Transaction: 0xabc...
+  Status: Success
+  Gas used: 34 217 / 100 000
+
+[0] ERC20.transfer(to=0x7099..., amount=1000000)
+    Gas: 34 217
+    Return: true
+  [1] ERC20._transfer(from=0xf39F..., to=0x7099..., amount=1000000)
+      Gas: 29 051
+    [2] ERC20._beforeTokenTransfer(...)
+        Gas: 421
+    [2] ERC20._afterTokenTransfer(...)
+        Gas: 389
+    [2] emit Transfer(from=0xf39F..., to=0x7099..., amount=1000000)
+        Gas: 1 125
+  [1] Return: void</code></pre>
+
+    <h3>6.2 Opcodes View</h3>
+
+    <p>
+      Переключитесь на вкладку <strong>Opcodes</strong>, чтобы увидеть
+      пошаговое исполнение EVM: каждую инструкцию, состояние стека
+      (<code>stack</code>), текущий <code>memory</code> и <code>storage</code>.
+      Это нужно при анализе:
+    </p>
+    <ul>
+      <li>Точного места <code>REVERT</code> &mdash; на каком opcode упал контракт.</li>
+      <li>Reentrancy &mdash; видно повторный вход через <code>CALL</code>.</li>
+      <li>Gas optimization &mdash; найти <code>SLOAD</code>/<code>SSTORE</code>
+      в неожиданных местах.</li>
+    </ul>
+
+    <h3>6.3 State Diff</h3>
+
+    <p>
+      Вкладка <strong>State Changes</strong> показывает все изменения storage
+      по всем адресам, которые затронула транзакция. Формат:
+    </p>
+
+<pre class="code-block"><code>Contract: 0xa0b8...eb48 (USDC)
+  Slot 0x10d6a5...390b (balances[0xf39F...]):
+    Before: 0x0000...05F5E100   (100_000_000, то есть 100 USDC)
+    After:  0x0000...04C4B400   (79_000_000 = 79 USDC)
+
+  Slot 0xe6f1...9a2c (balances[0x7099...]):
+    Before: 0x0000...00000000   (0 USDC)
+    After:  0x0000...000F4240   (1_000_000 = 1 USDC)</code></pre>
+
+    <div class="note">
+      <strong>Decoding без верифицированного кода.</strong> Если контракт
+      не верифицирован на Etherscan, Tenderly попробует декодировать ABI
+      из своей базы (отслеживает все опубликованные контракты). Для своих
+      контрактов &mdash; загрузите ABI вручную через Settings &rarr;
+      Contracts в проекте, или верифицируйте через
+      <code>forge verify-contract</code>.
+    </div>
+
+    <h2>7. State Overrides на Virtual Testnet</h2>
+
+    <p>
+      В отличие от state overrides в симуляции (которые действуют только
+      для одного вызова), <strong>постоянные state overrides</strong> на
+      Virtual Testnet изменяют состояние форка навсегда &mdash; до следующего
+      сброса или явного изменения. Это делается через Admin RPC или
+      через UI (вкладка <strong>State</strong> в Virtual Testnet).
+    </p>
+
+    <h3>7.1 Установить баланс ETH</h3>
+
+<pre class="code-block"><code># Через Admin RPC (JSON-RPC метод tenderly_setBalance)
+# Устанавливаем 100 ETH на адрес 0xf39F...
+
+ADMIN_RPC="https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG/admin"
+
+curl -s -X POST "$ADMIN_RPC" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "jsonrpc": "2.0",
+    "id":      1,
+    "method":  "tenderly_setBalance",
+    "params": [
+      ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"],
+      "0x56BC75E2D63100000"
+    ]
+  }'
+
+# Проверить:
+cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --ether \
+  --rpc-url "https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG"
+# 100.000000000000000000
+
+# Через cast send (Anvil-совместимый метод, тоже работает на Tenderly):
+cast rpc tenderly_setBalance \
+  '["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]' \
+  '0x56BC75E2D63100000' \
+  --rpc-url "$ADMIN_RPC"</code></pre>
+
+    <h3>7.2 Установить ERC-20 баланс через storage override</h3>
+
+<pre class="code-block"><code># Вычислить storage slot для balances[address] в ERC-20 (slot 0)
+# cast index address &lt;address&gt; &lt;mapping_slot&gt;
+SLOT=$(cast index address 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 0)
+echo "Slot: $SLOT"
+
+# Установить значение: 1000 USDC (6 decimals = 1_000_000_000)
+VALUE="0x000000000000000000000000000000000000000000000000000000003B9ACA00"
+
+curl -s -X POST "$ADMIN_RPC" \
+  -H "Content-Type: application/json" \
+  --data "{
+    \"jsonrpc\": \"2.0\",
+    \"id\": 1,
+    \"method\": \"tenderly_setStorageAt\",
+    \"params\": [
+      \"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",
+      \"${SLOT}\",
+      \"${VALUE}\"
+    ]
+  }"
+
+# Проверить через eth_call (balanceOf)
+cast call 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48 \
+  "balanceOf(address)(uint256)" \
+  0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --rpc-url "https://virtual.mainnet.rpc.tenderly.co/YOUR-SLUG"
+# 1000000000</code></pre>
+
+    <h3>7.3 Установить bytecode контракта</h3>
+
+<pre class="code-block"><code># Заменить код контракта на произвольный bytecode
+# Полезно для тестирования поведения при замене имплементации (proxy)
+# или для mock-контрактов поверх mainnet-адресов
+
+curl -s -X POST "$ADMIN_RPC" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "jsonrpc": "2.0",
+    "id":      1,
+    "method":  "tenderly_setCode",
+    "params": [
+      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "0x6080604052..."
+    ]
+  }'</code></pre>
+
+    <h3>7.4 Snapshot и Revert</h3>
+
+    <p>
+      Virtual Testnet поддерживает Ethereum-стандартные методы для создания
+      снимка состояния и отката к нему:
+    </p>
+
+<pre class="code-block"><code># Сохранить снимок текущего состояния
+SNAPSHOT_ID=$(cast rpc evm_snapshot --rpc-url "$ADMIN_RPC" | tr -d '"')
+echo "Snapshot: $SNAPSHOT_ID"
+
+# ... делаем что-то: деплои, транзакции, изменения storage
+
+# Откатиться к снимку
+cast rpc evm_revert "$SNAPSHOT_ID" --rpc-url "$ADMIN_RPC"
+
+# После revert нужен новый snapshot для следующего цикла
+# (snapshot одноразовый &mdash; после использования недействителен)</code></pre>
+
+    <h2>8. Практические задачи</h2>
+
+    <h3>Задача 1: Создать Virtual Testnet и подключиться через cast и curl</h3>
+
+    <p>
+      Цель: создать форк Ethereum mainnet через Dashboard, сохранить RPC URL,
+      проверить подключение несколькими способами.
+    </p>
+
+<pre class="code-block"><code>### Шаг 1. Создать testnet в Dashboard
+# Открыть: https://dashboard.tenderly.co
+# Virtual Testnets → Create Virtual Testnet
+# Network: Ethereum mainnet, Block: latest, Chain ID: 73571, Slug: my-devnet
+
+### Шаг 2. Сохранить переменные
+export RPC_URL="https://virtual.mainnet.rpc.tenderly.co/YOUR-ACCOUNT/YOUR-PROJECT/my-devnet"
+export ADMIN_RPC="${RPC_URL}/admin"
+
+### Шаг 3. Проверка через curl
+curl -s -X POST "$RPC_URL" \
+  -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' \
+  | jq -r '"Chain ID: " + (.result | tonumber | tostring)'
+# Chain ID: 73571
+
+curl -s -X POST "$RPC_URL" \
+  -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}' \
+  | jq -r '"Block: " + (.result | tonumber | tostring)'
+# Block: &lt;последний mainnet-блок на момент форка&gt;
+
+### Шаг 4. Проверка через cast
+cast chain-id --rpc-url "$RPC_URL"
+cast block-number --rpc-url "$RPC_URL"
+
+### Шаг 5. Пополнить баланс тестового адреса
+cast rpc tenderly_setBalance \
+  '["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]' \
+  '0x56BC75E2D63100000' \
+  --rpc-url "$ADMIN_RPC"
+
+cast balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 --ether --rpc-url "$RPC_URL"
+# 100.000000000000000000
+
+### Шаг 6. Отправить транзакцию
+cast send \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url "$RPC_URL" \
+  --value 1ether \
+  0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+
+# Проверить в Dashboard: Virtual Testnets → my-devnet → Transactions
+# Нажать на транзакцию → откроется Debugger</code></pre>
+
+    <h3>Задача 2: Simulation API &mdash; симулировать ERC-20 transfer</h3>
+
+    <p>
+      Цель: через Simulation API симулировать <code>USDC.transfer()</code>
+      от адреса, у которого нет USDC на mainnet, используя state override.
+    </p>
+
+<pre class="code-block"><code>#!/usr/bin/env bash
+set -euo pipefail
+
+TENDERLY_ACCOUNT="YOUR_ACCOUNT"
+TENDERLY_PROJECT="YOUR_PROJECT"
+TENDERLY_TOKEN="YOUR_API_KEY"
+
+USDC="0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+FROM="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+TO="0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+AMOUNT=1000000   # 1 USDC (6 decimals)
+
+# Вычислить storage slot для balances[FROM] в USDC (slot 9 для USDC-proxy layout)
+# Для OpenZeppelin ERC-20: slot 0; для USDC FiatToken: используем slot 9
+# Точное значение: cast index address $FROM 9
+# Для примера берём заранее известный slot USDC:
+USDC_BALANCE_SLOT="0x10d6a54a4754c8869d6886b5f5d7fbfa5b4522237ea5c60d11bc4e7a1ff9390b"
+
+# calldata для transfer(address to, uint256 amount)
+CALLDATA="0xa9059cbb"
+CALLDATA+="00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8"  # to (padded)
+CALLDATA+="00000000000000000000000000000000000000000000000000000000000f4240"  # 1 USDC
+
+RESPONSE=$(curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data "{
+    \"network_id\":  \"1\",
+    \"from\":        \"${FROM}\",
+    \"to\":          \"${USDC}\",
+    \"input\":       \"${CALLDATA}\",
+    \"gas\":         100000,
+    \"gas_price\":   \"0\",
+    \"value\":       \"0\",
+    \"state_objects\": {
+      \"${FROM}\": {
+        \"balance\": \"0x56BC75E2D63100000\"
+      },
+      \"${USDC}\": {
+        \"storage\": {
+          \"${USDC_BALANCE_SLOT}\": \"0x0000000000000000000000000000000000000000000000000000000005F5E100\"
+        }
+      }
+    },
+    \"save\": true,
+    \"save_if_fails\": true
+  }")
+
+echo "$RESPONSE" | jq '{
+  status:        .transaction.status,
+  gas_used:      .transaction.gas_used,
+  simulation_id: .simulation.id,
+  error:         .transaction.error_message
+}'
+
+# Получить ссылку на debugger:
+SIM_ID=$(echo "$RESPONSE" | jq -r '.simulation.id')
+echo ""
+echo "Debugger URL:"
+echo "https://dashboard.tenderly.co/${TENDERLY_ACCOUNT}/${TENDERLY_PROJECT}/simulator/${SIM_ID}"</code></pre>
+
+    <h3>Задача 3: State override &mdash; выставить баланс ETH и задеплоить контракт</h3>
+
+    <p>
+      Цель: взять «пустой» адрес (нет ETH), через Admin RPC дать ему ETH,
+      задеплоить простой контракт и убедиться, что деплой успешен.
+    </p>
+
+<pre class="code-block"><code">### Шаг 1. Контракт для деплоя (минимальный)
+cat > /tmp/Counter.sol << 'SOLIDITY'
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract Counter {
+    uint256 public count;
+    function increment() external { count++; }
+}
+SOLIDITY
+
+### Шаг 2. Скомпилировать через forge и получить bytecode
+cd /tmp
+forge init counter-deploy --no-git 2>/dev/null || true
+cp /tmp/Counter.sol counter-deploy/src/Counter.sol
+cd counter-deploy
+BYTECODE=$(forge inspect Counter bytecode)
+echo "Bytecode length: ${#BYTECODE} chars"
+
+### Шаг 3. Пополнить баланс деплоера через Admin RPC
+DEPLOYER="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+curl -s -X POST "$ADMIN_RPC" \
+  -H "Content-Type: application/json" \
+  --data "{
+    \"jsonrpc\": \"2.0\",
+    \"id\": 1,
+    \"method\": \"tenderly_setBalance\",
+    \"params\": [[\"${DEPLOYER}\"], \"0x56BC75E2D63100000\"]
+  }" | jq '.result'
+
+### Шаг 4. Задеплоить контракт через cast (forge deploy)
+cast send \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url "$RPC_URL" \
+  --create "$BYTECODE"
+
+# Вывод содержит адрес задеплоенного контракта:
+# contractAddress: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+### Шаг 5. Вызвать increment() и count()
+CONTRACT="0x5FbDB2315678afecb367f032d93F642f64180aa3"
+
+cast send \
+  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
+  --rpc-url "$RPC_URL" \
+  "$CONTRACT" \
+  "increment()"
+
+cast call "$CONTRACT" "count()(uint256)" --rpc-url "$RPC_URL"
+# 1
+
+### Шаг 6. Посмотреть транзакции в Dashboard
+# Virtual Testnets → my-devnet → Transactions
+# Две транзакции: deploy + increment</code></pre>
+
+    <h3>Задача 4: Воспроизвести failed transaction через Debugger</h3>
+
+    <p>
+      Цель: симулировать транзакцию, которая завершится с revert, открыть
+      её в Debugger и найти точное место падения в коде контракта.
+    </p>
+
+<pre class="code-block"><code">### Шаг 1. Создать контракт с намеренным revert
+cat > /tmp/Vault.sol << 'SOLIDITY'
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract Vault {
+    mapping(address => uint256) public balances;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw(uint256 amount) external {
+        require(balances[msg.sender] >= amount, "Vault: insufficient balance");
+        balances[msg.sender] -= amount;
+        (bool ok,) = msg.sender.call{value: amount}("");
+        require(ok, "Vault: transfer failed");
+    }
+}
+SOLIDITY
+
+# Деплоим контракт (аналогично задаче 3)
+VAULT_BYTECODE=$(forge inspect Vault bytecode 2>/dev/null || echo "")
+# ... деплой ...
+VAULT="0x..."   # адрес задеплоенного Vault
+
+### Шаг 2. Симулировать withdraw без предварительного deposit (вызовет revert)
+TENDERLY_ACCOUNT="YOUR_ACCOUNT"
+TENDERLY_PROJECT="YOUR_PROJECT"
+TENDERLY_TOKEN="YOUR_API_KEY"
+
+# calldata для withdraw(uint256 amount) с amount=1 ETH
+# withdraw(1000000000000000000) → selector: 2e1a7d4d + amount padded
+CALLDATA="0x2e1a7d4d0000000000000000000000000000000000000000000000000de0b6b3a7640000"
+
+curl -s -X POST \
+  "https://api.tenderly.co/api/v1/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/simulate" \
+  -H "Content-Type: application/json" \
+  -H "X-Access-Key: ${TENDERLY_TOKEN}" \
+  --data "{
+    \"network_id\":   \"1\",
+    \"from\":         \"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266\",
+    \"to\":           \"${VAULT}\",
+    \"input\":        \"${CALLDATA}\",
+    \"gas\":          100000,
+    \"gas_price\":    \"0\",
+    \"value\":        \"0\",
+    \"save\":         true,
+    \"save_if_fails\": true
+  }" | jq '{
+    status:    .transaction.status,
+    error_msg: .transaction.error_message,
+    sim_id:    .simulation.id
+  }'
+
+# Ожидаемый вывод:
+# {
+#   "status":    false,
+#   "error_msg": "Vault: insufficient balance",
+#   "sim_id":    "abc123..."
+# }
+
+### Шаг 3. Открыть Debugger
+# Dashboard → Simulations → кликнуть на упавшую симуляцию
+# Во вкладке Execution Trace найти строку с REVERT:
+#   [0] Vault.withdraw(amount=1000000000000000000)
+#       Gas: 2 831
+#       ERROR: Vault: insufficient balance
+#     [1] require(balances[msg.sender] >= amount, ...)   ← revert здесь
+#
+# Вкладка Opcodes → прокрутить до REVERT:
+#   PUSH1 0x00
+#   REVERT
+#
+# Вкладка State Changes → пусто (транзакция не изменила state)</code></pre>
+
+    <div class="note">
+      <strong>Revert reason.</strong> Tenderly декодирует причину revert
+      автоматически: если это <code>require(condition, "message")</code> &mdash;
+      показывает строку. Если кастомная ошибка (<code>error InsufficientBalance(uint256 have, uint256 need)</code>)
+      &mdash; декодирует и параметры. Если revert без причины &mdash; показывает
+      hex revert data и предлагает ввести ABI вручную.
+    </div>
+
+    <h2>9. Сравнение Tenderly Virtual Testnet vs Anvil</h2>
+
+    <table class="compare">
+      <tr>
+        <th>Параметр</th>
+        <th>Anvil (Foundry)</th>
+        <th>Tenderly Virtual Testnet</th>
+      </tr>
+      <tr>
+        <td><strong>Где работает</strong></td>
+        <td>Локально, в памяти или на сервере</td>
+        <td>В облаке Tenderly</td>
+      </tr>
+      <tr>
+        <td><strong>Доступность</strong></td>
+        <td>Только пока запущен процесс anvil</td>
+        <td>Постоянно по URL (пока не удалите)</td>
+      </tr>
+      <tr>
+        <td><strong>Командный доступ</strong></td>
+        <td>Требует expose через ngrok/tunnel или VPN</td>
+        <td>Публичный RPC URL, доступен всей команде</td>
+      </tr>
+      <tr>
+        <td><strong>Визуальный дебаггер</strong></td>
+        <td>Нет (только CLI: cast run, forge test -vvvv)</td>
+        <td>Полноценный UI с деревом вызовов, opcodes, state diff</td>
+      </tr>
+      <tr>
+        <td><strong>Simulation API</strong></td>
+        <td>eth_call / forge simulate (нет state overrides для сторонних)</td>
+        <td>Полноценный API с state overrides, batch-симуляцией, сохранением результатов</td>
+      </tr>
+      <tr>
+        <td><strong>Скорость старта</strong></td>
+        <td>&lt; 1 секунды (localhost)</td>
+        <td>5&ndash;15 секунд (cloud)</td>
+      </tr>
+      <tr>
+        <td><strong>Latency запросов</strong></td>
+        <td>Минимальная (localhost)</td>
+        <td>50&ndash;200 мс (зависит от региона)</td>
+      </tr>
+      <tr>
+        <td><strong>Интеграция с forge test</strong></td>
+        <td>Нативная: forge test --fork-url</td>
+        <td>Через RPC URL: forge test --rpc-url $VNET_RPC</td>
+      </tr>
+      <tr>
+        <td><strong>Persistence state</strong></td>
+        <td>Только через dump/load (--dump-state, --load-state)</td>
+        <td>Постоянно, пока testnet существует</td>
+      </tr>
+      <tr>
+        <td><strong>Snapshot / Revert</strong></td>
+        <td>evm_snapshot / evm_revert</td>
+        <td>evm_snapshot / evm_revert (совместимо)</td>
+      </tr>
+      <tr>
+        <td><strong>State overrides (постоянные)</strong></td>
+        <td>tenderly_setBalance / anvil_setBalance</td>
+        <td>tenderly_setBalance / tenderly_setStorageAt</td>
+      </tr>
+      <tr>
+        <td><strong>Цена</strong></td>
+        <td>Бесплатно (open-source)</td>
+        <td>Бесплатный план: 1 testnet, 50k симуляций/месяц</td>
+      </tr>
+      <tr>
+        <td><strong>Идеально для</strong></td>
+        <td>Unit-тесты, CI/CD, быстрая локальная разработка</td>
+        <td>Staging, командные демо, отладка сложных сценариев</td>
+      </tr>
+    </table>
+
+    <p>
+      На практике оба инструмента используются вместе: Anvil &mdash; для быстрых
+      unit-тестов (<code>forge test</code>), Tenderly Virtual Testnet &mdash;
+      для staging-окружения и разбора инцидентов. Это не выбор «или / или».
+    </p>
+
+    <h2>10. Что дальше &mdash; Lesson 06</h2>
+
+    <p>
+      В <a href="../06/index.html"><strong>Lesson 06 &mdash; Ownable &amp; AccessControl</strong></a>
+      мы переходим от инструментов разработки к безопасности смарт-контрактов.
+      Разбираем два стандартных паттерна контроля доступа из OpenZeppelin:
+    </p>
+    <ul>
+      <li><strong>Ownable</strong> &mdash; единственный owner с возможностью
+      transferOwnership. Просто, но всё в руках одного человека.</li>
+      <li><strong>AccessControl</strong> &mdash; ролевая система: <code>MINTER_ROLE</code>,
+      <code>PAUSER_ROLE</code>, <code>ADMIN_ROLE</code>. Гранулярные права
+      без единой точки отказа.</li>
+    </ul>
+
+    <p>
+      Для тестирования мы будем использовать тот же Virtual Testnet, который
+      создали в этом уроке &mdash; просто зафиксируем RPC URL в <code>.env</code>
+      и подключим к <code>forge test</code>.
+    </p>
+
+    <div class="note cyan">
+      <strong>Совет перед Lesson 06.</strong> Оставьте Virtual Testnet живым
+      до следующего урока: в задаче 3 Lesson 06 мы будем ставить роли через
+      Tenderly Debugger и смотреть storage diff mapping-а ролей. Это удобнее
+      делать на уже настроенном окружении.
+    </div>
+
+    <h2>11. Ссылки и ресурсы</h2>
+
+    <div class="refs">
+      <ul>
+        <li>
+          <a href="https://docs.tenderly.co/virtual-testnets" target="_blank" rel="noopener">
+            docs.tenderly.co/virtual-testnets
+          </a>
+          &mdash; официальная документация Virtual Testnets: создание, конфигурация,
+          управление через API.
+        </li>
+        <li>
+          <a href="https://docs.tenderly.co/simulations-and-forks/simulation-api" target="_blank" rel="noopener">
+            docs.tenderly.co &mdash; Simulation API
+          </a>
+          &mdash; полное описание параметров симуляции: state overrides, gas estimation,
+          batch-симуляции, получение trace.
+        </li>
+        <li>
+          <a href="https://docs.tenderly.co/debugger" target="_blank" rel="noopener">
+            docs.tenderly.co/debugger
+          </a>
+          &mdash; документация по Debugger: Execution Trace, Opcodes View, State Changes,
+          декодирование ABI.
+        </li>
+        <li>
+          <a href="https://docs.tenderly.co/virtual-testnets/admin-rpc" target="_blank" rel="noopener">
+            docs.tenderly.co &mdash; Admin RPC Reference
+          </a>
+          &mdash; все методы Admin RPC: tenderly_setBalance, tenderly_setStorageAt,
+          tenderly_setCode, evm_snapshot, evm_revert.
+        </li>
+        <li>
+          <a href="https://docs.tenderly.co/virtual-testnets/ci-cd" target="_blank" rel="noopener">
+            docs.tenderly.co &mdash; CI/CD Integration
+          </a>
+          &mdash; как создавать и удалять testnet в GitHub Actions, CircleCI, GitLab CI.
+        </li>
+        <li>
+          <a href="https://github.com/Tenderly/tenderly-cli" target="_blank" rel="noopener">
+            github.com/Tenderly/tenderly-cli
+          </a>
+          &mdash; исходный код и releases официального CLI.
+        </li>
+        <li>
+          <a href="https://docs.tenderly.co/reference/api" target="_blank" rel="noopener">
+            docs.tenderly.co/reference/api
+          </a>
+          &mdash; OpenAPI-спецификация REST API Tenderly: все endpoint'ы для управления
+          проектами, testnet'ами, симуляциями и мониторингом.
+        </li>
+      </ul>
+    </div>
+
+    <div class="attrib">
+      Lesson 05 · Web3 Genesis · Daskibo Academy.
+      Контракты и примеры кода в этом уроке используют тестовые приватные ключи
+      Foundry (аккаунт #0: <code>0xac09...ff80</code>). Никогда не используйте
+      эти ключи в mainnet или в любой сети с реальными средствами &mdash; они
+      общеизвестны и любые средства будут немедленно похищены.
+      RPC URL Virtual Testnet в примерах заменены заглушкой <code>YOUR-SLUG</code> &mdash;
+      замените на свой URL из Dashboard.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
