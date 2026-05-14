@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 00 · Основы блокчейна — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+  <style>
+    .chain-vis {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 1.2rem 0;
+      align-items: center;
+    }
+    .block-box {
+      background: rgba(167,139,250,0.1);
+      border: 1px solid rgba(167,139,250,0.35);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      min-width: 140px;
+      position: relative;
+    }
+    .block-box .blk-label {
+      font-size: 0.65rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .block-box .blk-hash {
+      color: #7dd3fc;
+      font-size: 0.72rem;
+      word-break: break-all;
+    }
+    .block-box .blk-prev {
+      color: var(--muted);
+      font-size: 0.68rem;
+      margin-top: 4px;
+    }
+    .chain-arrow {
+      font-size: 1.4rem;
+      color: var(--accent);
+      opacity: 0.6;
+    }
+    .consensus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+      margin: 1.2rem 0;
+    }
+    .consensus-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .consensus-card h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+    .consensus-card p { font-size: 0.87rem; margin-bottom: 0.5rem; }
+    .consensus-card .tag {
+      display: inline-block;
+      background: rgba(167,139,250,0.15);
+      border: 1px solid rgba(167,139,250,0.3);
+      color: var(--accent);
+      font-size: 0.7rem;
+      border-radius: 20px;
+      padding: 2px 8px;
+      margin: 2px 2px 0 0;
+    }
+    .tag.green { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.3); color: var(--ok); }
+    .tag.red { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.3); color: var(--err); }
+    .tag.yellow { background: rgba(251,191,36,0.1); border-color: rgba(251,191,36,0.3); color: var(--warn); }
+
+    .stake-demo {
+      background: #0b1020;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 1.2rem 0;
+    }
+    .stake-demo h4 { color: var(--chain); margin-bottom: 12px; font-size: 0.95rem; }
+    .validator-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+    }
+    .validator-bar-wrap {
+      flex: 1;
+      background: rgba(255,255,255,0.07);
+      border-radius: 6px;
+      height: 14px;
+      overflow: hidden;
+    }
+    .validator-bar {
+      height: 100%;
+      border-radius: 6px;
+      background: linear-gradient(to right, var(--accent), var(--chain));
+    }
+    .validator-label { width: 90px; color: var(--muted); font-family: monospace; }
+    .validator-pct { width: 42px; text-align: right; color: var(--text); font-family: monospace; }
+
+    .fork-vis {
+      position: relative;
+      margin: 1.5rem 0;
+      padding: 16px;
+      background: #0b1020;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      white-space: pre;
+      color: #e2e8f0;
+      overflow-x: auto;
+    }
+
+    /* Quiz styles are in quiz.js */
+  </style>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 00 · Основы блокчейна</span>
+    </div>
+
+    <p class="lesson-meta">Введение · Lesson 00 · blockchain fundamentals</p>
+    <h1>Основы блокчейна: блоки, консенсус, стейкинг</h1>
+
+    <p>
+      Прежде чем писать смарт-контракты и отправлять транзакции, нужно понять,
+      <em>как именно</em> работает механизм, которому вы доверяете свои данные и деньги.
+      Этот урок — технический фундамент курса: что такое блок и цепочка, почему все
+      ноды приходят к одному состоянию без центрального сервера, что значит «стейкать»
+      ETH и как можно потерять всё за нечестное поведение.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы сможете объяснить: структуру
+      блока; почему подмена одного блока ломает все последующие; разницу между PoW,
+      PoS, DPoS и BFT; что такое финальность и почему она важна; как работает стейкинг
+      и слэшинг; что такое форк и когда он «хардовый».
+    </div>
+
+    <!-- ========================================================= -->
+    <h2>1. Что такое блокчейн</h2>
+
+    <p>
+      Блокчейн — это <strong>связанный список блоков</strong>, где каждый блок содержит
+      хэш предыдущего. Это создаёт <em>криптографическую цепочку</em>: изменить блок
+      посередине невозможно без пересчёта всех последующих, а значит — без согласия
+      большинства сети.
+    </p>
+
+    <div class="chain-vis">
+      <div class="block-box">
+        <div class="blk-label">Genesis Block #0</div>
+        <div class="blk-hash">hash: 0x000000a1…</div>
+        <div class="blk-prev">prev: 0x000000 (genesis)</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="block-box">
+        <div class="blk-label">Block #1</div>
+        <div class="blk-hash">hash: 0x4f83c2d7…</div>
+        <div class="blk-prev">prev: 0x000000a1…</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="block-box">
+        <div class="blk-label">Block #2</div>
+        <div class="blk-hash">hash: 0xa9b1e305…</div>
+        <div class="blk-prev">prev: 0x4f83c2d7…</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="block-box" style="border-color:rgba(56,189,248,0.5)">
+        <div class="blk-label" style="color:var(--chain)">Block #N (latest)</div>
+        <div class="blk-hash">hash: 0x71cc9f02…</div>
+        <div class="blk-prev">prev: 0xa9b1e305…</div>
+      </div>
+    </div>
+
+    <h3>1.1 Структура блока Ethereum</h3>
+    <p>
+      Блок содержит два главных раздела: <strong>заголовок</strong> (header) —
+      30-40 полей метаданных — и <strong>тело</strong> (body) — список транзакций
+      и список дядей (uncles / ommers, ныне не используется в PoS).
+    </p>
+
+<pre class="code-block"><code>Block Header {
+  parentHash        bytes32   // keccak256 предыдущего заголовка — главная «ссылка»
+  sha3Uncles        bytes32   // хэш списка ommer-блоков (legacy)
+  miner / feeRecipient addr   // получатель наград за блок (PoW: miner; PoS: validator)
+  stateRoot         bytes32   // корень Patricia-Merkle дерева всего состояния
+  transactionsRoot  bytes32   // корень Merkle-Patricia дерева транзакций
+  receiptsRoot      bytes32   // корень дерева чеков транзакций (events, gasUsed)
+  logsBloom         [256]byte // Bloom-фильтр по всем событиям — для быстрого поиска
+  difficulty        uint256   // сложность майнинга (0 в PoS после Merge)
+  number            uint256   // номер блока
+  gasLimit          uint256   // максимальное суммарное потребление газа в блоке
+  gasUsed           uint256   // реально потраченный газ
+  timestamp         uint256   // unix time создания блока
+  extraData         bytes     // произвольные данные валидатора (≤32 байт)
+  mixHash / prevRandao bytes32 // PoW: mixHash; PoS: RANDAO — источник случайности
+  nonce             bytes8    // PoW: 64-бит nonce; PoS: 0x000…000
+  baseFeePerGas     uint256   // EIP-1559 базовая цена (с London hardfork)
+  withdrawalsRoot   bytes32   // EIP-4895 (Shapella): корень дерева выводов стейка
+  blobGasUsed       uint64    // EIP-4844 (Dencun): газ для blob-транзакций
+  excessBlobGas     uint64    // EIP-4844: накопленный лишний blob-газ
+}</code></pre>
+
+    <h3>1.2 Почему цепочку нельзя «подделать»</h3>
+    <p>
+      Попробуем изменить транзакцию в блоке №100. Тогда изменится <code>transactionsRoot</code>
+      этого блока, а значит — и его хэш. Но хэш блока №100 записан в поле
+      <code>parentHash</code> блока №101. Поэтому нужно пересчитать блок №101, потом
+      №102… и так до самого последнего. Каждый пересчёт требует либо <em>огромных
+      вычислительных ресурсов</em> (PoW) либо <em>контроля над большинством
+      стейка</em> (PoS). Именно поэтому говорят, что атака требует 51%+ ресурсов
+      сети — и становится дороже по мере роста сети.
+    </p>
+
+    <h3>1.3 Genesis-блок</h3>
+    <p>
+      Первый блок цепочки — <strong>Genesis</strong> — не имеет родителя: его поле
+      <code>parentHash</code> заполнено нулями. Он содержит <em>начальное распределение
+      балансов</em> (pre-allocations) и параметры сети: chainId, начальную сложность,
+      gasLimit. В Ethereum Mainnet Genesis-блок датируется 30 июля 2015 года (блок #0).
+    </p>
+
+<pre class="code-block"><code>// Фрагмент genesis.json для локальной сети (geth / Anvil):
+{
+  "config": {
+    "chainId": 31337,
+    "homesteadBlock": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0
+  },
+  "difficulty": "0x0",
+  "gasLimit": "0x1C9C380",    // ~30M gas
+  "alloc": {
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266": {
+      "balance": "10000000000000000000000"  // 10000 ETH (Anvil dev account #0)
+    }
+  }
+}</code></pre>
+
+    <!-- ========================================================= -->
+    <h2>2. Консенсусные механизмы</h2>
+
+    <p>
+      <strong>Консенсус</strong> — это алгоритм, с помощью которого тысячи независимых
+      нод договариваются о том, какой следующий блок является «правильным». Без консенсуса
+      каждая нода могла бы добавить свой блок — цепочка расщепилась бы.
+    </p>
+
+    <div class="consensus-grid">
+      <div class="consensus-card">
+        <h4>⛏️ Proof of Work (PoW)</h4>
+        <p>
+          Валидатор (майнер) перебирает nonce, пока keccak256(header + nonce)
+          не будет меньше target. Вероятность найти блок = доля хэшрейта.
+        </p>
+        <p><strong>Защита:</strong> для переписи цепи нужно &gt;50% мирового хэшрейта.</p>
+        <span class="tag green">Проверен годами (BTC с 2009)</span>
+        <span class="tag red">Огромный расход энергии</span>
+        <span class="tag yellow">Риск ASIC-централизации</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          Ethereum использовал PoW до сентября 2022 (The Merge). Сейчас — только Bitcoin, Litecoin и др.
+        </p>
+      </div>
+
+      <div class="consensus-card">
+        <h4>🥩 Proof of Stake (PoS)</h4>
+        <p>
+          Валидатор блокирует (стейкает) залог в нативном токене.
+          Право предложить следующий блок разыгрывается случайно,
+          пропорционально стейку.
+        </p>
+        <p><strong>Защита:</strong> для атаки нужно &gt;33% (finality) или &gt;67% (переписать) от суммарного стейка.</p>
+        <span class="tag green">Энергоэффективен (~99.95% vs PoW)</span>
+        <span class="tag green">Слэшинг наказывает нечестных</span>
+        <span class="tag yellow">Риск «богатые богатеют»</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          Ethereum (Casper FFG + LMD-GHOST), Solana, Avalanche, Cardano.
+        </p>
+      </div>
+
+      <div class="consensus-card">
+        <h4>🗳️ Delegated Proof of Stake (DPoS)</h4>
+        <p>
+          Держатели токенов <em>голосуют</em> за небольшое число «делегатов»
+          (например, 21 в EOS, 101 в LISK). Делегаты производят блоки по очереди.
+        </p>
+        <p><strong>Защита:</strong> честность обеспечивается репутацией и угрозой переголосования.</p>
+        <span class="tag green">Высокий TPS, быстрые блоки</span>
+        <span class="tag red">Высокая централизация</span>
+        <span class="tag yellow">«Аристократия делегатов»</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          EOS, TRON, BitShares, BNB Chain (21 validator).
+        </p>
+      </div>
+
+      <div class="consensus-card">
+        <h4>🏛️ Byzantine Fault Tolerance (BFT / pBFT)</h4>
+        <p>
+          Набор известных валидаторов обменивается сообщениями в несколько раундов
+          (prepare → promise → commit). Блок финален, когда &gt;⅔ проголосовали.
+        </p>
+        <p><strong>Защита:</strong> выдерживает до ⅓ нечестных / отказавших нод.</p>
+        <span class="tag green">Мгновенная финальность</span>
+        <span class="tag green">Без майнинга, детерминировано</span>
+        <span class="tag red">Не масштабируется на тысячи нод</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          Tendermint (Cosmos), Hyperledger Fabric, PBFT, HotStuff (Libra/Diem).
+        </p>
+      </div>
+
+      <div class="consensus-card">
+        <h4>🏔️ Proof of Authority (PoA)</h4>
+        <p>
+          Блоки производит список заранее одобренных, идентифицированных валидаторов.
+          Авторитет — не деньги, а юридическая ответственность.
+        </p>
+        <p><strong>Защита:</strong> репутация и контракты с операторами.</p>
+        <span class="tag green">Быстрый, дешёвый</span>
+        <span class="tag green">Подходит для enterprise</span>
+        <span class="tag red">Требует доверия к операторам</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          Polygon Edge (Bor), Sepolia testnet, Goerli (исторически), BSC Parlia, многие корпоративные сети.
+        </p>
+      </div>
+
+      <div class="consensus-card">
+        <h4>📜 Proof of History (PoH)</h4>
+        <p>
+          Лидер создаёт верифицируемую хронологию событий через VDF (итеративный sha256).
+          Не консенсус сам по себе, а <em>часовой механизм</em> поверх PoS.
+        </p>
+        <p><strong>Идея:</strong> доказать, что транзакция произошла <em>до</em> определённого момента времени.</p>
+        <span class="tag green">Очень высокий TPS (~65 000)</span>
+        <span class="tag red">Высокие требования к железу</span>
+        <span class="tag yellow">Молодой протокол</span>
+        <p style="font-size:0.8rem;margin-top:8px;color:var(--muted)">
+          Используется только в Solana (в сочетании с Tower BFT).
+        </p>
+      </div>
+    </div>
+
+    <h3>2.1 Как Ethereum выбирает лидера (LMD-GHOST + Casper FFG)</h3>
+    <p>
+      Ethereum PoS работает на двух алгоритмах, которые дополняют друг друга:
+    </p>
+    <ul>
+      <li>
+        <strong>LMD-GHOST</strong> (Latest Message Driven Greedy Heaviest Observed SubTree) —
+        алгоритм выбора «каноничной» цепочки. Из всех возможных веток выбирается та,
+        где суммарный стейк последних аттестаций максимален (самая «тяжёлая» ветка).
+      </li>
+      <li>
+        <strong>Casper FFG</strong> (Friendly Finality Gadget) — механизм финальности.
+        Каждые два эпохи (~12.8 мин) валидаторы голосуют за «checkpoint»-блок.
+        Когда &gt;⅔ стейка аттестует checkpoint как «justified» и следующий epoch тоже
+        «justified» — checkpoint становится <em>finalized</em>.
+      </li>
+    </ul>
+    <p>
+      Каждые 12 секунд — один <strong>слот</strong>. Каждые 32 слота — одна
+      <strong>эпоха</strong> (~6.4 минуты). Один случайно выбранный валидатор
+      в каждом слоте предлагает блок; 128 случайных валидаторов образуют
+      комитет аттестаторов и голосуют за предложенный блок.
+    </p>
+
+<pre class="code-block"><code>Slot  0  1  2  3  … 31 │ Slot 32  33  … 63 │ Slot 64 …
+      ──────────────── │ ─────────────────  │ ─────────
+       Epoch 0         │     Epoch 1         │   Epoch 2
+
+Epoch 0 finalized (justified → justified → finalized) после Epoch 2.</code></pre>
+
+    <!-- ========================================================= -->
+    <h2>3. Стейкинг и валидаторы</h2>
+
+    <p>
+      В Ethereum PoS стейкинг — это <strong>залог 32 ETH</strong> в deposit-контракт
+      (<code>0x00000000219ab540356cBB839Cbe05303d7705Fa</code>). В обмен вы запускаете
+      <em>validator node</em> (consensus client + execution client) и участвуете в
+      производстве и аттестации блоков.
+    </p>
+
+    <h3>3.1 Роли в стейкинге</h3>
+
+    <div class="stake-demo">
+      <h4>Распределение стейка Ethereum Mainnet (пример, май 2025)</h4>
+      <div class="validator-row">
+        <span class="validator-label">Lido</span>
+        <div class="validator-bar-wrap"><div class="validator-bar" style="width:28%"></div></div>
+        <span class="validator-pct">28%</span>
+      </div>
+      <div class="validator-row">
+        <span class="validator-label">Coinbase</span>
+        <div class="validator-bar-wrap"><div class="validator-bar" style="width:11%"></div></div>
+        <span class="validator-pct">11%</span>
+      </div>
+      <div class="validator-row">
+        <span class="validator-label">Binance</span>
+        <div class="validator-bar-wrap"><div class="validator-bar" style="width:4%"></div></div>
+        <span class="validator-pct">4%</span>
+      </div>
+      <div class="validator-row">
+        <span class="validator-label">Kraken</span>
+        <div class="validator-bar-wrap"><div class="validator-bar" style="width:3%"></div></div>
+        <span class="validator-pct">3%</span>
+      </div>
+      <div class="validator-row">
+        <span class="validator-label">Solo / прочие</span>
+        <div class="validator-bar-wrap"><div class="validator-bar" style="width:54%;background:linear-gradient(to right,var(--chain),var(--ok))"></div></div>
+        <span class="validator-pct">54%</span>
+      </div>
+      <p style="font-size:0.77rem;color:var(--muted);margin-top:10px;">
+        Источник: rated.network / dune.com (иллюстративные данные)
+      </p>
+    </div>
+
+    <table class="compare">
+      <tr><th>Роль</th><th>Требования</th><th>Доход</th><th>Риски</th></tr>
+      <tr>
+        <td><strong>Solo Validator</strong></td>
+        <td>32 ETH + железо 24/7</td>
+        <td>~3-4% APR (все награды)</td>
+        <td>Uptime-пенальти, слэшинг при двойном голосовании</td>
+      </tr>
+      <tr>
+        <td><strong>Liquid Staking (stETH, rETH)</strong></td>
+        <td>Любая сумма ETH</td>
+        <td>~3-4% APR минус комиссия протокола</td>
+        <td>Smart-contract риск, централизация оператора</td>
+      </tr>
+      <tr>
+        <td><strong>Pooled / CEX</strong></td>
+        <td>Любая сумма</td>
+        <td>~2-3% APR (биржа берёт до 25%)</td>
+        <td>Контрагентский риск биржи</td>
+      </tr>
+      <tr>
+        <td><strong>DVT (Distributed Validator)</strong></td>
+        <td>32 ETH, несколько операторов</td>
+        <td>~3-4% APR</td>
+        <td>Сложнее настроить, новая технология</td>
+      </tr>
+    </table>
+
+    <h3>3.2 Как начисляются награды</h3>
+    <p>
+      Валидатор зарабатывает в трёх источниках:
+    </p>
+    <ul>
+      <li>
+        <strong>Attestation reward</strong> — базовая награда за правильное и своевременное
+        голосование за head-блок (LMD-GHOST), source и target checkpoint (Casper FFG).
+        Составляет ~85% суммарного дохода.
+      </li>
+      <li>
+        <strong>Block proposal reward</strong> — дополнительная награда тому валидатору,
+        который был выбран предложить блок в данном слоте.
+        Плюс все <strong>приоритетные сборы (tips)</strong> от транзакций.
+      </li>
+      <li>
+        <strong>MEV (Maximal Extractable Value)</strong> — дополнительный доход от
+        перестановки транзакций в блоке (арбитраж, sandwich-атаки). Большинство
+        валидаторов используют MEV-Boost (Flashbots) для этого.
+      </li>
+    </ul>
+
+    <h3>3.3 Слэшинг (Slashing)</h3>
+    <div class="note">
+      <strong>Слэшинг</strong> — это наказание за нечестное поведение, которое
+      автоматически уничтожает часть стейка валидатора. Слэшинг происходит при:
+    </div>
+    <ul>
+      <li>
+        <strong>Double voting (equivocation):</strong> валидатор подписал два разных
+        блока для одного слота (<em>double propose</em>) или проголосовал за два
+        разных checkpoint в одну эпоху (<em>surround vote</em>).
+      </li>
+      <li>
+        <strong>Вилки без уважительной причины:</strong> вложенные голоса, нарушающие
+        Casper правила окружения.
+      </li>
+    </ul>
+    <p>
+      При слэшинге валидатор немедленно теряет минимум <strong>1/32 от 32 ETH = 1 ETH</strong>,
+      принудительно выходит из очереди, получает <em>корреляционный штраф</em>
+      (пропорционален доле слэшенных валидаторов в тот же период — если 1/3 сети
+      слэшится одновременно, штраф может достигать 100% стейка).
+    </p>
+
+<pre class="code-block"><code>// Формула корреляционного штрафа (упрощённо):
+penalty = effective_balance × (3 × slashed_fraction) / WHISTLEBLOWER_REWARD_QUOTIENT
+
+// При 1 слэшенном из 500 000 валидаторов:
+slashed_fraction ≈ 0.000002  →  penalty ≈ 0.0001 ETH (минимум)
+
+// При одновременном слэшинге 33% (167 000 валидаторов):
+slashed_fraction ≈ 0.33  →  penalty ≈ 100% стейка (уничтожение)</code></pre>
+
+    <!-- ========================================================= -->
+    <h2>4. Финальность</h2>
+
+    <p>
+      <strong>Финальность</strong> — гарантия того, что блок уже нельзя изменить
+      или откатить. Разные блокчейны дают разные гарантии:
+    </p>
+
+    <table class="compare">
+      <tr>
+        <th>Сеть</th>
+        <th>Тип финальности</th>
+        <th>Время</th>
+        <th>Гарантия</th>
+      </tr>
+      <tr>
+        <td>Ethereum PoS</td>
+        <td>Экономическая (Casper FFG)</td>
+        <td>~13 минут (2 эпохи)</td>
+        <td>Отмена потребует сжечь &gt;⅓ суммарного стейка (~10B$)</td>
+      </tr>
+      <tr>
+        <td>Bitcoin PoW</td>
+        <td>Вероятностная</td>
+        <td>~60 мин (6 подтверждений)</td>
+        <td>Вероятность отмены &lt;0.1% при 6 блоках</td>
+      </tr>
+      <tr>
+        <td>Cosmos (Tendermint)</td>
+        <td>Детерминированная (BFT)</td>
+        <td>~6 секунд</td>
+        <td>Блок финален сразу после commit (&gt;⅔ подписей)</td>
+      </tr>
+      <tr>
+        <td>Solana</td>
+        <td>Оптимистичная + Tower BFT</td>
+        <td>~400 ms (opt.) / ~32s (confirmed)</td>
+        <td>«Confirmed» = ≥⅔ стейка проголосовали</td>
+      </tr>
+      <tr>
+        <td>Arbitrum / Optimism</td>
+        <td>Унаследованная от L1</td>
+        <td>~13 мин (Ethereum finality)</td>
+        <td>Транзакция финальна вместе с L1-блоком</td>
+      </tr>
+    </table>
+
+    <div class="note cyan">
+      <strong>Практически</strong>: для большинства dApp достаточно 2-3
+      подтверждений Ethereum (~24-36 сек). Для крупных переводов через
+      биржи — ждут полную финальность (~13 мин). Для MEV-ботов — «soft
+      finality» первого блока.
+    </div>
+
+    <!-- ========================================================= -->
+    <h2>5. Форки</h2>
+
+    <p>
+      <strong>Форк</strong> в блокчейне — это расхождение в правилах протокола или
+      в истории цепочки. Различают три вида:
+    </p>
+
+    <div class="fork-vis">Soft Fork (обратно совместимый):
+
+  Старые ноды:  A → B → C → D → E  (принимают новые блоки как валидные)
+  Новые ноды:   A → B → C → D → E  (применяют новые правила)
+
+  Пример: SegWit в Bitcoin (BIP141), EIP-1559 в Ethereum.
+
+Hard Fork (несовместимое изменение правил):
+
+  До форка:     A → B → C
+                             ↘ D' → E'  (новые ноды / новая сеть)
+                             ↘ D  → E   (старые ноды → «умирают» или образуют другую сеть)
+
+  Пример: Ethereum / Ethereum Classic (2016, DAO hack);
+          Ethereum PoW vs Ethereum PoS (2022, The Merge).
+
+Soft Fork высоты (временный форк):
+
+  Slot N:  Validator A и B одновременно предложили блок.
+           Оба блока попали в сеть — временная вилка.
+           LMD-GHOST выбирает «тяжелее» → одна ветка становится канонической.
+    </div>
+
+    <h3>5.1 Ключевые форки Ethereum</h3>
+    <table class="compare">
+      <tr><th>Форк</th><th>Дата</th><th>Что изменилось</th></tr>
+      <tr><td>Homestead</td><td>Март 2016</td><td>Первый стабильный релиз; убраны экспериментальные цены газа</td></tr>
+      <tr><td>Spurious Dragon</td><td>Ноябрь 2016</td><td>Защита от DoS-атак (replay protection, EIP-161)</td></tr>
+      <tr><td>Constantinople / Petersburg</td><td>Февраль 2019</td><td>Оптимизация газа (SSTORE), bitwise-сдвиги</td></tr>
+      <tr><td>Istanbul</td><td>Декабрь 2019</td><td>Снижение газа для Blake2 / BN256, EIP-1344 (chainId опкод)</td></tr>
+      <tr><td>Berlin</td><td>Апрель 2021</td><td>Access lists (EIP-2929), новые типы транзакций</td></tr>
+      <tr><td><strong>London</strong></td><td>Август 2021</td><td><strong>EIP-1559</strong>: baseFee + burn. Революция в экономике газа</td></tr>
+      <tr><td><strong>The Merge</strong></td><td>Сентябрь 2022</td><td><strong>PoW → PoS</strong>. Потребление энергии упало на ~99.95%</td></tr>
+      <tr><td>Shanghai / Shapella</td><td>Апрель 2023</td><td>EIP-4895: вывод стейка (до этого ETH был заблокирован с 2020)</td></tr>
+      <tr><td><strong>Dencun</strong></td><td>Март 2024</td><td><strong>EIP-4844</strong>: blob-транзакции. L2 стали дешевле в 10-100x</td></tr>
+      <tr><td>Pectra</td><td>Май 2025</td><td>EIP-7702 (AA для EOA), увеличение max-blob count, повышение лимита стейка</td></tr>
+    </table>
+
+    <!-- ========================================================= -->
+    <h2>6. Как транзакция попадает в блок</h2>
+
+    <p>
+      Полный жизненный цикл транзакции от подписи до финальности:
+    </p>
+
+<pre class="code-block"><code>Пользователь
+  │  wallet.sendTransaction({to, value, data, …})
+  ▼
+JSON-RPC нода (eth_sendRawTransaction)
+  │  проверяет подпись, nonce, balance, gasLimit
+  ▼
+Mempool (transaction pool)
+  │  сортировка по maxPriorityFeePerGas (EIP-1559)
+  │  propagation через p2p (gossip protocol)
+  ▼
+Validator (в назначенном слоте)
+  │  1. consensus client запрашивает execution payload у execution client
+  │  2. execution client выбирает до gasLimit транзакций из mempool
+  │     (алгоритм MEV-Boost / builder API)
+  │  3. execution client исполняет транзакции в EVM, строит новый stateRoot
+  │  4. consensus client подписывает beacon-блок и BLS-ключом
+  ▼
+Attesters (128 случайных валидаторов)
+  │  проверяют блок за 4 секунды, отправляют attestation
+  ▼
+Включение в блокчейн (slot + 1)
+  │  агрегатор собирает attestations в aggregated signature
+  ▼
+Финальность (через ~2 эпохи / 13 мин)
+  └─ checkpoint стал finalized → транзакция навсегда в истории</code></pre>
+
+    <!-- ========================================================= -->
+    <h2>7. Виртуальная машина EVM</h2>
+
+    <p>
+      <strong>EVM (Ethereum Virtual Machine)</strong> — это детерминированная
+      стек-машина с 256-битными словами. Каждая нода запускает одинаковый код
+      контракта и получает одинаковый результат — это и есть основа консенсуса
+      на уровне смарт-контрактов.
+    </p>
+
+    <table class="compare">
+      <tr><th>Компонент</th><th>Описание</th></tr>
+      <tr>
+        <td><strong>Stack</strong></td>
+        <td>256-бит, глубина до 1024 слотов. Все операции читают/пишут сюда.</td>
+      </tr>
+      <tr>
+        <td><strong>Memory</strong></td>
+        <td>Байтовый массив, расширяется по мере нужды. Очищается после каждого вызова. Стоимость растёт квадратично.</td>
+      </tr>
+      <tr>
+        <td><strong>Storage</strong></td>
+        <td>32→32 bytes ключ-значение, <em>постоянное</em> между вызовами. Самое дорогое: SSTORE = 20 000 gas при записи нового слота.</td>
+      </tr>
+      <tr>
+        <td><strong>Calldata</strong></td>
+        <td>Входные данные транзакции. Иммутабельны, дешевле memory (16 gas/байт vs 3).</td>
+      </tr>
+      <tr>
+        <td><strong>Code</strong></td>
+        <td>Байткод контракта. Иммутабелен после деплоя (кроме proxy-паттернов).</td>
+      </tr>
+    </table>
+
+    <!-- ========================================================= -->
+    <h2>8. Что дальше</h2>
+    <p>
+      В <a href="../01/index.html"><strong>Lesson 01 — MetaMask &amp; кошельки</strong></a>
+      мы переходим к практике: seed-фраза, приватный ключ, адрес, подпись транзакции —
+      всё это живым кодом через viem и интерактивные демо прямо в браузере.
+      Теоретическая база этого урока будет работать всё время: когда вы будете
+      настраивать валидатор, выбирать L2 по финальности или понимать, почему
+      «reverted» транзакция всё равно стоит газ.
+    </p>
+
+    <!-- ========================================================= -->
+    <section class="lesson-quiz" data-lesson="00">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 00 · основы блокчейна",
+  "intro": "7 вопросов и задач. Multiple-choice подсвечивает верный ответ; открытые — сверяйтесь с пояснением; практические — отмечайте сами.",
+  "questions": [
+    {
+      "q": "Почему изменение транзакции в блоке #100 требует пересчёта всех блоков с #100 до текущего?",
+      "kind": "multiple",
+      "options": [
+        "Потому что нода кэширует последние 100 блоков",
+        "Потому что каждый блок содержит parentHash — хэш предыдущего заголовка, и изменение содержимого меняет хэш",
+        "Потому что EIP-1559 требует монотонного gasUsed",
+        "Потому что nonce должен быть строго возрастающим"
+      ],
+      "answerIndex": 1,
+      "explain": "parentHash — криптографическая цепочка. Изменение любого бита блока меняет его keccak256-хэш, что ломает parentHash следующего блока, и так далее до HEAD."
+    },
+    {
+      "q": "В чём принципиальное отличие PoS от PoW с точки зрения механизма защиты?",
+      "kind": "multiple",
+      "options": [
+        "PoS требует специального железа (ASIC), PoW — нет",
+        "В PoW защита — потраченная электроэнергия; в PoS — экономический залог (стейк), который можно уничтожить (слэшинг)",
+        "В PoS блоки создаются медленнее",
+        "PoW использует BLS-подписи, PoS — ECDSA"
+      ],
+      "answerIndex": 1,
+      "explain": "PoW: атака = контроль над 51% хэшрейта (энергия + железо). PoS: атака = контроль над 33%+ стейка, но нечестное поведение ведёт к уничтожению залога (слэшинг) — атака стоит миллиарды."
+    },
+    {
+      "q": "Что происходит в Ethereum PoS, когда валидатор подписывает два разных блока в одном слоте?",
+      "kind": "multiple",
+      "options": [
+        "Его транзакции игнорируются на следующие 32 слота",
+        "Он получает корреляционный штраф и исключается из очереди валидаторов (слэшинг)",
+        "Его блок принимается только если он имеет больший стейк",
+        "Сеть выбирает блок с меньшим хэшем"
+      ],
+      "answerIndex": 1,
+      "explain": "Double propose — одно из двух условий слэшинга. Минимальный штраф — 1 ETH, максимальный (при массовом слэшинге) — весь стейк."
+    },
+    {
+      "q": "Какой тип консенсуса обеспечивает детерминированную (мгновенную) финальность?",
+      "kind": "multiple",
+      "options": [
+        "Proof of Work (Nakamoto консенсус)",
+        "Nakamoto PoS (LMD-GHOST)",
+        "BFT / Tendermint (Byzantine Fault Tolerance)",
+        "Delegated PoS с 21 делегатом"
+      ],
+      "answerIndex": 2,
+      "explain": "BFT-консенсус (Tendermint, HotStuff) финализирует блок сразу после получения подписей >⅔ валидаторов. PoW и PoS (Ethereum) — вероятностная или экономическая финальность."
+    },
+    {
+      "q": "Что такое Genesis-блок и чем он отличается от всех последующих?",
+      "kind": "open",
+      "answer": "Genesis-блок (#0) — первый блок цепочки. Его поле parentHash заполнено нулями (нет родителя). В нём закодированы начальные параметры сети (chainId, gasLimit, difficulty) и начальное распределение балансов (alloc). Все последующие блоки содержат ненулевой parentHash, указывающий на предыдущий блок."
+    },
+    {
+      "q": "Practical: откройте DevTools в браузере и выполните следующий код. Что вернёт второй вызов и почему?\n<pre>const msg = 'block0';\nconst enc = new TextEncoder();\nawait crypto.subtle.digest('SHA-256', enc.encode(msg));\n// теперь измените msg и снова вычислите хэш</pre>",
+      "kind": "task",
+      "answer": "Любое изменение входных данных (даже один символ) кардинально меняет SHA-256 хэш. Это называется «лавинный эффект» — основа криптографической цепочки блоков. Именно поэтому изменение данных блока меняет его хэш и ломает parentHash следующего."
+    },
+    {
+      "q": "Practical: найдите в BeaconScan или beaconcha.in любой финализированный слот Ethereum и определите: (а) какой валидатор предложил блок; (б) сколько аттестаторов проголосовало; (в) значение RANDAO reveal.",
+      "kind": "task",
+      "answer": "На beaconcha.in откройте любой slot → вкладка 'Overview'. (а) Proposer = конкретный index-номер валидатора. (б) Attestations count = обычно 400-500 аттестаций на слот (128 в комитете × несколько aggregated). (в) RANDAO reveal — это BLS-подпись, которая XOR-ится с предыдущим значением для обновления источника случайности."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://ethereum.org/en/developers/docs/consensus-mechanisms/" target="_blank" rel="noopener">Ethereum.org — Consensus mechanisms</a></li>
+        <li><a href="https://ethereum.org/en/developers/docs/blocks/" target="_blank" rel="noopener">Ethereum.org — Blocks</a></li>
+        <li><a href="https://ethereum.org/en/staking/" target="_blank" rel="noopener">Ethereum.org — Staking</a></li>
+        <li><a href="https://ethereum.org/en/developers/docs/evm/" target="_blank" rel="noopener">Ethereum.org — EVM</a></li>
+        <li><a href="https://beaconcha.in/" target="_blank" rel="noopener">beaconcha.in</a> — Ethereum Beacon Chain Explorer</li>
+        <li><a href="https://notes.ethereum.org/@vbuterin/serenity_design_rationale" target="_blank" rel="noopener">Vitalik — Serenity Design Rationale</a></li>
+        <li><a href="https://arxiv.org/abs/2003.03052" target="_blank" rel="noopener">Gasper paper (LMD-GHOST + Casper FFG)</a></li>
+        <li><a href="https://rated.network/" target="_blank" rel="noopener">rated.network</a> — статистика валидаторов</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

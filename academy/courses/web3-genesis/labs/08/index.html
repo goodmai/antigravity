@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 08 · viem: JSON-RPC Client — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 08 · viem: JSON-RPC Client</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 08 · взаимодействие с блокчейном</p>
+    <h1>Lab 08 · viem: JSON-RPC Client</h1>
+
+    <p>
+      <strong>viem</strong> — современная TypeScript-библиотека для работы с EVM-сетями.
+      В отличие от ethers.js v5, viem написан с нуля с прицелом на tree-shaking,
+      нативный BigInt, строгую типизацию ABI и минимальный bundle size. Вместо
+      одного монолитного класса <code>Provider</code> здесь две специализированные
+      сущности: <code>publicClient</code> для чтения данных и <code>walletClient</code>
+      для подписи и отправки транзакций. В этом лабе вы освоите весь жизненный цикл:
+      от чтения блока до ожидания квитанции о транзакции.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      создавать <code>publicClient</code> и выполнять базовые RPC-запросы;
+      читать данные ERC-20 контракта через <code>readContract</code>;
+      получать события через <code>getLogs</code> с фильтром по блокам;
+      декодировать event logs с помощью <code>decodeEventLog</code>;
+      использовать <code>simulateContract</code> для предпросмотра транзакций;
+      создавать <code>walletClient</code> и отправлять реальные транзакции;
+      ожидать квитанцию и извлекать все emitted events.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Создайте TypeScript-скрипт, который подключается к Sepolia через
+      <code>publicClient</code> и выводит номер текущего блока и баланс
+      известного адреса.
+    </p>
+
+<pre class="code-block"><code>mkdir viem-lab && cd viem-lab
+npm init -y
+npm install viem
+npm install -D typescript tsx @types/node
+
+# tsconfig.json:
+# { "compilerOptions": { "target": "ES2022", "module": "ES2022", "moduleResolution": "bundler" } }</code></pre>
+
+    <h3>src/01-basic.ts</h3>
+<pre class="code-block"><code>import { createPublicClient, http, formatEther } from "viem";
+import { sepolia } from "viem/chains";
+
+// publicClient — только чтение, не требует подписи
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://sepolia.infura.io/v3/YOUR_KEY"),
+  // Можно использовать публичный RPC:
+  // transport: http("https://rpc.sepolia.org"),
+});
+
+async function main() {
+  // eth_blockNumber
+  const blockNumber = await client.getBlockNumber();
+  console.log("Текущий блок:", blockNumber);
+
+  // eth_getBalance
+  const address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+  const balanceWei = await client.getBalance({ address });
+  console.log(`Баланс ${address}:`, formatEther(balanceWei), "ETH");
+
+  // eth_getBlock
+  const block = await client.getBlock({ blockNumber });
+  console.log("Время блока:", new Date(Number(block.timestamp) * 1000).toISOString());
+  console.log("Транзакций в блоке:", block.transactions.length);
+}
+
+main();</code></pre>
+
+<pre class="code-block"><code>npx tsx src/01-basic.ts</code></pre>
+
+    <p>
+      viem поддерживает несколько транспортов:
+    </p>
+
+    <table class="compare">
+      <tr><th>Транспорт</th><th>Использование</th><th>Когда применять</th></tr>
+      <tr><td><code>http(url)</code></td><td>HTTP JSON-RPC</td><td>Серверный код, скрипты, Node.js</td></tr>
+      <tr><td><code>webSocket(url)</code></td><td>WebSocket JSON-RPC</td><td>Real-time подписки на события</td></tr>
+      <tr><td><code>custom(provider)</code></td><td>EIP-1193 провайдер</td><td>Браузер, <code>window.ethereum</code></td></tr>
+      <tr><td><code>fallback([...])</code></td><td>Несколько RPC с fallback</td><td>Production, устойчивость к сбоям</td></tr>
+    </table>
+
+    <h2>Задание 2</h2>
+    <p>
+      Прочитайте метаданные ERC-20 токена через <code>readContract</code>:
+      <code>name</code>, <code>symbol</code>, <code>decimals</code>,
+      <code>totalSupply</code> и баланс конкретного адреса.
+    </p>
+
+    <h3>src/02-read-contract.ts</h3>
+<pre class="code-block"><code>import { createPublicClient, http, formatUnits } from "viem";
+import { sepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://rpc.sepolia.org"),
+});
+
+// Минимальный ABI для ERC-20 (только нужные нам функции):
+const ERC20_ABI = [
+  { name: "name",        type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ type: "string" }] },
+  { name: "symbol",      type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ type: "string" }] },
+  { name: "decimals",    type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ type: "uint8" }] },
+  { name: "totalSupply", type: "function", stateMutability: "view",
+    inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "balanceOf",   type: "function", stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }] },
+] as const;
+
+// USDC на Sepolia:
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const MY_ADDRESS   = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+
+async function main() {
+  // Несколько читающих вызовов можно объединить через multicall:
+  const [name, symbol, decimals, totalSupply, myBalance] = await Promise.all([
+    client.readContract({ address: TOKEN_ADDRESS, abi: ERC20_ABI, functionName: "name" }),
+    client.readContract({ address: TOKEN_ADDRESS, abi: ERC20_ABI, functionName: "symbol" }),
+    client.readContract({ address: TOKEN_ADDRESS, abi: ERC20_ABI, functionName: "decimals" }),
+    client.readContract({ address: TOKEN_ADDRESS, abi: ERC20_ABI, functionName: "totalSupply" }),
+    client.readContract({
+      address: TOKEN_ADDRESS, abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [MY_ADDRESS],
+    }),
+  ]);
+
+  console.log(`${name} (${symbol})`);
+  console.log(`Decimals: ${decimals}`);
+  console.log(`Total Supply: ${formatUnits(totalSupply, decimals)}`);
+  console.log(`My balance: ${formatUnits(myBalance, decimals)} ${symbol}`);
+}
+
+main();</code></pre>
+
+    <h2>Задание 3</h2>
+    <p>
+      Используйте <code>getLogs</code> для получения всех событий
+      <code>Transfer</code> за последние 1000 блоков для выбранного токена.
+    </p>
+
+    <h3>src/03-get-logs.ts</h3>
+<pre class="code-block"><code>import { createPublicClient, http, parseAbiItem } from "viem";
+import { sepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://rpc.sepolia.org"),
+});
+
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+
+async function main() {
+  const currentBlock = await client.getBlockNumber();
+  const fromBlock = currentBlock - 1000n;
+
+  // getLogs — это eth_getLogs под капотом
+  const logs = await client.getLogs({
+    address: TOKEN_ADDRESS,
+    // parseAbiItem создаёт фрагмент ABI из человекочитаемой сигнатуры:
+    event: parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)"),
+    fromBlock,
+    toBlock: currentBlock,
+  });
+
+  console.log(`Transfer события с блока ${fromBlock} по ${currentBlock}:`);
+  console.log(`Всего: ${logs.length}`);
+
+  // Первые 5 для preview:
+  for (const log of logs.slice(0, 5)) {
+    console.log({
+      blockNumber: log.blockNumber,
+      txHash: log.transactionHash,
+      from: log.args.from,
+      to:   log.args.to,
+      // value в raw формате (BigInt, без decimals)
+      value: log.args.value?.toString(),
+    });
+  }
+}
+
+main();</code></pre>
+
+    <div class="note cyan">
+      <strong>Лимиты RPC.</strong> Большинство публичных нод ограничивают
+      <code>eth_getLogs</code> диапазоном в 2 000 – 10 000 блоков за запрос.
+      Для больших диапазонов разбивайте на чанки или используйте платные
+      ноды (Infura, Alchemy) с расширенными лимитами.
+    </div>
+
+    <h2>Задание 4</h2>
+    <p>
+      Декодируйте сырые event logs с помощью <code>decodeEventLog</code>
+      и отобразите результаты в виде форматированной таблицы.
+    </p>
+
+    <h3>src/04-decode-logs.ts</h3>
+<pre class="code-block"><code>import {
+  createPublicClient, http, decodeEventLog, formatUnits, parseAbiItem
+} from "viem";
+import { sepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://rpc.sepolia.org"),
+});
+
+const ERC20_ABI = [
+  {
+    name: "Transfer",
+    type: "event",
+    inputs: [
+      { name: "from",  type: "address", indexed: true },
+      { name: "to",    type: "address", indexed: true },
+      { name: "value", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "Approval",
+    type: "event",
+    inputs: [
+      { name: "owner",   type: "address", indexed: true },
+      { name: "spender", type: "address", indexed: true },
+      { name: "value",   type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const DECIMALS = 6; // USDC
+
+async function main() {
+  const currentBlock = await client.getBlockNumber();
+  const rawLogs = await client.getLogs({
+    address: TOKEN_ADDRESS,
+    fromBlock: currentBlock - 500n,
+    toBlock:   currentBlock,
+  });
+
+  console.log(`Получено ${rawLogs.length} логов, декодируем...\n`);
+
+  // Таблица в консоли:
+  console.log(
+    "Block".padEnd(10),
+    "Event".padEnd(10),
+    "From".padEnd(44),
+    "To".padEnd(44),
+    "Amount"
+  );
+  console.log("-".repeat(120));
+
+  for (const log of rawLogs) {
+    try {
+      // decodeEventLog разбирает topics и data по ABI
+      const decoded = decodeEventLog({
+        abi: ERC20_ABI,
+        data: log.data,
+        topics: log.topics,
+      });
+
+      if (decoded.eventName === "Transfer") {
+        const args = decoded.args as { from: string; to: string; value: bigint };
+        console.log(
+          log.blockNumber?.toString().padEnd(10),
+          decoded.eventName.padEnd(10),
+          args.from.padEnd(44),
+          args.to.padEnd(44),
+          formatUnits(args.value, DECIMALS)
+        );
+      }
+    } catch {
+      // Пропускаем нераспознанные события (если ABI неполный)
+    }
+  }
+}
+
+main();</code></pre>
+
+    <h2>Задание 5</h2>
+    <p>
+      Используйте <code>simulateContract</code>, чтобы предпросмотреть
+      вызов <code>transfer()</code> — проверить, не откатится ли транзакция,
+      и получить оценку газа.
+    </p>
+
+    <h3>src/05-simulate.ts</h3>
+<pre class="code-block"><code>import { createPublicClient, http, parseUnits } from "viem";
+import { sepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://rpc.sepolia.org"),
+});
+
+const ERC20_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to",    type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const SENDER    = "0xYOUR_ADDRESS";  // адрес с балансом USDC на Sepolia
+const RECIPIENT = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+
+async function main() {
+  const amount = parseUnits("1.0", 6); // 1 USDC (6 decimals)
+
+  try {
+    // simulateContract = eth_call, симулирует транзакцию без отправки
+    const { result, request } = await client.simulateContract({
+      address: TOKEN_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "transfer",
+      args: [RECIPIENT, amount],
+      account: SENDER,
+    });
+
+    console.log("Симуляция успешна. Возвращаемое значение:", result); // true
+    console.log("Запрос готов к отправке:", request);
+
+    // Оценка газа для реальной транзакции:
+    const gasEstimate = await client.estimateContractGas({
+      address: TOKEN_ADDRESS,
+      abi: ERC20_ABI,
+      functionName: "transfer",
+      args: [RECIPIENT, amount],
+      account: SENDER,
+    });
+    console.log("Оценка газа:", gasEstimate.toString());
+
+  } catch (err) {
+    // Если симуляция откатывается — узнаём причину до отправки реальной tx
+    console.error("Симуляция провалилась:", err);
+  }
+}
+
+main();</code></pre>
+
+    <h2>Задание 6</h2>
+    <p>
+      Создайте <code>walletClient</code> с приватным ключом и отправьте
+      тестовый трансфер на Sepolia.
+    </p>
+
+    <div class="note">
+      <strong>Безопасность.</strong> Никогда не храните приватные ключи с
+      реальными средствами в коде. Используйте только тестовые ключи на
+      тестовых сетях (Sepolia). Получите тестовый ETH на faucet.sepolia.dev.
+    </div>
+
+    <h3>src/06-send.ts</h3>
+<pre class="code-block"><code>import {
+  createPublicClient, createWalletClient,
+  http, parseUnits,
+  privateKeyToAccount,
+} from "viem";
+import { sepolia } from "viem/chains";
+
+const RPC_URL    = "https://rpc.sepolia.org";
+const PRIVATE_KEY = process.env.PRIVATE_KEY as `0x${string}`;
+
+const account = privateKeyToAccount(PRIVATE_KEY);
+
+const publicClient = createPublicClient({
+  chain: sepolia,
+  transport: http(RPC_URL),
+});
+
+const walletClient = createWalletClient({
+  account,
+  chain: sepolia,
+  transport: http(RPC_URL),
+});
+
+const ERC20_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to",    type: "address" },
+      { name: "value", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+const TOKEN_ADDRESS = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const RECIPIENT     = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+
+async function main() {
+  console.log("Отправитель:", account.address);
+
+  const amount = parseUnits("0.001", 6); // 0.001 USDC
+
+  // Шаг 1: симуляция (проверяем баланс и логику)
+  const { request } = await publicClient.simulateContract({
+    address: TOKEN_ADDRESS,
+    abi: ERC20_ABI,
+    functionName: "transfer",
+    args: [RECIPIENT, amount],
+    account,
+  });
+
+  // Шаг 2: отправка (walletClient подписывает и отправляет)
+  const txHash = await walletClient.writeContract(request);
+  console.log("Транзакция отправлена:", txHash);
+  console.log("Смотреть: https://sepolia.etherscan.io/tx/" + txHash);
+}
+
+main();</code></pre>
+
+<pre class="code-block"><code>PRIVATE_KEY=0xyour_test_key npx tsx src/06-send.ts</code></pre>
+
+    <h2>Задание 7</h2>
+    <p>
+      Дождитесь квитанции транзакции с помощью <code>waitForTransactionReceipt</code>
+      и выведите все события, эмитированные в ходе транзакции.
+    </p>
+
+    <h3>src/07-receipt.ts</h3>
+<pre class="code-block"><code>import {
+  createPublicClient, http,
+  decodeEventLog, formatUnits,
+  waitForTransactionReceipt,
+} from "viem";
+import { sepolia } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sepolia,
+  transport: http("https://rpc.sepolia.org"),
+});
+
+const ERC20_ABI = [
+  {
+    name: "Transfer",
+    type: "event",
+    inputs: [
+      { name: "from",  type: "address", indexed: true },
+      { name: "to",    type: "address", indexed: true },
+      { name: "value", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    name: "Approval",
+    type: "event",
+    inputs: [
+      { name: "owner",   type: "address", indexed: true },
+      { name: "spender", type: "address", indexed: true },
+      { name: "value",   type: "uint256", indexed: false },
+    ],
+  },
+] as const;
+
+async function waitAndDecode(txHash: `0x${string}`) {
+  console.log("Ожидание квитанции для:", txHash);
+
+  // Ждём включения транзакции в блок:
+  const receipt = await waitForTransactionReceipt(client, {
+    hash: txHash,
+    // confirmations: 1 — ждём 1 подтверждение (по умолчанию)
+    // timeout: 60_000  — таймаут в мс
+  });
+
+  console.log("\n=== Квитанция ===");
+  console.log("Статус:", receipt.status);         // "success" или "reverted"
+  console.log("Блок:", receipt.blockNumber);
+  console.log("Использовано газа:", receipt.gasUsed);
+  console.log("Эффективная цена газа:", receipt.effectiveGasPrice, "wei");
+  console.log("Стоимость транзакции:",
+    formatUnits(receipt.gasUsed * receipt.effectiveGasPrice, 18), "ETH");
+
+  console.log(`\nСобытий в транзакции: ${receipt.logs.length}`);
+
+  // Декодируем каждый лог:
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({
+        abi: ERC20_ABI,
+        data: log.data,
+        topics: log.topics,
+      });
+      console.log(`\nСобытие: ${decoded.eventName}`);
+      console.log("Аргументы:", decoded.args);
+    } catch {
+      console.log("\nНеизвестное событие от:", log.address);
+    }
+  }
+}
+
+// Замените на реальный txHash из Задания 6:
+waitAndDecode("0xYOUR_TX_HASH");</code></pre>
+
+    <section class="lesson-quiz" data-lesson="lab-08">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 08 · viem",
+  "intro": "Семь вопросов по viem API. Multiple-выбор подсвечивает верный ответ; открытые вопросы и задачи оцените самостоятельно.",
+  "questions": [
+    {
+      "q": "В чём принципиальная разница между `publicClient` и `walletClient` в viem?",
+      "kind": "multiple",
+      "options": [
+        "publicClient работает только с HTTP, walletClient — только с WebSocket",
+        "publicClient предназначен только для чтения данных (view-вызовы, getLogs), walletClient — для подписи и отправки транзакций",
+        "publicClient поддерживает только Ethereum mainnet, walletClient — все EVM-сети",
+        "Разница только в именовании; оба объекта имеют одинаковый API"
+      ],
+      "answerIndex": 1,
+      "explain": "publicClient реализует Actions для чтения: getBalance, readContract, getLogs и т.д. walletClient добавляет Actions для подписи: sendTransaction, writeContract, signMessage. Для серверного кода walletClient создаётся с privateKeyToAccount; для браузера — с custom(window.ethereum)."
+    },
+    {
+      "q": "Что делает `simulateContract` перед фактической отправкой транзакции?",
+      "kind": "multiple",
+      "options": [
+        "Отправляет транзакцию в тестовую сеть для проверки",
+        "Вызывает eth_call на ноде — выполняет транзакцию локально без изменения состояния, возвращает результат или причину revert",
+        "Создаёт подписанную транзакцию, но не рассылает в сеть",
+        "Проверяет баланс отправителя на покрытие газа"
+      ],
+      "answerIndex": 1,
+      "explain": "simulateContract = eth_call. Нода исполняет транзакцию на текущем state, но не применяет изменения и не требует газа. Если контракт выполнит revert, simulateContract бросит исключение с декодированной ошибкой — вы узнаете причину до трат на газ."
+    },
+    {
+      "q": "Почему `getLogs` может вернуть не все события за большой диапазон блоков?",
+      "kind": "open",
+      "answer": "Большинство публичных RPC-нод ограничивают eth_getLogs по: 1) диапазону блоков (обычно 2 000–10 000 блоков за запрос); 2) количеству возвращаемых логов (обычно 10 000); 3) размеру ответа. Если запрос превышает лимит, нода возвращает ошибку или обрезает результат без предупреждения. Решение: разбивать диапазон на чанки или использовать платные ноды Infura/Alchemy с расширенными лимитами и пагинацией."
+    },
+    {
+      "q": "Как `decodeEventLog` определяет, какое именно событие декодировать, если ABI содержит несколько событий?",
+      "kind": "multiple",
+      "options": [
+        "По имени события, переданному в параметре eventName",
+        "По первому topic лога — это keccak256-хэш сигнатуры события",
+        "По количеству topics в логе",
+        "По адресу контракта, эмитировавшего лог"
+      ],
+      "answerIndex": 1,
+      "explain": "topics[0] всегда содержит keccak256(eventSignature). Для Transfer это keccak256(\"Transfer(address,address,uint256)\") = 0xddf252... decodeEventLog ищет в ABI событие с совпадающим хэшем и декодирует остальные topics и data согласно найденному определению."
+    },
+    {
+      "q": "Вы получили `receipt.status = 'reverted'`. Что это означает и был ли списан газ?",
+      "kind": "open",
+      "answer": "status = 'reverted' означает, что транзакция была включена в блок, но в ходе выполнения контракт вызвал revert (require, revert, assert). Все изменения state откатились — как будто транзакция не исполнялась. Однако газ за выполнение до точки revert СПИСЫВАЕТСЯ (оплата за вычисления ноды). Поэтому gasUsed в receipt будет больше нуля даже при revert."
+    },
+    {
+      "q": "Practical: напишите функцию на viem, которая возвращает топ-5 адресов по сумме Transfer за последние 500 блоков для заданного ERC-20.",
+      "kind": "task",
+      "answer": "async function topSenders(tokenAddress: Address, blocks = 500n) {\n  const currentBlock = await client.getBlockNumber();\n  const logs = await client.getLogs({\n    address: tokenAddress,\n    event: parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)'),\n    fromBlock: currentBlock - blocks,\n    toBlock: currentBlock,\n  });\n  const totals = new Map<string, bigint>();\n  for (const log of logs) {\n    const from = log.args.from!.toLowerCase();\n    totals.set(from, (totals.get(from) ?? 0n) + log.args.value!);\n  }\n  return [...totals.entries()]\n    .sort((a, b) => (b[1] > a[1] ? 1 : -1))\n    .slice(0, 5);\n}"
+    },
+    {
+      "q": "Чем транспорт `fallback([http(url1), http(url2)])` отличается от простого `http(url1)`?",
+      "kind": "open",
+      "answer": "Транспорт fallback пробует первый RPC (url1). Если тот возвращает ошибку или не отвечает — автоматически переключается на следующий (url2) и так далее. Это повышает устойчивость к сбоям отдельных нод в production-приложениях. Можно задать разные политики: roundRobin (чередование), rank (по задержке) или просто линейный fallback. Для критичных dApp рекомендуется минимум два разных провайдера (например, Alchemy + Infura)."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      viem — TypeScript-first библиотека, разработанная командой wagmi/Paradigm.
+      Актуальная версия: 2.x. Документация: viem.sh. Все примеры лаба используют
+      Sepolia testnet — никаких реальных средств не требуется.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

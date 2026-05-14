@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 02 · ERC-20 Allowance &amp; Permit — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 02 · ERC-20 Allowance &amp; Permit</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 02 · allowance</p>
+    <h1>Lab 02 · ERC-20 Allowance &amp; Permit</h1>
+
+    <p>
+      Большинство DeFi-протоколов не работают с прямыми переводами — они используют
+      механизм <code>approve / transferFrom</code>. В этой лабораторной работе вы
+      исследуете стандартные allowances, разберёте anti-pattern бесконечного апрува,
+      реализуете EIP-2612 <code>permit()</code> для gasless-подписей и встроите всё
+      это в симулированный DEX. В итоге вы поймёте, почему современные протоколы
+      переходят на Permit2 и как создать полноценный gasless-flow.
+    </p>
+
+    <div class="note">
+      <strong>Что вы сделаете:</strong>
+      <ul>
+        <li>Реализуете и протестируете стандартный <code>approve / transferFrom</code>.</li>
+        <li>Проверите поведение MAX_UINT256-approve в Foundry-тесте.</li>
+        <li>Добавите <code>EIP-2612 permit()</code> через OpenZeppelin ERC20Permit.</li>
+        <li>Подпишете EIP-712 typed data через viem <code>signTypedData</code>.</li>
+        <li>Реализуете gasless transferFrom: пользователь подписывает, релеер отправляет.</li>
+        <li>Напишете фаззинг-тест для permit-подписи в Foundry.</li>
+        <li>Встроите approve + transferFrom в мок-DEX.</li>
+      </ul>
+      <strong>Что сдать:</strong> репозиторий с тестами (все зелёные), скриншот
+      gasless-транзакции на Sepolia с разными адресами подписанта и отправителя.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Напишите контракт <code>src/AllowanceToken.sol</code>, унаследованный от
+      <code>ERC20</code>. Добавьте тесты, проверяющие: нулевой allowance по умолчанию;
+      что после <code>approve</code> allowance равен заданной сумме; что
+      <code>transferFrom</code> уменьшает allowance; что повторный <code>transferFrom</code>
+      на сумму сверх allowance ревертится.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract AllowanceToken is ERC20 {
+    constructor() ERC20("Allowance Token", "ALW") {
+        _mint(msg.sender, 1_000_000e18);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// test/AllowanceTest.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/AllowanceToken.sol";
+
+contract AllowanceTest is Test {
+    AllowanceToken token;
+    address owner = address(1);
+    address spender = address(2);
+    address recipient = address(3);
+
+    function setUp() public {
+        vm.prank(owner);
+        token = new AllowanceToken();
+    }
+
+    function test_DefaultAllowanceIsZero() public view {
+        assertEq(token.allowance(owner, spender), 0);
+    }
+
+    function test_ApproveSetAllowance() public {
+        vm.prank(owner);
+        token.approve(spender, 500e18);
+        assertEq(token.allowance(owner, spender), 500e18);
+    }
+
+    function test_TransferFromDecreasesAllowance() public {
+        vm.prank(owner);
+        token.approve(spender, 500e18);
+
+        vm.prank(spender);
+        token.transferFrom(owner, recipient, 200e18);
+
+        assertEq(token.allowance(owner, spender), 300e18);
+    }
+
+    function test_TransferFromRevertsOverAllowance() public {
+        vm.prank(owner);
+        token.approve(spender, 100e18);
+
+        vm.prank(spender);
+        vm.expectRevert();
+        token.transferFrom(owner, recipient, 101e18);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> все четыре теста проходят; добавьте тест на
+      попытку <code>transferFrom</code> без <code>approve</code> — должен ревертиться.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Исследуйте «unlimited approve» anti-pattern: approve <code>type(uint256).max</code>,
+      затем убедитесь, что после <code>transferFrom</code> allowance <em>не уменьшился</em>.
+      Напишите тест, фиксирующий это поведение OpenZeppelin ERC20.
+    </p>
+
+<pre class="code-block"><code>function test_UnlimitedApproveDoesNotDecrease() public {
+    uint256 MAX = type(uint256).max;
+
+    vm.prank(owner);
+    token.approve(spender, MAX);
+    assertEq(token.allowance(owner, spender), MAX);
+
+    vm.prank(spender);
+    token.transferFrom(owner, recipient, 999e18);
+
+    // Ключевая проверка: allowance остался MAX
+    assertEq(token.allowance(owner, spender), MAX);
+}
+
+function test_UnlimitedApproveIsRisky() public {
+    // Документируем риск: если spender скомпрометирован —
+    // он может вывести ВСЕ токены owner'а
+    uint256 MAX = type(uint256).max;
+    uint256 ownerBalance = token.balanceOf(owner);
+
+    vm.prank(owner);
+    token.approve(spender, MAX);
+
+    // Злоумышленник (spender) выводит всё
+    vm.prank(spender);
+    token.transferFrom(owner, spender, ownerBalance);
+
+    assertEq(token.balanceOf(owner), 0);
+    assertEq(token.balanceOf(spender), ownerBalance);
+}
+</code></pre>
+
+    <div class="note cyan">
+      <strong>Почему это опасно.</strong> Большинство DEX-фронтендов по умолчанию
+      предлагают «infinite approve» ради удобства (меньше транзакций). Но если
+      контракт взломан или окажется вредоносным — он заберёт весь баланс. Всегда
+      предпочитайте точный approve или используйте ERC-20 Permit (задание 3).
+    </div>
+
+    <p>
+      <strong>Критерий приёмки:</strong> оба теста проходят; в комментарии к коду
+      объяснён риск unlimited approve.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Обновите контракт до <code>ERC20Permit</code> из OpenZeppelin и разберите
+      устройство domain separator. Напишите тест, который проверяет, что
+      <code>DOMAIN_SEPARATOR()</code> привязан к <code>chainId</code> и адресу контракта.
+    </p>
+
+<pre class="code-block"><code>// src/PermitToken.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+
+contract PermitToken is ERC20Permit {
+    constructor()
+        ERC20("Permit Token", "PMT")
+        ERC20Permit("Permit Token")
+    {
+        _mint(msg.sender, 1_000_000e18);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// test/PermitTest.t.sol
+function test_DomainSeparatorBindsToChainAndAddress() public view {
+    bytes32 expected = keccak256(abi.encode(
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+        keccak256(bytes("Permit Token")),
+        keccak256(bytes("1")),
+        block.chainid,
+        address(token)
+    ));
+    assertEq(token.DOMAIN_SEPARATOR(), expected);
+}
+</code></pre>
+
+    <p>
+      Изучите исходник <code>EIP712.sol</code> из OpenZeppelin — найдите, как пересчитывается
+      domain separator при изменении <code>chainId</code> (например, при форке сети).
+    </p>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест проходит; вы можете объяснить, почему
+      domain separator включает <code>chainId</code> и <code>verifyingContract</code>.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Подпишите EIP-712 typed data для permit через viem <code>signTypedData</code>
+      и вызовите <code>permit()</code> на контракте. Реализуйте весь flow: формирование
+      структуры, подпись, вызов on-chain.
+    </p>
+
+<pre class="code-block"><code>import {
+  createWalletClient, createPublicClient,
+  http, custom, parseUnits
+} from "viem";
+import { sepolia } from "viem/chains";
+import { privateKeyToAccount } from "viem/accounts";
+
+const CONTRACT  = "0xYOUR_PERMIT_TOKEN";
+const SPENDER   = "0xSPENDER_ADDRESS";
+const account   = privateKeyToAccount("0xOWNER_PRIVATE_KEY");
+
+const publicClient = createPublicClient({ chain: sepolia, transport: http() });
+
+// Получаем текущий nonce для permit
+const nonce = await publicClient.readContract({
+  address:      CONTRACT,
+  abi:          [{ name: "nonces", type: "function",
+                   inputs: [{ type: "address" }], outputs: [{ type: "uint256" }],
+                   stateMutability: "view" }],
+  functionName: "nonces",
+  args:         [account.address],
+});
+
+const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // +1 час
+
+// EIP-712 структура для permit
+const walletClient = createWalletClient({
+  account,
+  chain:     sepolia,
+  transport: custom(window.ethereum), // или http() если скрипт
+});
+
+const signature = await walletClient.signTypedData({
+  domain: {
+    name:              "Permit Token",
+    version:           "1",
+    chainId:           sepolia.id,
+    verifyingContract: CONTRACT,
+  },
+  types: {
+    Permit: [
+      { name: "owner",    type: "address" },
+      { name: "spender",  type: "address" },
+      { name: "value",    type: "uint256" },
+      { name: "nonce",    type: "uint256" },
+      { name: "deadline", type: "uint256" },
+    ],
+  },
+  primaryType: "Permit",
+  message: {
+    owner:    account.address,
+    spender:  SPENDER,
+    value:    parseUnits("1000", 18),
+    nonce,
+    deadline,
+  },
+});
+
+// Разбиваем подпись на v, r, s
+const { v, r, s } = parseSignature(signature); // из viem
+
+console.log("Подпись готова:", { v, r, s, deadline });
+// Теперь любой может вызвать permit() с этими параметрами
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> подпись сформирована без ошибок; в логах
+      распечатаны корректные значения <code>v</code> (27 или 28), <code>r</code>
+      и <code>s</code> (по 32 байта каждый).
+    </p>
+
+    <h2>Задание 5</h2>
+    <p>
+      Реализуйте gasless transferFrom flow: пользователь подписывает permit офчейн,
+      релеер (другой EOA) вызывает <code>permit()</code> + <code>transferFrom()</code>
+      в одной транзакции, оплачивая газ сам. Напишите Foundry-тест, симулирующий этот сценарий.
+    </p>
+
+<pre class="code-block"><code>// test/GaslessTransferTest.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/PermitToken.sol";
+
+contract GaslessTransferTest is Test {
+    PermitToken token;
+
+    // Фиксированный тестовый приватный ключ (только для тестов!)
+    uint256 ownerKey  = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+    address owner;
+    address relayer   = address(0xRELA);
+    address recipient = address(0xBEEF);
+
+    function setUp() public {
+        owner = vm.addr(ownerKey);
+        vm.prank(owner);
+        token = new PermitToken();
+    }
+
+    function test_GaslessTransferViaPermit() public {
+        uint256 amount   = 500e18;
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 nonce    = token.nonces(owner);
+
+        // 1. Формируем хэш permit-сообщения
+        bytes32 structHash = keccak256(abi.encode(
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+            owner,
+            relayer,   // spender = relayer
+            amount,
+            nonce,
+            deadline
+        ));
+
+        bytes32 digest = keccak256(abi.encodePacked(
+            "\x19\x01",
+            token.DOMAIN_SEPARATOR(),
+            structHash
+        ));
+
+        // 2. Подписываем (офчейн, owner не платит газ)
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
+
+        // 3. Релеер вызывает permit + transferFrom (платит газ)
+        vm.startPrank(relayer);
+        token.permit(owner, relayer, amount, deadline, v, r, s);
+        token.transferFrom(owner, recipient, amount);
+        vm.stopPrank();
+
+        assertEq(token.balanceOf(recipient), amount);
+        assertEq(token.allowance(owner, relayer), 0); // использован полностью
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест проходит; в комментариях объяснено, кто
+      платит газ и почему это называется «gasless» с точки зрения пользователя.
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Напишите Foundry-фаззинг-тест для permit-подписи. Тест должен случайным образом
+      генерировать параметры и проверять, что невалидная подпись всегда ревертится,
+      а валидная всегда принимается.
+    </p>
+
+<pre class="code-block"><code>// Добавьте в PermitTest.t.sol
+function testFuzz_InvalidSignatureReverts(
+    uint256 wrongKey,
+    uint256 amount,
+    uint256 deadline
+) public {
+    // Ограничиваем входные данные
+    vm.assume(wrongKey != ownerKey && wrongKey != 0);
+    vm.assume(amount > 0 && amount <= token.balanceOf(owner));
+    vm.assume(deadline > block.timestamp);
+
+    uint256 nonce = token.nonces(owner);
+
+    bytes32 structHash = keccak256(abi.encode(
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+        owner,
+        address(this),
+        amount,
+        nonce,
+        deadline
+    ));
+
+    bytes32 digest = keccak256(abi.encodePacked(
+        "\x19\x01",
+        token.DOMAIN_SEPARATOR(),
+        structHash
+    ));
+
+    // Подписываем НЕВЕРНЫМ ключом
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongKey, digest);
+
+    // Должен ревертиться
+    vm.expectRevert();
+    token.permit(owner, address(this), amount, deadline, v, r, s);
+}
+</code></pre>
+
+<pre class="code-block"><code># Запуск фаззинга
+forge test --match-test testFuzz_InvalidSignatureReverts --fuzz-runs 1000 -v
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> фаззинг прогоняет 1000 итераций без единого
+      counterexample.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Напишите мок-контракт DEX и проверьте полный flow: пользователь апрувит токены
+      DEX'у, DEX вызывает <code>transferFrom</code>. Затем повторите то же самое
+      через permit-flow (без предварительного approve).
+    </p>
+
+<pre class="code-block"><code>// src/MockDex.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+
+contract MockDex {
+    event Swapped(address indexed user, address token, uint256 amountIn);
+
+    /// @notice Классический flow: пользователь сначала вызвал approve
+    function swapExact(address token, uint256 amountIn) external {
+        IERC20(token).transferFrom(msg.sender, address(this), amountIn);
+        emit Swapped(msg.sender, token, amountIn);
+        // ... логика обмена
+    }
+
+    /// @notice Gasless flow: подпись передаётся вместе со swap
+    function swapExactWithPermit(
+        address token,
+        uint256 amountIn,
+        uint256 deadline,
+        uint8   v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        // Один вызов вместо двух транзакций от пользователя
+        IERC20Permit(token).permit(msg.sender, address(this), amountIn, deadline, v, r, s);
+        IERC20(token).transferFrom(msg.sender, address(this), amountIn);
+        emit Swapped(msg.sender, token, amountIn);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// test/MockDexTest.t.sol — напишите тесты для обоих методов:
+// 1. test_SwapExactWithApprove()  — стандартный flow
+// 2. test_SwapExactWithPermit()   — gasless flow
+// Проверьте, что баланс DEX увеличился, а баланс user уменьшился на amountIn
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> оба теста проходят; тест <code>swapExactWithPermit</code>
+      не требует предварительного <code>approve</code> от пользователя.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-02">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 02 · Allowance &amp; Permit",
+  "intro": "Семь вопросов по ERC-20 approve/transferFrom и EIP-2612.",
+  "questions": [
+    {
+      "q": "Что произойдёт, если вызвать <code>transferFrom(owner, to, amount)</code> при allowance = 0?",
+      "kind": "multiple",
+      "options": [
+        "Перевод выполнится, но без изменения allowance",
+        "Транзакция ревертнётся с ошибкой ERC20InsufficientAllowance",
+        "Allowance станет отрицательным (underflow)",
+        "Функция вернёт false без реверта"
+      ],
+      "answerIndex": 1,
+      "explain": "OpenZeppelin ERC20 v5 использует кастомные ошибки. ERC20InsufficientAllowance содержит адреса spender/owner и требуемое/доступное значения."
+    },
+    {
+      "q": "Почему approve MAX_UINT256 не уменьшает allowance после transferFrom в OpenZeppelin ERC20?",
+      "kind": "multiple",
+      "options": [
+        "Это баг в OpenZeppelin",
+        "ERC-20 стандарт запрещает уменьшение allowance при MAX_UINT256 для экономии газа",
+        "OpenZeppelin специально обрабатывает этот случай: если allowance == type(uint256).max, уменьшение пропускается",
+        "MAX_UINT256 вызывает overflow при вычитании"
+      ],
+      "answerIndex": 2,
+      "explain": "В _spendAllowance() есть проверка: if (currentAllowance != type(uint256).max) — уменьшение происходит только для конечных значений. Это стандартное поведение для «infinite approval»."
+    },
+    {
+      "q": "Что такое domain separator в EIP-712?",
+      "kind": "multiple",
+      "options": [
+        "Разделитель между полями JSON-структуры",
+        "Хэш, уникально идентифицирующий контракт+сеть, чтобы подпись нельзя было переиспользовать в другом контексте",
+        "Адрес контракта в байтовом формате",
+        "Версия стандарта подписи"
+      ],
+      "answerIndex": 1,
+      "explain": "Domain separator = keccak256(typeHash + name + version + chainId + verifyingContract). Привязка к chainId и адресу контракта предотвращает replay-атаки между протоколами и сетями."
+    },
+    {
+      "q": "Зачем в permit() есть параметр <code>nonce</code>?",
+      "kind": "multiple",
+      "options": [
+        "Для совместимости с EIP-1559",
+        "Чтобы предотвратить повторное использование одной и той же подписи (replay-атаку)",
+        "Это порядковый номер транзакции отправителя",
+        "Для вычисления gas cost"
+      ],
+      "answerIndex": 1,
+      "explain": "После использования permit() nonce увеличивается на 1. Старая подпись с предыдущим nonce становится невалидной — её нельзя «воспроизвести»."
+    },
+    {
+      "q": "В чём отличие gasless flow через permit от обычного approve?",
+      "kind": "multiple",
+      "options": [
+        "В permit газ не тратится вообще — ни пользователем, ни релеером",
+        "Пользователь подписывает офчейн сообщение (бесплатно), а релеер вызывает permit()+transferFrom() в одной tx, оплачивая газ",
+        "Gasless означает, что контракт сжигает меньше газа",
+        "Permit не требует подписи приватным ключом"
+      ],
+      "answerIndex": 1,
+      "explain": "«Gasless» с точки зрения пользователя: он подписывает EIP-712-сообщение (это не транзакция, газ не нужен). Газ платит тот, кто вызывает permit() — обычно протокол-релеер."
+    },
+    {
+      "q": "Что произойдёт, если вызвать <code>permit()</code> с истёкшим <code>deadline</code>?",
+      "kind": "multiple",
+      "options": [
+        "Permit выполнится, но с нулевым allowance",
+        "Транзакция ревертнётся с ERC2612ExpiredSignature",
+        "Deadline игнорируется, если подпись валидна",
+        "Функция вернёт false"
+      ],
+      "answerIndex": 1,
+      "explain": "Проверка require(block.timestamp <= deadline) защищает от долгосрочного хранения и использования старых подписей. OZ v5 использует кастомную ошибку ERC2612ExpiredSignature."
+    },
+    {
+      "q": "Почему в методе <code>swapExactWithPermit</code> передаётся <code>msg.sender</code> как <code>owner</code> в permit()?",
+      "kind": "multiple",
+      "options": [
+        "Это требование EIP-712",
+        "Потому что только owner может инициировать permit для своих токенов — если передать другой адрес, подпись не совпадёт",
+        "msg.sender всегда равен address(0) внутри контракта",
+        "Это оптимизация газа"
+      ],
+      "answerIndex": 1,
+      "explain": "permit() восстанавливает подписанта через ecrecover и проверяет, что он == owner. Передача msg.sender гарантирует, что DEX не может использовать чужую permit-подпись от своего имени."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Лабораторная работа охватывает ERC-20 allowance mechanics (EIP-20),
+      EIP-2612 permit, EIP-712 typed signatures и gasless transaction patterns.
+      Фаззинг-тесты запускаются через Foundry с конфигурируемым числом итераций.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 03 · Ownable &amp; AccessControl — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 03 · Ownable &amp; AccessControl</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 03 · access-control</p>
+    <h1>Lab 03 · Ownable &amp; AccessControl</h1>
+
+    <p>
+      Управление правами доступа — один из наиболее критичных аспектов безопасности
+      смарт-контрактов. В этой лабораторной работе вы начнёте с простого <code>Ownable</code>,
+      перейдёте к гибкому <code>AccessControl</code> с несколькими ролями, добавите
+      механизм паузы и в финале реализуете упрощённый 2-of-3 мультисиг-голосования
+      на базе ролей. Все сценарии покрываются Foundry-тестами, финальный контракт
+      деплоится на Sepolia.
+    </p>
+
+    <div class="note">
+      <strong>Что вы сделаете:</strong>
+      <ul>
+        <li>Напишете и протестируете контракт с <code>Ownable</code>: mint только owner.</li>
+        <li>Проверите передачу и отречение от владения с проверкой событий.</li>
+        <li>Перейдёте на <code>AccessControl</code>: MINTER_ROLE, PAUSER_ROLE, DEFAULT_ADMIN_ROLE.</li>
+        <li>Напишете тест: admin выдаёт MINTER_ROLE → minter может mint; не-minter — revert.</li>
+        <li>Реализуете паузу/снятие с паузы через <code>Pausable</code>.</li>
+        <li>Реализуете 2-of-3 голосование через AccessControl (3 guardian'а, пауза при 2 голосах).</li>
+        <li>Задеплоите контракт на Sepolia и продемонстрируете управление ролями через cast.</li>
+      </ul>
+      <strong>Что сдать:</strong> адрес контракта на Sepolia + транскрипт <code>cast</code>-команд
+      с назначением роли и вызовом защищённой функции.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Напишите <code>src/OwnableToken.sol</code> с модификатором <code>onlyOwner</code>
+      на функции <code>mint</code>. Напишите тест, проверяющий, что не-owner не может
+      mint, и что передача owner'шипа работает корректно.
+    </p>
+
+<pre class="code-block"><code>// src/OwnableToken.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract OwnableToken is ERC20, Ownable {
+    constructor(address initialOwner)
+        ERC20("Ownable Token", "OWT")
+        Ownable(initialOwner)
+    {}
+
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
+}
+</code></pre>
+
+<pre class="code-block"><code>// test/OwnableTokenTest.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/OwnableToken.sol";
+
+contract OwnableTokenTest is Test {
+    OwnableToken token;
+    address owner   = address(0x1);
+    address newOwner = address(0x2);
+    address hacker  = address(0x3);
+
+    function setUp() public {
+        vm.prank(owner);
+        token = new OwnableToken(owner);
+    }
+
+    function test_OnlyOwnerCanMint() public {
+        vm.prank(owner);
+        token.mint(owner, 1000e18);
+        assertEq(token.balanceOf(owner), 1000e18);
+    }
+
+    function test_NonOwnerMintReverts() public {
+        vm.prank(hacker);
+        vm.expectRevert();
+        token.mint(hacker, 1000e18);
+    }
+
+    function test_TransferOwnership() public {
+        vm.prank(owner);
+        token.transferOwnership(newOwner);
+        assertEq(token.owner(), newOwner);
+
+        // Новый owner может mint
+        vm.prank(newOwner);
+        token.mint(newOwner, 500e18);
+        assertEq(token.balanceOf(newOwner), 500e18);
+
+        // Старый owner — больше нет
+        vm.prank(owner);
+        vm.expectRevert();
+        token.mint(owner, 1e18);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> все тесты зелёные; вы понимаете разницу между
+      <code>transferOwnership</code> и <code>Ownable2Step.transferOwnership</code>.
+    </p>
+
+    <h2>Задание 2</h2>
+    <p>
+      Проверьте в тесте события при передаче и отречении от владения.
+      Используйте <code>vm.expectEmit</code> для обоих сценариев.
+    </p>
+
+<pre class="code-block"><code>function test_TransferOwnershipEmitsEvent() public {
+    vm.expectEmit(true, true, false, false, address(token));
+    emit Ownable.OwnershipTransferred(owner, newOwner);
+
+    vm.prank(owner);
+    token.transferOwnership(newOwner);
+}
+
+function test_RenounceOwnership() public {
+    vm.expectEmit(true, true, false, false, address(token));
+    emit Ownable.OwnershipTransferred(owner, address(0));
+
+    vm.prank(owner);
+    token.renounceOwnership();
+
+    assertEq(token.owner(), address(0));
+
+    // После renounce никто не может mint
+    vm.prank(owner);
+    vm.expectRevert();
+    token.mint(owner, 1e18);
+}
+</code></pre>
+
+    <div class="note cyan">
+      <strong>Внимание.</strong> <code>renounceOwnership()</code> необратима — после неё
+      контракт навсегда теряет owner'а. Для продакшн-контрактов с критичными admin-функциями
+      рекомендуется <code>Ownable2Step</code>, который требует явного принятия владения новым адресом.
+    </div>
+
+    <p>
+      <strong>Критерий приёмки:</strong> оба теста проходят; в комментарии написано,
+      почему renounceOwnership опасна для контрактов с ценными admin-функциями.
+    </p>
+
+    <h2>Задание 3</h2>
+    <p>
+      Перепишите контракт с использованием <code>AccessControl</code>. Определите три роли:
+      <code>MINTER_ROLE</code>, <code>PAUSER_ROLE</code>, <code>DEFAULT_ADMIN_ROLE</code>.
+      Admin должен иметь возможность выдавать и отзывать любую роль.
+    </p>
+
+<pre class="code-block"><code>// src/AccessToken.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
+contract AccessToken is ERC20, AccessControl, Pausable {
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+
+    constructor(address admin) ERC20("Access Token", "ACT") {
+        // DEFAULT_ADMIN_ROLE выдаётся admin'у
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+    }
+
+    function mint(address to, uint256 amount)
+        external
+        onlyRole(MINTER_ROLE)
+        whenNotPaused
+    {
+        _mint(to, amount);
+    }
+
+    function pause()   external onlyRole(PAUSER_ROLE) { _pause(); }
+    function unpause() external onlyRole(PAUSER_ROLE) { _unpause(); }
+
+    // Переопределяем _update для поддержки Pausable
+    function _update(address from, address to, uint256 value)
+        internal
+        override
+        whenNotPaused
+    {
+        super._update(from, to, value);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> компилируется без ошибок; функция <code>supportsInterface</code>
+      возвращает <code>true</code> для <code>IAccessControl</code> и <code>IERC20</code>.
+    </p>
+
+    <h2>Задание 4</h2>
+    <p>
+      Напишите тесты для AccessControl: admin выдаёт MINTER_ROLE → minter mintит;
+      не-minter ревертится; admin отзывает роль → minter больше не может mintить.
+    </p>
+
+<pre class="code-block"><code>// test/AccessTokenTest.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/AccessToken.sol";
+
+contract AccessTokenTest is Test {
+    AccessToken token;
+    address admin  = address(0x1);
+    address minter = address(0x2);
+    address pauser = address(0x3);
+    address alice  = address(0x4);
+
+    function setUp() public {
+        vm.prank(admin);
+        token = new AccessToken(admin);
+    }
+
+    function test_AdminCanGrantMinterRole() public {
+        vm.prank(admin);
+        token.grantRole(token.MINTER_ROLE(), minter);
+        assertTrue(token.hasRole(token.MINTER_ROLE(), minter));
+    }
+
+    function test_MinterCanMint() public {
+        vm.prank(admin);
+        token.grantRole(token.MINTER_ROLE(), minter);
+
+        vm.prank(minter);
+        token.mint(alice, 1000e18);
+        assertEq(token.balanceOf(alice), 1000e18);
+    }
+
+    function test_NonMinterMintReverts() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        token.mint(alice, 1e18);
+    }
+
+    function test_RevokeRoleRevokesAccess() public {
+        vm.startPrank(admin);
+        token.grantRole(token.MINTER_ROLE(), minter);
+        token.revokeRole(token.MINTER_ROLE(), minter);
+        vm.stopPrank();
+
+        vm.prank(minter);
+        vm.expectRevert();
+        token.mint(alice, 1e18);
+    }
+
+    function test_NonAdminCannotGrantRole() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        token.grantRole(token.MINTER_ROLE(), alice);
+    }
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> все 5 тестов зелёные; напишите дополнительный
+      тест: minter ренаунсит свою роль через <code>renounceRole</code>.
+    </p>
+
+    <h2>Задание 5</h2>
+    <p>
+      Реализуйте тесты для механизма паузы. Убедитесь, что при паузе функции
+      <code>mint</code> и <code>transfer</code> ревертятся, а после снятия паузы —
+      работают. Проверьте события <code>Paused</code> и <code>Unpaused</code>.
+    </p>
+
+<pre class="code-block"><code>function test_PauserCanPauseAndUnpause() public {
+    vm.prank(admin);
+    token.grantRole(token.PAUSER_ROLE(), pauser);
+    token.grantRole(token.MINTER_ROLE(), minter);
+
+    // Mint до паузы
+    vm.prank(minter);
+    token.mint(alice, 100e18);
+
+    // Пауза
+    vm.expectEmit(false, false, false, true, address(token));
+    emit Pausable.Paused(pauser);
+
+    vm.prank(pauser);
+    token.pause();
+    assertTrue(token.paused());
+
+    // Mint при паузе — revert
+    vm.prank(minter);
+    vm.expectRevert();
+    token.mint(alice, 1e18);
+
+    // Transfer при паузе — revert
+    vm.prank(alice);
+    vm.expectRevert();
+    token.transfer(address(0x5), 10e18);
+
+    // Снятие паузы
+    vm.prank(pauser);
+    token.unpause();
+
+    // Mint снова работает
+    vm.prank(minter);
+    token.mint(alice, 50e18);
+    assertEq(token.balanceOf(alice), 150e18);
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тест проходит; события Paused/Unpaused правильно
+      декодируются.
+    </p>
+
+    <h2>Задание 6</h2>
+    <p>
+      Реализуйте 2-of-3 мультисиг-голосование для паузы: три guardian'а имеют
+      GUARDIAN_ROLE; пауза активируется только при голосовании 2 из 3. Напишите
+      соответствующие тесты.
+    </p>
+
+<pre class="code-block"><code>// Добавьте в AccessToken.sol или создайте отдельный контракт:
+
+bytes32 public constant GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
+uint256 public pauseVotes;
+mapping(address => bool) public hasPausedVoted;
+
+function votePause() external onlyRole(GUARDIAN_ROLE) {
+    require(!hasPausedVoted[msg.sender], "already voted");
+    hasPausedVoted[msg.sender] = true;
+    pauseVotes++;
+
+    if (pauseVotes >= 2) {
+        _pause();
+    }
+}
+
+function resetPauseVotes() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    // Сброс голосов при снятии паузы
+    pauseVotes = 0;
+    // Сбросить mapping нельзя дёшево — используем nonce-паттерн в продакшене
+}
+</code></pre>
+
+<pre class="code-block"><code>function test_TwoOfThreeGuardiansCanPause() public {
+    address g1 = address(0xG1);
+    address g2 = address(0xG2);
+    address g3 = address(0xG3);
+
+    vm.startPrank(admin);
+    token.grantRole(token.GUARDIAN_ROLE(), g1);
+    token.grantRole(token.GUARDIAN_ROLE(), g2);
+    token.grantRole(token.GUARDIAN_ROLE(), g3);
+    vm.stopPrank();
+
+    // Один голос — пауза не активируется
+    vm.prank(g1);
+    token.votePause();
+    assertFalse(token.paused());
+
+    // Второй голос — пауза!
+    vm.prank(g2);
+    token.votePause();
+    assertTrue(token.paused());
+
+    // Третий guardian не может голосовать дважды
+    vm.prank(g1);
+    vm.expectRevert("already voted");
+    token.votePause();
+}
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> тесты проходят; в комментарии описан способ
+      реализации сброса mapping через nonce-паттерн для продакшена.
+    </p>
+
+    <h2>Задание 7</h2>
+    <p>
+      Задеплойте контракт на Sepolia и продемонстрируйте управление ролями через
+      <code>cast send</code>. Используйте <code>cast call</code> для чтения ролей
+      и <code>cast</code> для кодирования аргументов.
+    </p>
+
+<pre class="code-block"><code># Переменные
+export CONTRACT=0xYOUR_CONTRACT
+export ADMIN_KEY=0xYOUR_ADMIN_PRIVATE_KEY
+export MINTER=0xMINTER_ADDRESS
+export RPC=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+
+# Вычислить байты32 роли
+MINTER_ROLE=$(cast keccak "MINTER_ROLE")
+echo "MINTER_ROLE: $MINTER_ROLE"
+
+# Проверить роли до выдачи
+cast call $CONTRACT "hasRole(bytes32,address)" $MINTER_ROLE $MINTER --rpc-url $RPC
+
+# Выдать MINTER_ROLE
+cast send $CONTRACT \
+  "grantRole(bytes32,address)" \
+  $MINTER_ROLE $MINTER \
+  --private-key $ADMIN_KEY \
+  --rpc-url $RPC
+
+# Проверить роль после выдачи
+cast call $CONTRACT "hasRole(bytes32,address)" $MINTER_ROLE $MINTER --rpc-url $RPC
+# => 0x0000...0001 (true)
+
+# Вызвать mint от имени minter
+cast send $CONTRACT \
+  "mint(address,uint256)" \
+  $MINTER 1000000000000000000000 \
+  --private-key $MINTER_KEY \
+  --rpc-url $RPC
+
+# Проверить баланс
+cast call $CONTRACT "balanceOf(address)" $MINTER --rpc-url $RPC | cast to-dec
+</code></pre>
+
+    <p>
+      <strong>Критерий приёмки:</strong> транзакции подтверждены на Sepolia Etherscan;
+      скриншот или транскрипт показывает успешную выдачу роли и вызов <code>mint</code>.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="lab-03">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 03 · Ownable &amp; AccessControl",
+  "intro": "Семь вопросов по управлению доступом в смарт-контрактах.",
+  "questions": [
+    {
+      "q": "В чём принципиальное отличие <code>Ownable</code> от <code>AccessControl</code>?",
+      "kind": "multiple",
+      "options": [
+        "Ownable дешевле по газу, AccessControl поддерживает несколько ролей с иерархией",
+        "AccessControl работает только на mainnet, Ownable — на testnets",
+        "Ownable поддерживает multisig, AccessControl — нет",
+        "Нет разницы, это синонимы"
+      ],
+      "answerIndex": 0,
+      "explain": "Ownable = один owner, одна роль. AccessControl позволяет задать произвольное количество ролей, назначить roleAdmin для каждой, и иметь несколько держателей одной роли."
+    },
+    {
+      "q": "Что хранит DEFAULT_ADMIN_ROLE в OpenZeppelin AccessControl?",
+      "kind": "multiple",
+      "options": [
+        "bytes32(0) — нулевые байты",
+        "keccak256(\"DEFAULT_ADMIN_ROLE\")",
+        "address(0)",
+        "uint256(1)"
+      ],
+      "answerIndex": 0,
+      "explain": "DEFAULT_ADMIN_ROLE == bytes32(0). Это сделано намеренно: admin-роль дешевле в storage (нет необходимости вычислять keccak). Любая роль без явного roleAdmin управляется bytes32(0)."
+    },
+    {
+      "q": "Почему <code>renounceOwnership()</code> в Ownable опасна для контрактов с ценными функциями?",
+      "kind": "open",
+      "answer": "После renounceOwnership() owner становится address(0). Функции с модификатором onlyOwner (mint, upgrade, withdrawFunds и т.п.) становятся навсегда недоступны — никто не может их вызвать. Контракт теряет возможность обновления или исправления критических ошибок. Для контрактов с admin-функциями рекомендуется Ownable2Step или многоуровневая AccessControl."
+    },
+    {
+      "q": "Как работает иерархия ролей в AccessControl: кто может выдать MINTER_ROLE?",
+      "kind": "multiple",
+      "options": [
+        "Любой holder MINTER_ROLE",
+        "Только address(0)",
+        "Тот, у кого есть getRoleAdmin(MINTER_ROLE) — по умолчанию DEFAULT_ADMIN_ROLE",
+        "Только deployer контракта"
+      ],
+      "answerIndex": 2,
+      "explain": "У каждой роли есть roleAdmin (по умолчанию DEFAULT_ADMIN_ROLE). Только держатель roleAdmin может вызывать grantRole/revokeRole для данной роли. Можно создать иерархию: super-admin управляет admin'ом, который управляет minter'ами."
+    },
+    {
+      "q": "Что делает <code>whenNotPaused</code> модификатор на <code>_update()</code>?",
+      "kind": "multiple",
+      "options": [
+        "Блокирует только внешние вызовы, но не внутренние",
+        "Блокирует все transfer/mint/burn операции, так как они все вызывают _update()",
+        "Блокирует только mint, но не transfer",
+        "Ничего, это декоративный модификатор"
+      ],
+      "answerIndex": 1,
+      "explain": "В OpenZeppelin ERC20 v5 все операции изменения баланса (transfer, mint, burn) проходят через _update(). Добавление whenNotPaused на _update() блокирует их все одним модификатором."
+    },
+    {
+      "q": "Почему для 2-of-3 голосования нельзя просто использовать mapping(address=>bool) для сброса голосов без итерации?",
+      "kind": "open",
+      "answer": "Solidity не поддерживает 'очистку' всего mapping сразу — можно только удалить конкретные ключи. Для сброса нужно либо итерироваться по известным адресам (O(n) gas), либо использовать nonce-паттерн: хранить mapping(address => mapping(uint256 => bool)) где uint256 — текущий nonce голосования. Для сброса увеличиваем nonce — все старые голоса становятся недействительными без итерации."
+    },
+    {
+      "q": "Что делает <code>cast keccak \"MINTER_ROLE\"</code> и зачем это нужно при работе с AccessControl через cast?",
+      "kind": "multiple",
+      "options": [
+        "Вычисляет keccak256 хэш строки — результат нужен при вызове grantRole/revokeRole/hasRole, которые принимают bytes32",
+        "Генерирует приватный ключ для роли",
+        "Шифрует строку для безопасной передачи",
+        "Кодирует строку в ABI-формат"
+      ],
+      "answerIndex": 0,
+      "explain": "AccessControl хранит роли как bytes32 хэши. MINTER_ROLE = keccak256('MINTER_ROLE'). Утилита cast keccak вычисляет этот хэш в командной строке, чтобы передать его аргументом в cast send."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Лабораторная работа использует OpenZeppelin Contracts v5: Ownable, Ownable2Step,
+      AccessControl, Pausable. Команды cast — часть Foundry toolkit. Шаблон 2-of-3
+      голосования упрощён для демонстрации; продакшн-реализация требует nonce-паттерна
+      для сброса голосов.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

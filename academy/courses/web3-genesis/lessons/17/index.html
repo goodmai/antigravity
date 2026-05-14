@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 17 · AAVE: Flash Loans — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 17 · AAVE: Flash Loans</span>
+    </div>
+
+    <p class="lesson-meta">Модуль IV · Lesson 17 · DeFi · flash loans</p>
+    <h1>AAVE: Flash Loans — атомарные займы без залога</h1>
+
+    <p>
+      Flash loan — это <strong>заём, который должен быть возвращён в той же транзакции,
+      в которой выдан</strong>. Если к концу транзакции долг не погашен с процентами,
+      вся транзакция <em>ревертится</em>, как будто ничего не произошло. Это означает,
+      что протокол никогда не рискует своими средствами: либо всё завершилось успешно
+      и процент получен, либо состояние блокчейна откатилось к началу.
+    </p>
+    <p>
+      Именно эта атомарная гарантия позволяет одалживать миллионы долларов без
+      какого-либо залога, без KYC и без кредитного рейтинга. Единственное условие —
+      возможность вернуть деньги до закрытия транзакции. AAVE сделал flash loans
+      частью протокола с V1, а в V3 — основным инструментом для сложных DeFi-операций.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы сможете: объяснить
+      атомарную механику flash loan; различить <code>flashLoan()</code> и
+      <code>flashLoanSimple()</code>; написать контракт-получатель со всеми
+      необходимыми проверками безопасности; рассчитать стоимость займа через
+      <code>FLASHLOAN_PREMIUM_TOTAL</code>; перечислить реальные use cases —
+      арбитраж, swap залога, само-ликвидацию и рефинансирование.
+    </div>
+
+    <h2>1. Что такое flash loan</h2>
+    <p>
+      Классический кредит работает так: заёмщик предоставляет залог, получает
+      ликвидность, использует её, позже возвращает основную сумму с процентами.
+      Риск невозврата управляется через overcollateralization (залог больше займа).
+    </p>
+    <p>
+      Flash loan переворачивает эту логику: <strong>атомарность транзакции EVM
+      выступает залогом</strong>. Если код в транзакции не сможет вернуть средства,
+      EVM откатит все изменения состояния — у протокола просто не «отберут» ничего,
+      потому что взятие и возврат происходят в одном неделимом атоме исполнения.
+    </p>
+
+    <h3>1.1 Жизненный цикл одной flash loan транзакции</h3>
+<pre class="code-block"><code>1. Ваш контракт вызывает  Pool.flashLoan(...)
+          │
+          │  Pool переводит запрошенные токены  → вашему контракту
+          │
+          ▼
+2. Pool.executeOperation() вызывается на вашем контракте (callback)
+          │
+          │  Здесь вы делаете всё что хотите:
+          │    - арбитраж на DEX
+          │    - ликвидация позиции
+          │    - замена залога
+          │
+          ▼
+3. Ваш контракт делает approve(Pool, amount + fee)
+4. Pool.transferFrom(вашего_контракта, amount + fee)   ← возврат
+          │
+          │  Если approve/transferFrom упал → вся транзакция revert
+          ▼
+5. Транзакция успешно включена в блок
+   Ваша прибыль = то, что осталось на балансе контракта</code></pre>
+
+    <h3>1.2 Почему это возможно без залога</h3>
+    <p>
+      Весь риск исчезает благодаря <strong>атомарности</strong>: состояние EVM
+      является консистентным в любой момент <em>после</em> завершения транзакции, но
+      в ходе исполнения ничто не «зафиксировано» до самого конца. Реверт — это как
+      будто ничего не было: Pool не потеряет токены, потому что транзакция,
+      не вернувшая деньги, просто не существует в блокчейне.
+    </p>
+
+    <h2>2. AAVE V3: два интерфейса flash loan</h2>
+    <p>
+      AAVE V3 предоставляет два метода на контракте <code>Pool</code>. Разница —
+      в количестве токенов за один вызов и в механизме колбэка:
+    </p>
+
+    <table class="compare">
+      <tr><th>Метод</th><th>Токены</th><th>Callback</th><th>Когда использовать</th></tr>
+      <tr>
+        <td><code>flashLoan()</code></td>
+        <td>Несколько активов одновременно</td>
+        <td><code>executeOperation(address[], uint256[], uint256[], address, bytes)</code></td>
+        <td>Сложные операции: swap залога, одновременный арбитраж нескольких пар</td>
+      </tr>
+      <tr>
+        <td><code>flashLoanSimple()</code></td>
+        <td>Один актив</td>
+        <td><code>executeOperation(address, uint256, uint256, address, bytes)</code></td>
+        <td>Простые случаи: однотокенный арбитраж, само-ликвидация одной позиции</td>
+      </tr>
+    </table>
+
+    <h3>2.1 Интерфейс IFlashLoanReceiver</h3>
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+// Из репозитория aave-v3-core
+interface IFlashLoanReceiver {
+    /**
+     * @dev Вызывается Pool'ом после перевода средств.
+     * @param assets       Адреса токенов (для flashLoan)
+     * @param amounts      Суммы займа по каждому токену
+     * @param premiums     Стоимость займа (fee) по каждому токену
+     * @param initiator    Адрес, инициировавший flashLoan (важно для security!)
+     * @param params       Произвольные данные, которые вы передали в flashLoan()
+     * @return             Должен вернуть true, иначе Pool ревертится
+     */
+    function executeOperation(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+interface IFlashLoanSimpleReceiver {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}</code></pre>
+
+    <h3>2.2 Сигнатура flashLoan в контракте Pool</h3>
+<pre class="code-block"><code>interface IPool {
+    /**
+     * @param receiverAddress  Контракт-получатель (должен имплементировать IFlashLoanReceiver)
+     * @param assets           Массив адресов токенов
+     * @param amounts          Массив сумм займа
+     * @param interestRateModes  0 = без долга (flash), 1 = stable, 2 = variable
+     * @param onBehalfOf       Адрес для открытия долга (только если interestRateMode != 0)
+     * @param params           Произвольные данные для executeOperation
+     * @param referralCode     Код реферала (0 для прямых вызовов)
+     */
+    function flashLoan(
+        address receiverAddress,
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata interestRateModes,
+        address onBehalfOf,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+}</code></pre>
+
+    <div class="note cyan">
+      <strong>interestRateModes = 0</strong> — это именно flash loan: заём без залога,
+      обязан быть погашен в той же транзакции. Значения 1 и 2 превращают flash loan
+      в <em>обычный кредит</em> (с оставлением долга), что требует достаточного залога
+      в AAVE у <code>onBehalfOf</code>.
+    </div>
+
+    <h2>3. Полный пример: арбитражный flash loan контракт</h2>
+    <p>
+      Классический сценарий: цена USDC/ETH на DEX A дешевле, чем на DEX B.
+      Берём USDC в долг, покупаем ETH на DEX A, продаём ETH на DEX B, возвращаем
+      USDC + fee, прибыль остаётся в контракте.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
+// ─── AAVE V3 интерфейсы ──────────────────────────────────────────────────────
+
+interface IPool {
+    function flashLoanSimple(
+        address receiverAddress,
+        address asset,
+        uint256 amount,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+}
+
+interface IFlashLoanSimpleReceiver {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+// ─── Упрощённые интерфейсы DEX (Uniswap V2-совместимые) ─────────────────────
+
+interface IUniswapV2Router {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
+}
+
+// ─── Арбитражный контракт ────────────────────────────────────────────────────
+
+contract FlashLoanArbitrage is IFlashLoanSimpleReceiver, Ownable {
+    using SafeERC20 for IERC20;
+
+    // AAVE V3 Pool на Ethereum mainnet
+    IPool public constant POOL =
+        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+
+    IUniswapV2Router public immutable dexA; // дешевле покупать ETH
+    IUniswapV2Router public immutable dexB; // дороже продавать ETH
+
+    address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    // ── Events ────────────────────────────────────────────────────────────────
+    event ArbitrageExecuted(
+        uint256 borrowed,
+        uint256 fee,
+        uint256 profit
+    );
+
+    constructor(
+        address _dexA,
+        address _dexB,
+        address initialOwner
+    ) Ownable(initialOwner) {
+        dexA = IUniswapV2Router(_dexA);
+        dexB = IUniswapV2Router(_dexB);
+    }
+
+    // ── Шаг 1: Инициировать арбитраж ─────────────────────────────────────────
+    /**
+     * @dev Вызывается owner'ом для старта арбитражной флэш-транзакции.
+     * @param usdcAmount  Сумма USDC для займа (с 6 десятичными знаками)
+     * @param minProfit   Минимальная ожидаемая прибыль в USDC (защита от slippage)
+     */
+    function executeArbitrage(
+        uint256 usdcAmount,
+        uint256 minProfit
+    ) external onlyOwner {
+        // Кодируем параметры для передачи в executeOperation
+        bytes memory params = abi.encode(minProfit);
+
+        POOL.flashLoanSimple(
+            address(this), // receiver = этот контракт
+            USDC,          // берём USDC
+            usdcAmount,    // сколько
+            params,        // наши параметры
+            0              // referralCode
+        );
+    }
+
+    // ── Шаг 2: Callback от AAVE Pool ─────────────────────────────────────────
+    /**
+     * @dev Вызывается Pool ПОСЛЕ перевода usdcAmount на этот контракт.
+     *      Мы должны вернуть amount + premium до завершения этой функции.
+     */
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external override returns (bool) {
+        // ── Проверки безопасности ──────────────────────────────────────────────
+        // 1) Только AAVE Pool может вызывать этот коллбэк
+        require(msg.sender == address(POOL), "Caller must be AAVE Pool");
+        // 2) Flash loan должен быть инициирован только этим контрактом
+        require(initiator == address(this), "Initiator must be this contract");
+        // 3) Только USDC принимаем
+        require(asset == USDC, "Only USDC flash loans");
+
+        uint256 minProfit = abi.decode(params, (uint256));
+        uint256 totalDebt = amount + premium; // сколько нужно вернуть
+
+        // ── Шаг А: покупаем WETH на DEX A за USDC ────────────────────────────
+        IERC20(USDC).safeApprove(address(dexA), amount);
+
+        address[] memory pathAtoB = new address[](2);
+        pathAtoB[0] = USDC;
+        pathAtoB[1] = WETH;
+
+        uint256[] memory amountsOut = dexA.swapExactTokensForTokens(
+            amount,
+            0,                    // amountOutMin — в проде ставьте оракул-цену!
+            pathAtoB,
+            address(this),
+            block.timestamp + 60
+        );
+        uint256 wethReceived = amountsOut[amountsOut.length - 1];
+
+        // ── Шаг Б: продаём WETH на DEX B за USDC ─────────────────────────────
+        IERC20(WETH).safeApprove(address(dexB), wethReceived);
+
+        address[] memory pathBtoA = new address[](2);
+        pathBtoA[0] = WETH;
+        pathBtoA[1] = USDC;
+
+        uint256[] memory amountsBack = dexB.swapExactTokensForTokens(
+            wethReceived,
+            totalDebt,            // минимум — хотя бы вернуть долг
+            pathBtoA,
+            address(this),
+            block.timestamp + 60
+        );
+        uint256 usdcReceived = amountsBack[amountsBack.length - 1];
+
+        // ── Шаг В: проверяем прибыльность ────────────────────────────────────
+        require(usdcReceived >= totalDebt + minProfit, "Insufficient profit");
+        uint256 profit = usdcReceived - totalDebt;
+
+        // ── Шаг Г: даём Pool право забрать долг ───────────────────────────────
+        // ВАЖНО: approve именно на POOL, а не на что-то другое
+        IERC20(USDC).safeApprove(address(POOL), totalDebt);
+
+        emit ArbitrageExecuted(amount, premium, profit);
+
+        // Возвращаем true — сигнал Pool, что всё хорошо
+        return true;
+        // Сразу после return Pool делает transferFrom(this, totalDebt)
+    }
+
+    // ── Утилиты ───────────────────────────────────────────────────────────────
+
+    /// @dev Вывод прибыли владельцу
+    function withdraw(address token) external onlyOwner {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransfer(owner(), bal);
+    }
+
+    /// @dev Аварийный вывод ETH (если DEX вернул native ETH)
+    function withdrawETH() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
+    }
+
+    receive() external payable {}
+}</code></pre>
+
+    <div class="note">
+      <strong>Важно для продакшна.</strong> В примере выше <code>amountOutMin = 0</code>
+      для простоты изложения. В реальном коде всегда рассчитывайте минимальный
+      выход через оракул (Chainlink) или проводите simulation через
+      <code>eth_call</code> перед отправкой транзакции. Без этого MEV-боты
+      могут провести sandwich-атаку и обнулить прибыль.
+    </div>
+
+    <h2>4. Структура комиссий AAVE V3</h2>
+    <p>
+      AAVE V3 берёт комиссию <strong>0.05%</strong> от суммы flash loan.
+      Это значение хранится в константе <code>FLASHLOAN_PREMIUM_TOTAL</code>
+      (= 5 basis points = 0.0005). Комиссия делится на две части:
+    </p>
+
+    <table class="compare">
+      <tr><th>Параметр</th><th>Значение</th><th>Кто получает</th></tr>
+      <tr>
+        <td><code>FLASHLOAN_PREMIUM_TOTAL</code></td>
+        <td>5 bps = 0.05%</td>
+        <td>Суммарная комиссия (LP + протокол)</td>
+      </tr>
+      <tr>
+        <td><code>FLASHLOAN_PREMIUM_TO_PROTOCOL</code></td>
+        <td>4 bps (80% от total)</td>
+        <td>Treasury протокола AAVE</td>
+      </tr>
+      <tr>
+        <td>LP-доля</td>
+        <td>1 bps (20% от total)</td>
+        <td>Поставщики ликвидности aToken</td>
+      </tr>
+    </table>
+
+    <h3>4.1 Расчёт комиссии</h3>
+<pre class="code-block"><code>// Формула, которую использует Pool:
+// premium = amount * FLASHLOAN_PREMIUM_TOTAL / 10_000
+//
+// Пример: займём 1 000 000 USDC (1e12 с 6 decimals)
+uint256 amount  = 1_000_000 * 1e6;   // 1M USDC
+uint256 premium = amount * 5 / 10_000; // = 500 USDC (0.05%)
+uint256 totalDebt = amount + premium;  // = 1_000_500 USDC
+
+// Значит, для прибыли арбитраж должен принести > 500 USDC
+// (+ ещё учесть gas ~200-400k gas * gasPrice)</code></pre>
+
+    <p>
+      Для сравнения: Uniswap V3 flash loan берёт 0.3% (или 0.05% в пулах с низкой
+      комиссией). AAVE V3 значительно дешевле, что делает его предпочтительным для
+      операций с маржинальной прибылью.
+    </p>
+
+    <h2>5. Use cases flash loans</h2>
+
+    <h3>5.1 Арбитраж</h3>
+    <p>
+      Самый очевидный сценарий. Ценовые расхождения между DEX'ами существуют
+      миллисекунды — flash loan позволяет использовать их без собственного капитала.
+      На практике в 2024–2025 году большинство арбитражных возможностей захватываются
+      MEV-ботами через private mempools (Flashbots, MEV Blocker), а не публичными
+      транзакциями.
+    </p>
+
+    <h3>5.2 Своп залога (Collateral Swap)</h3>
+    <p>
+      Представьте: у вас в AAVE открыта позиция «ETH залог → USDC долг», но вы хотите
+      поменять залог на WBTC. Без flash loan — это несколько транзакций и огромный риск
+      ликвидации в промежутке. С flash loan:
+    </p>
+<pre class="code-block"><code>1. Flash loan USDC (равный вашему долгу)
+2. Погасить USDC долг в AAVE → разблокировать ETH залог
+3. Вывести ETH из AAVE
+4. Продать ETH → WBTC на DEX
+5. Внести WBTC в AAVE как новый залог
+6. Взять USDC в долг снова
+7. Вернуть flash loan (USDC + fee)
+— всё в одной транзакции, ноль риска ликвидации</code></pre>
+
+    <h3>5.3 Само-ликвидация (Self-Liquidation)</h3>
+    <p>
+      Когда позиция приближается к порогу ликвидации (health factor → 1.0), вы можете
+      самостоятельно ликвидировать себя через flash loan — и получить <em>liquidation
+      bonus</em> себе, а не стороннему ликвидатору. Экономия обычно 5–10% от залога.
+    </p>
+
+    <h3>5.4 Рефинансирование долга (Debt Refinancing)</h3>
+    <p>
+      Переместить позицию из Compound в AAVE с более низкой ставкой:
+    </p>
+<pre class="code-block"><code>1. Flash loan USDC (ваш долг в Compound)
+2. Погасить долг в Compound → разблокировать залог
+3. Перевести залог в AAVE
+4. Взять USDC в долг в AAVE
+5. Вернуть flash loan
+— позиция переехала без промежуточного капитала</code></pre>
+
+    <h3>5.5 Ликвидация чужих позиций</h3>
+    <p>
+      Flash loan финансирует погашение долга ликвидируемой позиции, ликвидатор
+      получает залог с бонусом (5–15% в AAVE), избыток оставляет себе.
+      Это формирует конкурентный рынок ликвидаторов — в итоге позиции ликвидируются
+      быстрее, протокол безопаснее.
+    </p>
+
+    <h2>6. Безопасность flash loan контракта</h2>
+
+    <h3>6.1 Проверка вызывающего (msg.sender)</h3>
+    <p>
+      Функция <code>executeOperation</code> объявлена как <code>external</code> и
+      <strong>может вызвать кто угодно</strong>. Без проверки злоумышленник
+      вызовет её напрямую, передав ложные параметры.
+    </p>
+<pre class="code-block"><code>// ❌ НЕБЕЗОПАСНО — executeOperation без проверок
+function executeOperation(...) external returns (bool) {
+    // ... используем amount ...
+    IERC20(asset).approve(address(POOL), amount + premium);
+    return true;
+}
+
+// ✅ БЕЗОПАСНО
+function executeOperation(...) external returns (bool) {
+    require(msg.sender == address(POOL),    "Only AAVE Pool");
+    require(initiator  == address(this),    "Only self-initiated");
+    // ... логика ...
+    return true;
+}</code></pre>
+
+    <h3>6.2 Reentrancy</h3>
+    <p>
+      Flash loan callback — это входная точка, которую Pool вызывает изнутри
+      вашей же транзакции. Если ваш контракт взаимодействует с ненадёжными
+      внешними контрактами, используйте <code>nonReentrant</code> из OpenZeppelin
+      или паттерн checks-effects-interactions.
+    </p>
+<pre class="code-block"><code>import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract SafeFlashLoan is IFlashLoanSimpleReceiver, ReentrancyGuard, Ownable {
+    function executeOperation(
+        address asset,
+        uint256 amount,
+        uint256 premium,
+        address initiator,
+        bytes calldata params
+    ) external nonReentrant returns (bool) {
+        require(msg.sender == address(POOL), "Only AAVE Pool");
+        require(initiator == address(this),  "Only self-initiated");
+        // ...
+        return true;
+    }
+}</code></pre>
+
+    <h3>6.3 Управление approve</h3>
+    <p>
+      После каждой flash loan транзакции у Pool остаётся неиспользованный
+      <code>approve</code>? Нет — Pool вызывает <code>transferFrom</code> сразу в той
+      же транзакции, что забирает ровно <code>amount + premium</code>. Но если вы делаете
+      <code>approve(pool, type(uint256).max)</code> — это избыточно и опасно: Pool
+      сможет вытащить любую сумму позже. Правильная практика:
+    </p>
+<pre class="code-block"><code>// Одобряем ровно столько, сколько нужно вернуть
+IERC20(asset).safeApprove(address(POOL), 0);           // сбрасываем старое
+IERC20(asset).safeApprove(address(POOL), totalDebt);   // устанавливаем точное</code></pre>
+
+    <h3>6.4 Манипуляция ценой через flash loan</h3>
+    <p>
+      Flash loan сами по себе безопасны, но могут использоваться для манипуляции
+      ценовыми оракулами, основанными на <em>spot price</em> (мгновенной цене) DEX.
+      Атакующий берёт огромный flash loan, двигает цену в пуле, эксплуатирует протокол
+      с ложной ценой, возвращает деньги. Решение — использовать <strong>TWAP-оракулы</strong>
+      (Uniswap V3) или <strong>Chainlink Price Feeds</strong>, а не spot price.
+    </p>
+
+    <h2>7. Паттерн executeOperation: полный шаблон</h2>
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {IERC20}            from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20}         from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard}   from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable}           from "@openzeppelin/contracts/access/Ownable.sol";
+
+interface IPool {
+    function flashLoan(
+        address receiverAddress,
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata interestRateModes,
+        address onBehalfOf,
+        bytes calldata params,
+        uint16 referralCode
+    ) external;
+}
+
+interface IFlashLoanReceiver {
+    function executeOperation(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        address initiator,
+        bytes calldata params
+    ) external returns (bool);
+}
+
+/// @title  FlashLoanBase — базовый шаблон для flash loan контрактов на AAVE V3
+/// @notice Наследуйте этот контракт и переопределите _executeLogic()
+abstract contract FlashLoanBase is IFlashLoanReceiver, ReentrancyGuard, Ownable {
+    using SafeERC20 for IERC20;
+
+    IPool public immutable POOL;
+
+    constructor(address pool, address initialOwner) Ownable(initialOwner) {
+        POOL = IPool(pool);
+    }
+
+    // ── Публичная точка входа ─────────────────────────────────────────────────
+
+    function initiateFlashLoan(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        bytes calldata params
+    ) external onlyOwner {
+        uint256[] memory modes = new uint256[](assets.length);
+        // modes[i] = 0 → flash loan без долга
+
+        POOL.flashLoan(
+            address(this),
+            assets,
+            amounts,
+            modes,
+            address(this),
+            params,
+            0
+        );
+    }
+
+    // ── Callback от AAVE ──────────────────────────────────────────────────────
+
+    function executeOperation(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        address initiator,
+        bytes calldata params
+    ) external override nonReentrant returns (bool) {
+        // ── Проверки безопасности ──────────────────────────────────────────
+        require(msg.sender == address(POOL), "Caller must be AAVE Pool");
+        require(initiator == address(this),  "Initiator must be this contract");
+
+        // ── Ваша бизнес-логика ─────────────────────────────────────────────
+        _executeLogic(assets, amounts, premiums, params);
+
+        // ── Одобрить возврат долга ────────────────────────────────────────
+        for (uint256 i = 0; i < assets.length; i++) {
+            uint256 totalDebt = amounts[i] + premiums[i];
+            IERC20(assets[i]).safeApprove(address(POOL), 0);
+            IERC20(assets[i]).safeApprove(address(POOL), totalDebt);
+        }
+
+        return true;
+    }
+
+    // ── Абстрактная логика (переопределите в наследнике) ──────────────────────
+
+    function _executeLogic(
+        address[] calldata assets,
+        uint256[] calldata amounts,
+        uint256[] calldata premiums,
+        bytes calldata params
+    ) internal virtual;
+
+    // ── Утилиты ───────────────────────────────────────────────────────────────
+
+    function rescueToken(address token) external onlyOwner {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransfer(owner(), bal);
+    }
+}</code></pre>
+
+    <h2>8. Что дальше</h2>
+    <p>
+      В <a href="../18/index.html"><strong>Lesson 18 — Multichain &amp; Bridges</strong></a>
+      мы выйдем за пределы одного блокчейна: разберём как работают L1↔L2 мосты,
+      почему 7-дневный период вывода из Optimism — это фича, а не баг, как
+      Arbitrum отличается от OP Stack архитектурно, и почему Ronin Bridge потерял
+      $625 млн.
+    </p>
+
+    <section class="lesson-quiz" data-lesson="17">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 17 · AAVE Flash Loans",
+  "intro": "Семь вопросов по механике, комиссиям, use cases и безопасности flash loans. Multiple-выбор подсвечивает правильный ответ; открытые вопросы и задачи проверяйте сами.",
+  "questions": [
+    {
+      "q": "Что происходит с транзакцией, если контракт-получатель flash loan не вернул средства до конца <code>executeOperation</code>?",
+      "kind": "multiple",
+      "options": [
+        "Pool ставит долг как variable-rate кредит на счёт получателя",
+        "Вся транзакция ревертируется, состояние блокчейна откатывается",
+        "Pool сохраняет токены и блокирует адрес",
+        "Средства списываются с залога получателя в AAVE"
+      ],
+      "answerIndex": 1,
+      "explain": "Атомарность EVM: если approve/transferFrom возврата не прошёл, Pool ревертится, что каскадно откатывает весь callstack транзакции. Никаких средств не теряется — займа как будто не было."
+    },
+    {
+      "q": "Какова суммарная комиссия AAVE V3 за flash loan (<code>FLASHLOAN_PREMIUM_TOTAL</code>)?",
+      "kind": "multiple",
+      "options": [
+        "0.30% (30 basis points)",
+        "0.10% (10 basis points)",
+        "0.05% (5 basis points)",
+        "0.01% (1 basis point)"
+      ],
+      "answerIndex": 2,
+      "explain": "FLASHLOAN_PREMIUM_TOTAL = 5 bps = 0.05%. Из них 4 bps идёт в Treasury протокола, 1 bps — LP-поставщикам ликвидности. Это дешевле Uniswap V3 (30 bps для большинства пулов)."
+    },
+    {
+      "q": "Чем <code>flashLoanSimple()</code> отличается от <code>flashLoan()</code> в AAVE V3?",
+      "kind": "multiple",
+      "options": [
+        "flashLoanSimple работает только с ETH, flashLoan — с любым токеном",
+        "flashLoanSimple не требует имплементации callback-интерфейса",
+        "flashLoan позволяет занять несколько активов одновременно, flashLoanSimple — только один",
+        "flashLoanSimple имеет нулевую комиссию для проверенных адресов"
+      ],
+      "answerIndex": 2,
+      "explain": "flashLoan принимает массивы assets[] и amounts[], что позволяет одним вызовом занять, например, USDC + WETH + DAI одновременно. flashLoanSimple — для одного актива с упрощённым callback (4 параметра вместо 5)."
+    },
+    {
+      "q": "Почему в функции <code>executeOperation</code> критически важно проверять <code>initiator == address(this)</code>?",
+      "kind": "open",
+      "answer": "executeOperation объявлена как external и может быть вызвана кем угодно — не только AAVE Pool. Без проверки initiator злоумышленник может вызвать executeOperation напрямую, симулируя flash loan с произвольными параметрами amount/premium, и заставить контракт сделать approve на Pool с нулевым долгом — либо провести другие нежелательные действия. Проверка initiator == address(this) гарантирует, что мы сами инициировали этот flash loan."
+    },
+    {
+      "q": "Инвестор держит в AAVE позицию: ETH залог, USDC долг. Он хочет заменить залог на WBTC, не закрывая позицию. Какую последовательность шагов использует flash loan?",
+      "kind": "multiple",
+      "options": [
+        "Занять WBTC → вложить как залог → вывести ETH → продать ETH → вернуть flash loan",
+        "Занять USDC → погасить долг → вывести ETH залог → продать ETH→WBTC → внести WBTC → взять USDC долг снова → вернуть flash loan",
+        "Занять ETH → продать → купить WBTC → обменять залог внутри AAVE → вернуть flash loan",
+        "Flash loan здесь не нужен — AAVE поддерживает прямой swap залога"
+      ],
+      "answerIndex": 1,
+      "explain": "Collateral swap через flash loan: (1) занять USDC в размере долга → (2) погасить долг в AAVE → (3) разблокированный ETH вывести → (4) ETH→WBTC на DEX → (5) WBTC внести в AAVE → (6) взять USDC снова → (7) вернуть flash loan + fee. Всё атомарно: нет риска ликвидации в промежутке."
+    },
+    {
+      "q": "Рассчитайте: сколько USDC нужно иметь на балансе контракта <em>сверх</em> суммы займа, чтобы вернуть flash loan в размере 500 000 USDC в AAVE V3?",
+      "kind": "open",
+      "answer": "Fee = 500 000 * 5 / 10 000 = 250 USDC. Итого вернуть: 500 250 USDC. Значит, арбитражная операция (или другой источник) должна принести минимум 250 USDC прибыли, чтобы покрыть fee, плюс ещё нужно учесть стоимость газа транзакции (обычно 200 000–500 000 gas)."
+    },
+    {
+      "q": "Practical: напишите минимальный Solidity-контракт, который имплементирует <code>IFlashLoanSimpleReceiver</code>, проверяет <code>msg.sender == POOL</code> и <code>initiator == address(this)</code>, и делает approve для возврата долга. Контракт не обязан делать что-то полезное — только безопасный скелет.",
+      "kind": "task",
+      "answer": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\nimport {IERC20} from \"@openzeppelin/contracts/token/ERC20/IERC20.sol\";\n\ninterface IPool {\n    function flashLoanSimple(address, address, uint256, bytes calldata, uint16) external;\n}\n\ncontract MyFlashLoan {\n    IPool constant POOL = IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);\n\n    function executeOperation(\n        address asset,\n        uint256 amount,\n        uint256 premium,\n        address initiator,\n        bytes calldata\n    ) external returns (bool) {\n        require(msg.sender == address(POOL), \"Only AAVE Pool\");\n        require(initiator == address(this),  \"Only self\");\n        // ... ваша логика здесь ...\n        IERC20(asset).approve(address(POOL), amount + premium);\n        return true;\n    }\n\n    function start(address asset, uint256 amount) external {\n        POOL.flashLoanSimple(address(this), asset, amount, \"\", 0);\n    }\n}"
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Примеры кода приведены для образовательных целей на основе AAVE V3 Protocol.
+      Адреса контрактов актуальны для Ethereum Mainnet на момент написания урока.
+      Перед деплоем в mainnet всегда проверяйте актуальные адреса через
+      <a href="https://docs.aave.com/developers/deployed-contracts/v3-mainnet" target="_blank" rel="noopener">docs.aave.com</a>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
