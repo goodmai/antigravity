@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   buildRemixUrl,
+  encodeBlockTag,
   PUBLIC_RPCS,
   NETWORK_PRESETS,
   mountAll,
@@ -37,6 +38,32 @@ describe('PUBLIC_RPCS', () => {
   it('exposes Sepolia and Ethereum endpoints', () => {
     expect(PUBLIC_RPCS.sepolia).toMatch(/^https?:\/\//);
     expect(PUBLIC_RPCS.ethereum).toMatch(/^https?:\/\//);
+  });
+});
+
+describe('encodeBlockTag', () => {
+  it('passes through named tags lowercased', () => {
+    expect(encodeBlockTag('latest')).toBe('latest');
+    expect(encodeBlockTag('FINALIZED')).toBe('finalized');
+    expect(encodeBlockTag('Safe')).toBe('safe');
+    expect(encodeBlockTag('pending')).toBe('pending');
+  });
+
+  it('passes through 0x-prefixed hex (lowercased)', () => {
+    expect(encodeBlockTag('0xABCDEF')).toBe('0xabcdef');
+    expect(encodeBlockTag('0x14589ce')).toBe('0x14589ce');
+  });
+
+  it('converts decimal to 0x-hex (fix for eth_getBlockByNumber bug)', () => {
+    expect(encodeBlockTag('21000000')).toBe('0x1406f40');
+    expect(encodeBlockTag('0')).toBe('0x0');
+    expect(encodeBlockTag('15')).toBe('0xf');
+  });
+
+  it('defaults to latest on empty input', () => {
+    expect(encodeBlockTag('')).toBe('latest');
+    expect(encodeBlockTag(null)).toBe('latest');
+    expect(encodeBlockTag(undefined)).toBe('latest');
   });
 });
 

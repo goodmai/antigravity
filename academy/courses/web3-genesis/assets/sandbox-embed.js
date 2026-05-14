@@ -254,7 +254,7 @@ function mountRpcLive(host, opts) {
     } else if (m === 'eth_getBalance' || m === 'eth_getCode') {
       params = [p, 'latest'];
     } else if (m === 'eth_getBlockByNumber') {
-      params = [p.startsWith('0x') ? p : p, false];
+      params = [encodeBlockTag(p), false];
     } else {
       params = [p];
     }
@@ -271,6 +271,20 @@ function mountRpcLive(host, opts) {
       log.textContent = 'ERROR · ' + (err.message || String(err));
     }
   });
+}
+
+/**
+ * Block tag helper: passes through named tags (latest/safe/finalized/earliest/pending)
+ * and 0x-prefixed hex, converts decimal numbers to 0x-prefixed hex strings.
+ */
+export function encodeBlockTag(tag) {
+  const named = ['latest', 'safe', 'finalized', 'earliest', 'pending'];
+  if (!tag) return 'latest';
+  const t = String(tag).trim();
+  if (named.includes(t.toLowerCase())) return t.toLowerCase();
+  if (/^0x[0-9a-fA-F]+$/.test(t)) return t.toLowerCase();
+  if (/^\d+$/.test(t)) return '0x' + BigInt(t).toString(16);
+  return t;
 }
 
 /* ── MetaMask «Add Network» quick-launch ───────────────────────────────── */
