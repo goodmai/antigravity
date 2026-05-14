@@ -460,7 +460,18 @@ const txHash = await wallet.sendTransaction({
       <li>Включайте EIP-6963 / hardware-кошелёк-аппаратное подтверждение для критичных операций.</li>
     </ul>
 
-    <h2>10. Что дальше</h2>
+    <h2>10. Подключите Sepolia в MetaMask за 1 клик</h2>
+    <p>
+      Ниже — реальный вызов <code>wallet_addEthereumChain</code> (EIP-3085).
+      Нажмите кнопку, MetaMask откроет диалог; никаких приватных ключей и
+      никаких реальных средств не нужно. Sepolia — официальная тестовая сеть
+      Ethereum, на ней мы будем работать в Lessons 04 и 16.
+    </p>
+
+    <div class="sandbox" data-embed="metamask" data-chain="0xaa36a7"
+      data-title="MetaMask · добавить Sepolia (EIP-3085)"></div>
+
+    <h2>11. Что дальше</h2>
     <p>
       В <a href="../02/index.html"><strong>Lesson 02 — ERC-20: Deploy &amp; Transfer</strong></a>
       мы развернём первый смарт-контракт в браузерной песочнице и проверим
@@ -468,10 +479,108 @@ const txHash = await wallet.sendTransaction({
       события и реверты. Никаких реальных транзакций — только понимание механики.
     </p>
 
+    <section class="lesson-quiz" data-lesson="01">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 01 · кошельки и подпись",
+  "intro": "Десять вопросов и задач. Multiple-выбор подсвечивает верный ответ; задачи отмечайте сами после выполнения. Прогресс сохраняется в localStorage браузера.",
+  "questions": [
+    {
+      "q": "Что физически хранит MetaMask после создания кошелька?",
+      "kind": "multiple",
+      "options": [
+        "Балансы токенов и ETH в локальной базе IndexedDB",
+        "Только seed-фразу и зашифрованные ею приватные ключи",
+        "Полную копию Ethereum state",
+        "Список dApp, к которым вы подключались"
+      ],
+      "answerIndex": 1,
+      "explain": "Балансы живут в смарт-контрактах токенов и в state Ethereum, MetaMask хранит лишь ключи и метаданные."
+    },
+    {
+      "q": "Какой стандарт описывает иерархический вывод адресов <code>m/44'/60'/0'/0/i</code>?",
+      "kind": "multiple",
+      "options": [
+        "BIP-32 + BIP-44 (BIP-39 — для самой mnemonic)",
+        "EIP-1559",
+        "EIP-712",
+        "BIP-141"
+      ],
+      "answerIndex": 0,
+      "explain": "BIP-39 → mnemonic, BIP-32 → HD-tree, BIP-44 → структура пути с coin_type=60 для Ethereum."
+    },
+    {
+      "q": "Что подписывается при <code>personal_sign</code>?",
+      "kind": "multiple",
+      "options": [
+        "RLP-сериализованная транзакция",
+        "Структурированные данные EIP-712",
+        "Префиксированная строка <code>\"\\x19Ethereum Signed Message:\\n\" + len + msg</code>",
+        "Сырой keccak256 от текста, без префикса"
+      ],
+      "answerIndex": 2,
+      "explain": "Префикс защищает от того, чтобы подписанное сообщение случайно оказалось валидной транзакцией."
+    },
+    {
+      "q": "Транзакция type-2 (EIP-1559) застряла в mempool. Какой минимальный bump fee требуется большинством нод (geth/erigon), чтобы заменить её?",
+      "kind": "multiple",
+      "options": [
+        "+1% к gasPrice",
+        "+10% к maxFeePerGas и maxPriorityFeePerGas",
+        "+50% к baseFee",
+        "Никакой — достаточно того же nonce"
+      ],
+      "answerIndex": 1,
+      "explain": "Правило mempool: replacement требует роста обоих fee-полей минимум на 10%."
+    },
+    {
+      "q": "Почему EIP-155 chainId защищает от replay-атак между mainnet и Polygon?",
+      "kind": "open",
+      "answer": "chainId входит в данные, по которым считается ECDSA-подпись (см. RLP-кодирование транзакций type-2/type-0). Подпись, валидная для chainId=1, при отправке на chainId=137 даст ecrecover другой адрес — нода не примет такую транзакцию."
+    },
+    {
+      "q": "Объясните, что такое EIP-6963 и какую конкретную проблему он решает.",
+      "kind": "open",
+      "answer": "До EIP-6963 расширения-кошельки перезаписывали друг друга в <code>window.ethereum</code> — побеждало то, что инжектировалось последним. EIP-6963 ввёл событийный протокол: каждый провайдер диспатчит <code>eip6963:announceProvider</code> с уникальным rdns / icon / name, а dApp слушает <code>eip6963:requestProvider</code> и показывает реальный список установленных кошельков."
+    },
+    {
+      "q": "В <code>eth_signTypedData_v4</code> (EIP-712) что именно хэшируется?",
+      "kind": "multiple",
+      "options": [
+        "Только сами данные сообщения",
+        "<code>keccak256(\"\\x19\\x01\" + domainSeparator + hashStruct(message))</code>",
+        "RLP-кодирование message",
+        "JSON-сериализация message с UTF-8"
+      ],
+      "answerIndex": 1,
+      "explain": "Domain separator привязывает подпись к конкретному контракту/сети — иначе сигнатура «approve» из одного протокола работала бы в другом."
+    },
+    {
+      "q": "Practical: используя только viem, напишите код, который подписывает строку <code>\"login: \" + address</code> через MetaMask, а потом восстанавливает адрес и сравнивает с подписавшим.",
+      "kind": "task",
+      "answer": "<pre>import { createWalletClient, custom, verifyMessage } from \"viem\";\nimport { mainnet } from \"viem/chains\";\n\nconst wallet = createWalletClient({ chain: mainnet, transport: custom(window.ethereum) });\nconst [address] = await wallet.requestAddresses();\nconst message = `login: ${address}`;\nconst sig = await wallet.signMessage({ account: address, message });\n\nconst ok = await verifyMessage({ address, message, signature: sig });\nconsole.assert(ok, \"signature must verify\");</pre>"
+    },
+    {
+      "q": "Practical: подключите Sepolia в MetaMask кнопкой выше, переключите кошелёк на Sepolia, и проверьте, что <code>window.ethereum.request({ method: 'eth_chainId' })</code> возвращает <code>\"0xaa36a7\"</code>.",
+      "kind": "task",
+      "answer": "В DevTools-консоли:<pre>await window.ethereum.request({ method: 'eth_chainId' });\n// 'aa36a7' (= 11155111 десятично — Sepolia)</pre>Если возвращается другое значение — переключите сеть в шапке MetaMask вручную."
+    },
+    {
+      "q": "Holding-сценарий: вы хотите хранить сбережения и иметь дневной лимит на трату 1 ETH с горячего кошелька. Какая комбинация инструментов это решает без доверия одному устройству?",
+      "kind": "open",
+      "answer": "Smart-wallet (Safe / Argent / Biconomy) с двумя owner'ами: (1) Ledger как «холодный» owner с обязательной подписью для крупных операций; (2) MetaMask с session key и установленным module-лимитом (например, <code>SpendingLimitModule</code>), который позволяет дневные траты до 1 ETH без подписи Ledger. Итог: ключ MetaMask может быть украден, но утечёт максимум дневной лимит, а накопления защищены аппаратным устройством."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Демо HD-derivation работает поверх viem (<code>mnemonicToAccount</code>,
       <code>generateMnemonic</code>). Вся криптография выполняется локально в
-      браузере, ничего не отправляется во внешнюю сеть.
+      браузере, ничего не отправляется во внешнюю сеть. Кнопка «Добавить
+      Sepolia» — стандартный вызов EIP-3085, MetaMask покажет диалог
+      подтверждения.
     </div>
   </div>
 
@@ -479,5 +588,7 @@ const txHash = await wallet.sendTransaction({
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
   <script type="module" src="../../assets/wallet-demo.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

@@ -702,7 +702,120 @@ contract WeatherDeriv is FunctionsClient {
       </tr>
     </table>
 
-    <h2>16. Куда дальше</h2>
+    <h2>16. Песочница · Chainlink Converter в Remix</h2>
+
+    <p>
+      Iframe ниже открывает <code>Converter.sol</code> из Задачи 13.1 в Remix.
+      В Remix VM нет реальных Chainlink Data Feed'ов, поэтому в задаче нужно
+      подложить <code>MockV3Aggregator</code> (он в том же файле ниже) — это
+      даёт детерминированные сценарии для тестов «stale price»,
+      «negative answer», «zero updatedAt» без поднятия Anvil-форка.
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · Converter.sol (Chainlink Data Feed wrapper + MockV3Aggregator)"
+      data-filename="Converter.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+interface AggregatorV3Interface {
+    function decimals() external view returns (uint8);
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+}
+
+contract Converter {
+    error StalePrice(uint256 updatedAt, uint256 nowTs);
+    error NegativePrice(int256 answer);
+    error StaleRound();
+
+    AggregatorV3Interface public immutable feed;
+    uint256 public immutable maxStaleSeconds;
+
+    constructor(address _feed, uint256 _maxStaleSeconds) {
+        feed = AggregatorV3Interface(_feed);
+        maxStaleSeconds = _maxStaleSeconds;
+    }
+
+    /// Конвертирует amountWei (1e18 = 1 ETH) в USD * 1e18.
+    function convertEthToUsd(uint256 amountWei) external view returns (uint256) {
+        (uint80 roundId, int256 answer, , uint256 updatedAt, uint80 answeredInRound)
+            = feed.latestRoundData();
+        if (answer &lt;= 0) revert NegativePrice(answer);
+        if (updatedAt == 0 || block.timestamp - updatedAt &gt; maxStaleSeconds) {
+            revert StalePrice(updatedAt, block.timestamp);
+        }
+        if (answeredInRound &lt; roundId) revert StaleRound();
+
+        // ETH/USD feed имеет 8 decimals. Приводим к 1e18:
+        uint256 price = uint256(answer) * 1e10;
+        return amountWei * price / 1e18;
+    }
+}
+
+/// @notice Мок для тестов в Remix VM (нет реального Chainlink на VM).
+contract MockV3Aggregator is AggregatorV3Interface {
+    uint8   private _decimals;
+    int256  public  answer;
+    uint256 public  updatedAt;
+    uint80  public  roundId;
+
+    constructor(uint8 d, int256 initial) {
+        _decimals = d;
+        answer = initial;
+        updatedAt = block.timestamp;
+        roundId = 1;
+    }
+
+    function decimals() external view returns (uint8) { return _decimals; }
+    function setAnswer(int256 a) external { answer = a; updatedAt = block.timestamp; roundId++; }
+    function setUpdatedAt(uint256 t) external { updatedAt = t; }
+    function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80) {
+        return (roundId, answer, updatedAt, updatedAt, roundId);
+    }
+}</pre>
+    </div>
+
+    <p>
+      Для задач 13.2 (VRF), 13.3 (Automation), 13.4 (CCIP) живые тесты делайте
+      на Sepolia. Получите тестовый LINK + ETH через официальные порталы
+      Chainlink:
+    </p>
+
+    <div class="embed-cards">
+      <a class="embed-card" href="https://faucets.chain.link/sepolia" target="_blank" rel="noopener">
+        <h4>① Faucet Sepolia</h4>
+        <p>Тестовый LINK + Sepolia ETH. Лимит — 25 LINK / 0.1 ETH в сутки.</p>
+      </a>
+      <a class="embed-card" href="https://vrf.chain.link/sepolia" target="_blank" rel="noopener">
+        <h4>② VRF subscription</h4>
+        <p>Для Задачи 13.2 — создайте subscription, добавьте consumer-контракт, положите LINK.</p>
+      </a>
+      <a class="embed-card" href="https://automation.chain.link/sepolia" target="_blank" rel="noopener">
+        <h4>③ Automation upkeep</h4>
+        <p>Для Задачи 13.3 — register upkeep, выберите triggerType (time / log / custom).</p>
+      </a>
+      <a class="embed-card" href="https://ccip.chain.link" target="_blank" rel="noopener">
+        <h4>④ CCIP explorer</h4>
+        <p>Для Задачи 13.4 — трекинг message-id между Sepolia и Arbitrum Sepolia.</p>
+      </a>
+    </div>
+
+    <p>
+      Альтернатива публичным testnet'ам для Data Feed'ов — Tenderly Virtual
+      Testnet с форком mainnet: реальные Chainlink-агрегаторы будут доступны
+      сразу, без faucet'а и без ожидания.
+    </p>
+
+    <div class="sandbox" data-embed="tenderly" data-network="1" data-slug="chainlink-lab"
+      data-title="Tenderly · форк mainnet с живыми Chainlink Data Feed'ами"></div>
+
+    <h2>17. Куда дальше</h2>
     <p>
       В <strong>Lesson 17</strong> мы используем Chainlink Data Feed внутри
       flash-loan-стратегии Aave для атомарной ликвидации.
@@ -710,6 +823,109 @@ contract WeatherDeriv is FunctionsClient {
       В <strong>Lesson 19</strong> Automation + Tenderly Alerts — это
       production-grade ops для DeFi-протокола.
     </p>
+
+    <section class="lesson-quiz" data-lesson="16">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 16 · Chainlink (Data Feeds, VRF, Automation, CCIP)",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Задачи разворачиваются в Remix-iframe выше (с моком), либо на Sepolia через faucet.chain.link.",
+  "questions": [
+    {
+      "q": "Сколько decimals у ETH/USD feed на Chainlink mainnet?",
+      "kind": "multiple",
+      "options": [
+        "18",
+        "8",
+        "6",
+        "Зависит от feed'а — нужно проверять <code>feed.decimals()</code>"
+      ],
+      "answerIndex": 1,
+      "explain": "Большинство USD-pair feed'ов используют 8 decimals (наследие Bitcoin-precedent). BTC/ETH и подобные — иногда 18. Всегда читайте через .decimals()."
+    },
+    {
+      "q": "Почему просто проверять <code>answer > 0</code> недостаточно?",
+      "kind": "multiple",
+      "options": [
+        "Достаточно",
+        "Цена может быть «свежей по answer», но устаревшей по времени (oracle не успел обновить, heartbeat истёк) — нужна проверка <code>block.timestamp - updatedAt &lt;= heartbeat × 1.1</code>",
+        "Chainlink иногда возвращает строки",
+        "Нужно умножать на decimals"
+      ],
+      "answerIndex": 1,
+      "explain": "«Цена есть, но старая» = самый частый источник эксплоитов. Защита: revert StalePrice при превышении heartbeat."
+    },
+    {
+      "q": "Что такое L2 Sequencer Uptime Feed и зачем он нужен?",
+      "kind": "multiple",
+      "options": [
+        "Метрика SLA провайдера",
+        "Специальный Chainlink feed на L2 (Arbitrum, Optimism), который сообщает: работает ли sequencer. Если sequencer down — все цены на L2 заморожены, оракул может вернуть устаревшее значение",
+        "Список валидаторов",
+        "Альтернативное название RPC URL"
+      ],
+      "answerIndex": 1,
+      "explain": "При sequencer-downtime+grace_period нужно ревертить любые операции, чувствительные к цене (ликвидации, swap). Иначе bad actor может «зафиксировать» старую цену."
+    },
+    {
+      "q": "VRF v2.5 callback: что должно произойти в <code>fulfillRandomWords</code>, чтобы не было gas grief'а?",
+      "kind": "multiple",
+      "options": [
+        "Никаких ограничений",
+        "Вся логика умещается в <code>callbackGasLimit</code>, выставленный при request'е. Сложные операции — выносите в отдельный <code>claim()</code>, который пользователь вызовет сам после fulfill",
+        "Нужно вызвать <code>revert</code>",
+        "Использовать только assembly"
+      ],
+      "answerIndex": 1,
+      "explain": "Если fulfillRandomWords упадёт по out-of-gas, VRF coordinator <em>не повторит</em> вызов — рандом потерян, billing уже списан. Pattern «store the random, let user claim» — стандарт."
+    },
+    {
+      "q": "Чем <code>blockhash(block.number - 1)</code> опасен в качестве «случайности»?",
+      "kind": "multiple",
+      "options": [
+        "Чем-то слабым",
+        "Валидатор знает blockhash до его минирования и может <em>выкинуть</em> блок (re-org / propose-or-skip), если рандом ему невыгоден — это полностью предсказуемый и манипулируемый источник",
+        "Только высокой стоимостью газа",
+        "Не работает на L2"
+      ],
+      "answerIndex": 1,
+      "explain": "MEV-валидатор с миллиардами стейка переписывает «неудачный» блок. Любая on-chain энтропия из текущего блока — это игра с инсайдером."
+    },
+    {
+      "q": "Что должен делать <code>checkUpkeep</code> в Chainlink Automation?",
+      "kind": "multiple",
+      "options": [
+        "Просто возвращать <code>true</code>",
+        "<em>view</em>-функция, возвращающая (upkeepNeeded, performData). Если возвращает true — нода вызовет performUpkeep с этим performData. Не должна стоить дорого (off-chain симуляция)",
+        "Обновлять state",
+        "Списывать LINK"
+      ],
+      "answerIndex": 1,
+      "explain": "checkUpkeep вызывается off-chain каждые ~3 сек на каждой ноде. Если делать там heavy compute — ваш upkeep будет редко включаться."
+    },
+    {
+      "q": "В CCIP-receiver'е что нужно проверять помимо selector'а функции?",
+      "kind": "open",
+      "answer": "(1) <code>sourceChainSelector</code> — что сообщение пришло именно с разрешённой исходной цепи (whitelist). (2) <code>sender</code> — что отправитель в исходной цепи — это ваш Governor, а не произвольный контракт. Без этих проверок любой контракт на любой CCIP-поддерживаемой цепи может вызвать ваш Treasury и снять USDC. (3) Дополнительно: <code>chainId</code> destination check, защита от double-execute через <code>messageId</code>-nonces, защита от replay при reorg."
+    },
+    {
+      "q": "Practical: задеплойте Converter + MockV3Aggregator в Remix VM (см. iframe выше). Поставьте answer=2400e8 (1 ETH = $2400), вызовите <code>convertEthToUsd(1 ether)</code>. Что получите?",
+      "kind": "task",
+      "answer": "Mock decimals=8, answer=240_000_000_000 (=2400*1e8). В Converter: <code>price = 2400e8 * 1e10 = 2.4e21</code> (то есть 2400 в 1e18-precision). Итог: <code>1e18 * 2.4e21 / 1e18 = 2.4e21</code> — это 2400 * 1e18 = «$2400 с 18 decimals»."
+    },
+    {
+      "q": "Practical: на этом же mock вызовите <code>setUpdatedAt(0)</code>, потом снова <code>convertEthToUsd(1 ether)</code>. Что произойдёт?",
+      "kind": "task",
+      "answer": "Транзакция ревертится с <code>StalePrice(0, &lt;block.timestamp&gt;)</code>. Это и есть защита: если оракул когда-то отвечал, но связь оборвалась — feed возвращает старое значение с <code>updatedAt</code> в прошлом. Без проверки контракт будет использовать «замороженную» цену."
+    },
+    {
+      "q": "Practical: на Sepolia (см. карты выше) задеплойте Lottery (Задача 13.2) и купите 100 билетов. Через какое время после <code>drawWinner()</code> придёт VRF callback и какой <em>максимальный</em> размер words можно запросить?",
+      "kind": "task",
+      "answer": "Sepolia VRF v2.5: callback приходит через 3-5 блоков (~30-60 сек). <code>numWords</code> ограничен <code>maxNumWords</code> конфигом subscription — обычно 500 на Sepolia. <code>callbackGasLimit</code> до 2.5M gas. Если closer к лимиту — нужно делать commit/reveal: random сохраняем в storage, выплата победителю — в отдельной транзакции <code>claim()</code>."
+    }
+  ]
+}
+      </script>
+    </section>
 
     <div class="refs">
       <h3>Источники и материалы для углубления</h3>
@@ -733,12 +949,15 @@ contract WeatherDeriv is FunctionsClient {
       версией <code>@chainlink/contracts ^1.2</code>. Для запуска задач
       рекомендуется fork Sepolia через Anvil
       (<code>anvil --fork-url $SEPOLIA_RPC</code>) + публичные testnet-feed'ы
-      Chainlink.
+      Chainlink, либо Tenderly Virtual Testnet с форком mainnet (см. карту выше).
+      Все внешние ссылки ведут на официальные домены chain.link / dashboard.tenderly.co.
     </div>
   </div>
 
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

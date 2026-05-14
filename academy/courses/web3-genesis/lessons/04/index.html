@@ -1067,7 +1067,50 @@ forge script script/Deploy.s.sol:DeployScript \
   --etherscan-api-key $ETHERSCAN_KEY \
   -vvv</code></pre>
 
-    <h2>10. Куда дальше</h2>
+    <h2>10. Встроенный sandbox: Anvil-команды и Remix с Greeter.sol</h2>
+
+    <p>
+      Anvil — это native-бинарь, в браузере мы его не запускаем; но команды
+      запуска и Solidity-исходник Greeter из задачи 7.1 можно поднять в один
+      клик. Используйте Anvil-карту для копи-пасте, а Remix iframe — для того,
+      чтобы скомпилировать и поотлаживать тот же контракт без локального
+      Foundry-окружения.
+    </p>
+
+    <div class="sandbox" data-embed="anvil"
+      data-title="Anvil · команды запуска и fork-режим"
+      data-fork="https://eth.llamarpc.com"></div>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · Greeter.sol (задача 7.1 без локальной установки)"
+      data-filename="Greeter.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+contract Greeter {
+    string private greeting;
+    address public immutable owner;
+
+    event GreetingSet(address indexed by, string newGreeting);
+
+    constructor(string memory _greeting) {
+        greeting = _greeting;
+        owner = msg.sender;
+    }
+
+    function greet() external view returns (string memory) {
+        return greeting;
+    }
+
+    function setGreeting(string calldata _greeting) external {
+        require(msg.sender == owner, "only owner");
+        greeting = _greeting;
+        emit GreetingSet(msg.sender, _greeting);
+    }
+}</pre>
+    </div>
+
+    <h2>11. Куда дальше</h2>
 
     <p>
       В <strong><a href="../05/index.html">Lesson 05 — Tenderly Virtual Testnet</a></strong>
@@ -1078,6 +1121,109 @@ forge script script/Deploy.s.sol:DeployScript \
       итеративного цикла; Tenderly — для отладки сложных сценариев и
       совместной работы.
     </p>
+
+    <section class="lesson-quiz" data-lesson="04">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 04 · Anvil & Foundry",
+  "intro": "Семь концептуальных вопросов плюс три практические задачи. Задачи можно выполнить либо локально (если установили Foundry), либо в Remix iframe и через cast/curl.",
+  "questions": [
+    {
+      "q": "Какой компонент Foundry — это интерактивная Solidity REPL?",
+      "kind": "multiple",
+      "options": [
+        "forge",
+        "cast",
+        "anvil",
+        "chisel"
+      ],
+      "answerIndex": 3,
+      "explain": "forge — build/test, cast — RPC-клиент, anvil — local EVM, chisel — REPL для арифметики, селекторов, ABI."
+    },
+    {
+      "q": "Команда <code>anvil --fork-url $RPC --fork-block-number 21000000</code> делает…",
+      "kind": "multiple",
+      "options": [
+        "Сжимает state mainnet и заливает в localhost — раз в день обновляется",
+        "Поднимает локальный JSON-RPC, при запросе любого state делает just-in-time чтение из upstream RPC на блоке 21000000",
+        "Полностью копирует blockchain-state на диск",
+        "Запускает sequencer для собственного rollup"
+      ],
+      "answerIndex": 1,
+      "explain": "Fork lazy — state кешируется only по запросу. Это позволяет «работать с реальным USDC/Uniswap» без хранения 1+ ТБ архивов."
+    },
+    {
+      "q": "Что делает <code>vm.prank(alice)</code> в Foundry-тестах?",
+      "kind": "multiple",
+      "options": [
+        "Меняет <code>msg.sender</code> только для следующего внешнего вызова",
+        "Меняет <code>tx.origin</code> навсегда",
+        "Возвращает приватный ключ Alice",
+        "Отключает все require()"
+      ],
+      "answerIndex": 0,
+      "explain": "Для последовательности вызовов используйте vm.startPrank()/vm.stopPrank(). vm.prank — однократный."
+    },
+    {
+      "q": "Что делает <code>cast send --unlocked --from $ADDR ...</code>?",
+      "kind": "multiple",
+      "options": [
+        "Отправляет транзакцию от Anvil-аккаунта по приватному ключу",
+        "Использует <code>anvil_impersonateAccount</code> — отправка от произвольного адреса без приватного ключа (работает только на форке)",
+        "Запускает MetaMask popup",
+        "Создаёт новый Ledger-аккаунт"
+      ],
+      "answerIndex": 1,
+      "explain": "Это и есть «mainnet impersonation» — Anvil подделывает signer'а. Незаменимо для тестов против реальных whales-аккаунтов."
+    },
+    {
+      "q": "Зачем нужен <code>forge test --fuzz-runs 10000</code>?",
+      "kind": "multiple",
+      "options": [
+        "Запустить unit-тест в 10000 потоков",
+        "Прогнать fuzz-тест 10000 раз с псевдослучайными входными данными — ищем нарушения инвариантов",
+        "Сжать тестовый отчёт",
+        "Снизить время компиляции"
+      ],
+      "answerIndex": 1,
+      "explain": "По умолчанию 256 прогонов; 10k — для критических инвариантов перед mainnet-деплоем."
+    },
+    {
+      "q": "Какие два cheatcode'а вместе позволяют «прокрутить время» в тестах?",
+      "kind": "multiple",
+      "options": [
+        "<code>vm.warp(timestamp)</code> и <code>vm.roll(blockNumber)</code>",
+        "<code>vm.fastforward()</code> и <code>vm.tick()</code>",
+        "<code>vm.deal()</code> и <code>vm.mockCall()</code>",
+        "<code>evm_sleep()</code> и <code>evm_advance()</code>"
+      ],
+      "answerIndex": 0,
+      "explain": "warp — устанавливает block.timestamp, roll — block.number. Оба критичны для тестов timelock'ов и vesting'ов."
+    },
+    {
+      "q": "В чём принципиальная разница между <code>forge create</code> и <code>forge script</code>?",
+      "kind": "open",
+      "answer": "<code>forge create</code> — одиночный деплой одного контракта из CLI с переданными args. <code>forge script</code> — Solidity-скрипт в <code>script/</code>, который можно симулировать локально (<code>--rpc-url</code> без <code>--broadcast</code>), а затем broadcast'нуть с поддержкой нескольких контрактов, библиотек, cheatcodes (<code>vm.startBroadcast()</code>) и автоматической верификацией на Etherscan. Для production-деплоев всегда используйте script."
+    },
+    {
+      "q": "Practical: запустите Anvil в forked-режиме (см. карту выше) и через <code>cast balance vitalik.eth --rpc-url http://127.0.0.1:8545 --ether</code> прочитайте баланс. Совпадает ли он с тем, что в Mainnet-песочнице Lesson 03?",
+      "kind": "task",
+      "answer": "Должен совпадать с точностью до текущего блока. <code>vitalik.eth</code> резолвится через ENS-резолвер mainnet. Если запускали <code>--fork-block-number 21000000</code> — увидите состояние ровно на этом блоке."
+    },
+    {
+      "q": "Practical: возьмите MinimalERC20 из Lesson 02, задеплойте через Remix iframe (см. embed выше), а затем повторите тот же деплой через <code>forge create</code> локально. Сравните адрес.",
+      "kind": "task",
+      "answer": "Адрес контракта детерминирован: <code>keccak256(rlp.encode([deployer, nonce]))[12:]</code>. Если nonce деплоера и его адрес совпадают (в Remix VM и Anvil это account[0]), адрес контракта будет одинаковым. Это и есть принцип CREATE-адресов."
+    },
+    {
+      "q": "Practical: напишите forge-тест, который проверяет инвариант «сумма balanceOf == totalSupply» для своего ERC-20 (см. SimpleTokenTest в разделе 7.3). Сколько fuzz-runs нужно, чтобы поймать целочисленное переполнение в <code>unchecked</code> блоке?",
+      "kind": "task",
+      "answer": "В Solidity 0.8+ внешние переполнения ревертятся автоматически; <code>unchecked</code> блок переполнится бесшумно. Fuzz найдёт переполнение почти моментально (десятки прогонов), если вы передадите <code>amount = type(uint256).max</code> или близкое значение. Используйте <code>bound(amount, 0, type(uint256).max)</code> — Foundry сам подсунет крайние значения."
+    }
+  ]
+}
+      </script>
+    </section>
 
     <div class="refs">
       <h3>Источники и материалы для углубления</h3>
@@ -1108,5 +1254,7 @@ forge script script/Deploy.s.sol:DeployScript \
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

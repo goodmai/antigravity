@@ -145,28 +145,197 @@ contract MinimalERC20 {
       </ol>
     </div>
 
-    <h2>5. Куда дальше</h2>
+    <h2>5. Тот же контракт — но в настоящем Solidity-компиляторе</h2>
+    <p>
+      In-memory симулятор учит ментальной модели; следующий шаг — запустить тот же
+      контракт через <strong>solc-js</strong> и встроенный JavaScript-EVM. Ниже —
+      кнопка, которая открывает Remix IDE прямо в странице с уже загруженным
+      <code>MinimalERC20.sol</code> и включённым auto-compile. Деплоить можно
+      без MetaMask: Remix → Deploy &amp; run → Environment: <em>Remix VM</em>.
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · MinimalERC20.sol (solc-js + JS-EVM)"
+      data-filename="MinimalERC20.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract MinimalERC20 {
+    string  public name;
+    string  public symbol;
+    uint8   public decimals;
+    uint256 public totalSupply;
+
+    mapping(address =&gt; uint256) public balanceOf;
+    mapping(address =&gt; mapping(address =&gt; uint256)) public allowance;
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    constructor(string memory n, string memory s, uint8 d, uint256 supply) {
+        name = n;
+        symbol = s;
+        decimals = d;
+        totalSupply = supply * 10 ** d;
+        balanceOf[msg.sender] = totalSupply;
+        emit Transfer(address(0), msg.sender, totalSupply);
+    }
+
+    function transfer(address to, uint256 value) external returns (bool) {
+        require(to != address(0), "ERC20: transfer to the zero address");
+        require(balanceOf[msg.sender] &gt;= value, "ERC20: transfer amount exceeds balance");
+        unchecked {
+            balanceOf[msg.sender] -= value;
+            balanceOf[to] += value;
+        }
+        emit Transfer(msg.sender, to, value);
+        return true;
+    }
+
+    function approve(address spender, uint256 value) external returns (bool) {
+        allowance[msg.sender][spender] = value;
+        emit Approval(msg.sender, spender, value);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 value) external returns (bool) {
+        require(to != address(0), "ERC20: transfer to the zero address");
+        uint256 allowed = allowance[from][msg.sender];
+        require(allowed &gt;= value, "ERC20: insufficient allowance");
+        require(balanceOf[from] &gt;= value, "ERC20: transfer amount exceeds balance");
+        if (allowed != type(uint256).max) {
+            unchecked { allowance[from][msg.sender] = allowed - value; }
+        }
+        unchecked {
+            balanceOf[from] -= value;
+            balanceOf[to] += value;
+        }
+        emit Transfer(from, to, value);
+        return true;
+    }
+}</pre>
+    </div>
+
+    <h2>6. Куда дальше</h2>
     <p>
       Этот же контракт мы развернём на трёх «настоящих» песочницах в следующих уроках:
     </p>
     <ul>
-      <li><strong>Lesson 02 — Remix VM:</strong> компиляция <code>solc-js</code> прямо
-      в браузере, деплой в встроенный JavaScript-EVM, инспектор storage.</li>
-      <li><strong>Lesson 03 — Anvil (Foundry):</strong> локальный node, форкинг
+      <li><strong>Lesson 03 — JSON-RPC mock + live:</strong> учимся говорить с нодой
+      руками, а не через viem-обёртку.</li>
+      <li><strong>Lesson 04 — Anvil (Foundry):</strong> локальный node, форкинг
       mainnet, <code>cast call</code>, трейсинг.</li>
-      <li><strong>Lesson 04 — Tenderly Virtual Testnet:</strong> облачный RPC,
+      <li><strong>Lesson 05 — Tenderly Virtual Testnet:</strong> облачный RPC,
       визуальный отладчик, программное изменение балансов через Simulation API.</li>
     </ul>
     <p>
-      Сравнительный анализ всех трёх — в документе
+      Сравнительный анализ всех — в документе
       <a href="../../sandbox-comparison.md">sandbox-comparison.md</a>.
     </p>
+
+    <section class="lesson-quiz" data-lesson="02">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 02 · ERC-20",
+  "intro": "Десять вопросов и задач: инварианты стандарта, поведение событий, типичные ошибки и одна задача в Remix.",
+  "questions": [
+    {
+      "q": "Какое событие ERC-20 эмитируется при mint (выпуск)?",
+      "kind": "multiple",
+      "options": [
+        "<code>Mint(address to, uint256 value)</code>",
+        "<code>Transfer(address(0), to, value)</code>",
+        "<code>Issue(address to, uint256 value)</code>",
+        "Никакое — mint считается off-chain операцией"
+      ],
+      "answerIndex": 1,
+      "explain": "ERC-20 не имеет отдельного Mint-события. Стандарт описывает выпуск как Transfer из address(0)."
+    },
+    {
+      "q": "Что должен сделать <code>transfer</code>, если <code>to == address(0)</code>?",
+      "kind": "multiple",
+      "options": [
+        "Завершиться успешно — это эквивалент burn",
+        "Ревертить (require)",
+        "Возвращать <code>false</code> без revert",
+        "Эмитить Transfer и удалить токены из totalSupply"
+      ],
+      "answerIndex": 1,
+      "explain": "EIP-20 рекомендует revert. Burn должен быть явной отдельной функцией, иначе ошибки UI приводят к «случайному» burn."
+    },
+    {
+      "q": "Чему равна сумма всех <code>balanceOf</code> ненулевых аккаунтов после серии корректных <code>transfer</code>'ов?",
+      "kind": "multiple",
+      "options": [
+        "<code>totalSupply</code>",
+        "<code>totalSupply − gasUsed</code>",
+        "Зависит от числа транзакций",
+        "<code>totalSupply</code> + накопленные fee валидаторов"
+      ],
+      "answerIndex": 0,
+      "explain": "transfer — это перемещение, а не создание. totalSupply меняется только при mint/burn."
+    },
+    {
+      "q": "Чем <code>approve + transferFrom</code> опасно при изменении allowance с N на M (классическая front-running уязвимость)?",
+      "kind": "open",
+      "answer": "Сценарий: у Bob уже есть allowance=N. Alice вызывает approve(Bob, M). До майнинга Bob успевает вызвать transferFrom(N), затем после смены на M — ещё transferFrom(M). Итого Bob увёл N+M. Защита: сначала approve(0), потом approve(M), либо EIP-2612 permit (атомарная смена через подпись), либо increaseAllowance/decreaseAllowance из OpenZeppelin."
+    },
+    {
+      "q": "Если у Alice 100 AGT и она вызывает <code>transfer(bob, 200)</code>, что должна вернуть функция в стандарт-совместимом ERC-20?",
+      "kind": "multiple",
+      "options": [
+        "Возвращает <code>false</code>, состояние не меняется",
+        "Ревертит транзакцию",
+        "Списывает максимум возможного (100) и возвращает <code>true</code>",
+        "Зависит от реализации — стандарт допускает оба варианта"
+      ],
+      "answerIndex": 1,
+      "explain": "Современные реализации (OpenZeppelin 4+) ревертят. Возврат false почти никогда не проверяется клиентами, поэтому revert безопаснее."
+    },
+    {
+      "q": "Practical: задеплойте MinimalERC20 в Remix VM (см. iframe выше) с параметрами <code>name='AGT', symbol='AGT', decimals=18, supply=1000</code>. Чему равен <code>totalSupply()</code> в hex после деплоя?",
+      "kind": "task",
+      "answer": "<code>1000 * 10**18 = 0x3635c9adc5dea00000</code>. Проверьте через Deployed Contracts → totalSupply. В Remix значение раскрывается как 1000000000000000000000."
+    },
+    {
+      "q": "Practical: вызовите <code>transfer(address(0), 1)</code> на свежезадеплоенном контракте. Что покажет Remix во вкладке «logs»?",
+      "kind": "task",
+      "answer": "Транзакция ревертится с сообщением <em>«ERC20: transfer to the zero address»</em>. В Remix logs увидите <code>status: 0x0 (FAILED)</code>, <code>decoded output: error message</code>, потраченный gas (~21000 + проверка)."
+    },
+    {
+      "q": "Чем отличается <code>approve(spender, uint256.max)</code> от обычной allowance?",
+      "kind": "open",
+      "answer": "(1) С точки зрения протокола — ничем: max — это просто 2^256-1, проверка allowance ≥ amount пройдёт. (2) Многие реализации (OpenZeppelin, USDC) <em>не уменьшают</em> allowance, если оно равно type(uint256).max — это экономит газ при многократных transferFrom. (3) С точки зрения UX это «infinite approve» и главный источник drainer-атак: одна подпись даёт полный доступ к балансу токена на всё время."
+    },
+    {
+      "q": "Почему ERC-20-токены USDT и USDC требуют выполнить <code>approve(spender, 0)</code> перед сменой allowance на новое значение?",
+      "kind": "open",
+      "answer": "Это исторически введённая защита от описанной выше front-running уязвимости double-spend. USDT (Tether) и часть USDC-эквивалентов реализуют это hard-rule: approve(non-zero) → approve(non-zero) ревертит, нужен промежуточный approve(0). Современные DeFi-фронтенды это учитывают."
+    },
+    {
+      "q": "Чем in-memory sandbox этого урока отличается от Remix VM из embed выше?",
+      "kind": "multiple",
+      "options": [
+        "Sandbox запускает реальный EVM, Remix — JavaScript-симулятор",
+        "Sandbox — JS-симуляция семантики ERC-20, Remix VM — настоящий solc-js + JS-EVM с storage layout и opcodes",
+        "Между ними нет различий — оба используют geth-bindings",
+        "Sandbox требует подключения к Sepolia"
+      ],
+      "answerIndex": 1,
+      "explain": "Sandbox оптимизирован под скорость и понятность; Remix VM — под достоверность поведения настоящего EVM. Оба полезны на разных этапах."
+    }
+  ]
+}
+      </script>
+    </section>
 
     <div class="attrib">
       Песочница на этой странице — детерминированный in-memory симулятор
       (<code>academy/courses/web3-genesis/assets/sandbox.js</code>), 42 vitest-теста
       покрывают деплой, передачу, инварианты и события. Тесты запускаются
       командой <code>npm test</code> из корня репозитория.
+      iframe Remix не сохраняет состояние при перезагрузке — для длительных
+      экспериментов используйте Lesson 04 (Anvil) или Lesson 05 (Tenderly).
     </div>
   </div>
 
@@ -174,5 +343,7 @@ contract MinimalERC20 {
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
   <script type="module" src="../../assets/erc20-playground.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>

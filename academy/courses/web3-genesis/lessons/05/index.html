@@ -111,6 +111,9 @@
       и доступ к Debugger. Для задач урока этого достаточно.
     </div>
 
+    <div class="sandbox" data-embed="tenderly" data-network="1" data-slug="web3-genesis-lab"
+      data-title="Tenderly · быстрый запуск Virtual Testnet (Mainnet fork)"></div>
+
     <h2>2. Создание Virtual Testnet через UI (Tenderly Dashboard)</h2>
 
     <p>
@@ -1193,6 +1196,109 @@ curl -s -X POST \
       </ul>
     </div>
 
+    <section class="lesson-quiz" data-lesson="05">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 05 · Tenderly Virtual Testnet",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Для задач воспользуйтесь Tenderly-картой выше — она ведёт прямо на нужные шаги Dashboard.",
+  "questions": [
+    {
+      "q": "Чем Virtual Testnet отличается от обычного Tenderly Fork?",
+      "kind": "multiple",
+      "options": [
+        "Это то же самое, разные имена",
+        "Virtual Testnet — постоянный публичный RPC, у Fork — только Simulation API без отдельного endpoint'а",
+        "Virtual Testnet существует только локально",
+        "Fork поддерживает MetaMask, Virtual Testnet — нет"
+      ],
+      "answerIndex": 1,
+      "explain": "Fork — это одноразовая «копия» state для симуляции; Virtual Testnet — живой RPC с persistence, можно подключать кошельки и тестовый CI."
+    },
+    {
+      "q": "Зачем Tenderly разделяет Public RPC и Admin RPC?",
+      "kind": "multiple",
+      "options": [
+        "Public RPC быстрее",
+        "Admin RPC даёт доступ к управляющим методам (<code>tenderly_setBalance</code>, <code>tenderly_setStorageAt</code>) — его нельзя экспонировать во фронтенд",
+        "Public RPC бесплатный, Admin платный",
+        "Admin RPC поддерживает только WebSocket"
+      ],
+      "answerIndex": 1,
+      "explain": "Утечка Admin RPC = любой пользователь может выставлять балансы и переписывать storage. Держите его в backend / .env с server-only флагом."
+    },
+    {
+      "q": "Какой метод Admin RPC поставит ровно 10 ETH на адрес?",
+      "kind": "multiple",
+      "options": [
+        "<code>tenderly_setBalance(address, \"0x8AC7230489E80000\")</code>",
+        "<code>eth_setBalance(address, 10)</code>",
+        "<code>evm_setBalance(address, \"10 ether\")</code>",
+        "<code>tenderly_mint(address, 10)</code>"
+      ],
+      "answerIndex": 0,
+      "explain": "Hex 0x8AC7230489E80000 = 10·10^18 wei = 10 ETH. tenderly_setBalance принимает массив адресов и одно hex-значение."
+    },
+    {
+      "q": "Что такое state override в Simulation API?",
+      "kind": "multiple",
+      "options": [
+        "Перезапись опкодов EVM",
+        "Точечная перезапись balance / nonce / storage / code конкретного адреса <strong>только на время одной симуляции</strong>",
+        "Откат блока к предыдущему состоянию",
+        "Создание нового forked-блока"
+      ],
+      "answerIndex": 1,
+      "explain": "Не путать с tenderly_setStorageAt (постоянная запись через Admin RPC). state_objects в Simulation API живёт только в рамках одного simulate-вызова."
+    },
+    {
+      "q": "Зачем нужны <code>save: true</code> и <code>save_if_fails: true</code> в Simulation API?",
+      "kind": "multiple",
+      "options": [
+        "Сохраняют результат на ваш диск",
+        "Сохраняют симуляцию в Dashboard, генерируют URL Debugger — даже если транзакция упала",
+        "Активируют автоматическое выполнение",
+        "Делают симуляцию атомарной"
+      ],
+      "answerIndex": 1,
+      "explain": "Без флага save = simulation_id будет, но в Dashboard ничего не появится. save_if_fails важен для разбора reverted-кейсов."
+    },
+    {
+      "q": "Какая пара методов даёт работу с snapshot'ами на Virtual Testnet?",
+      "kind": "multiple",
+      "options": [
+        "<code>tenderly_save</code> / <code>tenderly_restore</code>",
+        "<code>evm_snapshot</code> / <code>evm_revert</code>",
+        "<code>anvil_dumpState</code> / <code>anvil_loadState</code>",
+        "<code>tx_snapshot</code> / <code>tx_revert</code>"
+      ],
+      "answerIndex": 1,
+      "explain": "Hardhat-совместимые методы: evm_snapshot возвращает id, evm_revert(id) откатывает state. Snapshot одноразовый — после revert нужен новый."
+    },
+    {
+      "q": "Чем визуальный Tenderly Debugger лучше <code>forge test -vvvv</code>?",
+      "kind": "open",
+      "answer": "Forge даёт текстовый call trace и assembly-trace, но плохо подходит для длинных вызовов с десятками внутренних call'ов. Tenderly Debugger: (1) дерево вызовов с декодированными ABI; (2) state diff после каждого шага (видны мутации mapping'ов и slot-ов); (3) opcode-level навигация назад/вперёд; (4) shareable URL — можно прислать ссылку коллеге и он увидит то же дерево. Forge — для CI и быстрой локальной проверки; Tenderly — для разбора инцидентов и post-mortem."
+    },
+    {
+      "q": "Practical: создайте Virtual Testnet через карту выше (шаг ②), скопируйте RPC URL. Откройте Lesson 01, добавьте этот URL как кастомную сеть в MetaMask (chainId 73571 hex = 0x11f63). Подтвердите подключение через <code>cast chain-id --rpc-url $VNET_URL</code>.",
+      "kind": "task",
+      "answer": "1. Карта ② откроет форму создания. После «Create» Tenderly покажет Public RPC URL.<br>2. В MetaMask → Networks → Add → ввести URL, Chain ID 73571 (или какой выбрали).<br>3. <code>cast chain-id --rpc-url $URL</code> вернёт <code>73571</code> или ваше значение.<br>Если кошелёк говорит «chain ID mismatch» — проверьте, что в форме Tenderly chain-id не дублирует mainnet (1)."
+    },
+    {
+      "q": "Practical: используя tenderly_setBalance, поставьте 100 ETH на свой EOA, отправьте 1 ETH на адрес 0x000…dead. Проверьте в Tenderly Explorer, что транзакция видна с пометкой «From Virtual Testnet».",
+      "kind": "task",
+      "answer": "<pre>cast rpc tenderly_setBalance \\\n  '[\"0xYOUR_ADDR\"]' '0x56BC75E2D63100000' \\\n  --rpc-url \"$ADMIN_RPC\"\n\ncast send 0x000000000000000000000000000000000000dead \\\n  --value 1ether \\\n  --private-key $PRIVATE_KEY \\\n  --rpc-url \"$RPC_URL\"</pre>В Dashboard → Virtual Testnets → ваш-slug → Transactions появится запись. Кликните по ней — Debugger покажет execution trace."
+    },
+    {
+      "q": "Practical: симулируйте через Simulation API <code>USDC.transfer</code> от адреса без USDC баланса (см. Задача 2 в разделе 8). С чем должен упасть вызов, если убрать <code>state_objects</code>?",
+      "kind": "task",
+      "answer": "Без state-override USDC проверит <code>balances[FROM] >= amount</code> в Storage реального mainnet, обнаружит 0 баланс и ревертится: либо «SafeERC20: transfer failed», либо собственный USDC-revert «ERC20: transfer amount exceeds balance». В response Simulation API <code>.transaction.status = false</code>, <code>.transaction.error_message</code> содержит расшифрованный revert reason."
+    }
+  ]
+}
+      </script>
+    </section>
+
     <div class="attrib">
       Lesson 05 · Web3 Genesis · Daskibo Academy.
       Контракты и примеры кода в этом уроке используют тестовые приватные ключи
@@ -1200,12 +1306,16 @@ curl -s -X POST \
       эти ключи в mainnet или в любой сети с реальными средствами &mdash; они
       общеизвестны и любые средства будут немедленно похищены.
       RPC URL Virtual Testnet в примерах заменены заглушкой <code>YOUR-SLUG</code> &mdash;
-      замените на свой URL из Dashboard.
+      замените на свой URL из Dashboard. Tenderly-карты выше открывают
+      официальные страницы dashboard.tenderly.co и docs.tenderly.co — никаких
+      прокси через Daskibo нет.
     </div>
   </div>
 
   <div id="site-footer"></div>
   <script src="../../../../js/header.js"></script>
   <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
 </body>
 </html>
