@@ -25,11 +25,18 @@ export const DEFAULT_NATIVE = 10n * 10n ** 18n;
 /** Fixed gas cost for an ERC-20 transfer in the sim. Realistic order of magnitude. */
 export const TRANSFER_GAS = 51_000n;
 
+/** Fixed gas cost for an ERC-20 approve / transferFrom in the sim. */
+export const APPROVE_GAS = 46_000n;
+export const TRANSFER_FROM_GAS = 56_000n;
+
 /** Fixed gas cost for an ERC-20 deployment in the sim. */
 export const DEPLOY_GAS = 850_000n;
 
 /** Sim gas price: 1 gwei. */
 export const GAS_PRICE = 1_000_000_000n;
+
+/** Sentinel for "infinite" allowance — matches OpenZeppelin / USDC behaviour. */
+export const MAX_UINT256 = (1n << 256n) - 1n;
 
 // ── Errors ────────────────────────────────────────────────────────────────
 
@@ -292,6 +299,133 @@ export function createSandbox(opts = {}) {
     return tx;
   }
 
+  // ── ERC-20: approve / transferFrom / allowance ─────────────────────────
+
+  /**
+   * Read the allowance set by `owner` for `spender` on this token.
+   * Follows EIP-20 semantics: defaults to 0 if never approved.
+   */
+  function allowance(tokenAddress, ownerNameOrAddr, spenderNameOrAddr) {
+    const t = getToken(tokenAddress);
+    const owner = resolve(ownerNameOrAddr);
+    const spender = resolve(spenderNameOrAddr);
+    const inner = t.allowances.get(owner);
+    if (!inner) return 0n;
+    return inner.get(spender) ?? 0n;
+  }
+
+  /**
+   * Approve `spender` to spend up to `amount` of caller's tokens.
+   * Emits `Approval(owner, spender, value)`. Overwrites previous allowance
+   * (this is exactly the EIP-20 race-condition we discuss in the lesson).
+   */
+  function approve(tokenAddress, ownerNameOrAddr, spenderNameOrAddr, rawAmount) {
+    const t = getToken(tokenAddress);
+    const owner = resolve(ownerNameOrAddr);
+    const spender = resolve(spenderNameOrAddr);
+    const amount = BigInt(rawAmount);
+
+    if (amount < 0n) {
+      throw new SandboxError('BAD_PARAM', 'amount cannot be negative');
+    }
+    if (spender === ZERO_ADDRESS) {
+      throw new SandboxError('ERC20_ZERO_SPENDER', 'ERC20: approve to the zero address');
+    }
+    if (amount > MAX_UINT256) {
+      throw new SandboxError('BAD_PARAM', 'amount exceeds uint256');
+    }
+
+    let inner = t.allowances.get(owner);
+    if (!inner) {
+      inner = new Map();
+      t.allowances.set(owner, inner);
+    }
+    inner.set(spender, amount);
+
+    const tx = mine(owner, APPROVE_GAS, {
+      kind: 'approve',
+      contract: normalizeAddress(tokenAddress),
+      spender,
+      amount,
+    });
+    const event = {
+      address: normalizeAddress(tokenAddress),
+      event: 'Approval',
+      args: { owner, spender, value: amount },
+      txHash: tx.hash,
+      nonce: tx.nonce,
+    };
+    logs.push(event);
+    tx.logs = [event];
+    return tx;
+  }
+
+  /**
+   * Move tokens on behalf of `from` using the caller's allowance.
+   * Emits `Transfer(from, to, value)` and, when allowance < MAX, also
+   * decrements the allowance (no Approval-event in OZ ≥4.x). With infinite
+   * allowance (= MAX_UINT256), allowance is left untouched — exactly like
+   * OpenZeppelin / USDC.
+   */
+  function transferFrom(
+    tokenAddress,
+    spenderNameOrAddr,
+    fromNameOrAddr,
+    toNameOrAddr,
+    rawAmount,
+  ) {
+    const t = getToken(tokenAddress);
+    const spender = resolve(spenderNameOrAddr);
+    const from = resolve(fromNameOrAddr);
+    const to = resolve(toNameOrAddr);
+    const amount = BigInt(rawAmount);
+
+    if (amount < 0n) {
+      throw new SandboxError('BAD_PARAM', 'amount cannot be negative');
+    }
+    if (to === ZERO_ADDRESS) {
+      throw new SandboxError('ERC20_ZERO_TO', 'ERC20: transfer to the zero address');
+    }
+
+    const innerFrom = t.allowances.get(from);
+    const currentAllowance = innerFrom ? innerFrom.get(spender) ?? 0n : 0n;
+    if (currentAllowance < amount) {
+      throw new SandboxError(
+        'ERC20_INSUFFICIENT_ALLOWANCE',
+        `insufficient allowance: have ${currentAllowance}, need ${amount}`,
+      );
+    }
+    const fromBal = t.balances.get(from) ?? 0n;
+    if (fromBal < amount) {
+      throw new SandboxError('ERC20_INSUFFICIENT', `transfer of ${amount} exceeds balance ${fromBal}`);
+    }
+
+    // Decrement allowance unless it's infinite (OZ / USDC semantics).
+    if (currentAllowance !== MAX_UINT256) {
+      innerFrom.set(spender, currentAllowance - amount);
+    }
+    t.balances.set(from, fromBal - amount);
+    t.balances.set(to, (t.balances.get(to) ?? 0n) + amount);
+
+    const tx = mine(spender, TRANSFER_FROM_GAS, {
+      kind: 'transferFrom',
+      contract: normalizeAddress(tokenAddress),
+      from,
+      to,
+      amount,
+    });
+    const event = {
+      address: normalizeAddress(tokenAddress),
+      event: 'Transfer',
+      args: { from, to, value: amount },
+      txHash: tx.hash,
+      nonce: tx.nonce,
+    };
+    logs.push(event);
+    tx.logs = [event];
+    return tx;
+  }
+
   // ── Introspection helpers ───────────────────────────────────────────────
 
   function getEvents(filter = {}) {
@@ -326,6 +460,7 @@ export function createSandbox(opts = {}) {
     // queries
     getBalance,
     balanceOf,
+    allowance,
     totalSupply,
     tokenInfo,
     getEvents,
@@ -336,6 +471,8 @@ export function createSandbox(opts = {}) {
     // writes
     deployERC20,
     transfer,
+    approve,
+    transferFrom,
     // raw access (read-only access intended)
     _state: { native, contracts, txs, logs, namedAccounts, labels },
   };

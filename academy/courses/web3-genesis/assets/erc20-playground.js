@@ -6,7 +6,7 @@
  * all DOM / event-listener concerns.
  */
 
-import { createSandbox, formatUnits, parseUnits, ZERO_ADDRESS } from './sandbox.js';
+import { createSandbox, formatUnits, parseUnits, ZERO_ADDRESS, MAX_UINT256 } from './sandbox.js';
 
 const ACCOUNTS = ['alice', 'bob', 'carol', 'dave'];
 
@@ -72,6 +72,49 @@ function buildPlayground(root) {
     transferStatus,
   ]);
 
+  // ── Approve form ───────────────────────────────────────────────────────
+  const approveOwner = el('select', { id: 'ap-owner' },
+    ACCOUNTS.map((a) => el('option', { value: a, text: a })));
+  const approveSpender = el('select', { id: 'ap-spender' },
+    ACCOUNTS.map((a) => el('option', { value: a, text: a })));
+  approveSpender.value = 'bob';
+  const approveAmount = el('input', { type: 'text', value: '50', id: 'ap-amount',
+    placeholder: '50 или "max"' });
+  const approveBtn = el('button', { class: 'btn btn-primary', type: 'button',
+    text: '✍ Approve', disabled: '' });
+  const approveStatus = el('span', { class: 'sandbox-status' });
+
+  const approveRow = el('div', { class: 'sandbox-row' }, [
+    field('Owner', approveOwner),
+    field('Spender', approveSpender),
+    field('Allowance (или "max")', approveAmount),
+    approveBtn,
+    approveStatus,
+  ]);
+
+  // ── TransferFrom form ──────────────────────────────────────────────────
+  const tfSpender = el('select', { id: 'tf-spender' },
+    ACCOUNTS.map((a) => el('option', { value: a, text: a })));
+  tfSpender.value = 'bob';
+  const tfFrom = el('select', { id: 'tf-from' },
+    ACCOUNTS.map((a) => el('option', { value: a, text: a })));
+  const tfTo = el('select', { id: 'tf-to' },
+    ACCOUNTS.map((a) => el('option', { value: a, text: a })));
+  tfTo.value = 'carol';
+  const tfAmount = el('input', { type: 'text', value: '25', id: 'tf-amount' });
+  const tfBtn = el('button', { class: 'btn btn-primary', type: 'button',
+    text: '🔁 TransferFrom', disabled: '' });
+  const tfStatus = el('span', { class: 'sandbox-status' });
+
+  const tfRow = el('div', { class: 'sandbox-row' }, [
+    field('Spender (caller)', tfSpender),
+    field('From (owner)', tfFrom),
+    field('To', tfTo),
+    field('Amount', tfAmount),
+    tfBtn,
+    tfStatus,
+  ]);
+
   // ── State display ──────────────────────────────────────────────────────
   const tokenCard = el('div', { class: 'state-card' }, [
     el('h4', { text: 'Token' }),
@@ -83,12 +126,18 @@ function buildPlayground(root) {
     el('div', { class: 'empty', text: 'Deploy a token to see balances.' }),
   ]);
 
+  const allowancesCard = el('div', { class: 'state-card' }, [
+    el('h4', { text: 'Allowances' }),
+    el('div', { class: 'empty', text: 'Call approve() to populate.' }),
+  ]);
+
   const nativeCard = el('div', { class: 'state-card' }, [
     el('h4', { text: 'Native balance (gas)' }),
     renderNativeTable(),
   ]);
 
-  const stateGrid = el('div', { class: 'sandbox-state' }, [tokenCard, balancesCard, nativeCard]);
+  const stateGrid = el('div', { class: 'sandbox-state' },
+    [tokenCard, balancesCard, allowancesCard, nativeCard]);
 
   // ── Event log ──────────────────────────────────────────────────────────
   const log = el('div', { class: 'event-log' });
@@ -101,6 +150,8 @@ function buildPlayground(root) {
   const body = el('div', { class: 'sandbox-body' }, [
     deployRow,
     transferRow,
+    approveRow,
+    tfRow,
     stateGrid,
     log,
     el('div', { class: 'sandbox-row' }, [resetBtn]),
@@ -126,6 +177,8 @@ function buildPlayground(root) {
       deployStatus.className = 'sandbox-status ok';
       deployStatus.textContent = '✓ deployed';
       transferBtn.disabled = false;
+      approveBtn.disabled = false;
+      tfBtn.disabled = false;
       appendLog('ok',
         `✓ Deploy ${token.symbol}  tx=${shortHash(tx.hash)}  contract=${shortHash(address)}  gas=${tx.gas}\n`);
       appendLog('dim',
@@ -158,6 +211,52 @@ function buildPlayground(root) {
     }
   });
 
+  approveBtn.addEventListener('click', () => {
+    if (!token) return;
+    approveStatus.className = 'sandbox-status';
+    approveStatus.textContent = 'mining…';
+    try {
+      const raw = approveAmount.value.trim().toLowerCase();
+      const amount = raw === 'max' || raw === 'unlimited' || raw === '∞'
+        ? MAX_UINT256
+        : parseUnits(raw, token.decimals);
+      const tx = sb.approve(token.address, approveOwner.value, approveSpender.value, amount);
+      approveStatus.className = 'sandbox-status ok';
+      approveStatus.textContent = '✓ approved';
+      const ev = tx.logs[0];
+      const human = amount === MAX_UINT256 ? '∞ (max uint256)' : `${formatUnits(amount, token.decimals)} ${token.symbol}`;
+      appendLog('ok',
+        `✓ Approval  tx=${shortHash(tx.hash)}  ${labelOf(ev.args.owner)} → ${labelOf(ev.args.spender)}  ${human}\n`);
+      renderState();
+    } catch (err) {
+      approveStatus.className = 'sandbox-status err';
+      approveStatus.textContent = `✗ ${err.message}`;
+      appendLog('err', `✗ Approve reverted: ${err.message}\n`);
+    }
+  });
+
+  tfBtn.addEventListener('click', () => {
+    if (!token) return;
+    tfStatus.className = 'sandbox-status';
+    tfStatus.textContent = 'mining…';
+    try {
+      const amount = parseUnits(tfAmount.value.trim(), token.decimals);
+      const tx = sb.transferFrom(
+        token.address, tfSpender.value, tfFrom.value, tfTo.value, amount,
+      );
+      tfStatus.className = 'sandbox-status ok';
+      tfStatus.textContent = '✓ moved';
+      const ev = tx.logs[0];
+      appendLog('ok',
+        `✓ TransferFrom  tx=${shortHash(tx.hash)}  spender=${labelOf(tfSpender.value)}  ${labelOf(ev.args.from)} → ${labelOf(ev.args.to)}  ${formatUnits(ev.args.value, token.decimals)} ${token.symbol}\n`);
+      renderState();
+    } catch (err) {
+      tfStatus.className = 'sandbox-status err';
+      tfStatus.textContent = `✗ ${err.message}`;
+      appendLog('err', `✗ TransferFrom reverted: ${err.message}\n`);
+    }
+  });
+
   resetBtn.addEventListener('click', () => {
     // Brutal but effective — rebuild from scratch.
     buildPlayground(root);
@@ -186,6 +285,26 @@ function buildPlayground(root) {
         table.appendChild(row);
       }
       balancesCard.appendChild(table);
+
+      allowancesCard.innerHTML = '';
+      allowancesCard.appendChild(el('h4', { text: `${info.symbol} allowances` }));
+      const allowTable = el('table');
+      let any = false;
+      for (const owner of ACCOUNTS) {
+        for (const spender of ACCOUNTS) {
+          if (owner === spender) continue;
+          const a = sb.allowance(token.address, owner, spender);
+          if (a === 0n) continue;
+          any = true;
+          const human = a === MAX_UINT256 ? '∞ (max)' : `${formatUnits(a, info.decimals)} ${info.symbol}`;
+          allowTable.appendChild(el('tr', {}, [
+            el('td', { text: `${owner} → ${spender}` }),
+            el('td', { text: human }),
+          ]));
+        }
+      }
+      if (any) allowancesCard.appendChild(allowTable);
+      else allowancesCard.appendChild(el('div', { class: 'empty', text: 'No active allowances. Try Alice → Bob 50.' }));
     }
 
     nativeCard.innerHTML = '';
