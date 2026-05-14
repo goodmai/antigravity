@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 10 · Full dApp: ERC-20 Dashboard — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 10 · Full dApp: ERC-20 Dashboard</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 10 · финальный проект</p>
+    <h1>Lab 10 · Full dApp: ERC-20 Dashboard</h1>
+
+    <p>
+      Финальный лаб курса объединяет все навыки предыдущих занятий в один
+      production-ready проект. Вы соберёте <strong>ERC-20 Dashboard</strong> —
+      полноценный dApp с подключением кошелька, отображением информации о токене,
+      формой трансфера с предпросмотром газа, live-лентой событий, историей
+      транзакций в localStorage и деплоем фронтенда на IPFS через Pinata.
+      Это не учебный пример — это рабочее приложение, которое можно показывать
+      как portfolio-проект.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      планировать компонентную архитектуру dApp; реализовывать TokenCard с
+      полными метаданными и балансом; строить TransferForm с <code>simulateContract</code>
+      и оценкой газа; интегрировать ленту событий из The Graph или getLogs;
+      хранить историю транзакций в localStorage с актуальными статусами;
+      верстать адаптивный дашборд на CSS Grid в тёмной теме; деплоить сборку
+      на IPFS через Pinata CLI и прописывать ENS contentHash.
+    </div>
+
+    <h2>Задание 1</h2>
+    <p>
+      Спроектируйте компонентную архитектуру: определите список компонентов,
+      их пропсы, состояние и взаимодействие. Нарисуйте дерево компонентов
+      перед тем как писать код.
+    </p>
+
+    <h3>Дерево компонентов</h3>
+<pre class="code-block"><code>App
+├── WagmiProvider / QueryClientProvider / RainbowKitProvider
+├── Header
+│   └── ConnectButton (RainbowKit)
+└── Dashboard
+    ├── NetworkGuard          ← блокирует UI при неверной сети
+    ├── TokenCard             ← Задание 2
+    │   ├── TokenMeta         (name, symbol, decimals, totalSupply)
+    │   └── BalanceDisplay    (баланс подключённого аккаунта)
+    ├── TransferForm          ← Задание 3
+    │   ├── AddressInput      (валидация адреса)
+    │   ├── AmountInput       (с форматированием decimals)
+    │   ├── GasEstimate       (simulateContract → gas preview)
+    │   └── TxStatusBadge     (idle/pending/success/error)
+    ├── EventFeed             ← Задание 4
+    │   └── TransferRow × N   (адрес + сумма + блок)
+    └── TxHistory             ← Задание 5
+        └── TxRow × N         (hash + статус + время)</code></pre>
+
+    <h3>Разделение ответственности</h3>
+    <table class="compare">
+      <tr><th>Слой</th><th>Что хранит</th><th>Технология</th></tr>
+      <tr>
+        <td>Blockchain state</td>
+        <td>Балансы, разрешения, события</td>
+        <td>wagmi hooks + viem (через RPC)</td>
+      </tr>
+      <tr>
+        <td>Server/indexer state</td>
+        <td>История трансферов, аналитика</td>
+        <td>The Graph (GraphQL) или getLogs</td>
+      </tr>
+      <tr>
+        <td>Local persistent state</td>
+        <td>История отправленных транзакций</td>
+        <td>localStorage + React state</td>
+      </tr>
+      <tr>
+        <td>Ephemeral UI state</td>
+        <td>Значения форм, toast, модалки</td>
+        <td>useState / react-hot-toast</td>
+      </tr>
+    </table>
+
+    <h2>Задание 2</h2>
+    <p>
+      Реализуйте <code>TokenCard</code>: читайте все метаданные токена и баланс
+      подключённого аккаунта через один батчевый multicall.
+    </p>
+
+    <h3>src/components/TokenCard.tsx</h3>
+<pre class="code-block"><code>import { useReadContracts } from "wagmi";
+import { formatUnits } from "viem";
+import type { Address } from "viem";
+
+const ERC20_ABI = [
+  { name: "name",        type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
+  { name: "symbol",      type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
+  { name: "decimals",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8"   }] },
+  { name: "totalSupply", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "balanceOf",   type: "function", stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
+] as const;
+
+interface Props { tokenAddress: Address; account: Address; }
+
+export function TokenCard({ tokenAddress, account }: Props) {
+  const { data, isLoading } = useReadContracts({
+    contracts: [
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "name"        },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "symbol"      },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "decimals"    },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "totalSupply" },
+      { address: tokenAddress, abi: ERC20_ABI, functionName: "balanceOf", args: [account] },
+    ],
+    query: { refetchInterval: 12_000 },
+  });
+
+  if (isLoading) return &lt;div className="token-card skeleton"&gt;Загрузка...&lt;/div&gt;;
+
+  const [name, symbol, decimals, totalSupply, balance] =
+    data?.map((d) =&gt; d.result) ?? [];
+
+  const dec = decimals as number ?? 18;
+
+  return (
+    &lt;div className="token-card"&gt;
+      &lt;div className="token-header"&gt;
+        &lt;h2&gt;{name as string}&lt;/h2&gt;
+        &lt;span className="badge"&gt;{symbol as string}&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;div className="token-stats"&gt;
+        &lt;div className="stat"&gt;
+          &lt;label&gt;Decimals&lt;/label&gt;
+          &lt;value&gt;{dec}&lt;/value&gt;
+        &lt;/div&gt;
+        &lt;div className="stat"&gt;
+          &lt;label&gt;Total Supply&lt;/label&gt;
+          &lt;value&gt;{formatUnits(totalSupply as bigint ?? 0n, dec)}&lt;/value&gt;
+        &lt;/div&gt;
+        &lt;div className="stat highlight"&gt;
+          &lt;label&gt;Ваш баланс&lt;/label&gt;
+          &lt;value&gt;{formatUnits(balance as bigint ?? 0n, dec)} {symbol as string}&lt;/value&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div className="token-address"&gt;
+        &lt;small&gt;Контракт: &lt;code&gt;{tokenAddress}&lt;/code&gt;&lt;/small&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 3</h2>
+    <p>
+      Реализуйте <code>TransferForm</code> с предпросмотром газа через
+      <code>simulateContract</code> и блокировкой кнопки при ошибке симуляции.
+    </p>
+
+    <h3>src/components/TransferForm.tsx</h3>
+<pre class="code-block"><code>import { useState, useEffect } from "react";
+import {
+  useWriteContract, useWaitForTransactionReceipt,
+  useEstimateContractGas, usePublicClient,
+} from "wagmi";
+import { parseUnits, isAddress, formatGwei, formatEther } from "viem";
+import type { Address } from "viem";
+import toast from "react-hot-toast";
+
+const ERC20_ABI = [
+  { name: "transfer", type: "function", stateMutability: "nonpayable",
+    inputs: [{ name: "to", type: "address" }, { name: "value", type: "uint256" }],
+    outputs: [{ type: "bool" }] },
+] as const;
+
+interface Props { tokenAddress: Address; decimals?: number; symbol?: string; }
+
+export function TransferForm({ tokenAddress, decimals = 6, symbol = "TOKEN" }: Props) {
+  const [to, setTo]         = useState("");
+  const [amount, setAmount] = useState("");
+  const [simError, setSimError] = useState&lt;string | null&gt;(null);
+
+  const publicClient = usePublicClient();
+
+  const { writeContract, data: txHash, isPending, error, reset } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+
+  // Получаем оценку газа при изменении параметров:
+  const isValidInput = isAddress(to) &amp;&amp; amount &amp;&amp; Number(amount) &gt; 0;
+  const { data: gasEstimate } = useEstimateContractGas(
+    isValidInput
+      ? { address: tokenAddress, abi: ERC20_ABI, functionName: "transfer",
+          args: [to as Address, parseUnits(amount, decimals)] }
+      : undefined
+  );
+
+  // Симуляция при изменении полей — предупреждаем до нажатия кнопки:
+  useEffect(() =&gt; {
+    if (!isValidInput || !publicClient) { setSimError(null); return; }
+    const run = async () =&gt; {
+      try {
+        await publicClient.simulateContract({
+          address: tokenAddress, abi: ERC20_ABI, functionName: "transfer",
+          args: [to as Address, parseUnits(amount, decimals)],
+        });
+        setSimError(null);
+      } catch (e: any) {
+        setSimError(e?.shortMessage ?? e?.message ?? "Ошибка симуляции");
+      }
+    };
+    const timer = setTimeout(run, 500); // debounce 500ms
+    return () =&gt; clearTimeout(timer);
+  }, [to, amount, publicClient, tokenAddress, decimals]);
+
+  useEffect(() =&gt; {
+    if (isPending)    toast.loading("Подтвердите в кошельке...", { id: "tx" });
+    if (isConfirming) toast.loading("Ожидание блока...", { id: "tx" });
+    if (isSuccess)  { toast.success("Трансфер подтверждён!", { id: "tx" }); reset(); }
+    if (error)      { toast.error(error.message.slice(0, 80), { id: "tx" }); }
+  }, [isPending, isConfirming, isSuccess, error, reset]);
+
+  const handleSubmit = (e: React.FormEvent) =&gt; {
+    e.preventDefault();
+    if (simError) return;
+    writeContract({ address: tokenAddress, abi: ERC20_ABI, functionName: "transfer",
+      args: [to as Address, parseUnits(amount, decimals)] });
+  };
+
+  return (
+    &lt;div className="transfer-form card"&gt;
+      &lt;h3&gt;Отправить {symbol}&lt;/h3&gt;
+      &lt;form onSubmit={handleSubmit}&gt;
+        &lt;label&gt;Адрес получателя
+          &lt;input value={to} onChange={(e) =&gt; setTo(e.target.value)}
+            placeholder="0x..." className={to &amp;&amp; !isAddress(to) ? "error" : ""} /&gt;
+        &lt;/label&gt;
+        &lt;label&gt;Сумма ({symbol})
+          &lt;input type="number" value={amount} onChange={(e) =&gt; setAmount(e.target.value)}
+            placeholder="0.00" min="0" step="0.000001" /&gt;
+        &lt;/label&gt;
+
+        {/* Предпросмотр газа */}
+        {gasEstimate &amp;&amp; (
+          &lt;div className="gas-preview"&gt;
+            Оценка газа: {gasEstimate.toString()} units
+          &lt;/div&gt;
+        )}
+
+        {/* Предупреждение симуляции */}
+        {simError &amp;&amp; &lt;p className="sim-error"&gt;{simError}&lt;/p&gt;}
+
+        &lt;button type="submit" disabled={isPending || isConfirming || !!simError || !isValidInput}&gt;
+          {isPending ? "Ожидание подписи..." : isConfirming ? "Подтверждение..." : "Отправить"}
+        &lt;/button&gt;
+      &lt;/form&gt;
+      {txHash &amp;&amp; (
+        &lt;p&gt;Tx: &lt;a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noopener"&gt;
+          {txHash.slice(0, 12)}...
+        &lt;/a&gt;&lt;/p&gt;
+      )}
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 4</h2>
+    <p>
+      Реализуйте <code>EventFeed</code>: покажите последние 20 Transfer-событий
+      из The Graph субграфа (Lab 07) или через <code>getLogs</code> как запасной вариант.
+    </p>
+
+    <h3>src/components/EventFeed.tsx</h3>
+<pre class="code-block"><code>import { useQuery } from "urql";
+import { formatUnits } from "viem";
+
+// Если The Graph недоступен — fallback через useWatchContractEvent из Lab 09
+
+const RECENT_TRANSFERS = `
+  query RecentTransfers {
+    transfers(orderBy: blockNumber, orderDirection: desc, first: 20) {
+      id
+      from { id }
+      to   { id }
+      amount
+      blockNumber
+      transactionHash
+    }
+  }
+`;
+
+interface Props { decimals?: number; symbol?: string; }
+
+export function EventFeed({ decimals = 6, symbol = "TOKEN" }: Props) {
+  const [result] = useQuery({ query: RECENT_TRANSFERS });
+
+  if (result.fetching) return &lt;div className="event-feed card"&gt;Загрузка событий...&lt;/div&gt;;
+  if (result.error)   return &lt;div className="event-feed card"&gt;Ошибка: {result.error.message}&lt;/div&gt;;
+
+  const transfers = result.data?.transfers ?? [];
+
+  return (
+    &lt;div className="event-feed card"&gt;
+      &lt;h3&gt;Последние трансферы&lt;/h3&gt;
+      &lt;div className="event-list"&gt;
+        {transfers.map((tx: any) =&gt; (
+          &lt;div key={tx.id} className="event-row"&gt;
+            &lt;span className="event-block"&gt;#{tx.blockNumber}&lt;/span&gt;
+            &lt;span className="event-from"&gt;{tx.from.id.slice(0, 8)}...&lt;/span&gt;
+            &lt;span className="event-arrow"&gt;→&lt;/span&gt;
+            &lt;span className="event-to"&gt;{tx.to.id.slice(0, 8)}...&lt;/span&gt;
+            &lt;span className="event-amount"&gt;
+              {formatUnits(BigInt(tx.amount), decimals)} {symbol}
+            &lt;/span&gt;
+            &lt;a
+              className="event-link"
+              href={`https://sepolia.etherscan.io/tx/${tx.transactionHash}`}
+              target="_blank"
+              rel="noopener"
+            &gt;
+              ↗
+            &lt;/a&gt;
+          &lt;/div&gt;
+        ))}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 5</h2>
+    <p>
+      Реализуйте <code>TxHistory</code>: сохраняйте отправленные транзакции
+      в <code>localStorage</code> и обновляйте их статусы.
+    </p>
+
+    <h3>src/hooks/useTxHistory.ts</h3>
+<pre class="code-block"><code>import { useState, useEffect, useCallback } from "react";
+import { usePublicClient } from "wagmi";
+
+export interface TxRecord {
+  hash:      `0x${string}`;
+  to:        string;
+  amount:    string;
+  symbol:    string;
+  status:    "pending" | "success" | "reverted";
+  timestamp: number;
+}
+
+const STORAGE_KEY = "erc20-dashboard-tx-history";
+
+export function useTxHistory() {
+  const publicClient = usePublicClient();
+  const [history, setHistory] = useState&lt;TxRecord[]&gt;(() =&gt; {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+    } catch { return []; }
+  });
+
+  // Сохранять в localStorage при каждом изменении:
+  useEffect(() =&gt; {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }, [history]);
+
+  // Добавить новую транзакцию:
+  const addTx = useCallback((tx: Omit&lt;TxRecord, "status" | "timestamp"&gt;) =&gt; {
+    const record: TxRecord = { ...tx, status: "pending", timestamp: Date.now() };
+    setHistory((prev) =&gt; [record, ...prev].slice(0, 50)); // max 50 записей
+  }, []);
+
+  // Обновить статус по hash:
+  const updateStatus = useCallback(
+    (hash: `0x${string}`, status: TxRecord["status"]) =&gt; {
+      setHistory((prev) =&gt;
+        prev.map((tx) =&gt; (tx.hash === hash ? { ...tx, status } : tx))
+      );
+    },
+    []
+  );
+
+  // При старте приложения — проверить статусы pending транзакций:
+  useEffect(() =&gt; {
+    if (!publicClient) return;
+    const pendingTxs = history.filter((tx) =&gt; tx.status === "pending");
+    pendingTxs.forEach(async (tx) =&gt; {
+      try {
+        const receipt = await publicClient.getTransactionReceipt({ hash: tx.hash });
+        updateStatus(tx.hash, receipt.status === "success" ? "success" : "reverted");
+      } catch {
+        // Транзакция ещё в mempool или выпала — оставляем pending
+      }
+    });
+  }, [publicClient]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { history, addTx, updateStatus };
+}</code></pre>
+
+    <h3>src/components/TxHistory.tsx</h3>
+<pre class="code-block"><code>import { useTxHistory } from "../hooks/useTxHistory";
+
+const STATUS_LABEL: Record&lt;string, string&gt; = {
+  pending:  "В обработке",
+  success:  "Подтверждено",
+  reverted: "Откатилось",
+};
+
+export function TxHistory() {
+  const { history } = useTxHistory();
+
+  return (
+    &lt;div className="tx-history card"&gt;
+      &lt;h3&gt;История транзакций&lt;/h3&gt;
+      {history.length === 0 &amp;&amp; &lt;p&gt;Транзакций пока нет&lt;/p&gt;}
+      &lt;div className="tx-list"&gt;
+        {history.map((tx) =&gt; (
+          &lt;div key={tx.hash} className={`tx-row tx-row--${tx.status}`}&gt;
+            &lt;span className="tx-status"&gt;{STATUS_LABEL[tx.status]}&lt;/span&gt;
+            &lt;span className="tx-amount"&gt;{tx.amount} {tx.symbol}&lt;/span&gt;
+            &lt;span className="tx-to"&gt;→ {tx.to.slice(0, 10)}...&lt;/span&gt;
+            &lt;span className="tx-time"&gt;{new Date(tx.timestamp).toLocaleTimeString()}&lt;/span&gt;
+            &lt;a href={`https://sepolia.etherscan.io/tx/${tx.hash}`} target="_blank" rel="noopener"&gt;
+              Etherscan ↗
+            &lt;/a&gt;
+          &lt;/div&gt;
+        ))}
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+
+    <h2>Задание 6</h2>
+    <p>
+      Сверстайте адаптивный дашборд на CSS Grid в тёмной теме, совместимой
+      с палитрой академии.
+    </p>
+
+    <h3>src/styles/dashboard.css</h3>
+<pre class="code-block"><code>/* Корневые переменные — тёмная тема */
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --muted:    #8b949e;
+  --accent:   #58a6ff;
+  --success:  #3fb950;
+  --error:    #f85149;
+  --warning:  #d29922;
+}
+
+/* Основная сетка дашборда */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: auto;
+  gap: 16px;
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Карточки */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+/* TokenCard — полная ширина на десктопе */
+.token-card { grid-column: 1 / -1; }
+
+/* TransferForm — левая колонка (5/12) */
+.transfer-form { grid-column: 1 / 6; }
+
+/* TxHistory — правая колонка (7/12) */
+.tx-history { grid-column: 6 / -1; }
+
+/* EventFeed — полная ширина внизу */
+.event-feed { grid-column: 1 / -1; }
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .token-card,
+  .transfer-form,
+  .tx-history,
+  .event-feed {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Статусы транзакций */
+.tx-row--success  { border-left: 3px solid var(--success); }
+.tx-row--reverted { border-left: 3px solid var(--error);   }
+.tx-row--pending  { border-left: 3px solid var(--warning); }
+
+/* Skeleton-загрузка */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+/* Форма */
+form label { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+form input { background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+form input:focus { outline: none; border-color: var(--accent); }
+form input.error { border-color: var(--error); }
+form button { background: var(--accent); color: #0d1117; border: none;
+  padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+form button:disabled { opacity: 0.5; cursor: not-allowed; }
+.sim-error { color: var(--error); font-size: 13px; }
+.gas-preview { color: var(--muted); font-size: 13px; padding: 4px 0; }</code></pre>
+
+    <h2>Задание 7</h2>
+    <p>
+      Соберите production build и задеплойте фронтенд на IPFS через Pinata CLI.
+      Свяжите IPFS хэш с ENS именем через <code>contentHash</code>.
+    </p>
+
+    <h3>Сборка</h3>
+<pre class="code-block"><code># Убедитесь что все переменные окружения правильно настроены:
+# VITE_TOKEN_ADDRESS=0x1c7D...
+# VITE_SUBGRAPH_URL=https://api.studio.thegraph.com/...
+
+npm run build
+# Результат в ./dist — статические файлы</code></pre>
+
+    <h3>Установка Pinata CLI</h3>
+<pre class="code-block"><code>npm install -g pinata
+
+# Авторизация (JWT-ключ из app.pinata.cloud → API Keys):
+pinata auth
+
+# Загрузка папки dist на IPFS:
+pinata upload ./dist
+
+# Вывод:
+# {
+#   "IpfsHash": "Qm...",
+#   "PinSize": 1234567,
+#   "Timestamp": "2025-01-01T00:00:00.000Z"
+# }
+
+# Проверить в браузере:
+# https://ipfs.io/ipfs/Qm.../</code></pre>
+
+    <h3>Привязка к ENS через contentHash</h3>
+<pre class="code-block"><code># Требуется: ENS-имя с правами на управление (например, mydapp.eth)
+
+# 1. Конвертировать CIDv0/v1 в ENS contentHash формат:
+npm install -g @ensdomains/content-hash
+
+content-hash encode ipfs QmYourCIDHere
+# Вывод: 0xe3010170...  (IPFS codec + raw bytes)
+
+# 2. Установить через ENS App (app.ens.domains):
+#    → ваш домен → Edit Records → Content → вставить 0xe3010170...
+
+# 3. Или через viem напрямую (если у вас есть resolver):
+# const namehash = require("@ensdomains/ensjs").namehash;
+# const tx = await walletClient.writeContract({
+#   address: PUBLIC_RESOLVER_ADDRESS,
+#   abi: PUBLIC_RESOLVER_ABI,
+#   functionName: "setContenthash",
+#   args: [namehash("mydapp.eth"), contentHashBytes],
+# });</code></pre>
+
+    <h3>Проверка развёртывания</h3>
+
+    <table class="compare">
+      <tr><th>Шаг</th><th>Проверка</th><th>Инструмент</th></tr>
+      <tr>
+        <td>IPFS доступен</td>
+        <td>Открывается <code>https://ipfs.io/ipfs/QmYour.../</code></td>
+        <td>Браузер</td>
+      </tr>
+      <tr>
+        <td>ENS резолвится</td>
+        <td><code>ethers.getResolver("mydapp.eth")</code> возвращает address</td>
+        <td>viem / ethers.js</td>
+      </tr>
+      <tr>
+        <td>ENS открывается</td>
+        <td>Браузер с IPFS-расширением открывает <code>mydapp.eth</code></td>
+        <td>Brave / MetaMask Snaps</td>
+      </tr>
+      <tr>
+        <td>Pin активен</td>
+        <td>Пин не удалён из аккаунта Pinata</td>
+        <td>app.pinata.cloud</td>
+      </tr>
+    </table>
+
+    <div class="note cyan">
+      <strong>Децентрализованность.</strong> После деплоя на IPFS и привязки
+      к ENS ваш dApp доступен без центрального сервера: IPFS хранит файлы
+      контентно-адресуемо (по хэшу), ENS обеспечивает человекочитаемый адрес.
+      Единственная зависимость от инфраструктуры — RPC-нода для блокчейн-запросов.
+      Используйте <code>fallback([http(infura), http(alchemy)])</code> для
+      максимальной устойчивости.
+    </div>
+
+    <section class="lesson-quiz" data-lesson="lab-10">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lab 10 · Full dApp",
+  "intro": "Семь вопросов по архитектуре и деплою production dApp. Multiple-выбор подсвечивает верный ответ; открытые вопросы и задачи оцените самостоятельно.",
+  "questions": [
+    {
+      "q": "Почему для истории транзакций используется localStorage, а не React state?",
+      "kind": "multiple",
+      "options": [
+        "React state не поддерживает хранение хэшей транзакций",
+        "localStorage сохраняется между сессиями браузера — пользователь видит историю при следующем открытии dApp",
+        "localStorage быстрее React state для больших массивов данных",
+        "localStorage доступен во всех компонентах без проброса пропсов"
+      ],
+      "answerIndex": 1,
+      "explain": "React state живёт только до перезагрузки страницы или закрытия вкладки. localStorage персистентен между сессиями. Для истории транзакций это принципиально важно: пользователь должен видеть свои прошлые транзакции после повторного открытия приложения."
+    },
+    {
+      "q": "Зачем использовать `simulateContract` перед `writeContract` в форме трансфера?",
+      "kind": "open",
+      "answer": "simulateContract = eth_call: исполняет транзакцию локально, не тратя газ. Это позволяет: 1) узнать, не откатится ли транзакция (например, недостаточно баланса, неверный адрес), до того как пользователь заплатит газ; 2) показать конкретную причину ошибки (decoded revert reason) вместо неинформативного 'transaction failed'; 3) получить оценку газа для информирования пользователя. UX: блокируем кнопку 'Отправить', пока симуляция возвращает ошибку."
+    },
+    {
+      "q": "В чём преимущество хранения фронтенда на IPFS по сравнению с традиционным хостингом (Vercel, Netlify)?",
+      "kind": "multiple",
+      "options": [
+        "IPFS быстрее CDN для больших файлов",
+        "Контент на IPFS верифицируется по хэшу — пользователь получает именно те файлы, на которые указывает ENS contentHash, без возможности тихой подмены провайдером хостинга",
+        "IPFS не требует SSL-сертификата",
+        "IPFS поддерживает Server-Side Rendering"
+      ],
+      "answerIndex": 1,
+      "explain": "На обычном хостинге владелец домена может заменить файлы незаметно для пользователя. IPFS CID — это криптографический хэш содержимого, он изменится если изменятся файлы. ENS contentHash указывает на конкретный CID: пользователь, проверив contentHash в блокчейне, может убедиться что получает правильные файлы. Это eliminates supply chain attack через хостинг-провайдера."
+    },
+    {
+      "q": "Как правильно организовать polling обновлений баланса, не перегружая RPC?",
+      "kind": "open",
+      "answer": "Оптимальные стратегии: 1) refetchInterval в wagmi useReadContract: установить 12 000 мс (1 блок Ethereum ~12 сек) вместо агрессивного 1000 мс; 2) refetchOnWindowFocus: true — обновлять при возвращении на вкладку (поведение по умолчанию в TanStack Query); 3) useWatchBlocks — подписаться на новые блоки через WebSocket и обновлять данные только при новых блоках; 4) useWatchContractEvent — обновлять баланс только при получении Transfer события, где from или to === account. Multicall батчинг через useReadContracts снижает количество HTTP-запросов."
+    },
+    {
+      "q": "ENS contentHash обновлён на новый IPFS CID после нового деплоя. Почему старый CID всё ещё доступен по IPFS?",
+      "kind": "multiple",
+      "options": [
+        "ENS не удаляет старые записи из своего реестра",
+        "IPFS контент-адресуемый и неизменяемый: данные живут, пока хоть один нод хранит пин. Старый CID не удаляется при обновлении ENS",
+        "Pinata хранит все версии автоматически",
+        "IPFS кэширует данные на 30 дней"
+      ],
+      "answerIndex": 1,
+      "explain": "IPFS — иммутабельная контент-адресуемая файловая система. Удалить данные с IPFS нельзя — можно только снять пин (unpinning), после чего нод перестанет активно хранить данные, и они вымоются из сети сборщиком мусора. Но если другие ноды сохранили копию — данные продолжают жить. Это фича для устойчивости, но нужно помнить: старые версии кода dApp остаются доступны."
+    },
+    {
+      "q": "Practical: напишите функцию, которая принимает массив TxRecord и возвращает суммарный объём исходящих трансферов в строковом форматировании с учётом decimals.",
+      "kind": "task",
+      "answer": "function totalSent(txs: TxRecord[], decimals: number): string {\n  const total = txs\n    .filter(tx => tx.status === 'success')\n    .reduce((sum, tx) => sum + parseUnits(tx.amount, decimals), 0n);\n  return formatUnits(total, decimals);\n}\n\n// Использование:\n// totalSent(history, 6) // '15.250000' для USDC"
+    },
+    {
+      "q": "Пользователь видит старые данные баланса после успешного трансфера. Как принудительно обновить кэш wagmi?",
+      "kind": "open",
+      "answer": "wagmi использует TanStack Query для кэширования. Для инвалидации кэша после успешной транзакции: 1) useQueryClient из @tanstack/react-query + queryClient.invalidateQueries({ queryKey: ['readContract', ...] }) в колбэке onSuccess useWaitForTransactionReceipt; 2) wagmi предоставляет хук useInvalidateQuery — вызвать его после isSuccess; 3) Ключи запросов в wagmi формируются детерминированно из параметров (address, functionName, args) — можно точно инвалидировать нужные записи. Простейший вариант: queryClient.invalidateQueries() без аргументов — обновит всё."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Поздравляем с завершением курса Web3 Genesis! Вы прошли путь от базовых
+      концепций Ethereum до деплоя production dApp с децентрализованным хостингом.
+      Следующий шаг — изучите DeFi протоколы (Uniswap v4, Aave v3, EigenLayer)
+      и продвинутую безопасность смарт-контрактов.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
