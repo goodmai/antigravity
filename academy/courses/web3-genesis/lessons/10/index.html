@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10 · Gas optimisation — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 10 · Gas optimisation</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 10 · gas · storage packing · via-ir</p>
+    <h1>Gas optimisation — storage packing, calldata vs memory, --via-ir</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../09/index.html">Lesson 09 — Security: Reentrancy</a>.
+      Сначала пишем безопасно, потом оптимизируем. Никогда наоборот.
+    </p>
+
+    <p>
+      На Ethereum-mainnet один SSTORE из нуля в ненулевое значение стоит
+      <strong>22 100 gas</strong> (Cancun, 2024). При gas price 30 gwei и цене
+      ETH $3 500 — это ≈ <strong>$2.30</strong> за <em>одну</em> запись в
+      storage. Сложный DeFi-протокол с десятками SSTORE в одной транзакции
+      может стоить пользователю $20–50 в плохой день. Поэтому gas optimisation —
+      не «преждевременная оптимизация», а UX-фича: дешёвый контракт = больше
+      пользователей.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: читать gas-отчёт
+      от <code>forge test --gas-report</code>; паковать storage переменные так,
+      чтобы каждый slot использовался полностью; знать, когда <code>calldata</code>
+      экономит газ относительно <code>memory</code>; включить и понять
+      <code>--via-ir</code> компилятор; оценить trade-offs <code>unchecked</code>,
+      кастомных ошибок и <code>immutable</code>/<code>constant</code>.
+    </div>
+
+    <h2>1. Цена опкодов EVM — что дороже всего</h2>
+
+    <p>
+      EVM назначает цену каждому опкоду. Большинство стоят 3 газа; SLOAD —
+      2100 (cold) / 100 (warm); SSTORE — самый дорогой. Понимание этих цен
+      позволяет писать оптимальный код без угадывания.
+    </p>
+
+    <table class="compare">
+      <tr><th>Операция</th><th>Газ (Cancun)</th><th>Заметка</th></tr>
+      <tr><td>SSTORE 0 → ненулевое</td><td>22 100</td><td>Самая дорогая запись</td></tr>
+      <tr><td>SSTORE ненул → ненул</td><td>5 000</td><td>Обычное обновление</td></tr>
+      <tr><td>SSTORE ненул → 0</td><td>-15 000 (refund)</td><td>refund возвращается в конце tx</td></tr>
+      <tr><td>SLOAD (cold)</td><td>2 100</td><td>Первое чтение слота в tx</td></tr>
+      <tr><td>SLOAD (warm)</td><td>100</td><td>Повторное чтение того же слота</td></tr>
+      <tr><td>MLOAD / MSTORE</td><td>3</td><td>Память дешёвая, но растёт квадратично</td></tr>
+      <tr><td>TLOAD / TSTORE (Cancun)</td><td>100</td><td>Transient storage — живёт в рамках tx</td></tr>
+      <tr><td>CALL (без value)</td><td>2 600 + ...</td><td>Cold address access</td></tr>
+      <tr><td>CALL (с value)</td><td>+9 000</td><td>Дополнительный stipend</td></tr>
+      <tr><td>CREATE2</td><td>32 000 + 200 × bytecode_size</td><td>Деплой нового контракта</td></tr>
+      <tr><td>KECCAK256</td><td>30 + 6 × words</td><td>Хеш — почти бесплатно</td></tr>
+      <tr><td>21 000</td><td>21 000</td><td>База любой транзакции</td></tr>
+    </table>
+
+    <h2>2. Storage packing — главная техника</h2>
+
+    <p>
+      EVM хранит каждый slot как 32 байта (256 бит). Если в structure объявлены
+      несколько маленьких переменных подряд, Solidity <em>пакует</em> их в один
+      slot. Это значит: запись/чтение нескольких полей могут стоить одного
+      SSTORE/SLOAD вместо нескольких.
+    </p>
+
+<pre class="code-block"><code>// BAD: 3 slot'а
+struct UserBad {
+    uint256 amount;        // slot 0 — 32 байта
+    address user;          // slot 1 — 20 байт + 12 пустых
+    uint96 nonce;          // slot 2 — 12 байт + 20 пустых (!)
+}
+
+// GOOD: 2 slot'а (uint96 + address вместе = 32 байта)
+struct UserGood {
+    uint256 amount;        // slot 0 — 32 байта
+    uint96 nonce;          // slot 1 — 12 байт ─┐
+    address user;          // slot 1 — 20 байт ─┘ ИТОГО 32 байта
+}
+
+// LEGENDARY: 1 slot, если amount уместится в 128 бит
+struct UserPacked {
+    uint128 amount;        // slot 0 — 16 байт ─┐
+    uint96 nonce;          // slot 0 — 12 байт ─┤ 32 байта
+    uint32 reserved;       // slot 0 — 4 байта ─┘
+    address user;          // slot 1 — 20 байт (не помещается с теми)
+}</code></pre>
+
+    <p>
+      Размер типа значит цену. <code>uint8</code>, <code>uint16</code>,
+      <code>uint32</code>, <code>uint64</code>, <code>uint96</code>,
+      <code>uint128</code>, <code>uint256</code>, <code>bool</code> (1 байт),
+      <code>address</code> (20 байт), <code>bytes32</code> (32 байта),
+      <code>enum</code> (1 байт обычно) — все могут паковаться.
+    </p>
+
+    <div class="note cyan">
+      <strong>Важно: цена чтения «маленького» типа.</strong> Когда вы читаете
+      <code>uint8</code>, EVM всё равно делает SLOAD на 32 байта и потом
+      <em>маскирует</em> нужный байт. Поэтому отдельно <code>uint8</code> в slot'е
+      ДОРОЖЕ, чем <code>uint256</code>. Маленькие типы выгодны только в
+      <strong>parking-режиме</strong>: несколько переменных в одном slot'е.
+    </div>
+
+    <h3>2.1 Counter-pattern: лучше использовать uint256, если не пакуется</h3>
+
+<pre class="code-block"><code>// BAD: uint8 в отдельном slot'е
+contract A {
+    uint8 public count;      // slot 0, но 31 байт пустует
+}
+
+// GOOD: uint256 в отдельном slot'е
+contract B {
+    uint256 public count;    // slot 0, используется полностью
+    // Запись и чтение — без маскирования
+}</code></pre>
+
+    <h3>2.2 Mapping vs array</h3>
+
+    <p>
+      Если порядок не важен — <code>mapping</code> дешевле массива. Массив
+      хранит длину в отдельном slot'е и индексация требует
+      <code>keccak256</code>+offset; mapping — просто <code>keccak256</code>.
+      Если нужна итерация — массив (но осторожно с unbounded loop в pubic
+      функциях: вектор для DoS).
+    </p>
+
+    <h2>3. calldata vs memory</h2>
+
+    <p>
+      <strong>calldata</strong> — read-only память входных параметров transaction.
+      Чтение из неё дешевле (~3 газа за байт), и она не копируется.
+      <strong>memory</strong> — read-write, копия в RAM EVM, стоит газа на
+      запись и растёт квадратично после ~22 KB.
+    </p>
+
+<pre class="code-block"><code>// BAD: arr копируется в memory
+function sumBad(uint256[] memory arr) external pure returns (uint256 s) {
+    for (uint256 i = 0; i &lt; arr.length; i++) s += arr[i];
+}
+
+// GOOD: arr читается напрямую из calldata
+function sumGood(uint256[] calldata arr) external pure returns (uint256 s) {
+    for (uint256 i = 0; i &lt; arr.length; i++) s += arr[i];
+}
+
+// Разница на массиве из 100 элементов: ~3000 газа (3% от 100k).</code></pre>
+
+    <p>
+      Правило: для <code>external</code> функций по умолчанию используйте
+      <code>calldata</code> для динамических типов (<code>bytes</code>,
+      <code>string</code>, массивы, структуры). Для <code>internal</code> /
+      <code>public</code> — память чаще необходима, потому что внутренние
+      вызовы передают аргументы через стек/память.
+    </p>
+
+    <h2>4. Custom errors вместо require-строк</h2>
+
+<pre class="code-block"><code>// BAD: строка занимает место в bytecode + memory во время revert
+require(msg.sender == owner, "Ownable: caller is not the owner");
+
+// GOOD: 4-байтовый selector, в 10× дешевле
+error NotOwner(address caller);
+
+if (msg.sender != owner) revert NotOwner(msg.sender);
+
+// Экономия на bytecode-size: 30+ байт на каждую require-строку.
+// Экономия на rev-pass: вместо memory-копии строки — 4-байтовый selector.</code></pre>
+
+    <p>
+      OpenZeppelin Contracts 5.x уже целиком перешли на custom errors. Если вы
+      используете OZ ≥4.9 — они доступны в новых модулях. Это даёт читаемые
+      ошибки (с параметрами) и значительную экономию.
+    </p>
+
+    <h2>5. Constant и immutable</h2>
+
+    <p>
+      <code>constant</code> — значение известно на compile-time, инлайнится в
+      bytecode. Не занимает storage slot. <code>immutable</code> — значение
+      устанавливается один раз в конструкторе, потом инлайнится в bytecode при
+      деплое. Тоже не занимает storage slot, но допускает динамическое значение
+      (chain id, deployer address).
+    </p>
+
+<pre class="code-block"><code>// constant — compile-time
+uint256 public constant MAX_SUPPLY = 1_000_000 * 1e18;
+address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+// immutable — set in constructor
+contract Token {
+    uint256 public immutable maxSupply;
+    address public immutable factory;
+
+    constructor(uint256 _max) {
+        maxSupply = _max;            // ОК
+        factory = msg.sender;         // ОК
+    }
+
+    function read() external view returns (uint256) {
+        return maxSupply;            // SLOAD НЕ выполняется — значение в bytecode
+    }
+}</code></pre>
+
+    <p>
+      В реальных контрактах перевод <code>storage public</code> переменных в
+      <code>immutable</code> часто даёт 10–20% экономии на чтении в горячих
+      функциях.
+    </p>
+
+    <h2>6. Loop-оптимизации</h2>
+
+<pre class="code-block"><code>// BAD: повторное чтение storage в каждой итерации
+function rewardAll() external {
+    for (uint256 i = 0; i &lt; users.length; i++) {  // SLOAD users.length каждую итерацию
+        users[i].reward += 100;                     // SLOAD users[i] каждую итерацию
+    }
+}
+
+// GOOD: кешируем length, используем unchecked для i++
+function rewardAll() external {
+    uint256 len = users.length;                     // 1 SLOAD
+    for (uint256 i = 0; i &lt; len;) {
+        users[i].reward += 100;
+        unchecked { ++i; }                          // i++ → ++i, no overflow check
+    }
+}
+
+// Экономия на 100 итерациях: ~5 000 газа (от 1 SLOAD + 100 × 30 на ++i).</code></pre>
+
+    <div class="note">
+      <strong>Когда <code>unchecked { ++i }</code> безопасен?</strong>
+      Когда условие цикла гарантирует, что <code>i</code> не дойдёт до
+      <code>type(uint256).max</code>. Если <code>i &lt; len</code> и
+      <code>len</code> — обычное число, overflow физически невозможен.
+      В Solidity 0.8.22+ компилятор сам делает эту оптимизацию для
+      <code>for</code>-циклов в <code>--via-ir</code> режиме.
+    </div>
+
+    <h2>7. --via-ir и оптимизатор</h2>
+
+    <p>
+      Solidity-компилятор имеет два бэкенда: классический legacy и Yul-based
+      <code>--via-ir</code> (intermediate representation). via-ir включает
+      <em>inter-function optimisation</em>, лучшее распределение регистров и
+      устранение дублирующих SLOAD. Цена: компиляция в 3–5× медленнее, но
+      bytecode чаще на 5–15% дешевле.
+    </p>
+
+<pre class="code-block"><code># foundry.toml
+[profile.default]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+via_ir = true             # включаем IR-pipeline
+
+# Также можно поднимать optimizer_runs:
+# - 200    — оптимизация под РАЗМЕР bytecode (для редко вызываемых функций)
+# - 10000  — оптимизация под СКОРОСТЬ выполнения (для горячих функций)
+# - 1000000 — экстрим, имеет смысл только для core-протоколов</code></pre>
+
+    <p>
+      Запускайте <code>forge build --sizes</code> для контроля размера контракта:
+      EIP-170 ограничивает деплой до 24 576 байт. via-ir обычно сжимает на
+      10–20%.
+    </p>
+
+    <h2>8. Анализ через forge gas-report и snapshot</h2>
+
+<pre class="code-block"><code># Получить gas-отчёт за один прогон
+forge test --gas-report
+
+# Пример вывода:
+# | Contract        | Method      | min   | avg   | max   | calls |
+# |-----------------|-------------|-------|-------|-------|-------|
+# | Counter         | increment() | 22091 | 22091 | 22091 | 5     |
+# | Counter         | count()     | 2272  | 2272  | 2272  | 5     |
+
+# Сохранить snapshot для сравнения PR-ов
+forge snapshot
+# Создаёт .gas-snapshot с цифрами всех тестов
+
+# Сравнить с предыдущим snapshot
+forge snapshot --diff
+# Покажет тесты, где газ изменился: ✓ дешевле, ✗ дороже
+
+# Заглушить snapshot для конкретных тестов
+function testIncrement() public {
+    /// forge-config: default.fuzz.runs = 1
+    counter.increment();
+}</code></pre>
+
+    <h2>9. Практические задачи</h2>
+
+    <h3>Задача 1 — Запаковать структуру User</h3>
+
+    <p>
+      Дана структура из 4 полей. Перепишите её так, чтобы она занимала минимум
+      slot'ов. Измерьте экономию через <code>forge test --gas-report</code>.
+    </p>
+
+<pre class="code-block"><code>// BEFORE — 4 slot'а
+struct UserV1 {
+    uint8   level;      // slot 0
+    uint256 balance;    // slot 1
+    address account;    // slot 2
+    uint16  fee;        // slot 3
+}
+
+// ЗАДАЧА: перепишите в struct UserV2 так, чтобы было ≤2 slot'ов.
+// Подсказка: address + uint8 + uint16 = 23 байта, влезает в один slot
+// с uint64. balance оставьте uint256 отдельно.
+
+// test/Pack.t.sol
+contract PackTest is Test {
+    UserStore store;
+
+    function setUp() public { store = new UserStore(); }
+
+    function test_writeV1() public {
+        store.writeV1(1, 100, address(0x1), 50);
+    }
+
+    function test_writeV2() public {
+        store.writeV2(1, 100, address(0x1), 50);
+    }
+}
+
+# Запустить:
+forge test --match-test test_write --gas-report
+
+# Ожидаемая экономия: ~22 000 газа (1 SSTORE с 0 на ненуль) за каждый
+# slot, которым реже пользуемся.</code></pre>
+
+    <h3>Задача 2 — Заменить require-строки на custom errors</h3>
+
+    <p>
+      Возьмите контракт <code>SafeVault</code> из Lesson 09. Замените все
+      <code>require</code> на custom errors. Измерьте: размер bytecode (<code>forge
+      build --sizes</code>) и газ на revert-path (через
+      <code>vm.expectRevert(...)</code>).
+    </p>
+
+<pre class="code-block"><code>// BEFORE
+contract VaultV1 {
+    mapping(address =&gt; uint256) public balances;
+
+    function withdraw(uint256 amount) external {
+        require(balances[msg.sender] &gt;= amount, "Vault: insufficient balance");
+        require(amount &gt; 0, "Vault: zero amount");
+        balances[msg.sender] -= amount;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "Vault: ETH transfer failed");
+    }
+}
+
+// AFTER
+contract VaultV2 {
+    mapping(address =&gt; uint256) public balances;
+
+    error InsufficientBalance(uint256 requested, uint256 available);
+    error ZeroAmount();
+    error TransferFailed();
+
+    function withdraw(uint256 amount) external {
+        uint256 bal = balances[msg.sender];
+        if (amount == 0) revert ZeroAmount();
+        if (bal &lt; amount) revert InsufficientBalance(amount, bal);
+
+        balances[msg.sender] = bal - amount;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        if (!ok) revert TransferFailed();
+    }
+}
+
+# Сравнение через forge:
+# forge build --sizes
+# VaultV1 ≈ 2 400 байт, VaultV2 ≈ 1 900 байт (экономия ~500 байт на 3 строки)
+# forge test --gas-report покажет разницу на revert-path.</code></pre>
+
+    <h3>Задача 3 — Включить via-ir и сравнить bytecode</h3>
+
+<pre class="code-block"><code># Шаг 1: legacy-режим
+echo '[profile.default]
+solc = "0.8.24"
+optimizer = true
+optimizer_runs = 200
+via_ir = false' &gt; foundry.toml
+
+forge clean && forge build --sizes &gt; sizes-legacy.txt
+
+# Шаг 2: via-ir
+sed -i 's/via_ir = false/via_ir = true/' foundry.toml
+
+forge clean && forge build --sizes &gt; sizes-via-ir.txt
+
+# Шаг 3: diff
+diff -u sizes-legacy.txt sizes-via-ir.txt
+
+# Типичный результат: -8% byte size, -3..-10% gas на сложных функциях.
+# Для простых контрактов разница минимальна.
+
+# Запустить тесты в обоих режимах для проверки совместимости:
+forge test --gas-report &gt; report.txt</code></pre>
+
+    <h3>Задача 4 — Storage layout инспекция</h3>
+
+    <p>
+      Используйте <code>forge inspect</code> для проверки реального layout
+      контракта. Это особенно важно перед upgrade (Lesson 07): неправильный
+      layout = storage collision.
+    </p>
+
+<pre class="code-block"><code># Получить layout в JSON
+forge inspect MyToken storageLayout
+
+# Пример вывода:
+# {
+#   "storage": [
+#     { "label": "balanceOf",  "slot": "0", "type": "t_mapping(address,uint256)", "offset": 0 },
+#     { "label": "totalSupply","slot": "1", "type": "t_uint256",                  "offset": 0 },
+#     { "label": "name",       "slot": "2", "type": "t_string",                   "offset": 0 },
+#     { "label": "decimals",   "slot": "3", "type": "t_uint8",                    "offset": 0 },
+#     { "label": "owner",      "slot": "3", "type": "t_address",                  "offset": 1 }
+#   ]
+# }
+
+# offset = 1 значит owner начинается с 1-го байта slot'а 3 (decimals = байт 0).
+# Это и есть упаковка: decimals (1 байт) + owner (20 байт) живут в slot 3.
+
+# Используйте для проверки V1/V2 совместимости при upgrade:
+diff &lt;(forge inspect CounterV1 storageLayout) &lt;(forge inspect CounterV2 storageLayout)
+# Все slot'ы V1 должны остаться на тех же позициях в V2.</code></pre>
+
+    <h2>10. Песочница · Storage packing в Remix</h2>
+
+    <p>
+      Iframe ниже содержит два контракта с одинаковым API, но разным layout'ом.
+      В Remix задеплойте оба, вызовите <code>writeAll(...)</code> с одинаковыми
+      аргументами, посмотрите gas в transaction log. Разница в storage packing
+      на 1 SSTORE = ~22 000 газа (при первой записи) или ~5 000 (при обновлении).
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · Storage packing comparison"
+      data-filename="StorageDemo.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+// BAD: 3 slot'а — каждое поле в своём слоте
+contract Unpacked {
+    uint8   public level;       // slot 0
+    uint256 public balance;     // slot 1
+    address public account;     // slot 2
+    uint16  public fee;         // slot 3
+    // итого 4 SSTORE при writeAll()
+
+    function writeAll(uint8 _level, uint256 _balance, address _account, uint16 _fee) external {
+        level   = _level;
+        balance = _balance;
+        account = _account;
+        fee     = _fee;
+    }
+}
+
+// GOOD: 2 slot'а — level/account/fee упакованы вместе
+contract Packed {
+    uint256 public balance;     // slot 0 (32 байта)
+    uint8   public level;       // slot 1 (1 байт)  ─┐
+    address public account;     // slot 1 (20 байт) ─┤ 23 байта в slot 1
+    uint16  public fee;         // slot 1 (2 байта) ─┘
+    // итого 2 SSTORE при writeAll(), экономия ~22000 газа
+
+    function writeAll(uint8 _level, uint256 _balance, address _account, uint16 _fee) external {
+        balance = _balance;
+        level   = _level;
+        account = _account;
+        fee     = _fee;
+    }
+}</pre>
+    </div>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      Урок закрывает Модуль II — контрактные паттерны. Следующий —
+      <strong><a href="../11/index.html">Lesson 11 — viem: PublicClient / WalletClient</a></strong>:
+      переходим на frontend и учимся читать контракты, отправлять транзакции и
+      декодировать события из TypeScript. Знание стоимости опкодов нам пригодится:
+      в UI мы будем оценивать стоимость транзакции и предупреждать пользователя.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://www.evm.codes/" target="_blank" rel="noopener">evm.codes</a> — интерактивный справочник по опкодам и их цене.</li>
+        <li><a href="https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html" target="_blank" rel="noopener">Solidity Docs — Layout of State Variables in Storage</a>.</li>
+        <li><a href="https://docs.soliditylang.org/en/latest/ir-breaking-changes.html" target="_blank" rel="noopener">Solidity Docs — Yul IR Pipeline (via-ir)</a>.</li>
+        <li><a href="https://book.getfoundry.sh/forge/gas-tracking" target="_blank" rel="noopener">Foundry Book — Gas Tracking</a>.</li>
+        <li><a href="https://book.getfoundry.sh/reference/forge/forge-inspect" target="_blank" rel="noopener">Foundry Book — forge inspect</a>.</li>
+        <li><a href="https://github.com/RareSkills/gas-optimization-cheatsheet" target="_blank" rel="noopener">RareSkills — Gas Optimization Cheatsheet</a> — 80+ техник.</li>
+        <li><a href="https://github.com/0xKitsune/EVM-Gas-Optimizations" target="_blank" rel="noopener">0xKitsune — EVM Gas Optimizations</a> с примерами bytecode.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-2929" target="_blank" rel="noopener">EIP-2929 — Gas Cost Increases for State Access</a> (cold/warm).</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1153" target="_blank" rel="noopener">EIP-1153 — Transient Storage</a> (Cancun).</li>
+        <li><a href="https://www.youtube.com/watch?v=jHRr4UJpEsg" target="_blank" rel="noopener">"Yul-Based Optimizer" — Solidity Summit talk</a>.</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="10">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 10 · Gas optimisation",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все цифры можно проверить через <code>forge test --gas-report</code> на репозитории из задач выше.",
+  "questions": [
+    {
+      "q": "Сколько газа стоит первая запись в storage-slot (0 → ненулевое) в Cancun?",
+      "kind": "multiple",
+      "options": [
+        "5 000",
+        "20 000",
+        "22 100",
+        "32 000"
+      ],
+      "answerIndex": 2,
+      "explain": "EIP-2929 (Berlin) + EIP-3529 (London): 22 100 газа за первую запись, 5 000 за последующие. Для cold адресов добавляется 2 600 газа доступа."
+    },
+    {
+      "q": "Почему отдельная <code>uint8</code>-переменная в storage не экономит газ?",
+      "kind": "multiple",
+      "options": [
+        "Solidity баг",
+        "EVM читает и пишет slot'ами по 32 байта; для одиночной uint8 половина slot'а пустует, плюс компилятор вставляет масковые операции — выходит дороже uint256 в собственном slot'е",
+        "uint8 запрещён в storage",
+        "uint8 хранится отдельным trie"
+      ],
+      "answerIndex": 1,
+      "explain": "Маленькие типы выгодны только при <em>паковке</em>: 4×uint64 в одном slot'е = 1 SSTORE вместо 4. Одиночный uint8 — антипаттерн."
+    },
+    {
+      "q": "Когда <code>calldata</code> дешевле <code>memory</code> для параметра?",
+      "kind": "multiple",
+      "options": [
+        "Всегда",
+        "Только для статических типов",
+        "Для динамических типов (массивы, bytes, string) во <em>внешних</em> функциях, где параметр читается из tx calldata и не модифицируется внутри функции",
+        "Никогда"
+      ],
+      "answerIndex": 2,
+      "explain": "memory копирует данные в RAM (платная операция), calldata читает напрямую. Если функция читает большой массив без модификации — calldata. Если внутри internal-вызов нужна модификация — переходим на memory."
+    },
+    {
+      "q": "Что такое <code>--via-ir</code> и когда им пользоваться?",
+      "kind": "multiple",
+      "options": [
+        "Флаг IDE, чтобы показывать IR в редакторе",
+        "Yul-based бэкенд компилятора, делает inter-function оптимизации и обычно даёт 5–15% экономии bytecode/gas; рекомендуется для production",
+        "Опция для запуска тестов параллельно",
+        "Способ отключить optimizer"
+      ],
+      "answerIndex": 1,
+      "explain": "В Foundry: <code>via_ir = true</code> в foundry.toml. Hardhat: viaIR в solidity.settings. Цена — компиляция в 3–5× медленнее, есть редкие edge-cases — всегда прогоняйте полный test-suite после включения."
+    },
+    {
+      "q": "Custom error vs require со строкой: где экономия?",
+      "kind": "multiple",
+      "options": [
+        "Custom error работает быстрее на CPU",
+        "Custom error занимает 4-байтовый selector в bytecode и не копирует строку в memory при revert; require со строкой добавляет ~30 байт bytecode на каждое использование и копию строки в memory",
+        "require устарел и не работает в 0.8",
+        "Custom error поддерживает только bytes32"
+      ],
+      "answerIndex": 1,
+      "explain": "OpenZeppelin v5 целиком перешли на custom errors. Помимо газа — у custom errors есть параметры (например, balance, requested), что делает revert-сообщения информативнее без runtime-конкатенации строк."
+    },
+    {
+      "q": "<code>constant</code> vs <code>immutable</code>: ключевая разница?",
+      "kind": "multiple",
+      "options": [
+        "constant — только для uint, immutable — для всего",
+        "constant — значение известно в compile-time и инлайнится; immutable — значение задаётся в конструкторе один раз, потом инлайнится в bytecode при деплое; оба не занимают storage slot",
+        "immutable требует ≥0.8.20",
+        "constant можно изменить через setter"
+      ],
+      "answerIndex": 1,
+      "explain": "Перевод public-storage в immutable экономит SLOAD (2100 cold). Используйте immutable для адресов factory/WETH, конфигурации, известной на момент деплоя."
+    },
+    {
+      "q": "Какие из этих loop-паттернов экономят газ?",
+      "kind": "multiple",
+      "options": [
+        "Кешировать <code>arr.length</code> в локальную переменную; использовать <code>++i</code> вместо <code>i++</code>; обернуть инкремент в <code>unchecked</code>; читать <code>storage</code>-структуру в локальную <code>memory</code> копию, если она используется &gt;1 раза",
+        "Использовать <code>do-while</code> вместо <code>for</code>",
+        "Только параллельные потоки",
+        "Загружать данные через oracle вместо storage"
+      ],
+      "answerIndex": 0,
+      "explain": "В Solidity 0.8.22+ компилятор сам делает многие из этих оптимизаций под --via-ir, но явное написание полезно для legacy-режима и читаемости намерения."
+    },
+    {
+      "q": "Practical: задача 1 — запакуйте struct User. Сколько SSTORE сэкономит правильная упаковка при первой записи всех полей?",
+      "kind": "task",
+      "answer": "Изначально 4 slot'а → 4 SSTORE × 22 100 = 88 400 газа. После упаковки (uint256 balance в slot 0; uint8 level + uint16 fee + address account в slot 1) — 2 SSTORE × 22 100 = 44 200 газа. Экономия — 44 200 газа (49.9%). На обновлении (ненулевое → ненулевое) экономия меньше: 2×5000 vs 4×5000 = 10 000 газа."
+    },
+    {
+      "q": "Practical: задача 3 — какой типичный процент экономии bytecode дают via-ir на проектах OpenZeppelin?",
+      "kind": "task",
+      "answer": "На production-контрактах OZ (ERC-20 + Ownable + AccessControl) via-ir обычно даёт 8–15% экономии bytecode и 3–10% экономии gas на горячих функциях. На минимальных контрактах (только Counter) разница меньше 2%. Чем больше функций и взаимных вызовов — тем сильнее IR оптимизирует cross-function (устранение лишних SLOAD, merge stack-операций)."
+    },
+    {
+      "q": "Practical: задача 4 — почему важно проверять storage layout перед каждым upgrade UUPS-контракта?",
+      "kind": "task",
+      "answer": "delegatecall исполняет код V2 в storage V1: если slot'ы поехали, V2 читает чужие данные. Любая вставка переменной перед существующими, изменение типа (uint128 → uint256) или удаление переменной — нарушает layout. <code>forge inspect storageLayout</code> + <code>openzeppelin-foundry-upgrades</code> ловят это автоматически на CI. Правило: новые переменные добавляются только в конец, тип нельзя менять, заглушки на удалённые — пустые слоты с комментарием."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Все цены опкодов — Cancun hardfork (март 2024). Перепроверяйте на
+      <a href="https://www.evm.codes/" target="_blank" rel="noopener">evm.codes</a>
+      перед прод-деплоем: каждый hardfork может менять цены (Berlin, London,
+      Cancun уже сильно поменяли storage-цены).
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

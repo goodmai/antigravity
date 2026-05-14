@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 12 · wagmi React hooks — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 12 · wagmi</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 12 · wagmi · React · TanStack Query</p>
+    <h1>wagmi — React-хуки поверх viem</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../11/index.html">Lesson 11 — viem</a>.
+      Тот же type-safe ABI, но обёрнут в идиоматичный React.
+    </p>
+
+    <p>
+      <strong>wagmi</strong> (<em>«waggy»</em>) — библиотека React-хуков для
+      EVM-цепей, построенная на трёх китах: <code>viem</code> (типизированный
+      JSON-RPC), <code>@tanstack/react-query</code> (кеширование, refetch,
+      stale-while-revalidate), и единый <code>WagmiConfig</code>. Каждое
+      состояние блокчейна — это запрос; каждый запрос автоматически кешируется,
+      инвалидируется на новом блоке и шарится между компонентами. Результат —
+      React-приложение, которое «понимает» chain так же, как обычные хуки
+      понимают <code>useQuery</code>.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: настроить
+      <code>WagmiProvider</code> с несколькими chains; использовать
+      <code>useReadContract</code> / <code>useReadContracts</code> для
+      типизированного чтения; <code>useWriteContract</code> + simulate-хук для
+      безопасной отправки tx; <code>useWatchContractEvent</code> для real-time
+      обновлений; кодогенерировать хуки через <code>@wagmi/cli</code>.
+    </div>
+
+    <h2>1. Установка и WagmiProvider</h2>
+
+<pre class="code-block"><code># Установка
+npm create vite@latest dapp -- --template react-ts
+cd dapp
+npm i wagmi viem @tanstack/react-query
+npm i @web3modal/wagmi   # (опционально) готовый UI для подключения кошельков</code></pre>
+
+<pre class="code-block"><code>// src/wagmi.ts
+import { createConfig, http } from 'wagmi'
+import { mainnet, sepolia, base } from 'wagmi/chains'
+import { injected, walletConnect } from 'wagmi/connectors'
+
+export const config = createConfig({
+  chains: [mainnet, sepolia, base],
+  connectors: [
+    injected(),                              // MetaMask, Rabby и любой EIP-1193 wallet
+    walletConnect({ projectId: 'YOUR_PROJECT_ID' }),
+  ],
+  transports: {
+    [mainnet.id]: http('https://eth.llamarpc.com'),
+    [sepolia.id]: http('https://rpc.sepolia.org'),
+    [base.id]:    http('https://mainnet.base.org'),
+  },
+  ssr: false,                                // выставите true для Next.js
+})
+
+declare module 'wagmi' {
+  interface Register {
+    config: typeof config
+  }
+}</code></pre>
+
+<pre class="code-block"><code>// src/main.tsx
+import { WagmiProvider } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { config } from './wagmi'
+import { App } from './App'
+
+const queryClient = new QueryClient()
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  &lt;WagmiProvider config={config}&gt;
+    &lt;QueryClientProvider client={queryClient}&gt;
+      &lt;App /&gt;
+    &lt;/QueryClientProvider&gt;
+  &lt;/WagmiProvider&gt;,
+)</code></pre>
+
+    <div class="note cyan">
+      <strong>Почему два провайдера.</strong> wagmi хранит состояние коннектора
+      (<code>WagmiProvider</code>) и кеш данных контракта
+      (<code>QueryClientProvider</code>). Это разные ответственности и разные
+      жизненные циклы. Кеш чтения должен переживать переключение кошелька;
+      коннектор должен переживать перезагрузку страницы (через localStorage).
+    </div>
+
+    <h2>2. useAccount, useConnect, useDisconnect</h2>
+
+<pre class="code-block"><code>// src/ConnectButton.tsx
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
+
+export function ConnectButton() {
+  const { address, isConnected, chain } = useAccount()
+  const { connectors, connect, isPending } = useConnect()
+  const { disconnect } = useDisconnect()
+
+  if (isConnected) {
+    return (
+      &lt;div&gt;
+        &lt;span&gt;{address?.slice(0, 6)}…{address?.slice(-4)}&lt;/span&gt;
+        &lt;span&gt; · {chain?.name}&lt;/span&gt;
+        &lt;button onClick={() =&gt; disconnect()}&gt;Disconnect&lt;/button&gt;
+      &lt;/div&gt;
+    )
+  }
+
+  return (
+    &lt;div&gt;
+      {connectors.map(c =&gt; (
+        &lt;button
+          key={c.id}
+          onClick={() =&gt; connect({ connector: c })}
+          disabled={isPending}
+        &gt;
+          Connect {c.name}
+        &lt;/button&gt;
+      ))}
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+    <h2>3. useReadContract — типизированное чтение</h2>
+
+<pre class="code-block"><code>// src/UsdcBalance.tsx
+import { useAccount, useReadContract } from 'wagmi'
+import { formatUnits } from 'viem'
+
+const erc20Abi = [
+  {
+    type: 'function', name: 'balanceOf', stateMutability: 'view',
+    inputs:  [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '',        type: 'uint256' }],
+  },
+  {
+    type: 'function', name: 'decimals', stateMutability: 'view',
+    inputs: [], outputs: [{ type: 'uint8' }],
+  },
+] as const
+
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
+
+export function UsdcBalance() {
+  const { address } = useAccount()
+
+  const { data, isLoading, error, refetch } = useReadContract({
+    address: USDC,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },          // не вызывать, пока address пустой
+  })
+
+  if (!address)     return &lt;p&gt;Подключите кошелёк&lt;/p&gt;
+  if (isLoading)    return &lt;p&gt;Загрузка балансов…&lt;/p&gt;
+  if (error)        return &lt;p&gt;Ошибка: {error.shortMessage}&lt;/p&gt;
+
+  return (
+    &lt;div&gt;
+      &lt;p&gt;Баланс USDC: {formatUnits(data ?? 0n, 6)}&lt;/p&gt;
+      &lt;button onClick={() =&gt; refetch()}&gt;Обновить&lt;/button&gt;
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+    <p>
+      Под капотом wagmi кеширует результат под ключом
+      <code>['readContract', { address, functionName, args, chainId }]</code>.
+      Любой другой компонент с тем же запросом мгновенно получит закешированное
+      значение — без второго RPC-вызова.
+    </p>
+
+    <h2>4. useReadContracts — несколько чтений сразу</h2>
+
+<pre class="code-block"><code>import { useReadContracts } from 'wagmi'
+
+export function TokenList({ address, tokens }: { address: \`0x\${string}\`, tokens: \`0x\${string}\`[] }) {
+  const { data, isLoading } = useReadContracts({
+    contracts: tokens.flatMap(token =&gt; [
+      {
+        address: token,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address],
+      },
+      {
+        address: token,
+        abi: erc20Abi,
+        functionName: 'symbol',
+      },
+    ]),
+    query: { enabled: !!address },
+  })
+
+  if (isLoading || !data) return &lt;p&gt;Загрузка…&lt;/p&gt;
+
+  // data[0] — balance USDC, data[1] — symbol USDC, data[2] — balance USDT…
+  return (
+    &lt;ul&gt;
+      {tokens.map((t, i) =&gt; (
+        &lt;li key={t}&gt;
+          {data[i * 2 + 1].result as string}: {(data[i * 2].result as bigint).toString()}
+        &lt;/li&gt;
+      ))}
+    &lt;/ul&gt;
+  )
+}
+
+// useReadContracts автоматически батчит в один Multicall3-запрос.</code></pre>
+
+    <h2>5. useSimulateContract + useWriteContract — write-flow</h2>
+
+<pre class="code-block"><code>// src/Transfer.tsx
+import { useAccount, useSimulateContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { parseUnits } from 'viem'
+
+export function Transfer() {
+  const { address } = useAccount()
+
+  // 1. Simulate — pre-flight check, проверяет revert ДО подписи
+  const { data: simulation, error: simError } = useSimulateContract({
+    address: USDC,
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: ['0xRecipient...', parseUnits('1', 6)],     // 1 USDC
+    query: { enabled: !!address },
+  })
+
+  // 2. Write — выполняется при клике
+  const { writeContract, data: hash, isPending: isSigning, error: writeError } = useWriteContract()
+
+  // 3. Wait — дожидаемся подтверждения
+  const { isLoading: isMining, isSuccess } = useWaitForTransactionReceipt({ hash })
+
+  return (
+    &lt;div&gt;
+      &lt;button
+        disabled={!simulation || isSigning || isMining}
+        onClick={() =&gt; writeContract(simulation!.request)}
+      &gt;
+        {isSigning ? 'Подпишите в кошельке…' : isMining ? 'Майнинг…' : 'Send 1 USDC'}
+      &lt;/button&gt;
+
+      {simError &amp;&amp; &lt;p&gt;Симуляция упала: {simError.shortMessage}&lt;/p&gt;}
+      {writeError &amp;&amp; &lt;p&gt;Ошибка подписи: {writeError.shortMessage}&lt;/p&gt;}
+      {isSuccess &amp;&amp; &lt;p&gt;Транзакция в блоке: {hash}&lt;/p&gt;}
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+    <div class="note">
+      <strong>Зачем три хука вместо одного.</strong> Каждый этап имеет своё
+      состояние: simulate — «знаем ли мы заранее, что tx пройдёт»; write —
+      «подписывает ли пользователь сейчас»; wait — «есть ли уже receipt».
+      UI рисует каждое состояние своим текстом и dis/enabled — это и есть
+      «правильный» web3 UX.
+    </div>
+
+    <h2>6. useWatchContractEvent — real-time</h2>
+
+<pre class="code-block"><code>import { useWatchContractEvent } from 'wagmi'
+
+export function TransferToast() {
+  const { address } = useAccount()
+
+  useWatchContractEvent({
+    address: USDC,
+    abi: erc20Abi,
+    eventName: 'Transfer',
+    args: address ? { to: address } : undefined,    // фильтр по indexed-полю
+    onLogs(logs) {
+      for (const log of logs) {
+        toast.success(\`Received \${formatUnits(log.args.value!, 6)} USDC\`)
+      }
+    },
+  })
+
+  return null
+}</code></pre>
+
+    <p>
+      Хук автоматически отписывается при unmount компонента. Под HTTP-transport
+      делается long-polling раз в block-time; под WebSocket — настоящая subscribe.
+    </p>
+
+    <h2>7. wagmi CLI — кодогенерация типизированных хуков</h2>
+
+    <p>
+      Вместо того, чтобы вручную писать ABI и <code>useReadContract({ abi, functionName: 'balanceOf' })</code>,
+      <code>@wagmi/cli</code> кодогенерирует <strong>именованные хуки</strong>
+      типа <code>useReadErc20BalanceOf</code> с фиксированным ABI. Это убирает
+      повторение и даёт лучший IntelliSense.
+    </p>
+
+<pre class="code-block"><code># Установка
+npm i -D @wagmi/cli
+
+# wagmi.config.ts
+import { defineConfig } from '@wagmi/cli'
+import { foundry, react } from '@wagmi/cli/plugins'
+
+export default defineConfig({
+  out: 'src/generated.ts',
+  contracts: [
+    {
+      name: 'usdc',
+      address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      abi: [/* … erc20 ABI … */] as const,
+    },
+  ],
+  plugins: [
+    foundry({ project: '../contracts' }),  // авто-импорт всех контрактов из Foundry-проекта
+    react(),                                // кодогенерация React-хуков
+  ],
+})
+
+# Запуск
+npx wagmi generate
+
+# В коде:
+import { useReadUsdcBalanceOf, useWriteUsdcTransfer } from './generated'
+
+const { data: balance } = useReadUsdcBalanceOf({ args: [address] })
+const { writeContract } = useWriteUsdcTransfer()</code></pre>
+
+    <h2>8. Многоцепочечная логика — useSwitchChain</h2>
+
+<pre class="code-block"><code>import { useAccount, useSwitchChain, useChainId } from 'wagmi'
+import { mainnet, base } from 'wagmi/chains'
+
+export function NetworkSwitcher() {
+  const chainId = useChainId()
+  const { chains, switchChain, isPending } = useSwitchChain()
+
+  return (
+    &lt;select
+      value={chainId}
+      onChange={e =&gt; switchChain({ chainId: Number(e.target.value) })}
+      disabled={isPending}
+    &gt;
+      {chains.map(c =&gt; (
+        &lt;option key={c.id} value={c.id}&gt;{c.name}&lt;/option&gt;
+      ))}
+    &lt;/select&gt;
+  )
+}
+
+// useSwitchChain показывает MetaMask-prompt;
+// если chain не добавлен в кошелёк — wagmi автоматически вызывает wallet_addEthereumChain.</code></pre>
+
+    <h2>9. Практические задачи</h2>
+
+    <h3>Задача 1 — Минимальное приложение с подключением кошелька</h3>
+
+<pre class="code-block"><code># Шаг 1: создать проект
+npm create vite@latest dapp -- --template react-ts
+cd dapp
+npm i wagmi viem @tanstack/react-query
+
+# Шаг 2: src/wagmi.ts (см. секцию 1)
+
+# Шаг 3: src/main.tsx (WagmiProvider + QueryClientProvider)
+
+# Шаг 4: src/App.tsx
+import { ConnectButton } from './ConnectButton'
+import { UsdcBalance } from './UsdcBalance'
+
+export function App() {
+  return (
+    &lt;main&gt;
+      &lt;h1&gt;wagmi quickstart&lt;/h1&gt;
+      &lt;ConnectButton /&gt;
+      &lt;UsdcBalance /&gt;
+    &lt;/main&gt;
+  )
+}
+
+# Шаг 5: запуск
+npm run dev
+# → http://localhost:5173
+# → нажать Connect → MetaMask → видим баланс USDC
+
+# Проверка: переключение сети в MetaMask должно автоматически
+# триггерить refetch баланса (благодаря TanStack Query invalidation).</code></pre>
+
+    <h3>Задача 2 — Отправить USDC через simulate + write + wait</h3>
+
+<pre class="code-block"><code># Расширьте src/App.tsx, добавив Transfer-компонент.
+
+# src/Transfer.tsx — см. секцию 5.
+
+# Логика:
+# 1. По умолчанию simulate отрабатывает на каждый render с текущим address —
+#    если args в нём пустые, simulation возвращает undefined.
+# 2. Button disabled, пока simulation не успешен.
+# 3. После клика — wallet_sendTransaction, hash → wait → success-toast.
+
+# Bonus: добавить input для amount и recipient.
+# Используйте useState + parseUnits(amount, 6) для конверсии строки UI в bigint.
+
+# Тест: на Sepolia (нужен Sepolia USDC, краны: https://faucet.circle.com/)
+# или на forked mainnet через Anvil + custom transport.</code></pre>
+
+    <h3>Задача 3 — Real-time лента всех Transfer событий USDC</h3>
+
+<pre class="code-block"><code># src/TransferFeed.tsx
+import { useWatchContractEvent } from 'wagmi'
+import { useState } from 'react'
+import { formatUnits } from 'viem'
+import { erc20Abi } from './abi'
+
+const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as const
+
+type Row = { from: string; to: string; amount: string; hash: string }
+
+export function TransferFeed() {
+  const [rows, setRows] = useState&lt;Row[]&gt;([])
+
+  useWatchContractEvent({
+    address: USDC,
+    abi: erc20Abi,
+    eventName: 'Transfer',
+    onLogs(logs) {
+      const newRows = logs.map(l =&gt; ({
+        from: l.args.from?.slice(0, 8) ?? '',
+        to:   l.args.to?.slice(0, 8) ?? '',
+        amount: formatUnits(l.args.value ?? 0n, 6),
+        hash: l.transactionHash ?? '',
+      }))
+      setRows(prev =&gt; [...newRows, ...prev].slice(0, 30))  // храним последние 30
+    },
+  })
+
+  return (
+    &lt;table&gt;
+      &lt;thead&gt;&lt;tr&gt;&lt;th&gt;from&lt;/th&gt;&lt;th&gt;to&lt;/th&gt;&lt;th&gt;amount (USDC)&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+      &lt;tbody&gt;
+        {rows.map(r =&gt; (
+          &lt;tr key={r.hash + r.from + r.to}&gt;
+            &lt;td&gt;{r.from}…&lt;/td&gt;&lt;td&gt;{r.to}…&lt;/td&gt;&lt;td&gt;{r.amount}&lt;/td&gt;
+          &lt;/tr&gt;
+        ))}
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  )
+}
+
+# На mainnet USDC «горит» каждый блок — таблица будет обновляться постоянно.</code></pre>
+
+    <h3>Задача 4 — Кодогенерация хуков через wagmi CLI</h3>
+
+<pre class="code-block"><code># Шаг 1: установка
+npm i -D @wagmi/cli
+
+# Шаг 2: wagmi.config.ts (см. секцию 7) — добавьте 2 контракта.
+
+# Шаг 3: генерация
+npx wagmi generate
+
+# Это создаст src/generated.ts с типами вроде:
+# - export const usdcAbi = [...] as const
+# - export const usdcAddress = { 1: '0xA0b...', 5: '0x07865...' } as const
+# - export function useReadUsdcBalanceOf(config) { ... }
+# - export function useWriteUsdcTransfer() { ... }
+
+# Шаг 4: используйте generated-хуки
+import { useReadUsdcBalanceOf } from './generated'
+const { data } = useReadUsdcBalanceOf({ args: [address] })
+
+# Шаг 5 (bonus): добавьте foundry plugin
+plugins: [foundry({ project: '../contracts' }), react()]
+# Теперь все контракты из ../contracts/out/*.sol/*.json появятся как хуки.
+
+# CI: запускайте npx wagmi generate в pre-commit, чтобы types всегда был в sync.</code></pre>
+
+    <h2>10. Песочница · wagmi quickstart в StackBlitz</h2>
+
+    <p>
+      Полностью готовый Vite + React + wagmi проект, который вы можете
+      форкнуть и редактировать прямо в браузере. Содержит ConnectButton,
+      USDC balance и простую отправку tx.
+    </p>
+
+    <div class="sandbox" data-embed="stackblitz"
+      data-title="StackBlitz · wagmi quickstart (Vite + React)"
+      data-src="https://stackblitz.com/edit/wagmi-quickstart?embed=1&file=src%2FApp.tsx"
+      data-desc="Откройте <code>src/App.tsx</code>: тут уже подключены WagmiProvider, QueryClientProvider, ConnectButton, UsdcBalance. Подключите MetaMask (через popup в правом iframe) и переключайте сеть — баланс обновляется автоматически благодаря TanStack Query invalidation."></div>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      <strong><a href="../13/index.html">Lesson 13 — Wallet UX</a></strong>:
+      EIP-6963 multi-wallet discovery, WalletConnect v2, обработка отказов и
+      ошибок подключения. wagmi даёт нам API, но «правильный» UX — это
+      отдельная дисциплина.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://wagmi.sh/" target="_blank" rel="noopener">wagmi официальная документация</a>.</li>
+        <li><a href="https://wagmi.sh/react/api/hooks" target="_blank" rel="noopener">wagmi · все React-хуки</a> — справочник.</li>
+        <li><a href="https://wagmi.sh/cli/getting-started" target="_blank" rel="noopener">wagmi CLI</a> — кодогенерация хуков.</li>
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/overview" target="_blank" rel="noopener">TanStack Query</a> — кеш-слой под wagmi.</li>
+        <li><a href="https://web3modal.com/" target="_blank" rel="noopener">Web3Modal</a> — готовый UI поверх wagmi (RainbowKit-конкурент).</li>
+        <li><a href="https://www.rainbowkit.com/" target="_blank" rel="noopener">RainbowKit</a> — альтернативный UI-набор.</li>
+        <li><a href="https://github.com/wevm/wagmi" target="_blank" rel="noopener">wagmi на GitHub</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-6963" target="_blank" rel="noopener">EIP-6963 — Multi Injected Provider Discovery</a>.</li>
+        <li><a href="https://docs.walletconnect.com/" target="_blank" rel="noopener">WalletConnect v2 docs</a>.</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="12">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 12 · wagmi",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все примеры — на свежем Vite-проекте из задачи 1.",
+  "questions": [
+    {
+      "q": "Почему wagmi требует двух провайдеров — WagmiProvider и QueryClientProvider?",
+      "kind": "multiple",
+      "options": [
+        "Это исторический legacy",
+        "WagmiProvider держит состояние коннектора (chain, account); QueryClientProvider держит кеш данных контрактов через TanStack Query. Две разные ответственности — две разные точки изменения, разные жизненные циклы",
+        "Для совместимости с Next.js",
+        "QueryClientProvider не обязателен, его можно убрать"
+      ],
+      "answerIndex": 1,
+      "explain": "WagmiProvider живёт всё время приложения, переживает navigation. QueryClient может пересоздаваться (например, при logout) — это инвалидирует кеш блокчейн-данных, не теряя коннектор."
+    },
+    {
+      "q": "Чем <code>useReadContract</code> отличается от <code>useReadContracts</code>?",
+      "kind": "multiple",
+      "options": [
+        "Только именем",
+        "useReadContract — один запрос; useReadContracts — массив запросов, которые автоматически батчатся в один Multicall3-вызов",
+        "useReadContracts быстрее на маленьких чтениях",
+        "useReadContracts не поддерживает <code>watch</code>"
+      ],
+      "answerIndex": 1,
+      "explain": "useReadContracts даёт массив data[] в исходном порядке. Каждый элемент — { result, status, error }. Это эффективная замена 10 useReadContract в одной таблице балансов."
+    },
+    {
+      "q": "Какой flow рекомендуется для отправки транзакции?",
+      "kind": "multiple",
+      "options": [
+        "writeContract сразу",
+        "useSimulateContract (pre-flight check) → useWriteContract (подпись) → useWaitForTransactionReceipt (включение в блок)",
+        "useWaitForTransactionReceipt без useSimulateContract",
+        "useReadContract → useWriteContract"
+      ],
+      "answerIndex": 1,
+      "explain": "Без simulate пользователь может подписать заведомо неудачную tx и потерять газ. simulate выполняет eth_call с тем же calldata и сразу видит revert-reason. wagmi даёт specialized хуки для каждого этапа — это упрощает UI states."
+    },
+    {
+      "q": "Как ведёт себя <code>useWatchContractEvent</code> на unmount компонента?",
+      "kind": "multiple",
+      "options": [
+        "Продолжает работать, утечка",
+        "Автоматически отписывается; на HTTP transport использует long-polling (~ block-time), на WebSocket — нативный <code>eth_subscribe</code>",
+        "Бросает ошибку",
+        "Сохраняет все логи в localStorage"
+      ],
+      "answerIndex": 1,
+      "explain": "wagmi сам делает cleanup через useEffect-return. Если используете WebSocket transport — реалтайм без задержки; HTTP — задержка до block-time chain (Ethereum ~12s, Base ~2s)."
+    },
+    {
+      "q": "Что делает <code>@wagmi/cli</code> с <code>plugin: react()</code>?",
+      "kind": "multiple",
+      "options": [
+        "Генерирует JSON-схемы для бэка",
+        "Создаёт типизированные именованные хуки вида <code>useReadUsdcBalanceOf</code>, <code>useWriteUsdcTransfer</code>, <code>useWatchUsdcTransferEvent</code> — по одному на каждую функцию/эвент контракта; типы из ABI инлайнятся, нет повторений",
+        "Минифицирует контракты",
+        "Развёртывает контракты в test-сеть"
+      ],
+      "answerIndex": 1,
+      "explain": "Это лучший паттерн в крупных приложениях. Вместо useReadContract({ abi, functionName: 'balanceOf' }) — <code>useReadUsdcBalanceOf({ args })</code>. IDE даёт идеальный auto-complete: вы не можете опечататься в имени функции."
+    },
+    {
+      "q": "Как переключить сеть программно в wagmi?",
+      "kind": "multiple",
+      "options": [
+        "window.ethereum.request({ method: 'wallet_switchEthereumChain' })",
+        "useSwitchChain хук: <code>const { switchChain } = useSwitchChain(); switchChain({ chainId: base.id })</code>; wagmi автоматически вызывает wallet_addEthereumChain, если chain ещё не в кошельке",
+        "Нельзя — только пользователь",
+        "Через WagmiProvider config.chain = base"
+      ],
+      "answerIndex": 1,
+      "explain": "useSwitchChain — это и есть «правильный» способ. wagmi обрабатывает оба сценария (chain уже есть в кошельке / chain нужно добавить) и возвращает единый pending/error state."
+    },
+    {
+      "q": "Что такое <code>injected()</code> connector?",
+      "kind": "multiple",
+      "options": [
+        "Только MetaMask",
+        "Универсальный коннектор для любого EIP-1193 кошелька, который инжектирует <code>window.ethereum</code> (MetaMask, Rabby, Trust, Brave, Frame). С EIP-6963 (Lesson 13) wagmi различает несколько одновременно установленных кошельков",
+        "Альтернатива WalletConnect",
+        "Подключение к серверной ноде"
+      ],
+      "answerIndex": 1,
+      "explain": "injected() ловит все EIP-1193 провайдеры. WalletConnect — отдельный коннектор для мобильных и hardware-кошельков через QR-код. Coinbase Wallet, Ledger — отдельные специализированные коннекторы."
+    },
+    {
+      "q": "Practical: задача 2 — что произойдёт, если recipient = address(0)?",
+      "kind": "task",
+      "answer": "USDC контракт реверт в <code>_transfer</code> с custom error <code>ERC20InvalidReceiver(address(0))</code>. На уровне UI: <code>useSimulateContract</code> вернёт error с shortMessage \"ERC20InvalidReceiver\". Button останется disabled (потому что simulation.request undefined). Это и есть выгода simulate-флоу: ошибка ловится <em>до</em> попытки подписать tx, никаких потерь газа."
+    },
+    {
+      "q": "Practical: задача 3 — почему лента может «глючить» на mainnet и как это исправить?",
+      "kind": "task",
+      "answer": "USDC — один из самых активных токенов: каждую секунду 10-50 Transfer'ов. Если в onLogs обновлять React-состояние без batching, получите 50+ re-render'ов в секунду = jank. Решения: (a) собирать события в ref и flush'ить в state раз в 500ms через setInterval; (b) использовать react-window для виртуализации списка; (c) применить debounce на onLogs. Также проверьте, что transport: webSocket() — на HTTP long-polling задержка до 12s."
+    },
+    {
+      "q": "Practical: задача 4 — какой главный профит wagmi CLI на проекте с 10+ контрактами?",
+      "kind": "task",
+      "answer": "1) Single source of truth: ABI лежит в Foundry-проекте, CLI авто-импортирует — не нужно копировать JSON руками. 2) Type-safe именованные хуки: <code>useReadStakingPoolStakeOf</code> вместо <code>useReadContract({ abi: stakingAbi, functionName: 'stakeOf' })</code>. 3) Адреса per-chain: CLI генерирует <code>stakingPoolAddress = { 1: '0xA…', 8453: '0xB…' }</code>, хук сам берёт правильный по chainId. 4) CI: pre-commit npx wagmi generate ловит расхождения между Solidity и фронтом до merge."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Все примеры — <strong>wagmi ≥2.5</strong> + <strong>viem ≥2.0</strong> +
+      <strong>@tanstack/react-query ≥5.0</strong>. wagmi 1.x был другим API
+      (Provider + useNetwork) — мигрировать через
+      <a href="https://wagmi.sh/react/guides/migrate-from-v1-to-v2" target="_blank" rel="noopener">официальный migration guide</a>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

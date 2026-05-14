@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 14 · Transaction UX — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 14 · Transaction UX</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 14 · transaction · pending · optimistic UI</p>
+    <h1>Transaction UX — pending states, replacement, dropped</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../13/index.html">Lesson 13 — Wallet UX</a>.
+      Кошелёк подключён, теперь правильно рисуем жизненный цикл одной транзакции.
+    </p>
+
+    <p>
+      У классического web-приложения запрос имеет три состояния: <em>idle →
+      loading → done/error</em>. У web3 — минимум <strong>семь</strong>:
+      <em>idle → simulating → awaiting-signature → signed/pending →
+      mining → confirmed → finalized → (replaced/dropped/reverted)</em>. Каждое
+      требует своего UI, и пропуск даже одного — это «застрявший» интерфейс,
+      где пользователь не знает, что происходит. Этот урок — каноничный набор
+      паттернов отрисовки транзакции.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: правильно
+      различать все стадии tx; делать optimistic UI с rollback при revert;
+      ловить replacement (cancel/speed-up в кошельке); обнаруживать dropped
+      tx; реализовывать gas-bump для застрявших транзакций; показывать
+      reorg-safe-confirmations (1/3/12 confirmations).
+    </div>
+
+    <h2>1. Полный жизненный цикл транзакции</h2>
+
+<pre class="code-block"><code>┌─────────┐    user clicks    ┌─────────────┐  simulation ok   ┌─────────────────┐
+│  idle   │ ─────────────────&gt; │ simulating  │ ───────────────&gt; │ awaiting-       │
+└─────────┘                    └─────────────┘                  │   signature     │
+                                      │                         └────────┬────────┘
+                                      ▼ revert                            │ user signs
+                                  show error                              ▼
+                                                                  ┌─────────────┐
+                                                                  │   pending   │
+                                                                  │ (in mempool)│
+                                                                  └─────┬───────┘
+                                                                        │ included in block
+                                                                        ▼
+                          ┌─────────────────────────────────────────────────────┐
+                          │                       mining                          │
+                          │  (waiting confirmations: 1 → 3 → 12)                  │
+                          └──┬────────────────┬─────────────────┬─────────────┬──┘
+                             │ confirmed      │ replaced        │ dropped     │ reverted
+                             ▼                ▼                 ▼             ▼
+                       success state   show new hash      restart flow   show revert</code></pre>
+
+    <h2>2. simulate + write + wait — три хука wagmi</h2>
+
+<pre class="code-block"><code>// src/SendTx.tsx
+import {
+  useSimulateContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from 'wagmi'
+
+export function SendTx({ to, amount }: { to: \`0x\${string}\`, amount: bigint }) {
+  // 1. Simulate — постоянно, инвалидируется при изменении args
+  const {
+    data: simulation,
+    error: simError,
+    isLoading: isSimulating,
+  } = useSimulateContract({
+    address: USDC,
+    abi: erc20Abi,
+    functionName: 'transfer',
+    args: [to, amount],
+  })
+
+  // 2. Write — выполняется по клику
+  const {
+    writeContract,
+    data: hash,
+    isPending: isAwaitingSignature,
+    error: writeError,
+    reset,
+  } = useWriteContract()
+
+  // 3. Wait — после подписи, до confirmation
+  const {
+    isLoading: isMining,
+    isSuccess: isConfirmed,
+    isError:   isReverted,
+    data:      receipt,
+  } = useWaitForTransactionReceipt({
+    hash,
+    confirmations: 1,           // 1 для testnet, 3-12 для money-критичных
+  })
+
+  // Производные state — один источник правды
+  const status =
+    simError              ? 'sim-error'   :
+    isSimulating          ? 'simulating'  :
+    isAwaitingSignature   ? 'awaiting'    :
+    isMining              ? 'mining'      :
+    isConfirmed           ? 'confirmed'   :
+    isReverted            ? 'reverted'    :
+    writeError            ? 'write-error' :
+    'idle'
+
+  return (
+    &lt;div&gt;
+      &lt;StatusBadge status={status} hash={hash} /&gt;
+
+      &lt;button
+        disabled={!simulation || isAwaitingSignature || isMining}
+        onClick={() =&gt; writeContract(simulation!.request)}
+      &gt;
+        {status === 'awaiting' &amp;&amp; 'Подпишите в кошельке…'}
+        {status === 'mining'   &amp;&amp; \`Майнинг… \${receipt?.blockNumber ?? '–'}\`}
+        {status === 'confirmed'&amp;&amp; '✓ Подтверждено'}
+        {status === 'idle'     &amp;&amp; 'Отправить'}
+        {status === 'sim-error'&amp;&amp; '✗ Симуляция упала'}
+      &lt;/button&gt;
+
+      {(status === 'confirmed' || status === 'reverted') &amp;&amp; (
+        &lt;button onClick={reset}&gt;Новая транзакция&lt;/button&gt;
+      )}
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+    <h2>3. Optimistic UI и rollback</h2>
+
+    <p>
+      «Подождите 12 секунд, пока появится подтверждение» — плохой UX.
+      Лучше — сразу обновить интерфейс, как будто transaction уже прошла,
+      и откатить, если она revert'нулась. TanStack Query даёт это «бесплатно»
+      через <code>queryClient.setQueryData</code> + <code>onError</code> rollback.
+    </p>
+
+<pre class="code-block"><code>// src/useOptimisticTransfer.ts
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+
+export function useOptimisticTransfer(myAddress: \`0x\${string}\`) {
+  const qc = useQueryClient()
+  const { writeContractAsync } = useWriteContract()
+
+  return useMutation({
+    mutationFn: async ({ to, amount }: { to: \`0x\${string}\`, amount: bigint }) =&gt; {
+      const hash = await writeContractAsync({
+        address: USDC,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [to, amount],
+      })
+      return { hash, to, amount }
+    },
+
+    // 1. Optimistic update — РАЗУ после клика, до подписи
+    onMutate: async ({ amount }) =&gt; {
+      // Запретить refetch, чтобы не перетёр оптимистичное значение
+      await qc.cancelQueries({ queryKey: ['readContract', { functionName: 'balanceOf' }] })
+
+      const prev = qc.getQueryData&lt;bigint&gt;([
+        'readContract',
+        { address: USDC, functionName: 'balanceOf', args: [myAddress] },
+      ])
+
+      // Уменьшаем баланс на amount немедленно
+      qc.setQueryData(
+        ['readContract', { address: USDC, functionName: 'balanceOf', args: [myAddress] }],
+        (old?: bigint) =&gt; (old ?? 0n) - amount,
+      )
+
+      return { prev }    // rollback context
+    },
+
+    // 2. Rollback — если writeContractAsync бросил (user-rejected / revert на simulate)
+    onError: (_err, _vars, ctx) =&gt; {
+      if (ctx?.prev !== undefined) {
+        qc.setQueryData(
+          ['readContract', { address: USDC, functionName: 'balanceOf', args: [myAddress] }],
+          ctx.prev,
+        )
+      }
+    },
+
+    // 3. После confirmation — refetch актуальные данные (включая возможный revert)
+    onSettled: () =&gt; {
+      qc.invalidateQueries({ queryKey: ['readContract'] })
+    },
+  })
+}</code></pre>
+
+    <div class="note cyan">
+      <strong>Важно: revert после mining.</strong> Даже после подписи и
+      включения в блок tx может revert'нуться (state изменился между simulate
+      и mining). Поэтому помимо <code>onError</code> мы обязательно делаем
+      <code>invalidateQueries</code> в <code>onSettled</code> — реальное состояние
+      из chain заменит оптимистичное.
+    </div>
+
+    <h2>4. Replacement: speed-up и cancel</h2>
+
+    <p>
+      Пользователь подписал tx, но она «висит» в mempool. Он идёт в MetaMask
+      и нажимает <strong>Speed Up</strong> (повышает <code>maxFeePerGas</code>
+      на ту же nonce) или <strong>Cancel</strong> (отправляет zero-value tx на
+      свой адрес с той же nonce, но большим fee). Старая tx умирает, новая
+      может прийти с другим hash. Если ваш UI слушает только старый hash —
+      он «застрянет» навсегда.
+    </p>
+
+<pre class="code-block"><code>// viem умеет ловить replacement через onReplaced callback
+import { useWaitForTransactionReceipt } from 'wagmi'
+
+const { isLoading, isSuccess } = useWaitForTransactionReceipt({
+  hash,
+  onReplaced: (replacement) =&gt; {
+    // replacement.reason: 'replaced' | 'repriced' | 'cancelled'
+    // replacement.transaction.hash — НОВЫЙ hash
+    console.log('Tx replaced!', replacement.reason, replacement.transaction.hash)
+
+    if (replacement.reason === 'cancelled') {
+      toast.warn('Транзакция отменена пользователем в кошельке')
+    } else {
+      // 'replaced' / 'repriced' — следим за новым hash дальше
+      toast.info('Транзакция ускорена, новый hash: ' + replacement.transaction.hash)
+    }
+  },
+})</code></pre>
+
+    <h2>5. Dropped transactions</h2>
+
+    <p>
+      Транзакция может «исчезнуть» из mempool: нода её reject'нула, mempool
+      зачищен после длительного pending, или nonce-gap (пользователь отправил
+      другую tx с тем же nonce). Если 5+ минут нет receipt — нужно проверить.
+    </p>
+
+<pre class="code-block"><code>import { usePublicClient } from 'wagmi'
+import { useQuery } from '@tanstack/react-query'
+
+function useTransactionStatus(hash?: \`0x\${string}\`) {
+  const publicClient = usePublicClient()
+
+  return useQuery({
+    queryKey: ['tx-status', hash],
+    enabled: !!hash,
+    queryFn: async () =&gt; {
+      if (!publicClient || !hash) return null
+
+      // 1. Сначала пробуем receipt — самый быстрый путь
+      try {
+        return { kind: 'mined', receipt: await publicClient.getTransactionReceipt({ hash }) }
+      } catch {}
+
+      // 2. Если нет receipt — проверяем mempool
+      try {
+        const tx = await publicClient.getTransaction({ hash })
+        return { kind: 'pending', tx }
+      } catch {
+        // 3. Если tx тоже нет — она dropped
+        return { kind: 'dropped' }
+      }
+    },
+    refetchInterval: (q) =&gt; {
+      const data = q.state.data
+      if (!data || data.kind === 'pending') return 5000
+      return false
+    },
+  })
+}
+
+// В UI:
+const { data } = useTransactionStatus(hash)
+if (data?.kind === 'dropped') {
+  return &lt;p&gt;Транзакция выпала из mempool. &lt;button onClick={retry}&gt;Отправить заново&lt;/button&gt;&lt;/p&gt;
+}</code></pre>
+
+    <h2>6. Gas bump — ускорение из dApp</h2>
+
+    <p>
+      Альтернатива MetaMask Speed Up: дать пользователю кнопку «Ускорить» прямо
+      в dApp. Технически это новая транзакция с тем же <code>nonce</code> и
+      повышенным <code>maxFeePerGas</code> (минимум +10%, иначе нода отвергнет
+      как «replacement underpriced»).
+    </p>
+
+<pre class="code-block"><code>import { useWalletClient, usePublicClient } from 'wagmi'
+
+async function speedUpTx(originalHash: \`0x\${string}\`) {
+  const walletClient = useWalletClient().data
+  const publicClient = usePublicClient()
+  if (!walletClient || !publicClient) return
+
+  // 1. Достаём оригинальную tx
+  const original = await publicClient.getTransaction({ hash: originalHash })
+  if (!original) throw new Error('original tx not found')
+
+  // 2. Считаем новые fees (+25% relative to original)
+  const newMaxFee   = (original.maxFeePerGas         ?? 0n) * 125n / 100n
+  const newMaxPrio  = (original.maxPriorityFeePerGas ?? 0n) * 125n / 100n
+
+  // 3. Отправляем «дубликат» с тем же nonce — старая умрёт
+  const newHash = await walletClient.sendTransaction({
+    to:    original.to ?? undefined,
+    data:  original.input,
+    value: original.value,
+    nonce: original.nonce,                       // КРИТИЧНО — тот же nonce
+    maxFeePerGas:         newMaxFee,
+    maxPriorityFeePerGas: newMaxPrio,
+  })
+
+  return newHash
+}</code></pre>
+
+    <h2>7. Reorg-safe confirmations</h2>
+
+    <p>
+      Один блок = вероятностное подтверждение. Reorg (откат блока) случается
+      редко, но больно. Для критичных операций ждите N подтверждений:
+    </p>
+
+    <table class="compare">
+      <tr><th>Тип операции</th><th>Confirmations</th><th>Время на mainnet</th></tr>
+      <tr><td>UI feedback (показать ✓)</td><td>1</td><td>~12 сек</td></tr>
+      <tr><td>Off-chain ledger / database write</td><td>3-6</td><td>~36–72 сек</td></tr>
+      <tr><td>Финализация фиатной выплаты</td><td>12-32 (finality)</td><td>~6 мин (после Merge)</td></tr>
+      <tr><td>На L2 (Optimism/Arbitrum)</td><td>0 после batched proof / 1 после soft confirm</td><td>~2 сек soft / ~7 дней hard (challenge period)</td></tr>
+    </table>
+
+<pre class="code-block"><code>// wagmi
+const { isSuccess: isConfirmed1 } = useWaitForTransactionReceipt({
+  hash, confirmations: 1,
+})
+
+const { isSuccess: isConfirmed12 } = useWaitForTransactionReceipt({
+  hash, confirmations: 12,
+})
+
+// UI:
+{isConfirmed1 && !isConfirmed12 && (
+  &lt;p&gt;✓ Принято · ждём финализации (12/12 confirmations)…&lt;/p&gt;
+)}
+{isConfirmed12 && &lt;p&gt;✓ Финализировано в chain&lt;/p&gt;}</code></pre>
+
+    <h2>8. Практические задачи</h2>
+
+    <h3>Задача 1 — Реализовать StatusBadge со всеми 7 состояниями</h3>
+
+<pre class="code-block"><code># src/StatusBadge.tsx
+type Status = 'idle' | 'simulating' | 'awaiting' | 'mining'
+            | 'confirmed' | 'reverted' | 'replaced' | 'dropped'
+
+const VARIANTS: Record&lt;Status, { text: string; cls: string; icon: string }&gt; = {
+  idle:       { text: 'Готово к отправке',     cls: 'badge-idle',   icon: '○' },
+  simulating: { text: 'Симуляция…',             cls: 'badge-yellow', icon: '⏳' },
+  awaiting:   { text: 'Подпишите в кошельке',   cls: 'badge-blue',   icon: '🔑' },
+  mining:     { text: 'Майнинг…',                cls: 'badge-blue',   icon: '⛏️' },
+  confirmed:  { text: 'Подтверждено',           cls: 'badge-green',  icon: '✓' },
+  reverted:   { text: 'Транзакция отменена',    cls: 'badge-red',    icon: '✗' },
+  replaced:   { text: 'Ускорено в кошельке',    cls: 'badge-purple', icon: '↻' },
+  dropped:    { text: 'Выпала из mempool',      cls: 'badge-red',    icon: '⚠' },
+}
+
+export function StatusBadge({ status, hash }: { status: Status; hash?: string }) {
+  const v = VARIANTS[status]
+  return (
+    &lt;span className={\`badge \${v.cls}\`}&gt;
+      &lt;span className="icon"&gt;{v.icon}&lt;/span&gt;
+      &lt;span&gt;{v.text}&lt;/span&gt;
+      {hash &amp;&amp; (
+        &lt;a href={\`https://etherscan.io/tx/\${hash}\`} target="_blank" rel="noopener"&gt;
+          {hash.slice(0, 8)}…
+        &lt;/a&gt;
+      )}
+    &lt;/span&gt;
+  )
+}
+
+# Тест:
+# - simulating: измените args на мусор; useSimulateContract вернёт error.
+# - awaiting: при клике покажет «Подпишите…»; в MetaMask не нажимайте сразу.
+# - mining: после подписи; на Anvil это ~1сек, на mainnet 12сек.
+# - replaced: подпишите, потом в MetaMask нажмите Speed Up — onReplaced.
+# - dropped: симулируйте — на Anvil сделайте tx и сразу <code>anvil_dropTransaction</code>.</code></pre>
+
+    <h3>Задача 2 — Optimistic UI для transfer USDC</h3>
+
+<pre class="code-block"><code># src/useOptimisticTransfer.ts — см. секцию 3.
+
+# В компоненте Transfer:
+const { mutate, status } = useOptimisticTransfer(myAddress)
+
+const onSend = () =&gt; mutate({ to: recipient, amount: parseUnits('1', 6) })
+
+# UI:
+# - Балансы сразу уменьшаются на 1 USDC при клике (даже до подписи).
+# - Если user-rejected — баланс мгновенно возвращается через onError rollback.
+# - Если revert на simulate — то же самое.
+# - Если revert после mining — onSettled делает invalidate, реальный
+#   баланс из chain заменяет оптимистичный.
+
+# Тест на Anvil:
+# 1. Снимите MetaMask permission прямо в момент клика → должен откатиться.
+# 2. Отправьте больше, чем у вас — simulate упадёт → откат.
+# 3. Успешная tx → optimistic значение «зафиксируется».</code></pre>
+
+    <h3>Задача 3 — Обнаружение dropped транзакции</h3>
+
+<pre class="code-block"><code># Используем Anvil + anvil_dropTransaction
+# для воспроизведения «выпавшей» tx.
+
+# Шаг 1: запустить Anvil
+anvil
+
+# Шаг 2: src/TestDropped.tsx
+import { usePublicClient, useWalletClient } from 'wagmi'
+
+export function TestDropped() {
+  const publicClient = usePublicClient()
+  const walletClient = useWalletClient().data
+
+  const onTest = async () =&gt; {
+    if (!walletClient || !publicClient) return
+
+    // Отправляем tx с очень низким fee, чтобы она «висела»
+    const hash = await walletClient.sendTransaction({
+      to:   '0x0000000000000000000000000000000000000001',
+      value: 1n,
+      maxFeePerGas:         1n,        // copy-paste underprice
+      maxPriorityFeePerGas: 1n,
+    })
+    console.log('tx hash:', hash)
+
+    // Подождать 2 секунды и dropать через anvil
+    await new Promise(r =&gt; setTimeout(r, 2000))
+    await fetch('http://127.0.0.1:8545', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1, method: 'anvil_dropTransaction', params: [hash],
+      }),
+    })
+
+    // Теперь ваш useTransactionStatus hook должен показать kind: 'dropped'
+  }
+
+  return &lt;button onClick={onTest}&gt;Сценарий: dropped tx&lt;/button&gt;
+}
+
+# UI должен показать «выпала из mempool» через polling-цикл.</code></pre>
+
+    <h3>Задача 4 — Gas bump кнопка</h3>
+
+<pre class="code-block"><code># src/SpeedUp.tsx
+import { useWalletClient, usePublicClient } from 'wagmi'
+
+export function SpeedUp({ hash }: { hash: \`0x\${string}\` }) {
+  const walletClient = useWalletClient().data
+  const publicClient = usePublicClient()
+  const [newHash, setNewHash] = useState&lt;string&gt;()
+
+  const onSpeed = async () =&gt; {
+    if (!walletClient || !publicClient) return
+    const orig = await publicClient.getTransaction({ hash })
+    if (!orig) return alert('not found')
+
+    const h = await walletClient.sendTransaction({
+      to:    orig.to ?? undefined,
+      data:  orig.input,
+      value: orig.value,
+      nonce: orig.nonce,
+      maxFeePerGas:         (orig.maxFeePerGas         ?? 0n) * 125n / 100n,
+      maxPriorityFeePerGas: (orig.maxPriorityFeePerGas ?? 0n) * 125n / 100n,
+    })
+    setNewHash(h)
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;button onClick={onSpeed}&gt;Ускорить (+25% gas)&lt;/button&gt;
+      {newHash &amp;&amp; &lt;p&gt;Новый hash: {newHash}&lt;/p&gt;}
+    &lt;/div&gt;
+  )
+}
+
+# Тест:
+# 1. Anvil с --block-time 30 (медленные блоки): anvil --block-time 30
+# 2. Отправьте tx — она «висит» 30 сек.
+# 3. Нажмите Ускорить — новая tx с тем же nonce и +25% fee.
+# 4. Anvil должен принять её как replacement; старая умирает.
+
+# Bonus: validation. Если bump меньше +10% — нода вернёт
+# «replacement transaction underpriced». Обработайте эту ошибку.</code></pre>
+
+    <h2>9. Песочница · live JSON-RPC для отслеживания pending tx</h2>
+
+    <p>
+      Любой UI tx UX в конце концов опирается на 3 JSON-RPC метода:
+      <code>eth_getTransactionByHash</code> (есть ли tx в mempool/блоке),
+      <code>eth_getTransactionReceipt</code> (есть ли receipt) и
+      <code>eth_blockNumber</code> (для подсчёта confirmations). Iframe ниже
+      позволяет дёрнуть эти методы руками на mainnet.
+    </p>
+
+    <div class="sandbox" data-embed="rpc-live" data-network="ethereum"
+      data-title="Live JSON-RPC · следим за tx на mainnet"></div>
+
+    <p style="margin-top:1rem">
+      А вот полноценный StackBlitz с состоянием транзакции от idle до confirmed,
+      включая Speed Up и Dropped detection:
+    </p>
+
+    <div class="sandbox" data-embed="stackblitz"
+      data-title="StackBlitz · transaction lifecycle demo (wagmi)"
+      data-src="https://stackblitz.com/edit/wagmi-tx-lifecycle?embed=1&file=src%2FSendTx.tsx"
+      data-desc="StatusBadge со всеми 7 состояниями, optimistic UI, onReplaced. Подключите MetaMask, переключитесь на Sepolia и попробуйте Speed Up прямо из dApp."></div>
+
+    <h2>10. Что дальше</h2>
+
+    <p>
+      <strong><a href="../15/index.html">Lesson 15 — SIWE (EIP-4361)</a></strong>:
+      cryptographic-login без password. У нас уже есть полный цикл tx; теперь
+      учимся подписывать сообщения для серверной авторизации — это совсем другая
+      механика (off-chain, без газа, без mempool).
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://viem.sh/docs/actions/public/waitForTransactionReceipt" target="_blank" rel="noopener">viem · waitForTransactionReceipt (с onReplaced)</a>.</li>
+        <li><a href="https://wagmi.sh/react/api/hooks/useWaitForTransactionReceipt" target="_blank" rel="noopener">wagmi · useWaitForTransactionReceipt</a>.</li>
+        <li><a href="https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates" target="_blank" rel="noopener">TanStack Query · Optimistic Updates guide</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1559" target="_blank" rel="noopener">EIP-1559 — Fee Market (база для speed-up)</a>.</li>
+        <li><a href="https://book.getfoundry.sh/anvil/" target="_blank" rel="noopener">Anvil docs</a> — anvil_dropTransaction, anvil_setNextBlockBaseFeePerGas.</li>
+        <li><a href="https://docs.ethers.org/v6/api/providers/#WebSocketProvider" target="_blank" rel="noopener">WebSocketProvider — для real-time pending tx</a> (альтернатива wagmi watch).</li>
+        <li><a href="https://docs.flashbots.net/flashbots-protect/overview" target="_blank" rel="noopener">Flashbots Protect</a> — private mempool, защита от MEV.</li>
+        <li><a href="https://www.mev.io/post/mev-blocker" target="_blank" rel="noopener">MEV Blocker</a> — альтернативный private RPC.</li>
+        <li><a href="https://ethereum.org/en/developers/docs/consensus-mechanisms/pos/#finality" target="_blank" rel="noopener">Ethereum.org — PoS Finality</a>.</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="14">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 14 · Transaction UX",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все примеры проверяются на Anvil-форке (для replaced/dropped сценариев) или на Sepolia (для реалистичного timing).",
+  "questions": [
+    {
+      "q": "Сколько различимых состояний у одной транзакции и зачем их различать?",
+      "kind": "multiple",
+      "options": [
+        "Два: pending и done",
+        "Минимум 7: idle / simulating / awaiting-signature / pending (in mempool) / mining / confirmed / (replaced/dropped/reverted). Каждое требует своего UI — без этого пользователь не понимает, что происходит, и интерфейс кажется «застрявшим»",
+        "Три, как у HTTP",
+        "Пять, объединяя mining с confirmed"
+      ],
+      "answerIndex": 1,
+      "explain": "Хороший mental model: idle → simulating → awaiting → pending → mining → confirmed, плюс три исключения (replaced/dropped/reverted). У каждого — свой текст, свой иконка, свой next-action."
+    },
+    {
+      "q": "Что такое optimistic UI в контексте web3?",
+      "kind": "multiple",
+      "options": [
+        "Показывать «успех» сразу, не дожидаясь подтверждения",
+        "Обновлять UI с предположением, что tx пройдёт (баланс -1 USDC немедленно после клика), и откатывать при revert/error — через TanStack Query onMutate / onError",
+        "Игнорировать ошибки",
+        "Использовать только positive-сценарии в тестах"
+      ],
+      "answerIndex": 1,
+      "explain": "Ключ — rollback. onMutate делает setQueryData с новым значением, onError возвращает старое из ctx.prev. onSettled делает invalidate, чтобы итоговое значение пришло из chain (на случай revert после mining)."
+    },
+    {
+      "q": "Что происходит при Speed Up из MetaMask?",
+      "kind": "multiple",
+      "options": [
+        "MetaMask лагает",
+        "MetaMask отправляет новую tx с тем же nonce, но повышенным maxFeePerGas. Старая tx умирает (replacement); новый hash отличается. viem onReplaced callback ловит это с reason: 'repriced'",
+        "MetaMask добавляет газ к старой tx",
+        "MetaMask отменяет старую и просит подписать заново"
+      ],
+      "answerIndex": 1,
+      "explain": "EVM-mempool заменяет старую tx новой, если: (a) тот же sender + nonce, (b) новый maxFeePerGas ≥ 1.1× старого. Если dApp слушает только старый hash — UI застрянет навсегда. onReplaced — единственная защита."
+    },
+    {
+      "q": "Что такое dropped transaction?",
+      "kind": "multiple",
+      "options": [
+        "Tx, которая попала в блок и revert'нулась",
+        "Tx, которая исчезла из mempool без включения: нода её зачистила (long pending), mempool peer-list изменился, или nonce-gap создался другой tx с тем же nonce. Receipt не появится никогда",
+        "Tx, которую пользователь отменил",
+        "Tx, у которой больше 12 confirmations"
+      ],
+      "answerIndex": 1,
+      "explain": "Лечение: polling по getTransaction; если 5+ минут не получаем ни receipt, ни tx — считаем dropped. Предложить пользователю отправить заново. Anvil умеет симулировать через anvil_dropTransaction."
+    },
+    {
+      "q": "Какая минимальная разница maxFeePerGas нужна для replacement?",
+      "kind": "multiple",
+      "options": [
+        "+1 wei",
+        "+10% от исходного значения (правило EIP-1559); меньше — нода вернёт <code>replacement transaction underpriced</code>",
+        "+50%",
+        "Кратное base fee"
+      ],
+      "answerIndex": 1,
+      "explain": "Это защита от спама: атакующий не может бесконечно дешевле replace'ить чужие tx. Практика: bump +25% для гарантированного успеха."
+    },
+    {
+      "q": "Сколько confirmations нужно ждать перед финализацией off-chain действия?",
+      "kind": "multiple",
+      "options": [
+        "Одно — всегда достаточно",
+        "Зависит от риска: 1 для UI-feedback (~12 сек); 3-6 для off-chain ledger write; 12-32 для money-критичных операций (фактическая finality после Merge ~6 мин). На L2 — 0 для soft, ~7 дней для challenge period",
+        "100",
+        "Тысячу"
+      ],
+      "answerIndex": 1,
+      "explain": "После Merge mainnet finality происходит через ~6 минут (≈ 2 эпохи). До этого момента вероятностный reorg возможен. Для биржевых депозитов 12 confirmations исторически достаточно (~3 минуты)."
+    },
+    {
+      "q": "Зачем simulateContract выполняется на каждый render компонента?",
+      "kind": "multiple",
+      "options": [
+        "Это баг wagmi",
+        "Это feature: simulate отражает АКТУАЛЬНОЕ состояние chain. Если кто-то другой потратил your allowance, simulate упадёт — и кнопка станет disabled до того, как пользователь нажмёт. Это «защитный» UX",
+        "Для оптимизации газа",
+        "Для красоты"
+      ],
+      "answerIndex": 1,
+      "explain": "Каждый блок может изменить условия. wagmi инвалидирует simulate query в onBlock. Если args стабильны и chain не двигается — TanStack кеш возвращает результат без RPC."
+    },
+    {
+      "q": "Practical: задача 2 — что произойдёт с UI, если пользователь нажмёт Cancel в MetaMask?",
+      "kind": "task",
+      "answer": "writeContractAsync бросит UserRejectedRequestError. onError в useMutation сработает с этим error и ctx.prev (старый баланс). qc.setQueryData(['balanceOf'], ctx.prev) мгновенно вернёт UI в исходное состояние. Пользователь видит свой реальный баланс, никакого «фантомного» уменьшения. status у мутации = 'error', но мы можем отобразить как идле, потому что это нормальная отмена."
+    },
+    {
+      "q": "Practical: задача 3 — почему важно polling-проверять и getTransaction и getTransactionReceipt?",
+      "kind": "task",
+      "answer": "getTransactionReceipt существует только после включения в блок. До этого — null/exception. getTransaction существует, пока tx есть в mempool (не включена) ИЛИ после включения. Логика: (1) сначала getTransactionReceipt — мгновенный путь для уже-mined; (2) если нет receipt — getTransaction; если есть — tx pending, продолжаем polling; (3) если getTransaction тоже null — dropped. Это единственный способ различить «ещё не майнилась» и «уже выпала»."
+    },
+    {
+      "q": "Practical: задача 4 — что произойдёт, если bump только +9%?",
+      "kind": "task",
+      "answer": "Нода (geth/erigon/anvil) вернёт ошибку <code>replacement transaction underpriced</code> (код -32000). viem обернёт в TransactionExecutionError с этим текстом. На UI: показать ошибку «Ускорение должно быть не менее +10%, попробуйте больший gas». Хорошая защита: в коде гарантировать минимум *125n/100n (то есть +25%) — это безопасный буфер. Bonus: если оригинальный priorityFee = 0 (старая tx), результат тоже 0 → bump не сработает; нужно math.max(orig * 1.25, ceil-from-feesPerGas)."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Примеры протестированы на <strong>wagmi 2.x + viem 2.x</strong>. Anvil
+      ≥ <code>foundry nightly</code> для поддержки <code>anvil_dropTransaction</code>.
+      Для production используйте reliable RPC-провайдера (Alchemy, Infura,
+      QuickNode) — публичные ноды могут rate-limit'ить polling.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

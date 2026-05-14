@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 13 · Wallet UX — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 13 · Wallet UX</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 13 · wallet · EIP-6963 · WalletConnect</p>
+    <h1>Wallet UX — EIP-6963, WalletConnect v2 и обработка ошибок</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../12/index.html">Lesson 12 — wagmi</a>.
+      Хуки у нас есть; теперь делаем «правильный» UX подключения.
+    </p>
+
+    <p>
+      <strong>Подключение кошелька</strong> — единственный непредсказуемый
+      момент в dApp. Пользователь может: иметь несколько кошельков сразу
+      (MetaMask + Rabby + Coinbase Wallet); открыть страницу с мобильного,
+      где extension не работает; отказаться от подключения; переключить chain
+      в кошельке без вашего согласия. Каждый из этих сценариев требует своего
+      UI. В этом уроке — каноничный набор паттернов.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: обнаруживать
+      установленные кошельки через EIP-6963; интегрировать WalletConnect v2 для
+      мобильных и hardware-кошельков; обрабатывать ошибки подключения
+      (UserRejected, ChainMismatch, ResourceUnavailable); корректно показывать
+      кошельковую сессию через перезагрузку страницы; готовить «безкошельковый»
+      fallback (read-only режим).
+    </div>
+
+    <h2>1. История проблемы «window.ethereum»</h2>
+
+    <p>
+      До 2024 года стандартом был EIP-1193: каждый кошелёк инжектировал
+      <code>window.ethereum</code>. Если установлены два кошелька — они дерутся
+      за этот глобал, и побеждает тот, кто инжектировался последним. Пользователь
+      открывает dApp, ждёт MetaMask — а вместо неё открывается Coinbase Wallet.
+      «Поломка ожиданий», классическая UX-проблема.
+    </p>
+
+    <p>
+      <strong>EIP-6963</strong> (Multi Injected Provider Discovery) — 2023.
+      Решает проблему через event-based discovery: dApp шлёт
+      <code>eip6963:requestProvider</code>, каждый кошелёк отвечает событием
+      <code>eip6963:announceProvider</code> со своими метаданными (имя, иконка,
+      uuid). dApp показывает пользователю список и тот сам выбирает.
+    </p>
+
+<pre class="code-block"><code>// Что происходит под капотом (псевдокод):
+window.addEventListener('eip6963:announceProvider', (event) =&gt; {
+  const { info, provider } = event.detail
+  // info = { name: 'MetaMask', icon: 'data:image/...', rdns: 'io.metamask', uuid: '...' }
+  // provider — это EIP-1193 provider, на который можно сразу сделать request()
+  wallets.push({ info, provider })
+})
+
+window.dispatchEvent(new Event('eip6963:requestProvider'))</code></pre>
+
+    <p>
+      wagmi 2.x использует EIP-6963 «из коробки», когда вы добавляете
+      <code>injected()</code> connector. <code>useConnect().connectors</code>
+      возвращает массив всех обнаруженных кошельков с правильными именами и
+      иконками.
+    </p>
+
+    <h2>2. UI выбора кошелька — pattern</h2>
+
+<pre class="code-block"><code>// src/WalletPicker.tsx
+import { useConnect } from 'wagmi'
+
+export function WalletPicker() {
+  const { connectors, connect, isPending, error } = useConnect()
+
+  // wagmi 2.x возвращает один injected-connector на каждый EIP-6963 wallet.
+  // Дополнительно есть WalletConnect, Coinbase Wallet и т.д.
+  const injected = connectors.filter(c =&gt; c.type === 'injected')
+  const wc       = connectors.filter(c =&gt; c.id === 'walletConnect')
+  const coinbase = connectors.filter(c =&gt; c.id === 'coinbaseWallet')
+
+  return (
+    &lt;dialog open&gt;
+      &lt;h3&gt;Выберите кошелёк&lt;/h3&gt;
+      &lt;section&gt;
+        &lt;h4&gt;Установленные расширения&lt;/h4&gt;
+        {injected.length === 0 &amp;&amp; (
+          &lt;p&gt;Не обнаружено. Установите &lt;a href="https://metamask.io"&gt;MetaMask&lt;/a&gt; или &lt;a href="https://rabby.io"&gt;Rabby&lt;/a&gt;.&lt;/p&gt;
+        )}
+        {injected.map(c =&gt; (
+          &lt;button key={c.uid} onClick={() =&gt; connect({ connector: c })} disabled={isPending}&gt;
+            &lt;img src={c.icon} alt="" width={24} /&gt; {c.name}
+          &lt;/button&gt;
+        ))}
+      &lt;/section&gt;
+      &lt;section&gt;
+        &lt;h4&gt;Мобильные кошельки&lt;/h4&gt;
+        {wc.map(c =&gt; (
+          &lt;button key={c.uid} onClick={() =&gt; connect({ connector: c })} disabled={isPending}&gt;
+            WalletConnect (QR) — Trust, Rainbow, Ledger Live…
+          &lt;/button&gt;
+        ))}
+      &lt;/section&gt;
+      {error &amp;&amp; &lt;p style={{color:'red'}}&gt;Ошибка: {error.shortMessage}&lt;/p&gt;}
+    &lt;/dialog&gt;
+  )
+}</code></pre>
+
+    <h2>3. Обработка типичных ошибок коннекта</h2>
+
+    <p>
+      viem нормализует ошибки. Каждая имеет <code>shortMessage</code> (для UI)
+      и <code>name</code> (для логики). Главные:
+    </p>
+
+    <ul>
+      <li><strong>UserRejectedRequestError</strong> — пользователь нажал «Отмена»
+        в popup'е кошелька. Это <em>не</em> программная ошибка: ничего не
+        логируйте в Sentry, просто верните UI в исходное состояние.</li>
+      <li><strong>ResourceUnavailableRpcError</strong> — кошелёк уже занят
+        другим запросом. Покажите тост: «Откройте кошелёк и завершите текущий
+        запрос».</li>
+      <li><strong>ChainMismatchError</strong> — у dApp один chain, у кошелька
+        другой. Предложите switchChain.</li>
+      <li><strong>ConnectorAlreadyConnectedError</strong> — повторный
+        <code>connect</code> на уже подключённый коннектор. Просто игнорируйте.</li>
+      <li><strong>HttpRequestError</strong> — RPC-нода недоступна. Покажите
+        пользователю, что проблема в инфраструктуре (не в его кошельке).</li>
+    </ul>
+
+<pre class="code-block"><code>import { UserRejectedRequestError, ChainMismatchError } from 'viem'
+
+function handleConnectError(error: unknown) {
+  if (error instanceof UserRejectedRequestError) {
+    // Не показываем как ошибку — просто closeModal()
+    return
+  }
+  if (error instanceof ChainMismatchError) {
+    toast.warn('Switch network in wallet')
+    return
+  }
+  // Всё остальное — настоящие ошибки
+  toast.error('Connection failed: ' + (error as Error).message)
+  console.error(error)
+}</code></pre>
+
+    <h2>4. WalletConnect v2 — мобильные кошельки</h2>
+
+    <p>
+      Расширение MetaMask не работает на мобильном Safari. Решение —
+      WalletConnect: dApp генерирует QR-код, пользователь сканирует его в
+      мобильном кошельке (Trust, Rainbow, Coinbase Wallet, Ledger Live), и
+      устанавливается зашифрованная сессия через relay-сервер.
+    </p>
+
+<pre class="code-block"><code>// src/wagmi.ts
+import { createConfig, http } from 'wagmi'
+import { mainnet, sepolia } from 'wagmi/chains'
+import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors'
+
+export const config = createConfig({
+  chains: [mainnet, sepolia],
+  connectors: [
+    injected({ shimDisconnect: true }),
+    walletConnect({
+      projectId: import.meta.env.VITE_WC_PROJECT_ID,    // получите на cloud.walletconnect.com
+      metadata: {
+        name: 'My dApp',
+        description: 'Best dApp in the multiverse',
+        url: 'https://my-dapp.example',
+        icons: ['https://my-dapp.example/icon.png'],
+      },
+      showQrModal: true,                                 // встроенный QR-модал
+    }),
+    coinbaseWallet({
+      appName: 'My dApp',
+      preference: 'all',                                 // и extension, и smart-wallet
+    }),
+  ],
+  transports: {
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
+})</code></pre>
+
+    <div class="note cyan">
+      <strong>WalletConnect projectId.</strong> Бесплатный план — 100k запросов
+      в месяц, для большинства проектов достаточно. На production обязательно
+      настройте allowedDomains в кабинете WC — иначе кто угодно может использовать
+      ваш projectId и съесть лимиты.
+    </div>
+
+    <h2>5. Smart wallets и passkey (EIP-7702)</h2>
+
+    <p>
+      Coinbase Smart Wallet (Base + Optimism), Safe — это <em>контрактные</em>
+      кошельки. Адрес — это адрес контракта, а не EOA. Технически у них есть
+      особенности:
+    </p>
+
+    <ul>
+      <li><strong>signMessage</strong> возвращает не 65-байтовую ECDSA, а
+        ERC-1271-совместимую подпись. Проверяйте через
+        <code>publicClient.verifyMessage</code> — он автоматически делает
+        ERC-1271 fallback.</li>
+      <li><strong>Газ может оплачиваться спонсором</strong> (paymaster).
+        Для большинства dApp это прозрачно, но важно знать.</li>
+      <li><strong>Транзакции могут быть батчевыми</strong> (EIP-5792
+        <code>wallet_sendCalls</code>) — несколько действий за одну подпись.</li>
+      <li><strong>EIP-7702</strong> (Pectra, 2025): EOA может временно
+        делегировать на код контракта. Это размывает границу между EOA и smart
+        wallet. wagmi обрабатывает через <code>useSendCalls</code>.</li>
+    </ul>
+
+    <h2>6. Сессия через перезагрузку</h2>
+
+    <p>
+      По умолчанию <code>injected()</code> connector сохраняет состояние в
+      <code>localStorage</code>. После reload wagmi автоматически делает
+      <code>eth_accounts</code> и если кошелёк всё ещё разрешает доступ — session
+      восстанавливается. Если пользователь отозвал доступ — список адресов пуст,
+      wagmi считает кошелёк disconnected.
+    </p>
+
+<pre class="code-block"><code>// src/App.tsx
+import { useAccount, useReconnect } from 'wagmi'
+import { useEffect } from 'react'
+
+export function App() {
+  const { reconnect } = useReconnect()
+  const { isReconnecting, isConnected } = useAccount()
+
+  // Восстанавливаем сессию один раз при mount
+  useEffect(() =&gt; {
+    reconnect()
+  }, [])
+
+  if (isReconnecting) return &lt;p&gt;Restoring session…&lt;/p&gt;
+  if (!isConnected)   return &lt;ConnectButton /&gt;
+  return &lt;Dashboard /&gt;
+}</code></pre>
+
+    <h2>7. Read-only fallback</h2>
+
+    <p>
+      Не все пользователи готовы подключать кошелёк сразу. Хороший UX позволяет
+      смотреть данные dApp <em>без</em> connect: цены, объёмы, графики. Это
+      делается на одном PublicClient (или wagmi <code>useReadContract</code>
+      без <code>account</code>).
+    </p>
+
+<pre class="code-block"><code>// Глобальная статистика, видна всем
+export function ProtocolStats() {
+  const { data: tvl } = useReadContract({
+    address: VAULT,
+    abi: vaultAbi,
+    functionName: 'totalAssets',
+    // НЕТ account, НЕТ args зависимых от user
+  })
+
+  return &lt;p&gt;TVL: {formatEther(tvl ?? 0n)} ETH&lt;/p&gt;
+}
+
+// Персональная статистика — только при isConnected
+export function MyPosition() {
+  const { address, isConnected } = useAccount()
+  const { data } = useReadContract({
+    address: VAULT,
+    abi: vaultAbi,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  })
+
+  if (!isConnected) return &lt;p&gt;Connect wallet to see your position&lt;/p&gt;
+  return &lt;p&gt;Your shares: {data?.toString()}&lt;/p&gt;
+}</code></pre>
+
+    <h2>8. Безопасность подключения</h2>
+
+    <h3>8.1 Никогда не запрашивать private key</h3>
+
+    <p>
+      dApp не должен и не может видеть private key. Любая просьба «введите seed
+      phrase» = фишинг. EIP-1193 даёт только <em>provider</em>, через который
+      можно подписать сообщение/транзакцию.
+    </p>
+
+    <h3>8.2 Origin pinning</h3>
+
+    <p>
+      Кошельки сравнивают origin запроса с origin'ом, на котором пользователь
+      сделал connect. Если ваш dApp работает на нескольких доменах
+      (<code>app.foo.com</code>, <code>app-staging.foo.com</code>) — на каждом
+      будет отдельный «сеанс» в кошельке. Это не баг, это feature: компрометация
+      одного домена не даёт доступ к подписи на другом.
+    </p>
+
+    <h3>8.3 EIP-712 vs personal_sign</h3>
+
+    <p>
+      Раньше большинство подписей делалось через <code>personal_sign</code> —
+      пользователь видел только хеш или произвольную строку. Это создавало
+      «слепые» подписи. EIP-712 (typed data) показывает структурированное
+      сообщение с понятными полями: «Permit: spend 100 USDC by 0x..., expires at
+      ...». wagmi <code>useSignTypedData</code> — стандарт для любой подписи
+      с пользовательским решением.
+    </p>
+
+    <h2>9. Практические задачи</h2>
+
+    <h3>Задача 1 — Кастомный WalletPicker с EIP-6963</h3>
+
+<pre class="code-block"><code># Расширьте проект из Lesson 12.
+# Замените дефолтный wagmi ConnectButton на собственный модал.
+
+# src/WalletPicker.tsx — см. секцию 2.
+
+# Дополнительно:
+# 1. Спрятать модал, если кошелёк уже подключён (useAccount().isConnected).
+# 2. Запоминать «recent» wallet в localStorage и предлагать его первым.
+# 3. Добавить пустое состояние: «Не установлено ни одного кошелька — установите MetaMask или Rabby».
+
+# Tест:
+# - Установите 2 кошелька (MetaMask + Rabby): должны увидеть оба в списке.
+# - В Chrome DevTools отключите MetaMask: список должен обновиться (требуется reload).
+# - Откройте с мобильного: должен быть только WalletConnect option.</code></pre>
+
+    <h3>Задача 2 — Обработка всех ошибок коннекта</h3>
+
+<pre class="code-block"><code># src/handleConnect.ts
+import { UserRejectedRequestError, ResourceUnavailableRpcError } from 'viem'
+
+export function handleConnectError(error: unknown, toast: Toast) {
+  if (error instanceof UserRejectedRequestError) {
+    // closeModal без сообщения — это нормальная отмена пользователя
+    return { kind: 'user-cancel' }
+  }
+  if (error instanceof ResourceUnavailableRpcError) {
+    toast.warn('Откройте кошелёк и завершите предыдущий запрос')
+    return { kind: 'busy' }
+  }
+  if (error instanceof Error &amp;&amp; error.message.includes('already connected')) {
+    return { kind: 'already-connected' }
+  }
+  if (error instanceof Error &amp;&amp; error.message.includes('Connection request reset')) {
+    toast.warn('Соединение разорвано. Попробуйте ещё раз.')
+    return { kind: 'reset' }
+  }
+  // Всё остальное — настоящие ошибки
+  toast.error('Не удалось подключиться: ' + (error as Error).message)
+  console.error(error)
+  return { kind: 'unknown' }
+}
+
+# Использование:
+const { connect } = useConnect({
+  mutation: {
+    onError: handleConnectError,
+  },
+})</code></pre>
+
+    <h3>Задача 3 — Restore-session pattern</h3>
+
+<pre class="code-block"><code># src/App.tsx
+import { useReconnect, useAccount } from 'wagmi'
+import { useEffect, useState } from 'react'
+
+export function App() {
+  const [restored, setRestored] = useState(false)
+  const { reconnect } = useReconnect()
+  const { isConnected, isConnecting, isReconnecting } = useAccount()
+
+  useEffect(() =&gt; {
+    if (!restored) {
+      reconnect().finally(() =&gt; setRestored(true))
+    }
+  }, [restored])
+
+  // 3 разных state, 3 разных UI
+  if (!restored || isReconnecting) return &lt;Splash text="Восстанавливаем сессию…" /&gt;
+  if (isConnecting)                return &lt;Splash text="Открываем кошелёк…" /&gt;
+  if (!isConnected)                return &lt;HomePage /&gt;            // read-only mode
+
+  return &lt;Dashboard /&gt;
+
+  # Tест:
+  # 1. Подключите кошелёк, сделайте reload — должна остаться сессия.
+  # 2. В кошельке нажмите Disconnect → reload — должен открыться HomePage.
+  # 3. Очистите localStorage → reload — снова HomePage, никаких exception.
+}</code></pre>
+
+    <h3>Задача 4 — Switch network с автодобавлением chain</h3>
+
+<pre class="code-block"><code># src/SwitchNetwork.tsx
+import { useSwitchChain, useChainId } from 'wagmi'
+import { base, optimism, arbitrum, sepolia } from 'wagmi/chains'
+
+const TARGET_CHAINS = [base, optimism, arbitrum, sepolia]
+
+export function SwitchNetwork() {
+  const chainId = useChainId()
+  const { switchChain, isPending, error } = useSwitchChain()
+
+  return (
+    &lt;&gt;
+      {TARGET_CHAINS.map(c =&gt; (
+        &lt;button
+          key={c.id}
+          disabled={isPending || chainId === c.id}
+          onClick={() =&gt; switchChain({ chainId: c.id })}
+        &gt;
+          {chainId === c.id ? '✓ ' : ''}{c.name}
+        &lt;/button&gt;
+      ))}
+      {error &amp;&amp; &lt;p&gt;Ошибка: {error.shortMessage}&lt;/p&gt;}
+    &lt;/&gt;
+  )
+}
+
+# Магия: если у пользователя в MetaMask НЕТ Base — wagmi автоматически
+# вызовет wallet_addEthereumChain с params из объекта base (rpcUrls,
+# blockExplorers, name, nativeCurrency). Пользователь увидит prompt
+# «Add Base mainnet?» и потом «Switch to Base?» — две подписи.
+
+# Tест:
+# 1. Удалите Base из MetaMask (Settings → Networks).
+# 2. В dApp нажмите «Base» — увидите два модала подряд.
+# 3. После switch — useChainId() = base.id, ✓ возле Base.</code></pre>
+
+    <h2>10. Песочница · MetaMask add-network demo</h2>
+
+    <p>
+      Кнопка ниже шлёт реальный <code>wallet_addEthereumChain</code> на ваш
+      MetaMask (или любой EIP-1193 кошелёк). Это та же логика, что у
+      <code>switchChain</code>: если chain ещё не добавлен — wagmi (или ваш
+      ручной код) делает <code>wallet_addEthereumChain</code> сначала. Здесь —
+      Sepolia testnet.
+    </p>
+
+    <div class="sandbox" data-embed="metamask" data-chain="0xaa36a7"
+      data-title="MetaMask · добавить Sepolia (0xaa36a7)"></div>
+
+    <p style="margin-top:1rem">
+      А вот полноценный StackBlitz-проект, где собран EIP-6963 wallet picker
+      и обработка ошибок:
+    </p>
+
+    <div class="sandbox" data-embed="stackblitz"
+      data-title="StackBlitz · wagmi + EIP-6963 wallet picker"
+      data-src="https://stackblitz.com/edit/wagmi-wallet-picker?embed=1&file=src%2FWalletPicker.tsx"
+      data-desc="Демонстрация: кастомный модал выбора кошелька, обработка UserRejectedRequestError, fallback на WalletConnect. Установите 2+ кошелька в браузере, чтобы увидеть EIP-6963 discovery."></div>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      <strong><a href="../14/index.html">Lesson 14 — Transaction UX</a></strong>:
+      pending states, optimistic UI, replacement и dropped transactions,
+      gas-bump UI. У нас подключение работает; теперь учимся правильно
+      отрисовывать <em>транзакцию</em> от подписи до confirmed.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-6963" target="_blank" rel="noopener">EIP-6963 — Multi Injected Provider Discovery</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1193" target="_blank" rel="noopener">EIP-1193 — Ethereum Provider JavaScript API</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1271" target="_blank" rel="noopener">EIP-1271 — Standard Signature Validation Method for Contracts</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-5792" target="_blank" rel="noopener">EIP-5792 — Wallet Function Call API</a> (batch transactions).</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-7702" target="_blank" rel="noopener">EIP-7702 — Set EOA account code</a> (Pectra).</li>
+        <li><a href="https://docs.walletconnect.com/" target="_blank" rel="noopener">WalletConnect v2 — Developer Docs</a>.</li>
+        <li><a href="https://docs.cloud.coinbase.com/wallet-sdk/" target="_blank" rel="noopener">Coinbase Wallet SDK</a>.</li>
+        <li><a href="https://docs.safe.global/" target="_blank" rel="noopener">Safe (Multisig) docs</a>.</li>
+        <li><a href="https://wagmi.sh/react/guides/connect-wallet" target="_blank" rel="noopener">wagmi · Connect Wallet guide</a>.</li>
+        <li><a href="https://www.rainbowkit.com/docs/introduction" target="_blank" rel="noopener">RainbowKit</a> — production-ready wallet UI.</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="13">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 13 · Wallet UX",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все примеры — на Vite-проекте из Lesson 12, расширенном задачами 1-4.",
+  "questions": [
+    {
+      "q": "Какую проблему решает EIP-6963?",
+      "kind": "multiple",
+      "options": [
+        "Скорость JSON-RPC",
+        "Конфликт нескольких кошельков за <code>window.ethereum</code>: до 6963 побеждал последний инжектированный; 6963 ввёл event-based discovery — каждый кошелёк announce'ит свои метаданные, dApp показывает список и пользователь сам выбирает",
+        "Скорость WalletConnect",
+        "Поддержку Smart Contract Wallets"
+      ],
+      "answerIndex": 1,
+      "explain": "wagmi 2.x автоматически слушает eip6963:announceProvider и возвращает каждый wallet как отдельный connector в useConnect().connectors. UX-победа: вместо «открывается случайный кошелёк» — явный выбор."
+    },
+    {
+      "q": "Чем отличается WalletConnect от injected connector?",
+      "kind": "multiple",
+      "options": [
+        "Никаким — это два способа сказать одно и то же",
+        "Injected — это EIP-1193 provider, инжектируемый extension'ом в браузер (только desktop). WalletConnect — QR-протокол через relay-сервер; работает с любым мобильным или hardware-кошельком",
+        "WalletConnect быстрее injected",
+        "Injected требует projectId на cloud.walletconnect.com"
+      ],
+      "answerIndex": 1,
+      "explain": "На мобильных Safari у вас НЕТ extension — WalletConnect единственный путь. Best practice: всегда давать оба варианта в picker'е."
+    },
+    {
+      "q": "Какая ошибка соответствует «пользователь нажал Cancel в кошельке»?",
+      "kind": "multiple",
+      "options": [
+        "ResourceUnavailableRpcError",
+        "ChainMismatchError",
+        "UserRejectedRequestError",
+        "ConnectorNotFoundError"
+      ],
+      "answerIndex": 2,
+      "explain": "UserRejectedRequestError = код 4001 из EIP-1193. Это <em>не</em> программная ошибка — не логируйте в Sentry. Просто закройте модал и верните UI в начальное состояние."
+    },
+    {
+      "q": "Что делает <code>reconnect()</code>?",
+      "kind": "multiple",
+      "options": [
+        "Заставляет пользователя снова подписать сообщение",
+        "Пытается восстановить сессию после reload страницы: читает последний коннектор из localStorage, делает eth_accounts; если кошелёк всё ещё разрешает доступ — session восстанавливается без user-prompt",
+        "Перезагружает PublicClient",
+        "Делает refetch баланса"
+      ],
+      "answerIndex": 1,
+      "explain": "Без reconnect() после reload isConnected = false, пользователь думает, что вылетела сессия. Лучший паттерн — вызвать reconnect() один раз при mount App.tsx и показывать splash во время isReconnecting."
+    },
+    {
+      "q": "Что такое ERC-1271 и где он применяется?",
+      "kind": "multiple",
+      "options": [
+        "Альтернатива ERC-20",
+        "Стандарт проверки подписи для контрактных кошельков: вместо ecrecover контракт реализует <code>isValidSignature(hash, sig) → bytes4(0x1626ba7e)</code>. Без 1271 contractwallet-пользователи не могут логиниться через SIWE, использовать permit, делать off-chain orders",
+        "Альтернатива WalletConnect",
+        "Способ хранения seed phrase"
+      ],
+      "answerIndex": 1,
+      "explain": "Любая dApp, которая работает с подписями, должна верифицировать через viem.verifyMessage / verifyTypedData — они автоматически делают ERC-1271 fallback, если sender — контракт."
+    },
+    {
+      "q": "Зачем нужен read-only режим без подключения?",
+      "kind": "multiple",
+      "options": [
+        "Это бесполезно",
+        "UX: пользователь приходит из Twitter, не хочет сразу подписывать transaction; видит TVL, статистику пулов, графики — потом, если интересно, подключает кошелёк. Снижает bounce rate, ускоряет first contentful paint",
+        "Только для гейминга",
+        "Требование App Store"
+      ],
+      "answerIndex": 1,
+      "explain": "Глобальные данные (TVL, prices, total volume) читаются через PublicClient без account. Персональные (мой баланс, мои позиции) — только при isConnected. Это и есть «правильный» web3 onboarding."
+    },
+    {
+      "q": "Что такое <code>shimDisconnect: true</code> в <code>injected()</code> connector?",
+      "kind": "multiple",
+      "options": [
+        "Отключает интернет",
+        "MetaMask не имеет настоящего «disconnect» API — после wagmi.disconnect() кошелёк всё ещё помнит сессию. shimDisconnect сохраняет в localStorage флаг «не подключаться автоматически», пока пользователь явно не нажмёт Connect",
+        "Это deprecated опция",
+        "Только для Coinbase Wallet"
+      ],
+      "answerIndex": 1,
+      "explain": "Без shim — пользователь нажимает Disconnect, делает reload, и кошелёк снова автоконнект'ится. С shim — disconnect честно отрабатывает, пока пользователь явно не подключится снова."
+    },
+    {
+      "q": "Practical: задача 1 — почему useConnect().connectors иногда возвращает пустой массив при первом render?",
+      "kind": "task",
+      "answer": "EIP-6963 — асинхронный: wagmi dispatch'ит requestProvider и ждёт ответов кошельков. Первый render компонента может произойти ДО announce от кошельков (особенно при медленных extension'ах). Решение: useEffect с зависимостью от connectors.length, либо <code>useConnectors()</code> + проверка length === 0 → показывать «ищем кошельки» state. Через 100-300ms массив дополнится. В RainbowKit это всё уже сделано."
+    },
+    {
+      "q": "Practical: задача 3 — что делать, если после reload isConnected стало true, но window.ethereum.selectedAddress === null?",
+      "kind": "task",
+      "answer": "Это значит, что localStorage помнит сессию, но кошелёк её уже забыл (пользователь revoke'нул разрешение или сменил аккаунт). reconnect() в этом случае вернёт ошибку ConnectorAccountNotFoundError. Правильный паттерн: ловить ошибку, вызывать disconnect() чтобы очистить localStorage, показать ConnectButton. Без этого UI «сломается»: account = undefined, но isConnected = true."
+    },
+    {
+      "q": "Practical: задача 4 — как пользователь без Base в кошельке увидит two-step prompt?",
+      "kind": "task",
+      "answer": "1) wagmi вызывает <code>wallet_switchEthereumChain({ chainId: '0x2105' })</code>. 2) MetaMask отвечает ошибкой 4902 — chain не добавлен. 3) wagmi автоматически вызывает <code>wallet_addEthereumChain</code> с params из объекта <code>base</code> wagmi/chains (rpcUrls, blockExplorerUrls, nativeCurrency, name, iconUrls). 4) MetaMask показывает модал «Add Base mainnet?» — пользователь подтверждает. 5) MetaMask сразу следом показывает «Switch to Base?» — второй prompt. После двух подтверждений useChainId() = 8453."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Все примеры — <strong>wagmi ≥2.5</strong>. Для production используйте
+      RainbowKit или Web3Modal — они инкапсулируют все эти паттерны и обеспечивают
+      доступность (aria-label, keyboard navigation, mobile sheet).
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

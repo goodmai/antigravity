@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 15 · SIWE (EIP-4361) — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 15 · SIWE</span>
+    </div>
+
+    <p class="lesson-meta">Модуль III · Lesson 15 · SIWE · EIP-4361 · sessions</p>
+    <h1>Sign-In with Ethereum (EIP-4361) и серверная авторизация</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../14/index.html">Lesson 14 — Transaction UX</a>.
+      Транзакции — это on-chain действия. Логин — это off-chain действие,
+      и у него совсем другие правила.
+    </p>
+
+    <p>
+      <strong>Sign-In with Ethereum (SIWE)</strong>, EIP-4361 — стандарт, как
+      авторизовать пользователя по адресу Ethereum без password, email и OAuth.
+      Идея: сервер посылает структурированное сообщение, пользователь подписывает
+      его кошельком, сервер проверяет подпись и создаёт сессию. Один протокол —
+      одинаковая авторизация на тысячах dApp.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: писать корректное
+      SIWE-сообщение со всеми обязательными полями; реализовать flow
+      <em>nonce → sign → verify → session</em> на сервере; проверять подписи
+      EOA и ERC-1271 контрактных кошельков; защищаться от replay-атак,
+      phishing и domain-spoofing; интегрировать <code>siwe</code> или
+      <code>viem.verifyMessage</code> в Next.js/Express.
+    </div>
+
+    <h2>1. Зачем не использовать password</h2>
+
+    <p>
+      Password — это shared secret. Утечка БД = катастрофа: hash + rainbow
+      table + GPU = миллионы паролей раскрыты. OAuth решает часть проблем,
+      но завязывает на Google/Apple/Meta (privacy concerns, Account Takeover
+      через email-recovery).
+    </p>
+
+    <p>
+      Криптокошелёк — это асимметричный ключ. Сервер видит только публичный
+      адрес и подпись; никаких секретов хранить не нужно. Утечка БД сессий
+      не даёт ничего, кроме списка адресов. Это <strong>passwordless</strong>
+      по дизайну.
+    </p>
+
+    <h2>2. Структура SIWE-сообщения</h2>
+
+    <p>
+      EIP-4361 определяет точный формат строки, которую видит пользователь в
+      кошельке. Любое отклонение от него — и кошельки не покажут «красивое»
+      сообщение, а dApp откроет уязвимость phishing'а.
+    </p>
+
+<pre class="code-block"><code>example.com wants you to sign in with your Ethereum account:
+0x9D85ca56217D2bb651b00f15e694EB7E713637D4
+
+Welcome to Example. By signing in you accept our Terms of Service:
+https://example.com/tos
+
+URI: https://example.com/login
+Version: 1
+Chain ID: 1
+Nonce: 32891756
+Issued At: 2026-05-14T12:34:56.789Z
+Expiration Time: 2026-05-14T13:04:56.789Z
+Not Before: 2026-05-14T12:34:56.789Z
+Request ID: r_8b4d3f
+Resources:
+- ipfs://Qm...
+- https://example.com/my/asset</code></pre>
+
+    <p>Обязательные и опциональные поля:</p>
+
+    <table class="compare">
+      <tr><th>Поле</th><th>Назначение</th><th>Обязательное</th></tr>
+      <tr><td><code>domain</code></td><td>Сайт, который запрашивает sign-in</td><td>да</td></tr>
+      <tr><td><code>address</code></td><td>Адрес пользователя</td><td>да</td></tr>
+      <tr><td><code>statement</code></td><td>Произвольный текст, видимый в кошельке</td><td>нет</td></tr>
+      <tr><td><code>uri</code></td><td>Полный URL ресурса</td><td>да</td></tr>
+      <tr><td><code>version</code></td><td>«1»</td><td>да</td></tr>
+      <tr><td><code>chainId</code></td><td>EIP-155 chain id</td><td>да</td></tr>
+      <tr><td><code>nonce</code></td><td>Случайная строка от сервера, ≥8 символов</td><td>да</td></tr>
+      <tr><td><code>issuedAt</code></td><td>ISO 8601 timestamp</td><td>да</td></tr>
+      <tr><td><code>expirationTime</code></td><td>ISO 8601 timestamp, после — недействителен</td><td>нет, но желательно</td></tr>
+      <tr><td><code>notBefore</code></td><td>До какого момента подпись не валидна</td><td>нет</td></tr>
+      <tr><td><code>requestId</code></td><td>Связь с server-side request</td><td>нет</td></tr>
+      <tr><td><code>resources</code></td><td>Список URI, которые подпись авторизует</td><td>нет</td></tr>
+    </table>
+
+    <div class="note cyan">
+      <strong>Phishing-protection.</strong> Метамаск визуально подсвечивает
+      <code>domain</code> в SIWE-сообщении. Если пользователь видит
+      «evil.com wants you to sign in», он сразу заметит подмену. С
+      произвольной строкой через personal_sign такой защиты нет.
+    </div>
+
+    <h2>3. Полный flow на клиенте</h2>
+
+<pre class="code-block"><code>// src/useSiwe.ts
+import { useAccount, useSignMessage, useChainId } from 'wagmi'
+import { SiweMessage } from 'siwe'
+
+export function useSiwe() {
+  const { address } = useAccount()
+  const chainId     = useChainId()
+  const { signMessageAsync } = useSignMessage()
+
+  const signIn = async () =&gt; {
+    if (!address) throw new Error('connect wallet first')
+
+    // 1. Запросить nonce у бэка (одноразовый, привязан к сессии)
+    const { nonce } = await fetch('/api/siwe/nonce').then(r =&gt; r.json())
+
+    // 2. Сконструировать SIWE-сообщение
+    const message = new SiweMessage({
+      domain:    window.location.host,
+      address,
+      statement: 'Welcome to MyApp. Sign in to continue.',
+      uri:       window.location.origin,
+      version:   '1',
+      chainId,
+      nonce,
+      issuedAt:  new Date().toISOString(),
+      expirationTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(),  // +30 мин
+    })
+
+    const messageStr = message.prepareMessage()
+
+    // 3. Попросить пользователя подписать (виден в MetaMask)
+    const signature = await signMessageAsync({ message: messageStr })
+
+    // 4. Отправить на бэк для verify
+    const res = await fetch('/api/siwe/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: messageStr, signature }),
+    })
+
+    if (!res.ok) throw new Error('SIWE verify failed: ' + (await res.text()))
+    return res.json()  // { user: {...}, sessionId, ... }
+  }
+
+  return { signIn }
+}</code></pre>
+
+    <h2>4. Серверная верификация (Node/Express)</h2>
+
+<pre class="code-block"><code>// server/siwe.ts
+import express from 'express'
+import session from 'express-session'
+import { SiweMessage, generateNonce } from 'siwe'
+
+const app = express()
+app.use(express.json())
+app.use(session({
+  secret: process.env.SESSION_SECRET!,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { sameSite: 'lax', httpOnly: true, secure: process.env.NODE_ENV === 'production' },
+}))
+
+// 1. nonce — сервер генерирует и привязывает к сессии
+app.get('/api/siwe/nonce', (req, res) =&gt; {
+  req.session.nonce = generateNonce()      // криптостойкий случайный 17-байтовый id
+  res.json({ nonce: req.session.nonce })
+})
+
+// 2. verify
+app.post('/api/siwe/verify', async (req, res) =&gt; {
+  try {
+    const { message, signature } = req.body
+    const siwe = new SiweMessage(message)
+    const result = await siwe.verify({
+      signature,
+      nonce: req.session.nonce,            // обязательно проверяем тот же nonce
+      domain: req.hostname,                // защита от cross-domain атак
+    })
+
+    if (!result.success) {
+      return res.status(401).json({ error: result.error?.type })
+    }
+
+    // 3. Подпись валидна — создаём сессию
+    req.session.siwe = siwe                // сохраняем для будущих authenticated endpoint'ов
+    req.session.nonce = undefined          // одноразовый — больше использовать нельзя
+    res.json({ user: { address: siwe.address }, ok: true })
+  } catch (err: any) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
+// 4. authenticated endpoint
+app.get('/api/me', (req, res) =&gt; {
+  if (!req.session.siwe) return res.status(401).json({ error: 'not authenticated' })
+  if (new Date(req.session.siwe.expirationTime ?? 0) &lt; new Date()) {
+    return res.status(401).json({ error: 'session expired' })
+  }
+  res.json({ address: req.session.siwe.address })
+})
+
+// 5. logout
+app.post('/api/siwe/logout', (req, res) =&gt; {
+  req.session.destroy(() =&gt; res.json({ ok: true }))
+})
+
+app.listen(3000)</code></pre>
+
+    <h2>5. Верификация через viem (без npm-пакета siwe)</h2>
+
+    <p>
+      Если у вас уже есть viem на бэке (например, Next.js API route с Node),
+      можно проверить подпись и без отдельной библиотеки siwe — но придётся
+      руками парсить сообщение и проверять nonce/expiration.
+    </p>
+
+<pre class="code-block"><code>// server/api/siwe/verify.ts (Next.js Edge / Node)
+import { createPublicClient, http, verifyMessage } from 'viem'
+import { mainnet } from 'viem/chains'
+
+const client = createPublicClient({ chain: mainnet, transport: http() })
+
+export async function POST(req: Request) {
+  const { message, signature } = await req.json()
+
+  // 1. Криптографическая проверка подписи (EOA + ERC-1271)
+  const valid = await client.verifyMessage({
+    address: extractAddressFromSiwe(message),
+    message,
+    signature,
+  })
+  if (!valid) return Response.json({ error: 'bad signature' }, { status: 401 })
+
+  // 2. Парсинг полей SIWE-сообщения
+  const fields = parseSiwe(message)
+
+  // 3. Защита: nonce совпадает с серверным
+  if (fields.nonce !== session.nonce) {
+    return Response.json({ error: 'bad nonce' }, { status: 401 })
+  }
+  // 4. Защита: expiration не истёк
+  if (new Date(fields.expirationTime) &lt; new Date()) {
+    return Response.json({ error: 'expired' }, { status: 401 })
+  }
+  // 5. Защита: domain корректный
+  if (fields.domain !== req.headers.get('host')) {
+    return Response.json({ error: 'bad domain' }, { status: 401 })
+  }
+
+  // 6. Создать сессию (JWT, cookie, etc.)
+  return Response.json({ user: { address: fields.address }, ok: true })
+}</code></pre>
+
+    <div class="note">
+      <strong>verifyMessage и ERC-1271.</strong> viem.verifyMessage
+      автоматически делает fallback на ERC-1271, если адрес — контракт.
+      Это значит: Safe-мультисиги, Coinbase Smart Wallet, Argent — все
+      пройдут проверку без специального кода. Без этого fallback'а ваш
+      сервис «не пускает» 5-10% пользователей (растущая доля smart wallets).
+    </div>
+
+    <h2>6. Атаки и защита</h2>
+
+    <h3>6.1 Replay-атака</h3>
+
+    <p>
+      Атакующий перехватывает SIWE-сообщение + signature и отправляет на сервер
+      повторно. <strong>Защита</strong>: nonce одноразовый. После успешного
+      <code>verify</code> сервер обнуляет <code>session.nonce</code>; следующая
+      попытка с тем же nonce упадёт. Дополнительно — <code>expirationTime</code>:
+      даже если nonce сохранился, после expiration подпись недействительна.
+    </p>
+
+    <h3>6.2 Cross-domain атака</h3>
+
+    <p>
+      Атакующий заводит сайт <code>evil.com</code>, заставляет пользователя
+      подписать SIWE с <code>domain: example.com</code>. Если пользователь
+      невнимателен — он подписывает «логин на example.com», находясь на evil.com.
+      Затем атакующий приносит подпись на example.com.
+    </p>
+
+    <p>
+      <strong>Защита</strong>: на сервере проверять, что <code>domain</code> в
+      сообщении совпадает с <code>req.hostname</code>. И/или прикреплять nonce
+      к session cookie, который выдаёт ТОТ ЖЕ домен — тогда атакующий не сможет
+      запросить корректный nonce.
+    </p>
+
+    <h3>6.3 Phishing — фальшивый SIWE</h3>
+
+    <p>
+      Атакующий сайт показывает SIWE-сообщение с domain <code>example.com</code>,
+      пользователь невнимательно подписывает. Тут защита — на стороне кошелька:
+      MetaMask показывает реальный <code>window.location.host</code> и
+      сопоставляет с <code>domain</code> в сообщении. Если не совпадает — warning.
+    </p>
+
+    <h3>6.4 Privilege escalation через resources</h3>
+
+    <p>
+      SIWE поддерживает поле <code>Resources</code>: список URI, которые
+      пользователь авторизует. Это удобно для делегирования (Permissions
+      capability URLs). Но <strong>сервер обязан проверять</strong>, что
+      требуемый ресурс есть в списке — иначе подпись на «логин» даст доступ
+      ко всему API.
+    </p>
+
+    <h2>7. Сессионная стратегия</h2>
+
+    <p>
+      После успешного verify сервер должен создать сессию. Три популярных
+      подхода:
+    </p>
+
+    <ul>
+      <li><strong>Cookie + server-side session store</strong> (express-session +
+        Redis). Лучший вариант для классических server-rendered приложений.
+        HttpOnly + Secure + SameSite=Lax — стандартный набор защит.</li>
+      <li><strong>JWT в httpOnly cookie.</strong> Сервер не хранит state; JWT
+        включает <code>{ address, exp }</code>. Проще scaling, но logout-всех-устройств
+        требует чёрного списка.</li>
+      <li><strong>Refresh + access JWT.</strong> Production-grade: короткий
+        access (15 мин), длинный refresh (7 дней). Refresh ротируется при
+        каждом использовании — компрометация одного устройства не даёт
+        долгий доступ.</li>
+    </ul>
+
+    <h2>8. Практические задачи</h2>
+
+    <h3>Задача 1 — Минимальный SIWE-сервер на Express</h3>
+
+<pre class="code-block"><code># Шаг 1: установка
+mkdir siwe-lab && cd siwe-lab
+npm init -y
+npm i express express-session siwe cors
+npm i -D typescript tsx @types/express @types/express-session @types/cors @types/node
+
+# Шаг 2: server.ts — см. секцию 4.
+
+# Шаг 3: запуск
+npx tsx server.ts
+# &gt; listening on 3000
+
+# Шаг 4: проверка через curl
+NONCE=$(curl -s -c cookies.txt http://localhost:3000/api/siwe/nonce | jq -r .nonce)
+echo "Nonce: $NONCE"
+
+# Подпишите вручную через cast (используем ваш приватный ключ):
+MSG=$'localhost:3000 wants you to sign in with your Ethereum account:\\n0xMyAddress\\n\\nWelcome\\n\\nURI: http://localhost:3000\\nVersion: 1\\nChain ID: 1\\nNonce: '$NONCE$'\\nIssued At: 2026-05-14T12:00:00Z'
+SIG=$(cast wallet sign "$MSG" --private-key 0x...)
+
+curl -s -b cookies.txt -X POST http://localhost:3000/api/siwe/verify \\
+  -H 'content-type: application/json' \\
+  -d "{\"message\":\"$MSG\",\"signature\":\"$SIG\"}"
+# &gt; { "user": { "address": "0x..." }, "ok": true }
+
+curl -s -b cookies.txt http://localhost:3000/api/me
+# &gt; { "address": "0x..." }</code></pre>
+
+    <h3>Задача 2 — Клиентский useSiwe hook (wagmi)</h3>
+
+<pre class="code-block"><code># Установка
+npm i siwe wagmi viem @tanstack/react-query
+
+# src/useSiwe.ts — см. секцию 3.
+
+# src/LoginButton.tsx
+import { useAccount } from 'wagmi'
+import { useSiwe } from './useSiwe'
+import { useState } from 'react'
+
+export function LoginButton() {
+  const { address, isConnected } = useAccount()
+  const { signIn } = useSiwe()
+  const [status, setStatus] = useState&lt;'idle' | 'signing' | 'verifying' | 'done' | 'error'&gt;('idle')
+
+  const onClick = async () =&gt; {
+    try {
+      setStatus('signing')
+      await signIn()
+      setStatus('done')
+    } catch (e) {
+      console.error(e)
+      setStatus('error')
+    }
+  }
+
+  if (!isConnected) return &lt;p&gt;Connect wallet first&lt;/p&gt;
+  if (status === 'done')   return &lt;p&gt;✓ Signed in as {address}&lt;/p&gt;
+  return (
+    &lt;button onClick={onClick} disabled={status === 'signing' || status === 'verifying'}&gt;
+      {status === 'signing' ? 'Подпишите в кошельке…' : 'Sign-in with Ethereum'}
+    &lt;/button&gt;
+  )
+}
+
+# Тест:
+# 1. Connect wallet через wagmi (Lesson 12-13).
+# 2. Нажать «Sign-in with Ethereum» — MetaMask покажет красивое SIWE-сообщение.
+# 3. После подписи `/api/me` возвращает ваш address.
+# 4. Reload — кука остаётся, /api/me продолжает работать. (Logout — кнопкой)</code></pre>
+
+    <h3>Задача 3 — Verify подпись от Safe-multisig (ERC-1271)</h3>
+
+<pre class="code-block"><code># Шаг 1: используйте viem.verifyMessage вместо siwe.verify
+# для автоматической поддержки ERC-1271.
+
+import { createPublicClient, http } from 'viem'
+import { mainnet } from 'viem/chains'
+
+const client = createPublicClient({ chain: mainnet, transport: http() })
+
+// На server-side проверяем подпись
+const isValid = await client.verifyMessage({
+  address: '0xSafeMultisigAddress',
+  message: siweMessage,
+  signature: '0x...',
+})
+
+# Шаг 2: тест с реальной Safe-кошелёчной подписью
+# Создайте Safe на Sepolia (https://app.safe.global/),
+# подключите его к dApp через WalletConnect (Lesson 13),
+# выполните Sign-in. Safe соберёт N-of-M подписей участников.
+
+# Шаг 3: на сервере verifyMessage сделает RPC-вызов
+# isValidSignature(hash, sig) на адрес Safe.
+# Safe вернёт magic value 0x1626ba7e если N подписей собраны.
+
+# Альтернатива в siwe-пакете — передать provider:
+import { providers } from 'ethers'
+const result = await siwe.verify({ signature, provider: new providers.JsonRpcProvider(RPC) })
+# Это даёт ERC-1271 fallback, но требует ethers (тяжелее, чем viem).</code></pre>
+
+    <h3>Задача 4 — Защита от replay и cross-domain</h3>
+
+<pre class="code-block"><code># Расширьте verify-handler из задачи 1 четырьмя проверками:
+
+app.post('/api/siwe/verify', async (req, res) =&gt; {
+  const { message, signature } = req.body
+  const siwe = new SiweMessage(message)
+  const result = await siwe.verify({ signature, nonce: req.session.nonce })
+
+  // 1. Криптография
+  if (!result.success) return res.status(401).json({ error: 'bad signature' })
+
+  // 2. Domain
+  if (siwe.domain !== req.hostname) {
+    return res.status(401).json({ error: 'domain mismatch' })
+  }
+
+  // 3. Chain ID — мы хотим только mainnet (или ваш список)
+  if (siwe.chainId !== 1) {
+    return res.status(401).json({ error: 'unsupported chain' })
+  }
+
+  // 4. Expiration
+  if (siwe.expirationTime &amp;&amp; new Date(siwe.expirationTime) &lt; new Date()) {
+    return res.status(401).json({ error: 'expired' })
+  }
+
+  // 5. Replay-защита: nonce одноразовый, после use обнуляем
+  req.session.siwe = siwe
+  req.session.nonce = undefined
+  res.json({ ok: true, address: siwe.address })
+})
+
+# Тест-сценарии:
+# A. Отправьте verify дважды с одной подписью — второй раз 401 (nonce undefined).
+# B. Подпишите сообщение с domain=evil.com (вручную через cast),
+#    отправьте на localhost:3000/verify — 401 «domain mismatch».
+# C. Подпишите со старым expirationTime — 401 «expired».
+# D. Подпишите с chainId=10 (Optimism) — 401 «unsupported chain».</code></pre>
+
+    <h2>9. Песочница · SIWE-сообщение в Metamask</h2>
+
+    <p>
+      Embed ниже показывает, как именно MetaMask отрисует SIWE-сообщение
+      пользователю. Для интерактивной проверки —
+      <a href="https://login.xyz/" target="_blank" rel="noopener">login.xyz</a>
+      (официальный demo от EF / Spruce).
+    </p>
+
+    <div class="sandbox" data-embed="metamask" data-chain="0x1"
+      data-title="MetaMask · Mainnet (для теста SIWE-логина на login.xyz)"></div>
+
+    <p style="margin-top:1rem">
+      А вот полный fullstack-проект (Vite + Express + siwe + wagmi):
+    </p>
+
+    <div class="sandbox" data-embed="stackblitz"
+      data-title="StackBlitz · SIWE fullstack (Vite + Express + wagmi)"
+      data-src="https://stackblitz.com/edit/siwe-fullstack?embed=1&file=server%2Fserver.ts"
+      data-desc="Server: Express + express-session + siwe.verify, с проверкой nonce / domain / expiration. Client: useSiwe hook на wagmi.signMessage. Запустите Run, откройте preview, подключите MetaMask и нажмите «Sign-in with Ethereum»."></div>
+
+    <h2>10. Что дальше</h2>
+
+    <p>
+      Этот урок закрывает Модуль III. Дальше — Модуль IV:
+      <strong><a href="../16/index.html">Lesson 16 — Chainlink Oracles</a></strong>
+      (уже опубликован), <strong>Lesson 17 — AAVE flash loans</strong>,
+      <strong>Lesson 18 — Multichain &amp; bridges</strong>,
+      <strong>Lesson 19 — Monitoring</strong>,
+      <strong>Lesson 20 — Поставка dApp</strong>.
+    </p>
+
+    <p>
+      Что бы вы ни делали в production, помните: SIWE — это <em>идентификация</em>,
+      а не <em>авторизация на действия</em>. Логин подтверждает «я владелец
+      адреса X». Денежные операции — это on-chain транзакции, требующие
+      отдельной подписи. Не путайте session cookie с разрешением переводить
+      средства.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-4361" target="_blank" rel="noopener">EIP-4361 — Sign-In with Ethereum</a> (каноничная спецификация).</li>
+        <li><a href="https://login.xyz/" target="_blank" rel="noopener">login.xyz</a> — official SIWE demo + docs.</li>
+        <li><a href="https://docs.login.xyz/" target="_blank" rel="noopener">SIWE Docs</a> от Spruce ID.</li>
+        <li><a href="https://github.com/spruceid/siwe" target="_blank" rel="noopener">spruceid/siwe</a> — TypeScript-библиотека.</li>
+        <li><a href="https://viem.sh/docs/actions/public/verifyMessage" target="_blank" rel="noopener">viem · verifyMessage (с ERC-1271 fallback)</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1271" target="_blank" rel="noopener">EIP-1271 — Standard Signature Validation Method for Contracts</a>.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank" rel="noopener">EIP-712 — Typed structured data hashing</a>.</li>
+        <li><a href="https://docs.safe.global/safe-core-protocol/signatures" target="_blank" rel="noopener">Safe — Signatures (ERC-1271)</a>.</li>
+        <li><a href="https://next-auth.js.org/providers/credentials" target="_blank" rel="noopener">NextAuth.js — Credentials provider</a> (как обернуть SIWE).</li>
+        <li><a href="https://wagmi.sh/react/api/hooks/useSignMessage" target="_blank" rel="noopener">wagmi · useSignMessage</a>.</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="15">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 15 · SIWE",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Все примеры — на siwe-lab из задачи 1 (Express + wagmi).",
+  "questions": [
+    {
+      "q": "Зачем SIWE, если есть OAuth/email-passwords?",
+      "kind": "multiple",
+      "options": [
+        "Только для красоты UI",
+        "Passwordless, без shared secret: сервер хранит только публичный адрес. Утечка БД сессий не открывает счета пользователей. Нет зависимости от Google/Apple/Meta. Совместимо с любым EVM-кошельком — нет лock-in",
+        "OAuth не работает в браузере",
+        "SIWE быстрее"
+      ],
+      "answerIndex": 1,
+      "explain": "Дополнительный плюс: можно делегировать (Resources field — capability URLs). Минус: пользователь обязан иметь кошелёк; mobile UX через WalletConnect ещё не идеален."
+    },
+    {
+      "q": "Какие 7 полей EIP-4361 ОБЯЗАТЕЛЬНЫ?",
+      "kind": "multiple",
+      "options": [
+        "только domain + address",
+        "domain, address, uri, version, chainId, nonce, issuedAt — все 7 обязательны; statement, expirationTime, notBefore, requestId, resources — опциональны",
+        "domain, password, email, captcha",
+        "только nonce и signature"
+      ],
+      "answerIndex": 1,
+      "explain": "Без любого из обязательных — SiweMessage.prepareMessage() бросит ошибку. Кошельки тоже валидируют формат — отрисуют «красивое» сообщение только при полном комплекте."
+    },
+    {
+      "q": "Зачем нужен nonce, если есть expirationTime?",
+      "kind": "multiple",
+      "options": [
+        "Это синонимы",
+        "nonce защищает от replay-атаки <em>внутри окна expirationTime</em>: даже если злоумышленник перехватил message+signature, повторно его использовать нельзя — сервер удалил nonce после первого verify",
+        "nonce защищает от front-running",
+        "nonce — это transaction nonce"
+      ],
+      "answerIndex": 1,
+      "explain": "Защита эшелонированная: nonce закрывает replay в момент; expiration ограничивает окно атаки даже если nonce caching сломался; domain закрывает cross-domain. Без любого из трёх — есть атака."
+    },
+    {
+      "q": "Что делает <code>viem.verifyMessage</code> при адресе-контракте?",
+      "kind": "multiple",
+      "options": [
+        "Возвращает false — контракты не могут подписывать",
+        "Автоматически делает eth_call на <code>isValidSignature(hash, sig)</code> по ERC-1271; если контракт вернёт magic value <code>0x1626ba7e</code> — подпись валидна",
+        "Бросает ошибку",
+        "Использует другой алгоритм"
+      ],
+      "answerIndex": 1,
+      "explain": "Это критично для smart wallets (Safe, Coinbase Smart Wallet, Argent). Если ваш бэк использует ecrecover напрямую — вы не пускаете 5-10% пользователей (растущая доля)."
+    },
+    {
+      "q": "Как сервер должен хранить nonce между /nonce и /verify?",
+      "kind": "multiple",
+      "options": [
+        "В localStorage клиента",
+        "В session cookie, привязанной к origin сервера: HttpOnly + Secure + SameSite=Lax. После успешного verify nonce обнуляется (одноразовый)",
+        "В URL-параметре",
+        "В global переменной Node"
+      ],
+      "answerIndex": 1,
+      "explain": "Привязка к сессии — обязательна. Иначе атакующий запросит nonce у вашего сервера, передаст жертве, та подпишет на evil-домене — атакующий принесёт на ваш сервер. Cookie с SameSite=Lax — это анти-CSRF."
+    },
+    {
+      "q": "Что произойдёт, если у пользователя в кошельке Chain ID = 10 (Optimism), а сервер ожидает 1 (mainnet)?",
+      "kind": "multiple",
+      "options": [
+        "Ничего — chainId неважен",
+        "Подпись валидна криптографически, но сервер должен отвергнуть в verify: chainId — часть SIWE-сообщения, и сервер проверяет, что он в allowed list (например, [1, 10, 8453]). Иначе атакующий может использовать подпись с тестовой сети для доступа к mainnet-ресурсам",
+        "MetaMask вернёт ошибку",
+        "Подпись будет недействительной"
+      ],
+      "answerIndex": 1,
+      "explain": "Это deliberate design: chainId в сообщении делает явным контекст подписи. Многие dApp поддерживают multi-chain — у них allow-list. Single-chain dApp — проверяют точное совпадение."
+    },
+    {
+      "q": "Чем подпись через SIWE отличается от подписи транзакции?",
+      "kind": "multiple",
+      "options": [
+        "Ничем",
+        "SIWE — off-chain personal_sign по EIP-191 структурированного текста; не отправляется в chain, не стоит газа. Транзакция — типизированные данные, попадает в mempool, стоит газа, исполняется блоком. SIWE — это identity, не authority on funds",
+        "SIWE требует ETH в кошельке",
+        "Транзакция не нужна для подписи"
+      ],
+      "answerIndex": 1,
+      "explain": "Главная путаница: «я залогинен, значит могу переводить деньги». НЕТ. Логин даёт session cookie на off-chain ресурсы. Перевод средств — отдельный signature → tx broadcast. dApp обязан различать."
+    },
+    {
+      "q": "Practical: задача 1 — что произойдёт, если повторно отправить тот же verify-запрос?",
+      "kind": "task",
+      "answer": "Сервер вернёт 401, потому что после первого успешного verify <code>req.session.nonce</code> установлен в undefined. Метод <code>siwe.verify({ signature, nonce: undefined })</code> упадёт с error.type = 'NONCE_MISMATCH'. Это и есть защита от replay. Если повторно отправить с тем же сообщением, но через NEW /nonce — будет создан другой nonce в сессии, и старая подпись не совпадёт."
+    },
+    {
+      "q": "Practical: задача 3 — что вернёт <code>siwe.verify</code> на подпись Safe-multisig без передачи provider?",
+      "kind": "task",
+      "answer": "Скорее всего false: SiweMessage по умолчанию использует ecrecover (EOA-only). Safe-подпись — это N-of-M ECDSA, объединённые в один blob через ERC-1271 wrapper. ecrecover на этот blob вернёт случайный адрес ≠ Safe. Решение: передать <code>provider</code> в siwe.verify (тогда библиотека делает eth_call на isValidSignature) ИЛИ использовать viem.verifyMessage, который делает ERC-1271 fallback автоматически. Без этого — отказ smart-wallet пользователям."
+    },
+    {
+      "q": "Practical: задача 4 — почему важно проверять <code>siwe.domain</code> на сервере, если кошелёк его уже проверил?",
+      "kind": "task",
+      "answer": "Кошелёк проверяет, что domain совпадает с <code>window.location.host</code> — но это user-side защита от phishing. На сервере мы не можем верить клиенту: атакующий может отправить любое сообщение через curl, минуя браузер и кошелёк. Если сервер не проверяет domain, атакующий: (1) подписывает сообщение с domain=other-site.com на своём кошельке; (2) шлёт на наш /verify; (3) если мы не проверяем domain — пускаем. Двойная защита (browser+server) — стандарт defence-in-depth."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Примеры — <strong>siwe ≥3.0</strong>, <strong>viem ≥2.0</strong>,
+      <strong>wagmi ≥2.5</strong>, Node ≥20. Для production используйте
+      <a href="https://next-auth.js.org/" target="_blank" rel="noopener">NextAuth.js</a>
+      с готовым SIWE-провайдером — это даёт надёжный refresh-flow,
+      database-adapter и интеграцию с edge runtime.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>

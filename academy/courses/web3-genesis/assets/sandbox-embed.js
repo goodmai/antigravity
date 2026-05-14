@@ -344,6 +344,52 @@ function mountMetaMask(host, opts) {
   host.appendChild(bodyWrap);
 }
 
+/* ── Stackblitz / CodeSandbox iframe (frontend playgrounds) ────────────── */
+
+function mountStackblitz(host, opts) {
+  const title = opts.title || 'StackBlitz · interactive sandbox';
+  const src   = opts.source || opts.src || '';
+  const desc  = opts.desc || '';
+
+  const body = el('div');
+  if (desc) body.appendChild(el('p', { class: 'embed-desc', html: desc }));
+
+  // Lazy: показываем кнопку «Открыть», грузим iframe по клику —
+  // это согласовано с Remix-эмбедом, чтобы не утяжелять страницу.
+  const placeholder = el('div', { class: 'embed-placeholder' });
+  placeholder.appendChild(el('p', { class: 'embed-hint', html:
+    'Песочница загружается с <code>stackblitz.com</code> / <code>codesandbox.io</code> по клику ниже. Это полноценный VS Code в браузере с npm install и preview.' }));
+  const openBtn = el('button', { class: 'embed-btn', text: 'Открыть в iframe' });
+  const newTab  = el('a', {
+    class: 'embed-btn ghost',
+    href: src,
+    target: '_blank',
+    rel: 'noopener',
+    text: 'Открыть в новой вкладке',
+  });
+  const btnRow = el('div', { class: 'embed-buttons' }, [openBtn, newTab]);
+  placeholder.appendChild(btnRow);
+
+  openBtn.addEventListener('click', () => {
+    placeholder.remove();
+    const iframe = el('iframe', {
+      src,
+      class: 'sandbox-iframe',
+      loading: 'lazy',
+      sandbox: 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals',
+      allow: 'cross-origin-isolated',
+      style: 'width:100%;height:560px;border:0;border-radius:8px;background:#0b0f17',
+    });
+    body.appendChild(iframe);
+  });
+
+  body.appendChild(placeholder);
+
+  const [hdr, bodyWrap] = frame(title, body, { text: 'stackblitz', cls: '' });
+  host.appendChild(hdr);
+  host.appendChild(bodyWrap);
+}
+
 /* ── Anvil quick-launch card ───────────────────────────────────────────── */
 
 function mountAnvil(host, opts) {
@@ -383,6 +429,7 @@ function mount(host) {
   const opts = {
     title:    host.dataset.title,
     source:   host.dataset.source,
+    src:      host.dataset.src,
     code:     host.dataset.code,
     filename: host.dataset.filename,
     network:  host.dataset.network,
@@ -390,6 +437,7 @@ function mount(host) {
     chain:    host.dataset.chain,
     slug:     host.dataset.slug,
     fork:     host.dataset.fork,
+    desc:     host.dataset.desc,
   };
   if (kind === 'remix-inline' && !opts.code) opts.code = parseInline(host);
   host.innerHTML = '';
@@ -405,6 +453,9 @@ function mount(host) {
       mountMetaMask(host, opts); break;
     case 'anvil':
       mountAnvil(host, opts); break;
+    case 'stackblitz':
+    case 'codesandbox':
+      mountStackblitz(host, opts); break;
     default:
       host.appendChild(el('p', { class: 'embed-hint', text: 'Unknown embed type: ' + kind }));
   }

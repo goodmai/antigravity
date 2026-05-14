@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 09 · Security: Reentrancy &amp; Checks — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 09 · Security: Reentrancy</span>
+    </div>
+
+    <p class="lesson-meta">Модуль II · Lesson 09 · security · checks-effects-interactions</p>
+    <h1>Security: Reentrancy, Checks-Effects-Interactions и инварианты</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../08/index.html">Lesson 08 — The Graph</a>.
+      Если индексер показывает «странный» rebalance — это может быть симптом
+      атаки. Здесь учимся писать контракты, которые в принципе не дают
+      злоумышленнику войти повторно во внешний вызов.
+    </p>
+
+    <p>
+      Re-entrancy — это <strong>самый дорогой класс багов в истории Ethereum</strong>.
+      В 2016 году The DAO потеряла $60M (по курсу того дня), что привело к hard fork
+      и появлению Ethereum Classic. Параллельная индустрия аудита, инструменты
+      статического анализа (Slither, Mythril), формальной верификации (Certora) и
+      bug-bounty (Immunefi) — всё это во многом результат уроков этой одной
+      уязвимости. И тем не менее, новые случаи всплывают каждый месяц:
+      Cream Finance ($130M, 2021), Fei Protocol ($80M, 2022), Curve ($73M, 2023).
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После этого урока вы умеете: распознать
+      reentrancy-вектор по форме функции; написать функцию по паттерну
+      Checks-Effects-Interactions; применить <code>ReentrancyGuard</code>;
+      отличить single-function, cross-function и read-only reentrancy; провести
+      базовую проверку контрактного кода через Slither.
+    </div>
+
+    <h2>1. Природа re-entrancy</h2>
+
+    <p>
+      Каждый раз, когда контракт делает <em>внешний вызов</em> на адрес, который
+      может содержать код, контроль передаётся туда. Если злоумышленник управляет
+      этим адресом, его контракт может <em>снова</em> вызвать оригинальный
+      контракт — до того, как тот успел обновить своё состояние. Это и есть
+      reentrancy.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+// УЯЗВИМЫЙ кошелёк — повторяет архитектуру The DAO
+contract VulnerableVault {
+    mapping(address =&gt; uint256) public balances;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() external {
+        uint256 bal = balances[msg.sender];
+        require(bal &gt; 0, "no balance");
+
+        // ШАГ 1: внешний вызов — отдаём ETH
+        (bool ok, ) = msg.sender.call{value: bal}("");
+        require(ok, "transfer failed");
+
+        // ШАГ 2: обновляем state ПОСЛЕ внешнего вызова — фатально
+        balances[msg.sender] = 0;
+    }
+}</code></pre>
+
+    <p>
+      Атакующий деплоит контракт, у которого в <code>receive()</code> внутри
+      снова дёргает <code>withdraw()</code> жертвы. На момент повторного вызова
+      <code>balances[attacker]</code> ещё не обнулён — поэтому проверка
+      <code>require(bal &gt; 0)</code> проходит, и атакующий снова получает свою
+      долю. Цикл повторяется, пока в Vault не закончится ETH или не закончится газ.
+    </p>
+
+<pre class="code-block"><code>// Контракт-атакующий
+contract Attacker {
+    VulnerableVault public vault;
+    uint256 public iterations;
+
+    constructor(address payable _vault) {
+        vault = VulnerableVault(_vault);
+    }
+
+    function attack() external payable {
+        require(msg.value &gt;= 1 ether, "send seed");
+        vault.deposit{value: 1 ether}();
+        vault.withdraw();
+    }
+
+    // Сюда приходит ETH из vault.withdraw() — здесь мы атакуем снова
+    receive() external payable {
+        if (address(vault).balance &gt;= 1 ether &amp;&amp; iterations &lt; 10) {
+            iterations++;
+            vault.withdraw(); // повторный вход!
+        }
+    }
+}</code></pre>
+
+    <h2>2. Паттерн Checks-Effects-Interactions (CEI)</h2>
+
+    <p>
+      Простейшее и самое эффективное лекарство — изменить порядок операций.
+      Сначала проверки, потом обновление state, потом — внешний вызов.
+    </p>
+
+<pre class="code-block"><code>function withdraw() external {
+    // 1. CHECKS — все require/проверки сверху
+    uint256 bal = balances[msg.sender];
+    require(bal &gt; 0, "no balance");
+
+    // 2. EFFECTS — обновляем state ДО любого внешнего вызова
+    balances[msg.sender] = 0;
+
+    // 3. INTERACTIONS — теперь можно делать внешние вызовы
+    (bool ok, ) = msg.sender.call{value: bal}("");
+    require(ok, "transfer failed");
+}</code></pre>
+
+    <p>
+      Когда атакующий вернётся в <code>withdraw()</code> через
+      <code>receive()</code>, его <code>balances[attacker]</code> уже равен нулю,
+      и <code>require(bal &gt; 0)</code> завершит транзакцию с revert. Все
+      внесённые им изменения отменятся (включая повторный вход).
+    </p>
+
+    <div class="note cyan">
+      <strong>Почему именно <code>.call</code>, а не <code>.transfer</code>?</strong>
+      Раньше Solidity-сообщество рекомендовало <code>address.transfer(value)</code>
+      и <code>address.send(value)</code> как «безопасные» из-за лимита 2300 газа.
+      Но после EIP-1884 (Istanbul) стоимость <code>SLOAD</code> выросла, и многие
+      нормальные контракты-кошельки перестали умещаться в 2300 газа.
+      Теперь стандарт — <code>.call{value: x}("")</code> + CEI/ReentrancyGuard.
+    </div>
+
+    <h2>3. ReentrancyGuard — страховка</h2>
+
+    <p>
+      OpenZeppelin предоставляет модификатор <code>nonReentrant</code>, который
+      ставит флаг при входе в функцию и снимает его при выходе. Повторный вход
+      проваливается на этом флаге.
+    </p>
+
+<pre class="code-block"><code>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract SafeVault is ReentrancyGuard {
+    mapping(address =&gt; uint256) public balances;
+
+    function deposit() external payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() external nonReentrant {
+        uint256 bal = balances[msg.sender];
+        require(bal &gt; 0, "no balance");
+        balances[msg.sender] = 0;
+        (bool ok, ) = msg.sender.call{value: bal}("");
+        require(ok, "transfer failed");
+    }
+}</code></pre>
+
+    <p>
+      Под капотом <code>ReentrancyGuard</code> устанавливает приватную переменную
+      <code>_status</code> в значение <code>_ENTERED</code> при входе и
+      <code>_NOT_ENTERED</code> при выходе. Повторный вход не пройдёт проверку.
+      Цена одного использования модификатора — около 5 000 газа (один <code>SSTORE</code>
+      на изменение слота с ненулевого на ненулевое и обратно).
+    </p>
+
+    <div class="note">
+      <strong>OpenZeppelin 5.x: ReentrancyGuardTransient.</strong> В Cancun
+      EIP-1153 добавил <code>TSTORE/TLOAD</code> — transient storage, который
+      сбрасывается в конце транзакции. <code>ReentrancyGuardTransient</code>
+      использует именно его и стоит ~200 газа вместо 5 000. Доступен с
+      Solidity 0.8.24 и OpenZeppelin 5.1.
+    </div>
+
+    <h2>4. Cross-function reentrancy</h2>
+
+    <p>
+      Реентранс может быть не только в ту же функцию, но и через другую.
+      Если две функции читают/пишут один и тот же state, и одна из них защищена
+      <code>nonReentrant</code>, но другая — нет, атакующий войдёт через вторую.
+    </p>
+
+<pre class="code-block"><code>contract CrossFunctionVulnerable is ReentrancyGuard {
+    mapping(address =&gt; uint256) public balances;
+
+    function withdrawAll() external nonReentrant {
+        uint256 bal = balances[msg.sender];
+        (bool ok, ) = msg.sender.call{value: bal}("");
+        require(ok);
+        balances[msg.sender] = 0;
+    }
+
+    // Эта функция НЕ защищена — но читает тот же balances:
+    function transferInternal(address to, uint256 amount) external {
+        require(balances[msg.sender] &gt;= amount, "low");
+        balances[msg.sender] -= amount;
+        balances[to] += amount;
+    }
+}
+
+// Атака: внутри receive() — вызвать transferInternal, перевести
+// «несуществующие» (уже отданные нам) деньги другу. ReentrancyGuard
+// не помогает, потому что transferInternal не помечен nonReentrant.</code></pre>
+
+    <p>
+      Правило: <strong>все функции, читающие общий критический state, должны
+      быть либо помечены <code>nonReentrant</code>, либо следовать CEI</strong>.
+      В нашем примере исправляется одним из двух способов: либо обновить state
+      ДО внешнего вызова в <code>withdrawAll</code>, либо повесить
+      <code>nonReentrant</code> на <code>transferInternal</code>.
+    </p>
+
+    <h2>5. Read-only reentrancy</h2>
+
+    <p>
+      Самый коварный вид. Атакующий не пишет в state жертвы — он читает.
+      Многие протоколы (Curve, Balancer) используют функции типа
+      <code>get_virtual_price()</code> как источник правды. Если во время внешнего
+      вызова pool находится в «промежуточном» состоянии (часть инвариантов
+      уже нарушена), <code>view</code>-функция вернёт некорректное значение.
+      А контракт-потребитель (например, кредитная платформа) примет решение
+      на основе этой «лживой» цены.
+    </p>
+
+<pre class="code-block"><code>// Уязвимый pool (упрощённо)
+contract Pool {
+    uint256 public reserve0;
+    uint256 public reserve1;
+    uint256 public totalLP;
+
+    function getPrice() external view returns (uint256) {
+        return reserve0 * 1e18 / totalLP;
+    }
+
+    function removeLiquidity(uint256 lp) external {
+        uint256 amount0 = lp * reserve0 / totalLP;
+        uint256 amount1 = lp * reserve1 / totalLP;
+
+        // ВНЕШНИЙ вызов — отправка токена0 пользователю
+        IERC20(token0).transfer(msg.sender, amount0); // ← reentrancy hook!
+
+        // На этот момент:
+        //   reserve0 ещё содержит старое значение (большое),
+        //   но реально на балансе уже меньше.
+        // totalLP всё ещё old.
+        // Если token0 — ERC-777 (с callback), атакующий
+        // вызовет getPrice() — получит inflated число.
+
+        reserve0 -= amount0;
+        reserve1 -= amount1;
+        totalLP  -= lp;
+    }
+}</code></pre>
+
+    <div class="note cyan">
+      <strong>Реальный кейс.</strong> Cream Finance (2021): использовал
+      Curve как oracle для крипто-ETH (cyETH). Curve <code>get_virtual_price</code>
+      во время <code>remove_liquidity</code> возвращал inflated цену, потому что
+      callback в ERC-777-токене вызывался ДО обновления баланса pool. Атакующий
+      взял flash loan, depositнул, дернул колбэк, занял огромную сумму под
+      «inflated» залог. Убыток — $130M. Лечение: <code>nonReentrant</code> на
+      <em>read-only</em> функциях, либо <code>state-locked</code> модификатор,
+      возвращающий revert если pool «in flight».
+    </div>
+
+    <h2>6. Где ещё прячется внешний вызов</h2>
+
+    <p>
+      Опасны все вызовы, которые передают контроль на адрес, не контролируемый
+      разработчиком. Это:
+    </p>
+
+    <ul>
+      <li><code>address.call / transfer / send</code> — ETH-перевод. Получатель
+        может быть контрактом с <code>receive()/fallback()</code>.</li>
+      <li><code>IERC20(token).transfer(...)</code> — если токен это
+        <strong>ERC-777</strong> или вообще «hooks-aware», получатель получит
+        <code>tokensReceived</code>. WETH, USDC — обычные ERC-20 без hook'ов,
+        но любой неизвестный токен — потенциальная мина.</li>
+      <li><code>IERC721(nft).safeTransferFrom</code> — обязан вызывать
+        <code>onERC721Received</code> у получателя. Это вектор для NFT-протоколов
+        (атака на Akutars, $34M, 2022).</li>
+      <li><code>delegatecall</code> на не-trusted адрес — даёт абсолютный контроль
+        над storage.</li>
+      <li><code>IERC1155(...).safeTransferFrom</code> и любые callbacks
+        стандарта.</li>
+    </ul>
+
+    <h2>7. Другие checks, без которых код небезопасен</h2>
+
+    <h3>7.1 Integer overflow</h3>
+
+    <p>
+      Solidity ≥0.8 включает overflow-checks по умолчанию (revert при выходе
+      за пределы типа). До 0.8 — <code>SafeMath</code>. <strong>Опасный
+      антипаттерн</strong>: явный <code>unchecked { ... }</code> ради экономии
+      газа.
+    </p>
+
+<pre class="code-block"><code>function withdraw(uint256 amount) external {
+    unchecked {
+        balances[msg.sender] -= amount; // нет revert при underflow!
+    }
+}
+
+// Правило: unchecked только если математически доказали отсутствие
+// overflow. Например, после require(amount &lt;= balances[msg.sender]).</code></pre>
+
+    <h3>7.2 tx.origin vs msg.sender</h3>
+
+    <p>
+      <code>tx.origin</code> — это <em>исходный EOA</em>, инициировавший транзакцию.
+      <code>msg.sender</code> — непосредственный вызывающий. Если контракт A
+      использует <code>tx.origin</code> для авторизации, атакующий может выманить
+      жертву в свой контракт B, который вызовет A. <code>tx.origin</code> будет
+      жертвой, авторизация пройдёт.
+    </p>
+
+<pre class="code-block"><code>// ОПАСНО
+function transferOwnership(address newOwner) external {
+    require(tx.origin == owner, "not owner"); // BAD
+    owner = newOwner;
+}
+
+// БЕЗОПАСНО
+function transferOwnership(address newOwner) external {
+    require(msg.sender == owner, "not owner"); // GOOD
+    owner = newOwner;
+}</code></pre>
+
+    <h3>7.3 Front-running и MEV</h3>
+
+    <p>
+      Mempool публичен. Атакующий видит вашу транзакцию до её включения и может
+      выставить свою с большим gas price (или через flashbots-bundle). Защита:
+      commit-reveal, slippage-параметры, private mempool (Flashbots Protect,
+      MEV Blocker), на крайний случай — EIP-712 подписи с дедлайном.
+    </p>
+
+    <h3>7.4 Oracle manipulation</h3>
+
+    <p>
+      Источник цены — критический элемент. <strong>Никогда</strong> не используйте
+      <em>spot price</em> AMM (<code>getReserves</code>) как oracle для крупных
+      решений: атакующий двигает цену в одном блоке через flash loan и эксплуатирует
+      ваш контракт. Используйте TWAP (time-weighted) или внешние oracle (Chainlink).
+    </p>
+
+    <h3>7.5 Unchecked external call return</h3>
+
+<pre class="code-block"><code>// BAD: не проверяем return — call мог вернуть false без revert
+msg.sender.call{value: amount}("");
+
+// GOOD
+(bool ok, ) = msg.sender.call{value: amount}("");
+require(ok, "call failed");
+
+// BAD для ERC-20: USDT не возвращает bool, многие токены ломают стандарт
+IERC20(token).transfer(to, amount);
+
+// GOOD: SafeERC20 из OpenZeppelin
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+using SafeERC20 for IERC20;
+IERC20(token).safeTransfer(to, amount);</code></pre>
+
+    <h2>8. Slither — статический анализ</h2>
+
+    <p>
+      <a href="https://github.com/crytic/slither" target="_blank" rel="noopener">Slither</a>
+      от Trail of Bits — open-source инструмент, который ловит ~80% типичных багов
+      за секунды. Он понимает Solidity AST, строит control-flow граф и применяет
+      90+ детекторов.
+    </p>
+
+<pre class="code-block"><code># Установка (требует Python 3.10+)
+pip install slither-analyzer
+
+# Запуск на Foundry-проекте
+cd my-foundry-project
+slither .
+
+# Только конкретные детекторы
+slither . --detect reentrancy-eth,reentrancy-no-eth,arbitrary-send-eth
+
+# Игнорировать определённые findings (после ручной проверки)
+echo "// slither-disable-next-line reentrancy-no-eth" &gt; ...
+
+# Вывод примера:
+# VulnerableVault.withdraw() (src/VulnerableVault.sol#10-15)
+#         External calls:
+#         - (ok) = msg.sender.call{value: bal}() (src/...#12)
+#         State variables written after the call(s):
+#         - balances[msg.sender] = 0 (src/...#14)
+#         Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities</code></pre>
+
+    <h2>9. Практические задачи</h2>
+
+    <h3>Задача 1 — Воспроизвести DAO-style атаку локально</h3>
+
+    <p>
+      Создайте Foundry-проект с <code>VulnerableVault</code> и <code>Attacker</code>.
+      Запустите forge test, который депозитит 10 ETH от честного юзера, потом
+      атакующий за один вызов выкачивает всё.
+    </p>
+
+<pre class="code-block"><code>forge init reentrancy-lab && cd reentrancy-lab
+# Поместите код VulnerableVault + Attacker в src/
+
+// test/Attack.t.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "forge-std/Test.sol";
+import "../src/VulnerableVault.sol";
+import "../src/Attacker.sol";
+
+contract AttackTest is Test {
+    VulnerableVault vault;
+    Attacker attacker;
+    address honest = address(0x1234);
+
+    function setUp() public {
+        vault = new VulnerableVault();
+        attacker = new Attacker(payable(address(vault)));
+
+        vm.deal(honest, 10 ether);
+        vm.deal(address(this), 1 ether);
+    }
+
+    function test_drain() public {
+        // Честный пользователь депозитит 10 ETH
+        vm.prank(honest);
+        vault.deposit{value: 10 ether}();
+        assertEq(address(vault).balance, 10 ether);
+
+        // Атакующий сеет 1 ETH и забирает всё
+        attacker.attack{value: 1 ether}();
+
+        assertEq(address(vault).balance, 0, "vault drained");
+        assertGt(address(attacker).balance, 10 ether, "attacker profited");
+        console.log("Attacker stole:", address(attacker).balance);
+    }
+}
+
+forge test --match-test test_drain -vvv</code></pre>
+
+    <h3>Задача 2 — Исправить vault и убедиться, что атака больше не проходит</h3>
+
+    <p>
+      Сделайте копию контракта <code>SafeVault</code> (CEI + <code>nonReentrant</code>).
+      Перепишите тест: он должен ожидать revert при попытке атаки и проверить
+      инвариант баланса.
+    </p>
+
+<pre class="code-block"><code>// test/AttackSafe.t.sol
+contract AttackSafeTest is Test {
+    SafeVault vault;
+    Attacker attacker;
+    address honest = address(0x1234);
+
+    function setUp() public {
+        vault = new SafeVault();
+        attacker = new Attacker(payable(address(vault)));
+        vm.deal(honest, 10 ether);
+    }
+
+    function test_attackReverts() public {
+        vm.prank(honest);
+        vault.deposit{value: 10 ether}();
+
+        // Атака должна провалиться: либо на ReentrancyGuard,
+        // либо на require(bal &gt; 0) после обнуления баланса
+        vm.expectRevert();
+        attacker.attack{value: 1 ether}();
+
+        // Vault не пострадал
+        assertEq(address(vault).balance, 10 ether, "vault intact");
+    }
+}
+
+forge test --match-test test_attackReverts -vvv</code></pre>
+
+    <h3>Задача 3 — Прогнать Slither и интерпретировать findings</h3>
+
+    <p>
+      Запустите Slither на проекте из задачи 1 и сравните результат с заведомо
+      безопасным <code>SafeVault</code>. Цель — увидеть и понять
+      <em>reentrancy-eth detector</em>.
+    </p>
+
+<pre class="code-block"><code>pip install slither-analyzer
+cd reentrancy-lab
+
+# Полный сканер
+slither .
+
+# Целевая проверка — только reentrancy
+slither . --detect reentrancy-eth,reentrancy-no-eth,reentrancy-events
+
+# Сравните: VulnerableVault.withdraw → reentrancy-eth (High)
+# SafeVault.withdraw     → no findings (state updated before call)
+
+# Экспорт в JSON для CI:
+slither . --json slither-report.json
+
+# Что должно быть в отчёте:
+# "check": "reentrancy-eth"
+# "impact": "High"
+# "confidence": "Medium"
+# "elements": [{ "type": "function", "name": "withdraw", ... }]</code></pre>
+
+    <h3>Задача 4 — Найти и исправить cross-function reentrancy</h3>
+
+    <p>
+      Ниже контракт <code>StakingPool</code> с тонкой ошибкой. Один из методов
+      защищён <code>nonReentrant</code>, второй — нет. Найдите вектор атаки,
+      напишите PoC-тест, потом исправьте.
+    </p>
+
+<pre class="code-block"><code>// src/StakingPool.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract StakingPool is ReentrancyGuard {
+    mapping(address =&gt; uint256) public stakes;
+    mapping(address =&gt; uint256) public rewards;
+
+    function stake() external payable {
+        stakes[msg.sender] += msg.value;
+        rewards[msg.sender] += msg.value / 100; // 1% reward
+    }
+
+    // Защищена, но reward отдаётся ПЕРЕД обнулением
+    function claimReward() external nonReentrant {
+        uint256 r = rewards[msg.sender];
+        require(r &gt; 0, "no reward");
+        (bool ok, ) = msg.sender.call{value: r}("");
+        require(ok);
+        rewards[msg.sender] = 0;
+    }
+
+    // НЕ защищена nonReentrant
+    function transferStake(address to, uint256 amount) external {
+        require(stakes[msg.sender] &gt;= amount, "low");
+        stakes[msg.sender] -= amount;
+        stakes[to] += amount;
+        // Также «переводим» долю reward
+        rewards[to] += amount / 100;
+    }
+}
+
+// ВЕКТОР АТАКИ:
+// 1. Атакующий stake() 1 ETH → reward = 0.01 ETH
+// 2. Атакующий dev claimReward()
+// 3. В receive() ETH вызывает transferStake(friend, 1 ether)
+//    — это разрешено (nonReentrant НЕ на transferStake), и
+//    rewards[friend] += 0.01 ETH (новый незаработанный reward)
+// 4. После claimReward() атакующий и friend имеют по 0.01 ETH
+//    rewards — но в pool было только 0.01 ETH total
+
+// ИСПРАВЛЕНИЕ:
+//   - либо CEI: обнулить rewards[msg.sender] ДО внешнего вызова
+//   - либо добавить nonReentrant на transferStake тоже</code></pre>
+
+    <p>
+      Запустите тест-PoC и затем исправление. Используйте
+      <code>vm.expectRevert()</code> в финальном варианте для подтверждения, что
+      патч закрывает уязвимость.
+    </p>
+
+    <h2>10. Песочница · уязвимый и безопасный vault в Remix</h2>
+
+    <p>
+      Iframe ниже открывает оба контракта (vulnerable + safe + attacker) в одном
+      файле. В Remix → JavaScript VM задеплойте всё, переведите 1 ETH в
+      <code>VulnerableVault</code> от Account[0], затем переключитесь на Account[1],
+      деплойте <code>Attacker</code> и вызовите <code>attack</code>{1 ETH}.
+      Посмотрите, как баланс vault уйдёт в attacker. Потом повторите с
+      <code>SafeVault</code> — увидите revert.
+    </p>
+
+    <div class="sandbox" data-embed="remix-inline"
+      data-title="Remix IDE · Reentrancy demo (Vulnerable vs Safe)"
+      data-filename="ReentrancyDemo.sol">
+      <pre>// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v5.0.2/contracts/utils/ReentrancyGuard.sol";
+
+contract VulnerableVault {
+    mapping(address =&gt; uint256) public balances;
+    function deposit() external payable { balances[msg.sender] += msg.value; }
+    function withdraw() external {
+        uint256 bal = balances[msg.sender];
+        require(bal &gt; 0, "no balance");
+        (bool ok, ) = msg.sender.call{value: bal}("");
+        require(ok);
+        balances[msg.sender] = 0;
+    }
+    receive() external payable {}
+}
+
+contract SafeVault is ReentrancyGuard {
+    mapping(address =&gt; uint256) public balances;
+    function deposit() external payable { balances[msg.sender] += msg.value; }
+    function withdraw() external nonReentrant {
+        uint256 bal = balances[msg.sender];
+        require(bal &gt; 0, "no balance");
+        balances[msg.sender] = 0;
+        (bool ok, ) = msg.sender.call{value: bal}("");
+        require(ok);
+    }
+    receive() external payable {}
+}
+
+contract Attacker {
+    VulnerableVault public vault;
+    uint256 public iter;
+    constructor(address payable _v) { vault = VulnerableVault(_v); }
+    function attack() external payable {
+        vault.deposit{value: msg.value}();
+        vault.withdraw();
+    }
+    receive() external payable {
+        if (address(vault).balance &gt;= 1 ether &amp;&amp; iter &lt; 10) {
+            iter++;
+            vault.withdraw();
+        }
+    }
+    function take() external {
+        payable(msg.sender).transfer(address(this).balance);
+    }
+}</pre>
+    </div>
+
+    <h2>11. Что дальше</h2>
+
+    <p>
+      Следующий урок —
+      <strong><a href="../10/index.html">Lesson 10 — Gas optimisation</a></strong>:
+      как сделать контракты дешевле, не теряя в безопасности. Многие
+      «оптимизации» (например, <code>unchecked</code>, агрессивный
+      <code>--via-ir</code>, custom packed storage) — это <em>обмен</em> между
+      газом и количеством инвариантов. Понимание уязвимостей этого урока
+      позволяет выбирать сторону этого обмена осознанно.
+    </p>
+
+    <div class="refs">
+      <h3>Источники и материалы для углубления</h3>
+      <ul>
+        <li><a href="https://consensys.github.io/smart-contract-best-practices/" target="_blank" rel="noopener">ConsenSys Smart Contract Best Practices</a> — каноническая шпаргалка.</li>
+        <li><a href="https://swcregistry.io/" target="_blank" rel="noopener">SWC Registry</a> — Smart Contract Weakness Classification, аналог CWE для Solidity.</li>
+        <li><a href="https://docs.openzeppelin.com/contracts/5.x/api/utils#ReentrancyGuard" target="_blank" rel="noopener">OpenZeppelin ReentrancyGuard docs</a> — текущая реализация и transient-вариант.</li>
+        <li><a href="https://github.com/crytic/slither" target="_blank" rel="noopener">Slither — Static Analyzer</a>.</li>
+        <li><a href="https://github.com/crytic/building-secure-contracts" target="_blank" rel="noopener">Trail of Bits — Building Secure Contracts</a>.</li>
+        <li><a href="https://blog.openzeppelin.com/reentrancy-after-istanbul" target="_blank" rel="noopener">OpenZeppelin Blog: Reentrancy After Istanbul</a>.</li>
+        <li><a href="https://chainsecurity.com/curve-lp-oracle-manipulation-post-mortem/" target="_blank" rel="noopener">ChainSecurity: Curve read-only reentrancy</a> — post-mortem Cream.</li>
+        <li><a href="https://immunefi.com/learn/" target="_blank" rel="noopener">Immunefi Learn</a> — реальные bug bounty с разбором кода.</li>
+        <li><a href="https://eips.ethereum.org/EIPS/eip-1153" target="_blank" rel="noopener">EIP-1153 — Transient Storage</a> (база для ReentrancyGuardTransient).</li>
+      </ul>
+    </div>
+
+    <section class="lesson-quiz" data-lesson="09">
+      <script type="application/json" class="quiz-data">
+{
+  "title": "Самопроверка · Lesson 09 · Reentrancy & Checks",
+  "intro": "Семь концептуальных вопросов и три практические задачи. Задачи проверяются в Remix-iframe выше (или в Foundry-репозитории из задач 1–4).",
+  "questions": [
+    {
+      "q": "Что такое reentrancy одной фразой?",
+      "kind": "multiple",
+      "options": [
+        "Когда контракт вызывает сам себя через delegatecall",
+        "Когда внешний вызов передаёт контроль на адрес атакующего <em>до того</em>, как контракт обновил своё состояние, и атакующий снова входит в ту же (или связанную) функцию",
+        "Когда два пользователя одновременно вызывают одну функцию",
+        "Когда контракт делает infinite loop"
+      ],
+      "answerIndex": 1,
+      "explain": "Ключ — порядок: внешний вызов до обновления state. Любой адрес-получатель ETH/токена/NFT может быть контрактом и сразу вернуть управление в наш контракт."
+    },
+    {
+      "q": "В каком порядке должны идти проверки, обновление state и внешние вызовы по паттерну CEI?",
+      "kind": "multiple",
+      "options": [
+        "Interactions → Effects → Checks",
+        "Checks → Interactions → Effects",
+        "Checks → Effects → Interactions",
+        "Это не важно, главное наличие require"
+      ],
+      "answerIndex": 2,
+      "explain": "Сначала require/проверки (Checks), потом запись в storage (Effects), и только в конце — внешний вызов (Interactions). Тогда повторный вход не найдёт «старого» state."
+    },
+    {
+      "q": "Чем отличается ReentrancyGuard от CEI?",
+      "kind": "multiple",
+      "options": [
+        "Это синонимы",
+        "ReentrancyGuard — runtime-флаг, который ловит повторный вход даже если CEI нарушен; CEI — структурное правило написания функции, не требует газа",
+        "ReentrancyGuard работает только в Solidity ≥0.8.24",
+        "CEI защищает только от read-only reentrancy"
+      ],
+      "answerIndex": 1,
+      "explain": "Идеал — оба сразу: пишем функции по CEI и навешиваем nonReentrant как страховку. Стоимость guard'а ~5000 газа (SSTORE), в Cancun — ~200 газа через transient storage."
+    },
+    {
+      "q": "Что такое cross-function reentrancy?",
+      "kind": "multiple",
+      "options": [
+        "Когда атакующий заходит в ту же функцию повторно",
+        "Когда атакующий через внешний вызов заходит в <em>другую</em> функцию того же контракта, которая читает/пишет общий state",
+        "Когда два контракта вызывают друг друга по очереди",
+        "Когда мы делаем call между chains"
+      ],
+      "answerIndex": 1,
+      "explain": "nonReentrant нужен на всех функциях, разделяющих критический state. Иначе guard на одной функции — иллюзия безопасности (типичный гэп в аудите)."
+    },
+    {
+      "q": "Read-only reentrancy: где она возникает и почему опасна?",
+      "kind": "multiple",
+      "options": [
+        "В функциях modifier view, потому что view не пишет в state",
+        "Когда callback внутри write-функции происходит ДО обновления критических переменных, и в этот момент view-функция возвращает inflated/некорректное значение, на которое опирается внешний потребитель",
+        "Только в Curve-pool'ах",
+        "Это миф, view-функции безопасны"
+      ],
+      "answerIndex": 1,
+      "explain": "Cream Finance потерял $130M именно из-за того, что Curve get_virtual_price вернул inflated значение во время remove_liquidity. Решение — nonReentrant в том числе на view-методах, либо state-lock."
+    },
+    {
+      "q": "Почему <code>tx.origin</code> опасен для авторизации?",
+      "kind": "multiple",
+      "options": [
+        "Он медленнее msg.sender",
+        "tx.origin — оригинальный EOA транзакции; если жертва (owner) вызывает чужой вредоносный контракт, тот может вызвать наш и пройти require(tx.origin == owner)",
+        "tx.origin недоступен в Solidity ≥0.8",
+        "tx.origin случайно меняется между блоками"
+      ],
+      "answerIndex": 1,
+      "explain": "Авторизация всегда через msg.sender или signed-message + ecrecover. tx.origin полезен только для anti-bot эвристик (deprecated паттерн)."
+    },
+    {
+      "q": "Какой контракт-стандарт ERC заведомо несёт в себе reentrancy-hook у получателя?",
+      "kind": "multiple",
+      "options": [
+        "ERC-20",
+        "ERC-721 при использовании <code>safeTransferFrom</code> и ERC-777 при любом transfer; ERC-1155 при <code>safeTransferFrom</code>",
+        "ERC-2612 permit",
+        "Только ERC-1167 minimal proxy"
+      ],
+      "answerIndex": 1,
+      "explain": "ERC-20 обычные transfer'ы не делают callback'ов, но ERC-777 (обёртка) и ERC-721/1155 safeTransfer обязаны вызвать onReceived у получателя. Это полноценный внешний вызов и требует CEI."
+    },
+    {
+      "q": "Practical: запустите Slither на VulnerableVault и SafeVault из задачи 3. Какие два важных детектора должны сработать на vulnerable и не сработать на safe?",
+      "kind": "task",
+      "answer": "На VulnerableVault: <code>reentrancy-eth</code> (High, отправка ETH ДО обновления state) и часто <code>reentrancy-events</code> (если был emit после call). На SafeVault — ни один из них. Дополнительно SafeVault может вызвать <code>reentrancy-no-eth</code> в ложноположительном виде, если Slither не понимает, что state обновлён до call — но в нашем случае state обновлён первым."
+    },
+    {
+      "q": "Practical: в задаче 4 (StakingPool) почему именно <code>transferStake</code> ломает безопасность <code>claimReward</code>?",
+      "kind": "task",
+      "answer": "<code>claimReward</code> отдаёт ETH ДО обнуления <code>rewards[msg.sender]</code> и помечен nonReentrant. Но nonReentrant на <em>self</em>: атакующий из <code>receive()</code> вызывает не claimReward, а <code>transferStake</code> — её guard не блокирует, потому что у неё нет nonReentrant. Внутри transferStake он начисляет «незаработанный» reward другу. Лечение: либо CEI в claimReward (обнулить rewards до call), либо <code>nonReentrant</code> на transferStake. Лучше — и то, и другое."
+    },
+    {
+      "q": "Practical: в Remix-iframe выше переведите 1 ETH в SafeVault от Account[0], потом задеплойте Attacker с адресом SafeVault и вызовите attack{1 ETH}. Что вы увидите в логах транзакции и почему?",
+      "kind": "task",
+      "answer": "Транзакция attack() реверт. Причина — ReentrancyGuard выставляет _status = _ENTERED при первом входе в withdraw, и повторный withdraw из receive() сразу проваливает <code>require(_status != _ENTERED)</code>. Внешний вызов из safeVault.withdraw() возвращает false (через .call), но require(ok) превращает это в revert всей транзакции. Итог: баланс vault не изменился, attacker не получил ничего, газ потрачен."
+    }
+  ]
+}
+      </script>
+    </section>
+
+    <div class="attrib">
+      Контракты урока — Solidity 0.8.24, OpenZeppelin Contracts 5.x. Slither
+      ≥0.10 (пакет <code>slither-analyzer</code>). Foundry — последняя
+      <code>nightly</code>.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+  <script type="module" src="../../assets/sandbox-embed.js"></script>
+  <script type="module" src="../../assets/quiz.js"></script>
+</body>
+</html>
