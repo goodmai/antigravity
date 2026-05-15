@@ -513,7 +513,86 @@ app.post('/api/siwe/verify', async (req, res) =&gt; {
       data-src="https://stackblitz.com/edit/siwe-fullstack?embed=1&file=server%2Fserver.ts"
       data-desc="Server: Express + express-session + siwe.verify, с проверкой nonce / domain / expiration. Client: useSiwe hook на wagmi.signMessage. Запустите Run, откройте preview, подключите MetaMask и нажмите «Sign-in with Ethereum»."></div>
 
-    <h2>10. Что дальше</h2>
+    <h2>10. ENS — суверенная идентичность поверх кошелька</h2>
+
+    <p>
+      SIWE доказывает «я владею адресом <code>0xa1b2…</code>». Но адрес
+      нечитаем. <strong>ENS (Ethereum Name Service)</strong> — базовый слой
+      суверенной идентичности Web3: он заменяет шестнадцатеричный адрес на
+      читаемое имя <code>vitalik.eth</code>. В отличие от классического DNS,
+      арендуемого на серверах провайдера, ENS-имя — это
+      <strong>NFT (ERC-721)</strong>, собственность пользователя, устойчивая к
+      цензуре. В SIWE-логине ENS-имя обычно показывают в UI вместо адреса
+      (через <code>publicClient.getEnsName({ address })</code>), но
+      <em>доверять</em> по-прежнему нужно подписи, а не имени.
+    </p>
+
+    <h3>10.1 Регистрация: commit → reveal (защита от frontrunning)</h3>
+
+    <p>
+      Регистрация двухфазная — чтобы боты-снайперы не перехватили имя,
+      увидев его в mempool:
+    </p>
+
+    <ul>
+      <li><strong>Commit</strong> — пользователь отправляет в сеть только
+        криптографический хэш <em>(имя + секрет)</em>. Намерение
+        зафиксировано, имя не раскрыто.</li>
+      <li><strong>Reveal</strong> — после короткой задержки безопасности
+        отправляется финальная транзакция с открытым именем; контракт
+        регистрирует домен и оплату.</li>
+    </ul>
+
+    <pre class="code-block"><code>// Псевдокод фазы commit/reveal через ETHRegistrarController
+bytes32 commitment = controller.makeCommitment(
+    "myapp", owner, duration, secret, resolver, data, reverseRecord, ownerControlledFuses
+);
+controller.commit(commitment);                 // фаза 1: только хэш
+// ...ждём minCommitmentAge (защита от frontrunning)...
+controller.register{value: price}(             // фаза 2: раскрытие + оплата
+    "myapp", owner, duration, secret, resolver, data, reverseRecord, ownerControlledFuses
+);</code></pre>
+
+    <p>
+      Экономика прогрессивна: 3-символьные имена ≈ <strong>$640/год</strong>,
+      4-символьные ≈ <strong>$160/год</strong>, от 5 символов ≈
+      <strong>$5/год</strong> (в эквиваленте ETH).
+    </p>
+
+    <h3>10.2 Архитектура: Registry · Registrar · Resolver</h3>
+
+    <ul>
+      <li><strong>Registry</strong> — реестр прав: кто владеет именем и какой
+        у него resolver.</li>
+      <li><strong>Registrar</strong> — контракт выпуска имён в зоне
+        <code>.eth</code>.</li>
+      <li><strong>Resolver</strong> — трансляция имени в адреса <em>множества</em>
+        блокчейнов (включая Bitcoin, Dogecoin) или в ссылку на
+        децентрализованный контент в IPFS.</li>
+    </ul>
+
+    <h3>10.3 CCIP-Read (EIP-3668) — бесплатные L2-субдомены</h3>
+
+    <p>
+      <strong>CCIP-Read (EIP-3668)</strong> позволяет L1-контракту безопасно
+      запрашивать данные <em>вне сети</em> (на сервере проекта или в L2 вроде
+      Base) через криптографически проверяемый шлюз. Благодаря этому проекты
+      массово и почти бесплатно раздают защищённые субдомены
+      (<code>name.base.eth</code>), не платя газ за каждую запись в L1 и
+      сохраняя безопасность основного блокчейна. Для приложения с SIWE это
+      означает: каждому пользователю можно выдать читаемое имя
+      <code>alice.myapp.eth</code> без затрат на ончейн-регистрацию.
+    </p>
+
+    <div class="note cyan">
+      <strong>Связь с авторизацией.</strong> ENS-имя — это удобство и
+      идентичность, а не право. Reverse-record (<code>addr → name</code>)
+      может быть не установлен или указывать на чужое имя; всегда выполняйте
+      forward-resolution (<code>name → addr</code>) и сверяйте с адресом,
+      подписавшим SIWE-сообщение.
+    </div>
+
+    <h2>11. Что дальше</h2>
 
     <p>
       Этот урок закрывает Модуль III. Дальше — Модуль IV:

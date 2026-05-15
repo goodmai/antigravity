@@ -1149,7 +1149,151 @@ contract CounterV1 is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 }</pre>
     </div>
 
-    <h2>12. Что дальше</h2>
+    <h2>12. Diamond Proxy (EIP-2535) — масштаб за пределами лимита 24 КБ</h2>
+
+    <p>
+      У EVM есть жёсткое ограничение: байт-код одного развёрнутого контракта
+      не может превышать <strong>24 КБ</strong> (EIP-170). Для крупного
+      корпоративного dApp — аналога Uber, глобального маркетплейса или
+      биржи — этого не хватает: вся бизнес-логика не помещается в один
+      implementation. Transparent и UUPS опираются на <em>единственный</em>
+      контракт логики и этот барьер не снимают.
+    </p>
+
+    <p>
+      Паттерн <strong>Diamond (EIP-2535)</strong> — «бриллиантовый» multi-facet
+      proxy — даёт приложению фактически неограниченное число функций. Это
+      переносит на блокчейн микросервисную декомпозицию, сопоставимую по
+      сложности с кластером Kubernetes: один адрес снаружи, множество
+      изолированных модулей логики внутри.
+    </p>
+
+    <h3>12.1 Два элемента архитектуры</h3>
+
+    <ul>
+      <li><strong>Diamond (Бриллиант)</strong> — центральный proxy-контракт.
+        Хранит общий storage и <code>fallback</code>-функцию-маршрутизатор.
+        Именно с этим единственным адресом взаимодействуют пользователи.</li>
+      <li><strong>Facets (Грани)</strong> — множество независимых контрактов
+        логики (implementation). Diamond читает первые 4 байта calldata
+        (<em>селектор функции</em>) и через <code>delegatecall</code>
+        маршрутизирует вызов в нужную грань — по таблице
+        <code>selector → facet</code>.</li>
+    </ul>
+
+    <pre class="code-block"><code>// Упрощённый fallback Бриллианта (роутинг по селектору)
+fallback() external payable {
+    DiamondStorage storage ds = diamondStorage();
+    address facet = ds.selectorToFacet[msg.sig];   // msg.sig = первые 4 байта
+    require(facet != address(0), "Diamond: function does not exist");
+    assembly {
+        calldatacopy(0, 0, calldatasize())
+        let ok := delegatecall(gas(), facet, 0, calldatasize(), 0, 0)
+        returndatacopy(0, 0, returndatasize())
+        switch ok
+        case 0 { revert(0, returndatasize()) }
+        default { return(0, returndatasize()) }
+    }
+}</code></pre>
+
+    <h3>12.2 diamondCut — атомарное обновление по функциям</h3>
+
+    <p>
+      Вместо того чтобы заменять весь массив кода (как в UUPS/Transparent),
+      Diamond обновляется на уровне отдельных функций через единственную
+      операцию <code>diamondCut</code>: можно атомарно <strong>добавить</strong>
+      (<code>Add</code>), <strong>заменить</strong> (<code>Replace</code>) или
+      <strong>удалить</strong> (<code>Remove</code>) конкретные селекторы
+      прямо в рабочей сети — без редеплоя остального кода.
+    </p>
+
+<pre class="code-block"><code>enum FacetCutAction { Add, Replace, Remove }
+
+struct FacetCut {
+    address facetAddress;
+    FacetCutAction action;
+    bytes4[] functionSelectors;
+}
+
+// Заменить только функцию quote() новой гранью, остальное не трогаем
+FacetCut[] memory cut = new FacetCut[](1);
+cut[0] = FacetCut({
+    facetAddress: address(newPricingFacet),
+    action: FacetCutAction.Replace,
+    functionSelectors: _selectors(PricingFacet.quote.selector)
+});
+IDiamondCut(diamond).diamondCut(cut, address(0), "");</code></pre>
+
+    <h3>12.3 EIP-7201 — Namespaced Storage против коллизий граней</h3>
+
+    <p>
+      Несколько граней пишут в один и тот же storage Бриллианта — это
+      классический риск <strong>storage collision</strong> (см. раздел 8.1),
+      только умноженный на число фасетов. Решение —
+      <strong>EIP-7201 (Namespaced Storage Layout)</strong>: данные каждого
+      модуля размещаются в псевдослучайном слоте, вычисляемом криптографически,
+      так что пространства имён граней не пересекаются.
+    </p>
+
+<pre class="code-block"><code>// EIP-7201: erc7201("myapp.pricing.storage")
+library PricingStorage {
+    // keccak256(abi.encode(uint256(keccak256("myapp.pricing.storage")) - 1))
+    //   &amp; ~bytes32(uint256(0xff))
+    bytes32 private constant SLOT =
+        0x9f3e...00;   // детерминированный, не пересекается с другими гранями
+
+    struct Layout { uint256 baseFee; mapping(address =&gt; uint256) discounts; }
+
+    function layout() internal pure returns (Layout storage l) {
+        bytes32 slot = SLOT;
+        assembly { l.slot := slot }
+    }
+}</code></pre>
+
+    <h3>12.4 Когда выбирать Diamond</h3>
+
+    <table class="compare">
+      <tr>
+        <th>Критерий</th>
+        <th>UUPS / Transparent</th>
+        <th>Diamond (EIP-2535)</th>
+      </tr>
+      <tr>
+        <td>Лимит 24 КБ</td>
+        <td>Упирается: вся логика в одном implementation</td>
+        <td>Снят: логика разбита по граням</td>
+      </tr>
+      <tr>
+        <td>Гранулярность upgrade</td>
+        <td>Весь контракт логики целиком</td>
+        <td>Отдельные функции (Add/Replace/Remove)</td>
+      </tr>
+      <tr>
+        <td>Сложность / аудит</td>
+        <td>Низкая, хорошо изучена</td>
+        <td>Высокая: роутинг, loupe, namespaced storage</td>
+      </tr>
+      <tr>
+        <td>Storage-безопасность</td>
+        <td>ERC-1967 + storage gaps</td>
+        <td>Обязателен EIP-7201 namespaced layout</td>
+      </tr>
+      <tr>
+        <td>Когда оправдан</td>
+        <td>Большинство протоколов</td>
+        <td>Крупные модульные приложения (биржа, маркетплейс, игровой движок)</td>
+      </tr>
+    </table>
+
+    <div class="note cyan">
+      <strong>Вывод.</strong> Diamond — не «лучший» прокси, а инструмент для
+      <em>модульного масштаба</em>. Для одиночного контракта он избыточен и
+      добавляет поверхность атаки. Для приложения уровня «микросервисы
+      on-chain» он позволяет держать единый адрес и независимо эволюционировать
+      десятки модулей — то, что в классике делает оркестратор контейнеров.
+    </div>
+
+    <h2>13. Что дальше</h2>
 
     <p>
       В <strong><a href="../08/index.html">Lesson 08 — The Graph</a></strong>
