@@ -251,15 +251,17 @@
 
   function init() {
     applyLang(getSaved());
-
-    document.querySelectorAll('.lang-btn').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        applyLang(btn.dataset.lang);
-      });
-    });
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  /* Ensure touch/click events on lang-btn are caught globally */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.lang-btn');
+    if (btn && btn.dataset.lang) {
+      applyLang(btn.dataset.lang);
+    }
+  });
 
   global.I18n = { t: t, apply: applyLang, current: getSaved, langs: LANGS };
 }(window));

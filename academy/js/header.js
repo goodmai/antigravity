@@ -99,11 +99,13 @@
       applyTheme(current === 'dark' ? 'light' : 'dark');
       if (window.I18n) window.I18n.apply(window.I18n.current());
     });
+  });
 
-    /* Wire lang buttons */
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest('.lang-btn[data-lang]');
-      if (btn && window.I18n) window.I18n.apply(btn.dataset.lang);
-    });
+  /* Wire lang buttons - outside DOMContentLoaded to guarantee delegation catches it immediately */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.lang-btn');
+    if (btn && btn.dataset.lang && window.I18n) {
+      window.I18n.apply(btn.dataset.lang);
+    }
   });
 }());
