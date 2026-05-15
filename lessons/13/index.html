@@ -228,57 +228,279 @@ Firebase) | Anti-Gravity Academy</title>
       <main>
         <h1 id="урок-13-облачная-разработка-google-cloud--firebase">Урок
         13: Облачная разработка (Google Cloud &amp; Firebase)</h1>
+        <blockquote>
+        <p>Как агент Antigravity безопасно управляет облаком Google:
+        keyless-доступ, Firestore Rules как код, инфраструктура для
+        Cloud Run / GKE и локальная проверка через эмулятор.</p>
+        </blockquote>
         <p>Antigravity обеспечивает бесшовную интеграцию с облаком через
         специализированные MCP-серверы (см. <a
-        href="../10/index.html">Урок 10</a>).</p>
+        href="../10/index.html">Урок 10</a>). Агент не «ходит в облако
+        напролом» — между ним и Google Cloud стоит слой MCP, который
+        выполняет команды от его имени, но в рамках выданных прав.</p>
         <hr />
-        <h2 id="fire-firebase-mcp">🔥 Firebase MCP</h2>
-        <p>Агент имеет прямой контроль над Firebase проектами.
-        <strong>Возможности:</strong></p>
+        <h2 id="️-как-агент-видит-облако-архитектура">🗺️ Как агент видит
+        облако (архитектура)</h2>
+        <pre><code>┌──────────────┐   tool call    ┌─────────────┐   gcloud / SDK   ┌───────────┐
+│  Agent (LLM) │ ─────────────▶ │  MCP-сервер │ ───────────────▶ │  GCP API  │
+│  планирует    │ ◀───────────── │ (Firebase / │ ◀─────────────── │ Firestore │
+│  шаги         │   результат    │  gcloud)    │   ответ/логи     │ Cloud Run │
+└──────────────┘                └─────────────┘                  └───────────┘
+        ▲                              │
+        │  артефакт (план/прогресс)    │ короткоживущий OIDC-токен
+        └──────────────────────────────┘</code></pre>
+        <p>Ключевые свойства этой архитектуры:</p>
         <ul>
-        <li><code>firebase init</code>: Инициализация проектов.</li>
-        <li><strong>Firestore Rules</strong>: Агент пишет и проверяет
-        правила безопасности лучше человека.</li>
-        <li><strong>Deploy</strong>: Деплой функций и хостинга одной
-        командой.</li>
-        <li><strong>Logs</strong>: Анализ ошибок в реальном
-        времени.</li>
+        <li><strong>Агент не хранит секретов.</strong> Аутентификацию
+        делает MCP-слой через Workload Identity Federation, токен живёт
+        минуты.</li>
+        <li><strong>Каждое действие — это tool call.</strong> Его видно
+        в артефакте, можно отменить до выполнения (см. режимы агента, <a
+        href="../1/index.html">Урок 1</a>).</li>
+        <li><strong>Облако — не «чёрный ящик».</strong> Логи Cloud
+        Logging возвращаются агенту, он сам диагностирует ошибку
+        деплоя.</li>
         </ul>
         <hr />
-        <h2 id="cloud-google-cloud-platform-gcp">☁️ Google Cloud
-        Platform (GCP)</h2>
+        <h2 id="-firebase-mcp">🔥 Firebase MCP</h2>
+        <p>Агент имеет прямой контроль над Firebase-проектами через
+        MCP-сервер.</p>
+        <p><strong>Возможности:</strong></p>
+        <ul>
+        <li><code>firebase init</code> — инициализация проекта (hosting,
+        Firestore, functions).</li>
+        <li><strong>Firestore Rules</strong> — агент пишет и проверяет
+        правила безопасности, опираясь на модель «запрещено по
+        умолчанию».</li>
+        <li><strong>Deploy</strong> — деплой функций и хостинга одной
+        командой.</li>
+        <li><strong>Logs</strong> — анализ ошибок в реальном времени
+        через Cloud Logging.</li>
+        </ul>
+        <h3 id="firestore-rules-запрещено-по-умолчанию">Firestore Rules:
+        запрещено по умолчанию</h3>
+        <p>Правила безопасности — это <strong>исполняемый код
+        доступа</strong>, а не настройка. Базовый безопасный шаблон:</p>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>rules_version <span class="op">=</span> <span class="st">&#39;2&#39;</span><span class="op">;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>service cloud<span class="op">.</span><span class="at">firestore</span> {</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  match <span class="op">/</span>databases<span class="op">/</span>{database}<span class="ss">/documents {</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ss">    // По умолчанию — полный запрет</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ss">    match /</span>{<span class="bu">document</span><span class="op">=**</span>} {</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      allow read<span class="op">,</span> <span class="dt">write</span><span class="op">:</span> <span class="cf">if</span> <span class="kw">false</span><span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Пользователь читает/пишет только свой документ</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    match <span class="op">/</span>users<span class="op">/</span>{userId} {</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>      allow read<span class="op">,</span> <span class="dt">write</span><span class="op">:</span> <span class="cf">if</span> request<span class="op">.</span><span class="at">auth</span> <span class="op">!=</span> <span class="kw">null</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>                         <span class="op">&amp;&amp;</span> request<span class="op">.</span><span class="at">auth</span><span class="op">.</span><span class="at">uid</span> <span class="op">==</span> userId<span class="op">;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Публичный контент: читать всем, писать — только владельцу</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    match <span class="op">/</span>posts<span class="op">/</span>{postId} {</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>      allow <span class="dt">read</span><span class="op">:</span> <span class="cf">if</span> <span class="kw">true</span><span class="op">;</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>      allow <span class="dt">create</span><span class="op">:</span> <span class="cf">if</span> request<span class="op">.</span><span class="at">auth</span> <span class="op">!=</span> <span class="kw">null</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>                    <span class="op">&amp;&amp;</span> request<span class="op">.</span><span class="at">resource</span><span class="op">.</span><span class="at">data</span><span class="op">.</span><span class="at">authorId</span> <span class="op">==</span> request<span class="op">.</span><span class="at">auth</span><span class="op">.</span><span class="at">uid</span><span class="op">;</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>      allow update<span class="op">,</span> <span class="kw">delete</span><span class="op">:</span> <span class="cf">if</span> request<span class="op">.</span><span class="at">auth</span> <span class="op">!=</span> <span class="kw">null</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>                            <span class="op">&amp;&amp;</span> resource<span class="op">.</span><span class="at">data</span><span class="op">.</span><span class="at">authorId</span> <span class="op">==</span> request<span class="op">.</span><span class="at">auth</span><span class="op">.</span><span class="at">uid</span><span class="op">;</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+        <blockquote>
+        <p>⚠️ <code>resource.data</code> — это документ
+        <strong>до</strong> записи, <code>request.resource.data</code> —
+        то, что клиент <strong>пытается</strong> записать. Путаница
+        между ними — частая причина дыр в правилах.</p>
+        </blockquote>
+        <h3 id="цикл-разработки-правил">Цикл разработки правил</h3>
+        <pre><code>пишешь правило ─▶ гоняешь кейсы доступа в ЭМУЛЯТОРЕ ─▶ деплоишь только зелёное</code></pre>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Локальный прогон без облака</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">firebase</span> emulators:start <span class="at">--only</span> firestore</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Тесты правил (Jest + @firebase/rules-unit-testing)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> test</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Деплой только после зелёных тестов</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ex">firebase</span> deploy <span class="at">--only</span> firestore:rules</span></code></pre></div>
+        <hr />
+        <h2 id="️-google-cloud-platform-gcp">☁️ Google Cloud Platform
+        (GCP)</h2>
         <p>Агент управляет ресурсами GCP через Terraform или
         <code>gcloud</code> CLI, но делает это безопасно.</p>
         <ul>
-        <li><strong>No API Keys</strong>: Используется IAM и Identity
-        Federation. Никаких JSON-ключей в коде!</li>
-        <li><strong>Инфраструктура как код</strong>: Агент генерирует
-        конфигурации для Cloud Run и GKE.</li>
+        <li><strong>No API Keys</strong> — используется IAM и Identity
+        Federation. Никаких JSON-ключей в коде и CI-секретах.</li>
+        <li><strong>Инфраструктура как код</strong> — агент генерирует
+        конфигурации для Cloud Run и GKE, которые ревьюятся и
+        версионируются.</li>
         </ul>
+        <h3 id="keyless-workload-identity-federation-wif">Keyless:
+        Workload Identity Federation (WIF)</h3>
+        <p>Главный архитектурный принцип облачной работы агента —
+        <strong>keyless</strong>. Вместо долгоживущих JSON-ключей
+        сервис-аккаунтов:</p>
+        <pre><code>CI / среда ──(OIDC-токен)──▶ GCP STS ──(token exchange)──▶ короткоживущий
+   access-token (≈1 час) ──▶ GCP API ──▶ доступ только в рамках роли SA</code></pre>
+        <p>Почему это безопаснее:</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;"></th>
+        <th style="text-align: center;">JSON-ключ</th>
+        <th style="text-align: center;">Workload Identity
+        Federation</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;">Срок жизни</td>
+        <td style="text-align: center;">Бессрочный</td>
+        <td style="text-align: center;">Минуты / 1 час</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Где хранится</td>
+        <td style="text-align: center;">Файл / CI-секрет</td>
+        <td style="text-align: center;">Нигде (выдаётся на лету)</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Утечка из репозитория</td>
+        <td style="text-align: center;">Катастрофа</td>
+        <td style="text-align: center;">Невозможна (нечего утекать)</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Ротация</td>
+        <td style="text-align: center;">Ручная</td>
+        <td style="text-align: center;">Автоматическая</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Настройка пула федерации (пример для GitHub Actions
+        OIDC):</p>
+        <div class="sourceCode" id="cb6"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> iam workload-identity-pools create <span class="st">&quot;gh-pool&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--location</span><span class="op">=</span><span class="st">&quot;global&quot;</span> <span class="at">--display-name</span><span class="op">=</span><span class="st">&quot;GitHub Pool&quot;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> iam workload-identity-pools providers create-oidc <span class="st">&quot;gh-provider&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--location</span><span class="op">=</span><span class="st">&quot;global&quot;</span> <span class="at">--workload-identity-pool</span><span class="op">=</span><span class="st">&quot;gh-pool&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--issuer-uri</span><span class="op">=</span><span class="st">&quot;https://token.actions.githubusercontent.com&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--attribute-mapping</span><span class="op">=</span><span class="st">&quot;google.subject=assertion.sub,attribute.repository=assertion.repository&quot;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Привязка: только репозиторий goodmai/antigravity может выступать как SA</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> iam service-accounts add-iam-policy-binding <span class="dt">\</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;deployer@PROJECT.iam.gserviceaccount.com&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--role</span><span class="op">=</span><span class="st">&quot;roles/iam.workloadIdentityUser&quot;</span> <span class="dt">\</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">--member</span><span class="op">=</span><span class="st">&quot;principalSet://iam.googleapis.com/projects/NUM/locations/global/workloadIdentityPools/gh-pool/attribute.repository/goodmai/antigravity&quot;</span></span></code></pre></div>
+        <h3 id="least-privilege-iam">Least privilege IAM</h3>
+        <p>Сервис-аккаунту деплоя — минимальные роли, а не
+        <code>roles/owner</code>:</p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Плохо: SA может всё</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> projects add-iam-policy-binding PROJECT <span class="dt">\</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--member</span><span class="op">=</span><span class="st">&quot;serviceAccount:deployer@PROJECT.iam.gserviceaccount.com&quot;</span> <span class="dt">\</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--role</span><span class="op">=</span><span class="st">&quot;roles/owner&quot;</span>            <span class="co"># ❌ слишком широко</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Хорошо: ровно то, что нужно для деплоя в Cloud Run</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> projects add-iam-policy-binding PROJECT <span class="dt">\</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--member</span><span class="op">=</span><span class="st">&quot;serviceAccount:deployer@PROJECT.iam.gserviceaccount.com&quot;</span> <span class="dt">\</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--role</span><span class="op">=</span><span class="st">&quot;roles/run.admin&quot;</span>        <span class="co"># ✅</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="ex">gcloud</span> projects add-iam-policy-binding PROJECT <span class="dt">\</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">--member</span><span class="op">=</span><span class="st">&quot;serviceAccount:deployer@PROJECT.iam.gserviceaccount.com&quot;</span> <span class="dt">\</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">--role</span><span class="op">=</span><span class="st">&quot;roles/iam.serviceAccountUser&quot;</span>   <span class="co"># ✅ только для actAs</span></span></code></pre></div>
+        <h3 id="инфраструктура-как-код-cloud-run">Инфраструктура как
+        код: Cloud Run</h3>
+        <pre class="hcl"><code>resource &quot;google_cloud_run_v2_service&quot; &quot;api&quot; {
+  name     = &quot;antigravity-api&quot;
+  location = &quot;europe-west1&quot;
+
+  template {
+    containers {
+      image = &quot;europe-west1-docker.pkg.dev/PROJECT/repo/api:1.0.0&quot;
+      resources {
+        limits = { cpu = &quot;1&quot;, memory = &quot;512Mi&quot; }
+      }
+    }
+    scaling {
+      min_instance_count = 0   # scale-to-zero: не платим в простое
+      max_instance_count = 10
+    }
+    service_account = google_service_account.runtime.email
+  }
+}</code></pre>
+        <p>Cloud Run vs GKE — когда что:</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th style="text-align: left;">Критерий</th>
+        <th style="text-align: left;">Cloud Run</th>
+        <th style="text-align: left;">GKE</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td style="text-align: left;">Модель</td>
+        <td style="text-align: left;">Контейнер как сервис</td>
+        <td style="text-align: left;">Полный Kubernetes</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Масштаб до нуля</td>
+        <td style="text-align: left;">✅ из коробки</td>
+        <td style="text-align: left;">⚠️ нужен KEDA</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Сложная сеть / сайдкары</td>
+        <td style="text-align: left;">ограниченно</td>
+        <td style="text-align: left;">✅</td>
+        </tr>
+        <tr class="even">
+        <td style="text-align: left;">Операционная нагрузка</td>
+        <td style="text-align: left;">минимальная</td>
+        <td style="text-align: left;">высокая</td>
+        </tr>
+        <tr class="odd">
+        <td style="text-align: left;">Когда выбрать</td>
+        <td style="text-align: left;">HTTP-сервисы, API, джобы</td>
+        <td style="text-align: left;">stateful, mesh, кастомные
+        операторы</td>
+        </tr>
+        </tbody>
+        </table>
         <hr />
-        <h2 id="pencil-задание">📝 Задание</h2>
-        <p>Если у вас есть доступ к Firebase проекту:</p>
+        <h2 id="-задание">📝 Задание</h2>
+        <p>Если у вас есть доступ к Firebase-проекту:</p>
         <ol type="1">
-        <li>Попросите агента: <em>"Покажи список моих приложений в
-        текущем Firebase проекте"</em>.</li>
-        <li>Если проекта нет, попросите <em>"Объясни, как создать новый
-        проект Firebase через консоль"</em>.</li>
+        <li>Попросите агента: <em>«Покажи список моих приложений в
+        текущем Firebase проекте»</em>.</li>
+        <li>Если проекта нет: <em>«Объясни, как создать новый проект
+        Firebase через консоль»</em>.</li>
+        <li>Дополнительно: <em>«Напиши Firestore Rules, где пользователь
+        может читать и менять только свои документы в коллекции
+        <code>notes</code>, и сгенерируй тесты правил для
+        эмулятора»</em>. Прогоните тесты локально.</li>
         </ol>
-        <h2 id="microscope-как-это-работает-глубже">🔬 Как это работает
+        <hr />
+        <h2 id="-как-это-работает-глубже">🔬 Как это работает
         глубже</h2>
         <p>Главный архитектурный принцип облачной работы агента —
         <strong>keyless</strong>. Вместо долгоживущих JSON-ключей
         сервис-аккаунтов используется Workload Identity Federation /
-        OIDC:</p>
-        <pre><code>CI или среда ──(OIDC-токен)──▶ GCP STS ──(короткоживущий токен)──▶ GCP API</code></pre>
+        OIDC: среда предъявляет OIDC-токен, GCP STS меняет его на
+        короткоживущий access-token, привязанный к конкретной
+        нагрузке.</p>
         <p>Ключи не хранятся ни в репозитории, ни в секретах CI — токен
         живёт минуты и привязан к конкретной нагрузке. Это закрывает
-        главный вектор утечки.</p>
+        главный вектор утечки: украсть нечего, а перехваченный токен
+        протухает раньше, чем им воспользуются.</p>
         <p>Firestore Rules — это код безопасности, который тестируется
         эмулятором <strong>локально, без облака</strong>: пишешь правило
-        → гоняешь кейсы доступа в эмуляторе → деплоишь только
-        зелёное.</p>
-        <h2 id="warning-типичные-ошибки">⚠️ Типичные ошибки</h2>
+        → гоняешь кейсы доступа в эмуляторе → деплоишь только зелёное.
+        Эмулятор поднимает Firestore в памяти, поэтому тесты быстрые и
+        не трогают продакшен-данные.</p>
+        <p>Агент в этой схеме — не «суперпользователь облака», а
+        исполнитель в песочнице прав: что не разрешено ролью
+        сервис-аккаунта, агент сделать физически не сможет, даже если
+        его об этом попросить.</p>
+        <hr />
+        <h2 id="️-типичные-ошибки">⚠️ Типичные ошибки</h2>
         <ul>
         <li><strong>JSON-ключ в репозитории/CI-секрете.</strong>
         Классическая утечка; используй Workload Identity
@@ -286,29 +508,119 @@ Firebase) | Anti-Gravity Academy</title>
         <li><strong><code>allow read, write: if true</code></strong> в
         Firestore Rules — открытая база. По умолчанию всё должно быть
         запрещено.</li>
+        <li><strong>Путаница <code>resource.data</code> и
+        <code>request.resource.data</code></strong> — правило выглядит
+        строгим, но проверяет не то состояние документа.</li>
         <li><strong>Деплой без эмулятора.</strong> Правила безопасности
         нужно проверять локально до выката.</li>
-        <li><strong>Широкие IAM-роли.</strong> <code>Owner</code>
-        сервис-аккаунту вместо минимально нужной.</li>
+        <li><strong>Широкие IAM-роли.</strong> <code>roles/owner</code>
+        сервис-аккаунту вместо минимально необходимых
+        <code>run.admin</code> +
+        <code>iam.serviceAccountUser</code>.</li>
+        <li><strong>WIF без ограничения по репозиторию.</strong>
+        Привязка по <code>principalSet</code> без
+        <code>attribute.repository</code> позволяет любому репозиторию
+        получить токен.</li>
         </ul>
-        <h2 id="brain-ключевые-концепции">🧠 Ключевые концепции</h2>
+        <hr />
+        <h2 id="-ключевые-концепции">🧠 Ключевые концепции</h2>
         <ul>
         <li><strong>Keyless / Workload Identity Federation</strong> —
-        доступ без долгоживущих ключей.</li>
-        <li><strong>Firestore Rules как код</strong> — тестируемая
-        модель доступа.</li>
+        доступ без долгоживущих ключей через обмен OIDC-токена.</li>
+        <li><strong>Firestore Rules как код</strong> — тестируемая,
+        версионируемая модель доступа;
+        <code>deny by default</code>.</li>
         <li><strong>Эмулятор Firebase</strong> — локальная проверка
-        правил.</li>
+        правил без облака.</li>
         <li><strong>Least privilege IAM</strong> — минимальные роли
-        сервис-аккаунтов.</li>
+        сервис-аккаунтов, разделение <code>actAs</code> и
+        административных прав.</li>
+        <li><strong>MCP как слой изоляции</strong> — агент действует
+        через MCP, в границах прав сервис-аккаунта, а не напрямую.</li>
+        <li><strong>Scale-to-zero</strong> — Cloud Run не тарифицируется
+        в простое; влияет на выбор между Cloud Run и GKE.</li>
         </ul>
-        <h2 id="test_tube-практика">🧪 Практика</h2>
+        <hr />
+        <h2 id="-контрольные-вопросы">❓ Контрольные вопросы</h2>
+        <p>Ответьте сами, потом сверьтесь с разбором ниже.</p>
+        <ol type="1">
+        <li>Почему JSON-ключ сервис-аккаунта в CI-секрете опаснее, чем
+        Workload Identity Federation, даже если секрет «спрятан»?</li>
+        <li>Что произойдёт с запросом на запись, если в Firestore Rules
+        есть только блок
+        <code>match /{document=**} { allow read, write: if false; }</code>
+        и больше ничего?</li>
+        <li>В чём разница между <code>resource.data</code> и
+        <code>request.resource.data</code> и почему это критично для
+        правила на <code>update</code>?</li>
+        <li>Зачем гонять правила в эмуляторе, если можно задеплоить и
+        проверить на реальном проекте?</li>
+        <li>Сервис-аккаунту деплоя выдали <code>roles/owner</code>.
+        Назовите минимальный набор ролей для деплоя в Cloud Run и почему
+        он безопаснее.</li>
+        <li>Какую роль играет MCP-слой между LLM-агентом и GCP API с
+        точки зрения безопасности?</li>
+        <li>Что в цепочке WIF делает GCP STS и почему полученный токен
+        нельзя переиспользовать спустя сутки?</li>
+        <li>Сервис должен «не стоить ничего в простое» и быть простым
+        HTTP-API. Cloud Run или GKE? Обоснуйте.</li>
+        </ol>
+        <hr />
+        <h2 id="-разбор-ответов">✅ Разбор ответов</h2>
+        <ol type="1">
+        <li><strong>JSON-ключ бессрочен и существует как
+        артефакт.</strong> Его можно экспортировать, забыть в логах,
+        утащить через скомпрометированный раннер — и он будет валиден,
+        пока его вручную не отзовут. WIF не хранит ничего: токен
+        выдаётся на лету, живёт ~час и привязан к конкретной нагрузке,
+        так что красть и переиспользовать нечего.</li>
+        <li><strong>Любая запись (и чтение) будет отклонена.</strong>
+        <code>match /{document=**}</code> с <code>if false</code> — это
+        «запрещено по умолчанию»; без явного разрешающего
+        <code>match</code> доступа нет ни у кого. Это и есть безопасная
+        база.</li>
+        <li><code>resource.data</code> — состояние документа
+        <strong>до</strong> операции, <code>request.resource.data</code>
+        — то, что клиент <strong>пытается</strong> записать. В правиле
+        на <code>update</code> нужно проверять оба: например, что
+        владелец (<code>resource.data.authorId</code>) не меняется и
+        совпадает с <code>auth.uid</code>. Проверка только
+        <code>request.resource.data</code> позволит «перехватить» чужой
+        документ, перезаписав поле владельца.</li>
+        <li><strong>Эмулятор проверяет правила локально, в памяти, без
+        риска для продакшена и без затрат</strong>, и это быстро (можно
+        прогнать десятки кейсов доступа в CI). Деплой ради проверки
+        означает, что дырявое правило какое-то время работает на
+        реальных данных.</li>
+        <li>Минимум: <code>roles/run.admin</code> (управление сервисами
+        Cloud Run) + <code>roles/iam.serviceAccountUser</code> (право
+        <code>actAs</code> для runtime-SA). Это безопаснее, потому что
+        компрометация деплой-SA не даёт права на биллинг, IAM-политику
+        проекта, базы и прочее, что входит в <code>owner</code>.</li>
+        <li>MCP — <strong>слой изоляции и аудита</strong>. Агент не
+        аутентифицируется в облаке сам; он делает tool call, а MCP
+        выполняет его в границах прав сервис-аккаунта. Действия видны
+        как артефакты и могут быть отменены до выполнения. Агент не
+        может выйти за пределы выданной роли.</li>
+        <li>GCP STS выполняет <strong>token exchange</strong>: принимает
+        доверенный OIDC-токен среды и выдаёт короткоживущий GCP
+        access-token. Токен имеет срок жизни порядка часа и привязан к
+        нагрузке/атрибутам — через сутки он давно недействителен,
+        поэтому перехват «на будущее» бесполезен.</li>
+        <li><strong>Cloud Run.</strong> Он масштабируется до нуля из
+        коробки (нет платы в простое), операционная нагрузка минимальна,
+        а для простого HTTP-API полноценный Kubernetes — избыточная
+        сложность. GKE оправдан при stateful-нагрузках, service mesh или
+        кастомных операторах.</li>
+        </ol>
+        <hr />
+        <h2 id="-практика">🧪 Практика</h2>
         <p>Закрепи в <strong><a href="../../labs/13/index.html">Лабе 13 —
         Облако: Firebase и GCP</a></strong> (7 задач):
         <code>firebase init</code>, безопасные Firestore Rules,
         эмулятор, keyless-auth, IaC для Cloud Run, разбор Cloud
         Logging.</p>
-        <h2 id="books-источники">📚 Источники</h2>
+        <h2 id="-источники">📚 Источники</h2>
         <ol type="1">
         <li>Workload Identity Federation — <a
         href="https://cloud.google.com/iam/docs/workload-identity-federation">https://cloud.google.com/iam/docs/workload-identity-federation</a></li>
@@ -316,6 +628,12 @@ Firebase) | Anti-Gravity Academy</title>
         href="https://firebase.google.com/docs/rules">https://firebase.google.com/docs/rules</a></li>
         <li>Firebase Local Emulator Suite — <a
         href="https://firebase.google.com/docs/emulator-suite">https://firebase.google.com/docs/emulator-suite</a></li>
+        <li>IAM: принцип наименьших привилегий — <a
+        href="https://cloud.google.com/iam/docs/using-iam-securely">https://cloud.google.com/iam/docs/using-iam-securely</a></li>
+        <li>Cloud Run — обзор — <a
+        href="https://cloud.google.com/run/docs/overview/what-is-cloud-run">https://cloud.google.com/run/docs/overview/what-is-cloud-run</a></li>
+        <li>Тестирование правил безопасности — <a
+        href="https://firebase.google.com/docs/rules/unit-tests">https://firebase.google.com/docs/rules/unit-tests</a></li>
         </ol>
       </main>
       <footer class="footer">
