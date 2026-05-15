@@ -148,6 +148,30 @@
   <li><strong>Confirm before irreversible</strong> — keep the default "ask before destructive actions" behavior</li>
 </ol>
 
+<h2>Settings Files &amp; Secret Protection</h2>
+<p>Claude Code uses two settings files with different scopes and visibility:</p>
+<ul>
+  <li><strong><code>~/.claude/settings.json</code></strong> — global settings that apply to every project on the machine. Use this for personal preferences and universal deny rules.</li>
+  <li><strong><code>.claude/settings.local.json</code></strong> — project-specific settings. This file is gitignored by default, which means its contents never enter version control and are never visible to other contributors or CI systems.</li>
+</ul>
+<p>The <code>settings.local.json</code> vs <code>settings.json</code> distinction matters precisely because of secrets. Project-level overrides that reference environment-specific paths or sensitive deny rules should live in <code>settings.local.json</code> so they cannot be accidentally committed.</p>
+
+<blockquote>
+  <strong>Critical: configure deny rules for .env files.</strong> If Claude reads your <code>.env</code> file, the API keys, database passwords, and cryptographic secrets it contains enter the context window and are transmitted to Anthropic's cloud servers as part of the request. Even if Claude never outputs them, they become part of the session transcript. Add an explicit deny rule to prevent Claude from reading any <code>.env</code> file:
+</blockquote>
+
+<pre><code>{
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)"
+    ]
+  }
+}</code></pre>
+<p>Add this to <code>.claude/settings.local.json</code> in every project that uses environment-based secrets. This is the single most impactful security rule you can add — it closes a secret-exfiltration path that is invisible by default.</p>
+
 <h2>Prompt Injection Risks</h2>
 <p>A prompt injection attack occurs when malicious content in a file or web page instructs Claude to take unintended actions. For example, a README from a repository might contain:</p>
 <blockquote>

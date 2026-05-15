@@ -150,6 +150,62 @@
   </tbody>
 </table>
 
+<h2>Claude Code vs Gemini CLI vs OpenAI Codex CLI</h2>
+<p>The Claude family is not the only choice for AI-assisted coding at the terminal. Gemini CLI (Google) and Codex CLI (OpenAI) are direct competitors with meaningfully different architectures, licensing models, and tradeoffs. Understanding the differences lets you pick the right tool — or combine them deliberately.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Characteristic</th>
+      <th>Claude Code (Anthropic)</th>
+      <th>Gemini CLI / Code Assist (Google)</th>
+      <th>OpenAI Codex CLI</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Licensing</strong></td>
+      <td>Proprietary. Requires paid subscription (Pro) or API key. No free tier.</td>
+      <td>Open Source (Apache 2.0). Free tier: 1,000 requests/day.</td>
+      <td>Open Source (Apache 2.0). Requires ChatGPT subscription.</td>
+    </tr>
+    <tr>
+      <td><strong>Context Window</strong></td>
+      <td>Up to 200,000 tokens (1M in Enterprise).</td>
+      <td>Up to 1 million tokens.</td>
+      <td>200,000 tokens.</td>
+    </tr>
+    <tr>
+      <td><strong>Security Paradigm</strong></td>
+      <td>Interactive. Requests explicit permissions before any file system changes.</td>
+      <td>Configurable trust level. Includes a Yolo mode that grants full autonomy.</td>
+      <td>Full autonomy mode or manual confirmation per action.</td>
+    </tr>
+    <tr>
+      <td><strong>Real-time Data Access</strong></td>
+      <td>Limited to project files within the context window.</td>
+      <td>Built-in Google Search integration (Grounding) for live documentation.</td>
+      <td>Available via web fetching tools.</td>
+    </tr>
+    <tr>
+      <td><strong>Cognitive Architecture</strong></td>
+      <td>Strategic: analyzes the codebase, builds a plan, describes each step, then acts.</td>
+      <td>Tactical: optimized for response speed with PTY streaming.</td>
+      <td>Focus on precise logic synthesis from explicit specifications.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>When to Use Which</h3>
+<ul>
+  <li><strong>Gemini CLI</strong> — exploratory work, scripts that need the latest library versions, isolated utilities, or projects with an open-source licensing requirement.</li>
+  <li><strong>Claude Code</strong> — deep architectural refactoring, changes spanning many files, and any task where consistency with existing project standards is non-negotiable.</li>
+  <li><strong>Codex CLI</strong> — generating syntactically clean, self-contained code from precise specifications. More context management responsibility falls on the developer.</li>
+</ul>
+<blockquote>
+  Pro tip: combine them. Use Gemini CLI for fast exploration and prototyping — its speed and live search make it ideal for figuring out what to build. Then hand the result to Claude Code for integration, refactoring, and ensuring the new code meets the system's existing standards.
+</blockquote>
+
 <h2>Switching Models in CLI</h2>
 <pre><code>/model claude-opus-4-7
 /model claude-sonnet-4-6

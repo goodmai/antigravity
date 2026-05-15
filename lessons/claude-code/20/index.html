@@ -148,6 +148,24 @@
   <li><strong>GitHub Actions</strong> — agents triggered by repository events</li>
 </ul>
 
+<h2>DevOps Automation with Claude Code</h2>
+<p>When integrated into the terminal, Claude Code becomes a capable DevOps assistant — not just generating scripts, but executing them and reacting to their output in real time.</p>
+
+<h3>Server Deployment</h3>
+<p>For server scenarios such as Ubuntu VMs on AWS EC2, Claude can generate and execute complex <code>curl</code> chains, configure web servers (Nginx/Apache), configure firewall rules (<code>iptables</code>/<code>ufw</code>), and install system dependencies — all within a single guided session.</p>
+
+<h3>Autonomous Permission Handling</h3>
+<p>When Claude encounters a "Permission denied" error it autonomously analyzes the output, understands that superuser privileges are required, and rewrites the command with <code>sudo</code> or adjusts permissions via <code>chmod</code>/<code>chown</code>. No human intervention needed for the retry.</p>
+
+<blockquote>Important: this autonomy requires vigilance. In rare cases, permission changes made by the agent can have unpredictable consequences for the OS. Always monitor bash commands executed by the agent.</blockquote>
+
+<p>Example workflow — deploying a Node.js app to EC2:</p>
+<pre><code># Example: deploy a Node.js app to EC2 Ubuntu
+&gt; Set up Nginx as a reverse proxy for a Node.js app running on port 3000.
+&gt; Configure it to serve HTTPS on port 443.
+&gt; Install certbot for Let's Encrypt SSL.
+&gt; Create a systemd service to keep the app running.</code></pre>
+
 <h2>Error Handling</h2>
 <pre><code>async function runAgentWithRetry(task: string, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {

@@ -140,6 +140,29 @@
 <h1>Lesson 21: Advanced Patterns</h1>
 <p>This final lesson covers patterns used by teams running Claude Code at scale: multi-repo architectures, custom MCP tool servers, enterprise access control, and a capstone challenge to validate everything you've learned.</p>
 
+<h2>Architectural Audit with Claude Code</h2>
+<p>Claude Code can act as a continuous automated architect and security auditor — scanning an entire codebase and surfacing structural problems that accumulate silently over time.</p>
+
+<h3>SOLID Principle Auditing</h3>
+<p>Ask Claude to check your codebase for SOLID violations. It excels at finding "God Objects" — classes or modules with too many responsibilities that violate the Single Responsibility Principle. It can propose decomposition into loosely-coupled services, and it checks Open-Closed and Dependency Inversion violations, identifying tight coupling that hampers scaling and testing.</p>
+
+<h3>Code Quality Audit</h3>
+<p>Beyond SOLID, Claude checks naming conventions, identifies overly complex or redundant logic, and evaluates readability. It proposes improvements that make code self-documenting without changing observable behavior.</p>
+
+<h3>Error Handling &amp; Resilience Audit</h3>
+<p>Claude finds code where exceptions are caught but the root cause is hidden — the classic "swallowing the root cause" antipattern. It also detects missing global error handlers, missing retry logic for unreliable external APIs, and missing Circuit Breaker patterns that prevent cascading failures in distributed systems. It can autonomously implement these patterns by wrapping network calls in safe adapters.</p>
+
+<h3>Test Coverage Audit</h3>
+<p>Claude analyzes the codebase for "blind spots" — logical branches and critical paths not covered by tests. It integrates with <code>pytest</code> + <code>coverage.py</code> to generate hundreds of unit and integration tests. If tests fail on first run, Claude enters a debug loop: reads the error, determines whether it's a bad test or a real bug, fixes it, and iterates until all tests are green.</p>
+
+<blockquote>Key best practice: always give Claude a feedback loop — let it run tests itself. Model performance multiplies when it can verify its own work.</blockquote>
+
+<p>Trigger an audit with a prompt like:</p>
+<pre><code>&gt; Audit this codebase for SOLID violations.
+&gt; For each violation: identify the file, explain which principle is broken,
+&gt; and propose a decomposition strategy.
+&gt; Start with the service layer in src/services/.</code></pre>
+
 <h2>Multi-Repo Agent Architecture</h2>
 <p>Large engineering organizations often have dozens of microservices. Claude Code agents can coordinate across them:</p>
 <pre><code>// Orchestrator agent
