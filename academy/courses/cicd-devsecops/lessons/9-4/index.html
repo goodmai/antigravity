@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 9.4 · DePIN-протоколы для backend &amp; frontend — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 9.4 · DePIN-протоколы для backend &amp; frontend</span>
+    </div>
+
+    <p class="lesson-meta">Module 9 — DePIN &amp; Decentralized Infrastructure · Lesson 9.4 · <span class="badge-mini">protocols</span></p>
+    <h1>DePIN-протоколы для backend &amp; frontend: установка, запуск, оплата</h1>
+
+<p><strong>Канон:</strong>
+<a href="https://docs.akash.network" target="_blank" rel="noopener">Akash docs</a>,
+<a href="https://fleek.xyz/docs/" target="_blank" rel="noopener">Fleek docs</a>,
+<a href="https://docs.spheron.network" target="_blank" rel="noopener">Spheron docs</a>,
+<a href="https://docs.runonflux.io" target="_blank" rel="noopener">Flux docs</a>.</p>
+
+<p>Один Akash — это ещё не «поликлауд». Ниже — четыре зрелых DePIN-протокола,
+которыми реально поднимают <strong>и backend, и frontend</strong>. Для каждого:
+что ставим, как запускаем оба яруса, как платим и где подводные камни.</p>
+
+<blockquote>
+<p><strong>Главное правило оплаты в DePIN:</strong> вы не платите по карте
+«постфактум». Вы вносите <strong>депозит в escrow</strong>
+(AKT/USDC/FLUX/SPON), и сеть <strong>списывает посекундно/поблочно</strong>,
+пока lease жив. Кончился баланс — pod убит. Поэтому в проде нужен мониторинг
+баланса escrow + авто-topup (cron/Action).</p>
+</blockquote>
+
+<h2>1. Akash Network — универсальный compute (backend + frontend в контейнерах)</h2>
+
+<p><strong>Назначение:</strong> любой Docker-workload. Backend (API/БД/worker)
+и frontend (nginx со статикой) живут как обычные сервисы в одном SDL.</p>
+
+<p><strong>Установка:</strong></p>
+
+<pre class="code-block"><code class="language-bash">curl -sfL https://raw.githubusercontent.com/akash-network/provider/main/install.sh | bash
+export PATH="$PATH:./bin"
+provider-services keys add wallet            # генерим кошелёк
+# пополняем кошелёк AKT (CEX/DEX) либо USDC через Noble/IBC
+</code></pre>
+
+<p><strong>Запуск (backend + frontend в одном deployment):</strong></p>
+
+<pre class="code-block"><code class="language-yaml"># deploy.yml — SDL v2.0
+services:
+  api:                                   # backend
+    image: ghcr.io/me/api@sha256:abc...   # ВСЕГДА digest, не tag
+    env: [ "DB_DSN=postgres://..." ]
+    expose: [ { port: 8080, to: [{ global: true }] } ]
+  web:                                   # frontend
+    image: ghcr.io/me/web@sha256:def...
+    expose: [ { port: 80, as: 80, to: [{ global: true }] } ]
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">provider-services tx deployment create deploy.yml --from wallet --gas auto
+provider-services query market bid list --owner $OWNER     # ждём bids
+provider-services tx market lease create --provider $PROVIDER ...
+provider-services send-manifest deploy.yml --provider $PROVIDER --from wallet
+</code></pre>
+
+<p><strong>Оплата:</strong> reverse-auction — провайдеры <strong>бидуют ценой
+вниз</strong>. Депозит AKT (min ~0.5 AKT) в escrow деплоя, списание поблочно
+(~6 с). Поддерживается оплата <strong>USDC</strong>. Закрыли deployment →
+невыработанный остаток вернулся.</p>
+
+<p><strong>Особенности:</strong> нет egress-fee; есть GPU и persistent
+storage; TLS — сам (provider ingress + Cloudflare/cert-manager); lease
+смертен — мониторь баланс.</p>
+
+<h2>2. Fleek — frontend на IPFS/Filecoin + Fleek Functions (edge-backend)</h2>
+
+<p><strong>Назначение:</strong> SPA/статика на IPFS с ENS/CDN + лёгкий
+backend как edge-функции (V8-isolates). Идеально для Jamstack.</p>
+
+<p><strong>Установка:</strong></p>
+
+<pre class="code-block"><code class="language-bash">npm i -g @fleek-platform/cli
+fleek login                              # OAuth, проектный API-token
+</code></pre>
+
+<p><strong>Запуск frontend:</strong></p>
+
+<pre class="code-block"><code class="language-bash">fleek sites init                         # привязка build-папки (dist/)
+fleek sites deploy                       # build → IPFS pin → CDN + ENS/DNS
+</code></pre>
+
+<p><strong>Запуск backend (Fleek Functions):</strong></p>
+
+<pre class="code-block"><code class="language-bash">fleek functions create --name api
+fleek functions deploy --path ./api.js   # stateless edge JS/TS
+</code></pre>
+
+<p><strong>Оплата:</strong> подписка Fleek + credits (карта <strong>или</strong>
+crypto), есть free-tier для hobby. Storage — Filecoin/IPFS pinning; Functions
+тарифицируются по числу вызовов и CPU-времени.</p>
+
+<p><strong>Особенности:</strong> лучший DX для статики, авто-pinning + ENS +
+кастомный домен; <strong>но</strong> Functions stateless и с лимитом времени —
+тяжёлый stateful backend (БД, long-running worker) сюда не кладём.</p>
+
+<h2>3. Flux — FluxOS: Docker-приложения (backend + frontend) с HA из коробки</h2>
+
+<p><strong>Назначение:</strong> always-on self-hosted приложения. Каждое
+приложение запускается <strong>минимум на 3 нодах</strong> → встроенная
+георедундантность, LB и Let's Encrypt-домен через FDM (Flux Domain Manager).</p>
+
+<p><strong>Установка / деплой (без своей ноды — через Flux SSP/Zelcore + CLI):</strong></p>
+
+<pre class="code-block"><code class="language-bash"># спецификация приложения (compose-подобный JSON):
+# name, compose[{ image (с checksum), ports, environment }],
+# instances >= 3, resources (cpu/ram/hdd), expire (в блоках)
+flux-cli registerapp ./app-spec.json     # подписываем кошельком, платим FLUX
+</code></pre>
+
+<p><strong>Запуск backend + frontend:</strong> оба — это compose-компоненты
+одного app-spec (<code>api</code> + <code>web</code> контейнеры). Домен
+<code>app.runonflux.io</code> (или custom) с авто-LB/SSL; persistent — Flux
+Storage/IPFS.</p>
+
+<p><strong>Оплата:</strong> регистрация и runtime — в <strong>FLUX</strong>,
+цена = f(ресурсы × число инстансов × срок). Подписка <strong>истекает</strong>
+(expire-блок) — нужен <code>extendapp</code> (renew), иначе приложение
+снимается.</p>
+
+<p><strong>Особенности:</strong> HA «из коробки» (≥3 реплики, FDM LB+SSL),
+reproducible (image по checksum); платишь за HA — дороже single-node; хорош
+для always-on backend+frontend без облака.</p>
+
+<h2>4. Spheron — decentralized compute marketplace (GPU/AI backend + frontend)</h2>
+
+<p><strong>Назначение:</strong> GPU/CPU-marketplace (Fizz-ноды). Силён для
+AI/inference backend; frontend-контейнер тоже поднимается.</p>
+
+<p><strong>Установка:</strong></p>
+
+<pre class="code-block"><code class="language-bash">curl -sL https://sphnctl.sh | bash       # или: npm i -g @spheron/cli
+sphnctl wallet create
+sphnctl wallet deposit --amount 20 --token USDC   # escrow-депозит
+</code></pre>
+
+<p><strong>Запуск (ICL-манифест, идейно как Akash SDL):</strong></p>
+
+<pre class="code-block"><code class="language-bash">sphnctl deployment create deploy.yaml    # services: api (gpu) + web
+sphnctl deployment get &lt;id&gt;              # URL + статус
+</code></pre>
+
+<p><strong>Оплата:</strong> депозит <strong>USDC/CST</strong> в escrow,
+биллинг <strong>посекундный</strong>, прозрачный прайс за GPU-час; остаток
+депозита возвращается при закрытии.</p>
+
+<p><strong>Особенности:</strong> GPU-first, прозрачный per-second pricing,
+ICL ≈ SDL; для тяжёлого AI-backend — топ, чистый frontend дешевле отдать
+через Fleek.</p>
+
+<h2>Матрица выбора</h2>
+
+<div class="table-wrap"><table>
+<tr><th>Протокол</th><th>Backend</th><th>Frontend</th><th>Оплата</th><th>Брать когда</th></tr>
+<tbody>
+<tr><td><strong>Akash</strong></td><td>✅ любой контейнер</td><td>✅ nginx/static</td><td>AKT/USDC escrow, reverse-auction, поблочно</td><td>универсальный поликлауд, GPU, нет egress-fee</td></tr>
+<tr><td><strong>Fleek</strong></td><td>⚠️ только edge-functions</td><td>✅✅ IPFS+ENS+CDN</td><td>подписка/credits (fiat/crypto), free-tier</td><td>Jamstack/SPA + лёгкий serverless API</td></tr>
+<tr><td><strong>Flux</strong></td><td>✅ Docker, HA ≥3</td><td>✅ Docker/static</td><td>FLUX, подписка с expire</td><td>always-on self-hosted с HA из коробки</td></tr>
+<tr><td><strong>Spheron</strong></td><td>✅✅ GPU/AI</td><td>✅ контейнер</td><td>USDC escrow, per-second</td><td>AI/inference-backend, GPU-нагрузки</td></tr>
+</table></div>
+
+<p><strong>Правило:</strong> frontend → Fleek (DX + ENS); универсальный
+backend → Akash; always-on HA-стек → Flux; GPU/AI-backend → Spheron.
+В проде — multi-provider + fallback на централизованного провайдера (см. 9.3).</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Решение о DePIN — осознанное, не «хайп» (есть метрика выгоды).</li>
+<li>[ ] Threat model документирована (compromised node ≠ конец света).</li>
+<li>[ ] Контейнер в Akash запинен по digest, не tag.</li>
+<li>[ ] SBOM/провенанс продублирован в IPFS/Filecoin.</li>
+<li>[ ] Fallback на централизованного провайдера прописан и проверен.</li>
+<li>[ ] mTLS / encryption at rest для всех данных в DePIN.</li>
+<li>[ ] Протокол выбран по ярусу: frontend/backend → подходящая сеть (9.4).</li>
+<li>[ ] Баланс escrow (AKT/USDC/FLUX) под мониторингом + авто-topup.</li>
+<li>[ ] Flux/Akash подписка/lease имеет renew-автоматизацию (не истечёт молча).</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/25-akash-ipfs/" target="_blank" rel="noopener">Lab 25 — Akash deploy + IPFS artifacts</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../9-3/index.html">← Предыдущий урок</a>
+      <a href="../10-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
