@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 12.4 · Capstone — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 12.4 · Capstone</span>
+    </div>
+
+    <p class="lesson-meta">Module 12 — Mistakes, Best Practices & Capstone · Lesson 12.4 · <span class="badge-mini">capstone</span></p>
+    <h1>Capstone</h1>
+
+
+<p><strong>Задача:</strong> end-to-end проект, объединяющий все 11 модулей.</p>
+
+<h3>Scope</h3>
+
+<p>«Daskibo-Demo» — простой сервис «лучшие книги по DevSecOps» с REST API,</p>
+<p>SPA, mobile-клиентами. Что собираем:</p>
+
+<ul>
+<li>Monorepo: <code>backend/</code> (Go) + <code>frontend/</code> (Astro) + <code>ios/</code> + <code>android/</code> +</li>
+</ul>
+<p><code>infra/</code> (Terraform) + <code>helm/</code> (Helm chart) + <code>.github/workflows/</code>.</p>
+<ul>
+<li>Сборка <code>.deb</code> пакета backend через CI.</li>
+<li>Homebrew tap для CLI-клиента.</li>
+<li>iOS TestFlight + Android Play internal через fastlane / Gradle Play Publisher.</li>
+<li>Контейнерный образ: multi-arch (amd64+arm64), distroless, signed cosign,</li>
+</ul>
+<p>с SBOM + SLSA L3 provenance.</p>
+<ul>
+<li>Деплой в <strong>EKS</strong> (через OIDC) и параллельно в <strong>Akash</strong> (DePIN), с</li>
+</ul>
+<p>health-check'ом и автоматическим fallback.</p>
+<ul>
+<li>ArgoCD синхронизирует Helm-чарт.</li>
+<li>Kyverno-policy verify cosign signature на admission.</li>
+<li>Vault dev → ESO → секреты в k8s, ротация раз в час.</li>
+<li>Keycloak в инфре для OAuth/OIDC, WebAuthn для админ-панели.</li>
+<li>Prometheus + Grafana дашборд с SLO (99.9% availability, p99 < 300ms).</li>
+<li>InfluxDB собирает бизнес-метрики (views, downloads).</li>
+<li>Loki + Tempo + OpenTelemetry, trace_id в логах.</li>
+<li>Alertmanager → Apprise → Telegram + Slack + Discord.</li>
+<li>Postgres через Patroni 3 узла + WAL-G в MinIO + restore rehearsal в CI.</li>
+<li>Терраформ-плана покрывает AWS (EKS, RDS read-replica, S3) + Cloudflare DNS.</li>
+<li>Atlantis в PR, tfsec + checkov + infracost.</li>
+<li>Лендинг проекта собирается Astro, катится atomic-deploy в Cloudflare Pages.</li>
+<li>Мейл-сервер mailcow с DMARC <code>p=reject</code>.</li>
+<li>VPS-bastion за Headscale, доступ только по passkey.</li>
+</ul>
+
+<h3>Critical acceptance</h3>
+
+<ul>
+<li>[ ] PR с малой багой ломает CI (SonarQube QG).</li>
+<li>[ ] PR с CVE HIGH в dep ломает CI (Trivy).</li>
+<li>[ ] Незаподписанный образ <strong>не</strong> деплоится (Kyverno admission).</li>
+<li>[ ] DB-миграция applied через CI + откат проверен.</li>
+<li>[ ] Алёрт «выкатился bad release» доходит во <strong>все три</strong> канала за < 60s.</li>
+<li>[ ] Restore rehearsal зелёный в pipeline.</li>
+<li>[ ] Полная сборка занимает < 15 минут (с кэшем).</li>
+<li>[ ] OWASP DSOMM ≥ Level 2 во всех 4 dimensions.</li>
+</ul>
+
+<h3>Защита</h3>
+
+<ul>
+<li>Демо-видео ≤ 10 минут.</li>
+<li>README с архитектурной диаграммой (С4 / arc42).</li>
+<li>THREAT_MODEL.md.</li>
+<li>SLO.md.</li>
+<li>Runbook'и в <code>runbooks/</code>.</li>
+<li>DSOMM-self-assessment.md.</li>
+</ul>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Прочёл и понял все 30 ошибок (могу пересказать фикс для каждой).</li>
+<li>[ ] Pipeline-hardening применён ко всем prod-репо.</li>
+<li>[ ] Go-live чек-лист пройден полностью.</li>
+<li>[ ] Capstone сдан, acceptance-критерии green.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/31-capstone/" target="_blank" rel="noopener">Lab 31 (Capstone) — End-to-end проект</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../12-3/index.html">← Предыдущий урок</a>
+      
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

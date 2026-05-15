@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 3.2 · BuildKit / buildx / kaniko — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 3.2 · BuildKit / buildx / kaniko</span>
+    </div>
+
+    <p class="lesson-meta">Module 3 — Containers, K8s, Pods · Lesson 3.2 · <span class="badge-mini">buildkit</span></p>
+    <h1>BuildKit / buildx / kaniko</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.docker.com/build/buildkit/" target="_blank" rel="noopener">BuildKit docs</a>,</p>
+<p><a href="https://github.com/docker/buildx" target="_blank" rel="noopener">buildx</a>, <a href="https://github.com/GoogleContainerTools/kaniko" target="_blank" rel="noopener">kaniko</a>,</p>
+<p><a href="https://docs.docker.com/build/attestations/" target="_blank" rel="noopener">SLSA attestations in BuildKit</a>.</p>
+
+<p><strong>buildx + QEMU</strong> — мульти-арх (<code>linux/amd64,linux/arm64</code>) на одном x86-раннере.</p>
+
+<pre class="code-block"><code class="language-yaml">- uses: docker/setup-qemu-action@SHA
+- uses: docker/setup-buildx-action@SHA
+- uses: docker/build-push-action@SHA
+  with:
+    platforms: linux/amd64,linux/arm64
+    push: true
+    tags: ghcr.io/me/app:${{ github.sha }}
+    provenance: mode=max     # SLSA-провенанс в манифесте
+    sbom: true               # CycloneDX SBOM в registry
+    cache-from: type=gha
+    cache-to: type=gha,mode=max
+</code></pre>
+
+<p><code>provenance=mode=max</code> — кладёт в registry <strong>attestation</strong>: какой commit, какой</p>
+<p>runner, какие build args. Verify через <code>cosign verify-attestation</code>.</p>
+
+<p><strong>kaniko</strong> — собирает образы <strong>внутри</strong> k8s-кластера без Docker socket. Безопаснее</p>
+<p>для shared runner'ов.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../3-1/index.html">← Предыдущий урок</a>
+      <a href="../3-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

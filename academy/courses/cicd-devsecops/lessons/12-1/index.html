@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 12.1 · Топ-30 типичных ошибок — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 12.1 · Топ-30 типичных ошибок</span>
+    </div>
+
+    <p class="lesson-meta">Module 12 — Mistakes, Best Practices & Capstone · Lesson 12.1 · <span class="badge-mini">mistakes</span></p>
+    <h1>Топ-30 типичных ошибок</h1>
+
+
+<h3>Pipeline / Git</h3>
+
+<ol>
+<li><strong><code>uses: actions/checkout@v4</code></strong> (tag, а не SHA) — supply chain attack.</li>
+</ol>
+<p><strong>Фикс:</strong> pin by full commit SHA, использовать <code>pin-github-action</code>.</p>
+<ol>
+<li><strong>Default <code>GITHUB_TOKEN</code> имеет <code>write</code></strong> — overprivilege.</li>
+</ol>
+<p><strong>Фикс:</strong> <code>permissions: { contents: read }</code> в job (минимум) или в workflow.</p>
+<ol>
+<li><strong><code>pull_request_target</code> + checkout PR-кода</strong> — RCE из untrusted forks.</li>
+</ol>
+<p><strong>Фикс:</strong> не делать checkout untrusted кода в <code>_target</code>, или</p>
+<p><code>permissions: {}</code> пусто.</p>
+<ol>
+<li><strong>PAT в repo secrets</strong> — токен живёт год, после увольнения admin'а — катастрофа.</li>
+</ol>
+<p><strong>Фикс:</strong> GitHub App + fine-grained PAT с short TTL.</p>
+<ol>
+<li><strong>Self-merge PR'а</strong> — обход review.</li>
+</ol>
+<p><strong>Фикс:</strong> <code>Require pull request reviews — Dismiss stale + Restrict who can dismiss</code>.</p>
+<ol>
+<li><strong>Force-push в <code>main</code></strong>. <strong>Фикс:</strong> protected branch + linear history.</li>
+<li><strong><code>branch_name</code> подставляется в shell без escape</strong>: <code>eval "echo ${BRANCH}"</code>.</li>
+</ol>
+<p><strong>Фикс:</strong> через <code>env:</code> + <code>"$BRANCH"</code> в кавычках, не string-templating.</p>
+
+<h3>Containers / k8s</h3>
+
+<ol>
+<li><strong><code>FROM image:latest</code></strong> — невоспроизводимая сборка.</li>
+</ol>
+<p><strong>Фикс:</strong> pin tag + better digest <code>@sha256:...</code>.</p>
+<ol>
+<li><strong><code>USER root</code> в образе</strong> + <code>runAsNonRoot: true</code> в k8s → CrashLoopBackOff</li>
+</ol>
+<p>или невозможность сделать чисто.</p>
+<ol>
+<li><strong><code>readOnlyRootFilesystem: false</code></strong> — exploit пишет webshell.</li>
+</ol>
+<p><strong>Фикс:</strong> <code>true</code> + <code>emptyDir</code> для <code>/tmp</code>.</p>
+<ol>
+<li><strong>Без <code>resources.limits</code></strong> — один pod ест всю ноду.</li>
+</ol>
+<p><strong>Фикс:</strong> обязательны requests+limits + LimitRange на namespace.</p>
+<ol>
+<li><strong><code>hostNetwork: true</code> "потому что проще"</strong> — обход network policies, root</li>
+</ol>
+<p>namespace. <strong>Фикс:</strong> <strong>никогда</strong> в prod.</p>
+<ol>
+<li><strong><code>automountServiceAccountToken: true</code> дефолтом</strong> — все поды могут читать</li>
+</ol>
+<p>kube-API. <strong>Фикс:</strong> <code>false</code> + явный SA где нужно.</p>
+<ol>
+<li><strong>Один namespace для всего</strong> — нет isolation.</li>
+</ol>
+<p><strong>Фикс:</strong> ns per environment/service + NetworkPolicy <code>default-deny</code>.</p>
+
+<h3>Secrets</h3>
+
+<ol>
+<li><strong>AWS Access Keys в GitHub Secrets</strong> — long-lived.</li>
+</ol>
+<p><strong>Фикс:</strong> OIDC-федерация.</p>
+<ol>
+<li><strong>Секрет вылетел в логе</strong> (<code>set -x</code> + <code>curl -H "Authorization: $TOKEN"</code>).</li>
+</ol>
+<p><strong>Фикс:</strong> GH masks secrets, но если запиcали в файл и <code>cat</code> — не маскируется.</p>
+<p>Используйте <code>add-mask::</code>.</p>
+<ol>
+<li><strong><code>echo $SECRET &gt; file</code> без <code>umask 077</code></strong> — другие процессы прочтут.</li>
+<li><strong><code>.env</code> файлы в Docker layer</strong> — слой в registry, секрет утёк навсегда.</li>
+</ol>
+<p><strong>Фикс:</strong> BuildKit <code>--secret</code>, не <code>COPY .env</code>.</p>
+
+<h3>Releases</h3>
+
+<ol>
+<li><strong>Один и тот же образ — разные теги</strong> (<code>prod-latest</code> перезатирается).</li>
+</ol>
+<p><strong>Фикс:</strong> immutable tags + digest.</p>
+<ol>
+<li><strong><code>semver</code> нарушен</strong> — patch ломает API.</li>
+</ol>
+<p><strong>Фикс:</strong> Conventional Commits → semantic-release.</p>
+<ol>
+<li><strong>Hot-fix напрямую в <code>main</code>, минуя CI</strong> (даже «маленький»).</li>
+</ol>
+<p><strong>Фикс:</strong> запрет на force-push, обязательные status checks.</p>
+
+<h3>Observability</h3>
+
+<ol>
+<li><strong>«У нас же есть логи»</strong> — но без structured logging и trace_id.</li>
+</ol>
+<p><strong>Фикс:</strong> JSON-логи, OpenTelemetry, exemplars в Prometheus.</p>
+<ol>
+<li><strong>Алёрт «CPU > 90%»</strong> — алёрт на симптом, а не SLO.</li>
+</ol>
+<p><strong>Фикс:</strong> multi-burn-rate alerts на error budget.</p>
+<ol>
+<li><strong>Нет deadman-switch alert'а</strong> — если Prom молчит, никто не знает.</li>
+</ol>
+<p><strong>Фикс:</strong> <code>absent(up{job="..."} == 1)</code> алёрт всегда.</p>
+
+<h3>Data / DR</h3>
+
+<ol>
+<li><strong>«Бэкапы есть, мы их не тестируем»</strong> — Schrödinger's backup.</li>
+</ol>
+<p><strong>Фикс:</strong> restore-rehearsal в CI, <strong>обязательно</strong>.</p>
+<ol>
+<li><strong><code>DROP TABLE</code> без EXPLAIN review</strong> (а в <code>git diff</code> не видно).</li>
+</ol>
+<p><strong>Фикс:</strong> Atlas/<code>atlas migrate lint</code> падает на destructive.</p>
+<ol>
+<li><strong><code>ALTER TABLE ... ADD COLUMN</code> с дефолтом на 100M-строк</strong> — час downtime.</li>
+</ol>
+<p><strong>Фикс:</strong> expand-contract + online DDL.</p>
+
+<h3>Misc</h3>
+
+<ol>
+<li><strong>CI запускается на каждый коммит, даже на <code>chore: bump readme</code></strong>.</li>
+</ol>
+<p><strong>Фикс:</strong> paths-filter + skip-ci метки.</p>
+<ol>
+<li><strong>Никто не читает security-alerts из Dependabot</strong> — backlog растёт.</li>
+</ol>
+<p><strong>Фикс:</strong> SLA на critical CVE (24h), еженедельный review.</p>
+<ol>
+<li><strong>«Сначала фичи, безопасность потом»</strong>.</li>
+</ol>
+<p><strong>Фикс:</strong> definition-of-done включает security gates; PR без них не мерджится.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../11-4/index.html">← Предыдущий урок</a>
+      <a href="../12-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

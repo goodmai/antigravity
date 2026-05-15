@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 1.5 · Runners: hosted vs self-hosted, ARC — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 1.5 · Runners: hosted vs self-hosted, ARC</span>
+    </div>
+
+    <p class="lesson-meta">Module 1 — CI/CD Foundations · Lesson 1.5 · <span class="badge-mini">runners</span></p>
+    <h1>Runners: hosted vs self-hosted, ARC</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://github.com/actions/actions-runner-controller" target="_blank" rel="noopener">actions/runner-controller (ARC)</a>,</p>
+<p><a href="https://docs.github.com/en/actions/using-jobs/choosing-the-runner-for-a-job" target="_blank" rel="noopener">Choosing the runner for a job</a>,</p>
+<p><a href="https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners" target="_blank" rel="noopener">GitHub-hosted larger runners</a>.</p>
+
+<p><strong>Когда self-hosted:</strong></p>
+
+<ul>
+<li>macOS-сборка (iOS) — GitHub macOS-раннеры дороги и медленные.</li>
+<li>Доступ к private network (БД, VPN).</li>
+<li>ARM/GPU-сборка.</li>
+<li>Жёсткие SLA на queue time.</li>
+</ul>
+
+<p><strong>Когда </strong>не<strong> self-hosted:</strong></p>
+
+<ul>
+<li>Public repo (security: атакующий из PR может выполнить код на вашем железе).</li>
+</ul>
+<p>Только <strong>ephemeral</strong> runners с per-job изоляцией, или <strong><code>pull_request_target</code></strong></p>
+<p>без чек-аутов untrusted-кода.</p>
+
+<h3>ARC: ephemeral runners в k8s</h3>
+
+<pre class="code-block"><code class="language-yaml"># AutoScalingRunnerSet (ARC v2)
+apiVersion: actions.github.com/v1alpha1
+kind: AutoscalingRunnerSet
+metadata:
+  name: ubuntu-ephemeral
+spec:
+  githubConfigUrl: https://github.com/your-org
+  githubConfigSecret: gh-app-secret
+  maxRunners: 50
+  minRunners: 1
+  template:
+    spec:
+      containers:
+        - name: runner
+          image: ghcr.io/actions/actions-runner:latest
+          # каждый pod — один job, потом self-destruct
+</code></pre>
+
+<p><strong>Преимущества:</strong> изоляция, autoscale, мониторинг через Prometheus,</p>
+<p>никаких «грязных» состояний от прошлых job'ов.</p>
+
+<p><strong>Лаба 03</strong> — ARC на k3d, очередь job'ов масштабируется автоматически.</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] В моём workflow все <code>uses:</code> запинены по SHA.</li>
+<li>[ ] <code>permissions:</code> явный и минимальный.</li>
+<li>[ ] Есть <code>concurrency</code> group, чтобы не гонять CI вхолостую.</li>
+<li>[ ] Husky/lefthook + commitlint + gitleaks локально.</li>
+<li>[ ] <code>gitleaks</code> дублируется в CI как required check (потому что <code>--no-verify</code>).</li>
+<li>[ ] Protected branches с CODEOWNERS и required checks.</li>
+<li>[ ] OIDC → AWS/Azure/GCP, без long-lived ключей в secrets.</li>
+<li>[ ] Понимаю, когда нужен self-hosted, и держу его <strong>ephemeral</strong>.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/01-hello-pipeline/" target="_blank" rel="noopener">Lab 01 — Hello-Pipeline</a></li>
+<li><a href="../../labs/02-hooks/" target="_blank" rel="noopener">Lab 02 — husky + commitlint + gitleaks</a></li>
+<li><a href="../../labs/03-arc/" target="_blank" rel="noopener">Lab 03 — ARC на k3d</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../1-4/index.html">← Предыдущий урок</a>
+      <a href="../2-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 3.5 · Pod-security: Kyverno / Gatekeeper — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 3.5 · Pod-security: Kyverno / Gatekeeper</span>
+    </div>
+
+    <p class="lesson-meta">Module 3 — Containers, K8s, Pods · Lesson 3.5 · <span class="badge-mini">policy</span></p>
+    <h1>Pod-security: Kyverno / Gatekeeper</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/" target="_blank" rel="noopener">Pod Security Standards</a>,</p>
+<p><a href="https://kyverno.io/docs/" target="_blank" rel="noopener">Kyverno docs</a>, <a href="https://open-policy-agent.github.io/gatekeeper/" target="_blank" rel="noopener">OPA Gatekeeper</a>,</p>
+<p><a href="https://github.com/cncf/tag-security" target="_blank" rel="noopener">CNCF Cloud Native Security Whitepaper</a>.</p>
+
+<p><strong>Pod Security Standards (PSS)</strong> — три профиля:</p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Privileged</th><th>Baseline</th><th><strong>Restricted</strong></th></tr>
+<tbody>
+<tr><td>Host namespaces</td><td>✓</td><td>✗</td><td>✗</td></tr>
+<tr><td>Root container</td><td>✓</td><td>✓</td><td>✗</td></tr>
+<tr><td>Capabilities</td><td>all</td><td>drop required</td><td>drop ALL except NET<em>BIND</em>SERVICE</td></tr>
+<tr><td>Seccomp</td><td>optional</td><td>optional</td><td>required (RuntimeDefault)</td></tr>
+<tr><td><code>readOnlyRootFs</code></td><td>optional</td><td>optional</td><td><strong>required</strong></td></tr>
+</table></div>
+
+<p>В prod всегда <strong>Restricted</strong>. Применяется через PSA (built-in admission):</p>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+</code></pre>
+
+<h3>Kyverno-политика: только подписанные образы</h3>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: kyverno.io/v2beta1
+kind: ClusterPolicy
+metadata: { name: verify-signed-images }
+spec:
+  validationFailureAction: Enforce
+  rules:
+    - name: check-signature
+      match: { any: [{ resources: { kinds: [Pod] } }] }
+      verifyImages:
+        - imageReferences: [ "ghcr.io/me/*" ]
+          attestors:
+            - entries:
+                - keyless:
+                    subject: "https://github.com/me/app/.github/workflows/release.yml@refs/tags/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor: { url: https://rekor.sigstore.dev }
+</code></pre>
+
+<p><strong>Что это делает:</strong> не пустит в кластер ни один образ, который не подписан</p>
+<p>cosign'ом из вашего GH Actions workflow. Это <strong>closes the loop</strong> между Module 4</p>
+<p>(cosign-подпись) и runtime.</p>
+
+<h3>NetworkPolicy: default-deny</h3>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny, namespace: prod }
+spec:
+  podSelector: {}            # все Pod'ы namespace
+  policyTypes: [Ingress, Egress]
+# egress/ingress пусто = всё запрещено
+</code></pre>
+
+<p>Дальше — точечно разрешаем нужные потоки. Без <code>default-deny</code> любой</p>
+<p>compromised Pod может ходить куда угодно внутри кластера.</p>
+
+<p><strong>Лаба 10</strong> — Kyverno-политики блокируют небезопасный Pod (root, latest, no signature).</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Все образы — multi-stage, distroless / scratch, non-root.</li>
+<li>[ ] BuildKit с <code>provenance=mode=max</code> + <code>sbom: true</code>.</li>
+<li>[ ] В Deployment: digest вместо tag, <code>readOnlyRootFs</code>, <code>runAsNonRoot</code>,</li>
+</ul>
+<p>seccomp <code>RuntimeDefault</code>, drop ALL caps, probes, resources, PDB, HPA.</p>
+<ul>
+<li>[ ] Namespace помечен PSA <code>enforce=restricted</code>.</li>
+<li>[ ] Kyverno-политика проверяет cosign-подпись.</li>
+<li>[ ] NetworkPolicy <code>default-deny</code> в каждом namespace.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/08-distroless/" target="_blank" rel="noopener">Lab 08 — Distroless образ < 30 МБ</a></li>
+<li><a href="../../labs/09-k3d-deploy/" target="_blank" rel="noopener">Lab 09 — K3d + HPA + Ingress</a></li>
+<li><a href="../../labs/10-kyverno/" target="_blank" rel="noopener">Lab 10 — Kyverno-политики</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../3-4/index.html">← Предыдущий урок</a>
+      <a href="../4-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 7.3 · Discord webhooks / embeds + Bot — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 7.3 · Discord webhooks / embeds + Bot</span>
+    </div>
+
+    <p class="lesson-meta">Module 7 — Notifications & ChatOps · Lesson 7.3 · <span class="badge-mini">discord</span></p>
+    <h1>Discord webhooks / embeds + Bot</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://discord.com/developers/docs/resources/webhook" target="_blank" rel="noopener">Discord webhook docs</a>,</p>
+<p><a href="https://discord.com/developers/docs/resources/channel#embed-object" target="_blank" rel="noopener">Discord embeds</a>,</p>
+<p><a href="https://discordjs.guide" target="_blank" rel="noopener">discord.js guide</a>.</p>
+
+<h3>Webhook (минимум)</h3>
+
+<pre class="code-block"><code class="language-bash">curl -H "Content-Type: application/json" -X POST "$DISCORD_WEBHOOK" -d '{
+  "username": "CI Bot",
+  "embeds": [{
+    "title": "Build #123 ✅",
+    "color": 3066993,
+    "url": "https://...",
+    "fields": [
+      { "name": "Branch", "value": "main", "inline": true },
+      { "name": "Commit", "value": "abc1234", "inline": true },
+      { "name": "Tests", "value": "42 ✅ / 0 ❌", "inline": false }
+    ],
+    "footer": { "text": "github.com/me/app" },
+    "timestamp": "2026-05-14T12:00:00.000Z"
+  }]
+}'
+</code></pre>
+
+<p><strong>Лимиты Discord embed</strong> (важно знать в CI):</p>
+
+<ul>
+<li>≤ 6000 символов на весь embed.</li>
+<li>≤ 25 fields.</li>
+<li>≤ 256 символов на field.name, ≤ 1024 на value.</li>
+<li>≤ 10 embed'ов в одном сообщении.</li>
+</ul>
+
+<p>Если CI генерит огромный лог — обрезаем и кладём ссылкой на артефакт.</p>
+
+<h3>Discord Bot + buttons (interactive)</h3>
+
+<p><code>discord.js</code> поддерживает <code>MessageButton</code>/<code>ActionRow</code>. Можно сделать</p>
+<p>кнопку «Acknowledge alert» — нажатие шлёт callback на ваш сервер, который</p>
+<p>обновляет alert state в Alertmanager.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../7-2/index.html">← Предыдущий урок</a>
+      <a href="../7-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

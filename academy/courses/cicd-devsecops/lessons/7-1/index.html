@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 7.1 · Telegram Bot API: пайплайн → чат — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 7.1 · Telegram Bot API: пайплайн → чат</span>
+    </div>
+
+    <p class="lesson-meta">Module 7 — Notifications & ChatOps · Lesson 7.1 · <span class="badge-mini">telegram</span></p>
+    <h1>Telegram Bot API: пайплайн → чат</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://core.telegram.org/bots/api" target="_blank" rel="noopener">Telegram Bot API</a>,</p>
+<p><a href="https://core.telegram.org/bots/features#botfather" target="_blank" rel="noopener">BotFather basics</a>,</p>
+<p><a href="https://core.telegram.org/bots/api#markdownv2-style" target="_blank" rel="noopener">Telegram MarkdownV2 spec</a>.</p>
+
+<p><strong>Создаём бота:</strong></p>
+
+<ol>
+<li>В Telegram → <code>@BotFather</code> → <code>/newbot</code>.</li>
+<li>Получаем <code>&lt;token&gt;</code> — храним в <strong>Vault</strong>, а не в <code>secrets.yml</code> git'а.</li>
+<li><code>/setdomain</code>, <code>/setjoingroups</code> по необходимости.</li>
+<li>Добавляем бота в чат, узнаём <code>chat_id</code> через <code>getUpdates</code> или</li>
+</ol>
+<p><code>@RawDataBot</code>. Чтобы постить в <strong>топик/тред</strong> в супергруппе — нужен</p>
+<p><code>message_thread_id</code>.</p>
+
+<h3>Минимальный send из GH Actions</h3>
+
+<pre class="code-block"><code class="language-yaml">- name: Notify TG
+  if: always()                   # шлём и на success, и на failure
+  env:
+    TG_TOKEN: ${{ secrets.TG_TOKEN }}
+    TG_CHAT:  ${{ vars.TG_CHAT_ID }}
+  run: |
+    STATUS="${{ job.status }}"
+    ICON="✅"; [ "$STATUS" != "success" ] &amp;&amp; ICON="❌"
+    TEXT="${ICON} *${{ github.workflow }}* — \`${{ github.ref_name }}\`%0A"
+    TEXT+="commit: [${GITHUB_SHA::7}](${{ github.server_url }}/${{ github.repository }}/commit/${GITHUB_SHA})%0A"
+    TEXT+="run: [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+    curl -sS "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+      -d chat_id="${TG_CHAT}" \
+      -d parse_mode=MarkdownV2 \
+      -d disable_web_page_preview=true \
+      --data-urlencode "text=${TEXT}"
+</code></pre>
+
+<p><strong>Подводные камни Telegram MarkdownV2:</strong></p>
+
+<ul>
+<li>Символы <code>_*[]()~</code>!#+-=|{}.><code> обязаны быть escaped через </code>\`.</li>
+<li>Поэтому в реальных сборках используют <strong><code>apprise</code></strong> (Python, унифицирует</li>
+</ul>
+<p>100+ нотификаций) или <strong><code>appleboy/telegram-action</code></strong>.</p>
+
+<h3>Через <code>apprise</code> (один интерфейс на TG/Slack/Discord/Email/SMS)</h3>
+
+<pre class="code-block"><code class="language-bash">pip install apprise
+apprise -t "Build OK" -b "ref=$REF sha=$SHA" \
+  tgram://${TG_TOKEN}/${TG_CHAT}/        \
+  slack://${SLACK_TOKEN_A}/${SLACK_TOKEN_B}/${SLACK_TOKEN_C} \
+  discord://${WEBHOOK_ID}/${WEBHOOK_TOKEN}/
+</code></pre>
+
+<p><strong>Лаба 20</strong> — GH Actions шлёт билд + покрытие + ссылку на артефакт в TG, с</p>
+<p>форматированием и attachments.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../6-5/index.html">← Предыдущий урок</a>
+      <a href="../7-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

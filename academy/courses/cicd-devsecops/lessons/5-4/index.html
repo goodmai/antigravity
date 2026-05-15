@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 5.4 · Ключи: SSH, GPG, age, signed commits — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 5.4 · Ключи: SSH, GPG, age, signed commits</span>
+    </div>
+
+    <p class="lesson-meta">Module 5 — Secrets, OAuth, 2FA · Lesson 5.4 · <span class="badge-mini">keys</span></p>
+    <h1>Ключи: SSH, GPG, age, signed commits</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.tiltedwindmillpress.com" target="_blank" rel="noopener">SSH Mastery (M. Lucas)</a>,</p>
+<p><a href="https://www.gnupg.org/documentation/manuals/gnupg/" target="_blank" rel="noopener">GnuPG manual</a>,</p>
+<p><a href="https://docs.sigstore.dev/cosign/signing/gitsign/" target="_blank" rel="noopener">gitsign (Sigstore)</a>,</p>
+<p><a href="https://csrc.nist.gov/publications/detail/sp/800-57-part-1/rev-5/final" target="_blank" rel="noopener">NIST SP 800-57</a>.</p>
+
+<h3>Алгоритмы (cheat sheet)</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Назначение</th><th>Рекомендация</th><th>Почему</th></tr>
+<tbody>
+<tr><td>SSH</td><td><strong>ed25519</strong></td><td>быстрый, маленький, без legacy</td></tr>
+<tr><td>GPG (commit signing)</td><td><strong>ed25519</strong> или <strong>RSA 4096</strong> (если нужна совместимость)</td><td></td></tr>
+<tr><td>TLS server cert</td><td><strong>ECDSA P-256</strong> или <strong>Ed25519</strong> (если поддерживается)</td><td></td></tr>
+<tr><td>Симметричное шифрование</td><td><strong>AES-256-GCM</strong> или <strong>ChaCha20-Poly1305</strong></td><td>AEAD</td></tr>
+<tr><td>Шифрование «как age»</td><td><strong>age</strong> (X25519)</td><td>без OpenPGP-сложности</td></tr>
+</table></div>
+
+<p><strong><code>rsa &lt; 2048</code> — запрещено.</strong> <code>rsa-2048</code> — переходный период до 2030</p>
+<p>(NIST SP 800-131A).</p>
+
+<h3>SSH с hardware key + certificate authority</h3>
+
+<pre class="code-block"><code class="language-bash"># 1. Создаём ключ ed25519 (на YubiKey, если есть)
+ssh-keygen -t ed25519-sk -O resident -O verify-required
+
+# 2. Поднимаем internal SSH CA (мини-Vault или Smallstep)
+step ca init                       # один раз
+
+# 3. Подписываем пользовательский ключ на 8 часов
+step ssh certificate alice@example.com alice@host -t 8h
+
+# 4. На сервере доверяем только подписям CA:
+echo "TrustedUserCAKeys /etc/ssh/ca.pub" &gt;&gt; /etc/ssh/sshd_config
+</code></pre>
+
+<p><strong>Зачем CA:</strong> не нужно ходить и убирать ключ уволенного с каждого сервера.</p>
+<p>TTL сертификата истёк — доступ автоматически закрыт.</p>
+
+<h3>Signed commits через gitsign (keyless)</h3>
+
+<pre class="code-block"><code class="language-bash">gitsign init
+git config gitsign.fulcio "https://fulcio.sigstore.dev"
+git config commit.gpgsign true
+git config gpg.x509.program gitsign
+git config gpg.format x509
+# теперь `git commit` — keyless подпись через OIDC
+</code></pre>
+
+<p>В GH protected branch включаем «Require signed commits» — гарантия, что</p>
+<p>коммит сделан подтверждённой identity, а не злоумышленником с украденным PAT.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../5-3/index.html">← Предыдущий урок</a>
+      <a href="../5-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

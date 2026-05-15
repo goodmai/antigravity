@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.6 · Supply chain: SLSA, cosign, in-toto, Scorecard — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.6 · Supply chain: SLSA, cosign, in-toto, Scorecard</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.6 · <span class="badge-mini">SLSA</span></p>
+    <h1>Supply chain: SLSA, cosign, in-toto, Scorecard</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://slsa.dev/spec/v1.0/" target="_blank" rel="noopener">SLSA v1.0</a>,</p>
+<p><a href="https://www.sigstore.dev" target="_blank" rel="noopener">Sigstore project</a>,</p>
+<p><a href="https://docs.sigstore.dev/cosign/overview/" target="_blank" rel="noopener">cosign docs</a>,</p>
+<p><a href="https://in-toto.io" target="_blank" rel="noopener">in-toto attestations</a>,</p>
+<p><a href="https://github.com/ossf/scorecard" target="_blank" rel="noopener">OpenSSF Scorecard</a>.</p>
+
+<h3>SLSA в одной картинке</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Level</th><th>Что требуется</th></tr>
+<tbody>
+<tr><td><strong>L1</strong></td><td>build process documented</td></tr>
+<tr><td><strong>L2</strong></td><td>hosted build platform + signed provenance</td></tr>
+<tr><td><strong>L3</strong></td><td>hardened build, isolated, non-falsifiable provenance</td></tr>
+<tr><td><strong>L4</strong></td><td>(deprecated в v1.0) two-party review + hermetic</td></tr>
+</table></div>
+
+<p>GH Actions + <code>slsa-github-generator</code> даёт <strong>L3</strong> «из коробки» (потому что</p>
+<p>provenance подписывается keyless-сертификатом OIDC, который нельзя подделать).</p>
+
+<h3>Keyless подпись cosign + Rekor</h3>
+
+<pre class="code-block"><code class="language-yaml">permissions:
+  id-token: write                   # для OIDC → Sigstore Fulcio
+  contents: read
+  packages: write
+
+steps:
+  - uses: sigstore/cosign-installer@SHA
+  - run: |
+      cosign sign --yes \
+        ghcr.io/me/app@${{ steps.build.outputs.digest }}
+</code></pre>
+
+<p>Подпись попадает в <strong>Rekor</strong> — публичный append-only лог. Любой может</p>
+<p>проверить:</p>
+
+<pre class="code-block"><code class="language-bash">cosign verify \
+  --certificate-identity="https://github.com/me/app/.github/workflows/release.yml@refs/tags/v1.2.3" \
+  --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+  ghcr.io/me/app@sha256:...
+</code></pre>
+
+<h3>SBOM attestation</h3>
+
+<pre class="code-block"><code class="language-bash">cosign attest --yes \
+  --predicate sbom.cdx.json \
+  --type cyclonedx \
+  ghcr.io/me/app@${DIGEST}
+</code></pre>
+
+<h3>Замыкаем цикл — Kyverno</h3>
+
+<p>Из Module 3, lesson 3.5 — Kyverno-политика проверяет именно эту подпись.</p>
+<p><strong>Build → sign → store → verify → run</strong> — закрытый цикл.</p>
+
+<h3>OpenSSF Scorecard</h3>
+
+<pre class="code-block"><code class="language-yaml"># .github/workflows/scorecard.yml
+- uses: ossf/scorecard-action@SHA
+  with: { results_file: results.sarif, publish_results: true }
+</code></pre>
+
+<p>Получаете оценку 0–10 по 18 чекам (signed-releases, branch-protection,</p>
+<p>dangerous-workflow, dependency-update-tool, и т.д.). Если ≥ 7 — публикуете</p>
+<p>бейдж OpenSSF Best Practices.</p>
+
+<p><strong>Лаба 14</strong> — cosign sign + Rekor verify + Kyverno admission-check.</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] SonarQube gate в PR с <em>Sonar Way</em> / <em>Clean as You Code</em>.</li>
+<li>[ ] Semgrep <code>--config=auto</code> + CodeQL для глубокого анализа.</li>
+<li>[ ] Renovate с auto-merge патчей и pinned digests.</li>
+<li>[ ] Trivy в CI на HIGH/CRITICAL, SBOM CycloneDX как артефакт.</li>
+<li>[ ] gitleaks/trufflehog в pre-commit + CI + история.</li>
+<li>[ ] cosign keyless sign + verify + Rekor transparency log.</li>
+<li>[ ] Kyverno проверяет подпись на admission.</li>
+<li>[ ] OpenSSF Scorecard ≥ 7.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/11-sonarqube/" target="_blank" rel="noopener">Lab 11 — SonarQube + Quality Gate</a></li>
+<li><a href="../../labs/12-renovate/" target="_blank" rel="noopener">Lab 12 — Renovate config</a></li>
+<li><a href="../../labs/13-trivy/" target="_blank" rel="noopener">Lab 13 — Trivy gate на CVE</a></li>
+<li><a href="../../labs/14-cosign-kyverno/" target="_blank" rel="noopener">Lab 14 — cosign + Kyverno</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../4-5/index.html">← Предыдущий урок</a>
+      <a href="../5-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

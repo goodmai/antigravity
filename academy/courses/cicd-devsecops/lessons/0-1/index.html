@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0.1 · DevSecOps как поток ценности — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 0.1 · DevSecOps как поток ценности</span>
+    </div>
+
+    <p class="lesson-meta">Module 0 — Foundations & Mindset · Lesson 0.1 · <span class="badge-mini">mindset</span></p>
+    <h1>DevSecOps как поток ценности</h1>
+
+
+<p><strong>Канон:</strong> DORA «State of DevOps», SPACE framework, Accelerate (Forsgren et al.).</p>
+
+<p>DevSecOps — не «добавить SAST в CI», а <strong>поток создания ценности</strong>:</p>
+<p>от commit до пользы пользователю. Безопасность встраивается в каждый шаг,</p>
+<p>а не «навешивается» в конце.</p>
+
+<p><strong>4 ключевые DORA-метрики</strong>:</p>
+
+<div class="table-wrap"><table>
+<tr><th>Метрика</th><th>Elite</th><th>Что измеряем</th></tr>
+<tbody>
+<tr><td>Lead Time for Changes</td><td>< 1 час</td><td>от commit до прод</td></tr>
+<tr><td>Deployment Frequency</td><td>on-demand</td><td>сколько раз в день</td></tr>
+<tr><td>Change Failure Rate</td><td>0–15%</td><td>% изменений, ломающих прод</td></tr>
+<tr><td>MTTR / Time to Restore</td><td>< 1 час</td><td>сколько чиним инцидент</td></tr>
+</table></div>
+
+<p>К ним добавляем 2 DevSec-метрики:</p>
+<ul>
+<li><strong>Mean Time to Remediate (MTTR-Sec)</strong> — от обнаружения CVE до фикса в проде.</li>
+<li><strong>% PRs blocked by security gate</strong> — здоровая зона 5–15%; выше — гейт мешает,</li>
+</ul>
+<p>ниже — гейт ничего не ловит.</p>
+
+<p><strong>Quick win:</strong> в Lab 00 вы посчитаете DORA по своему репозиторию через</p>
+<p><a href="https://github.com/dora-team/fourkeys" target="_blank" rel="noopener"><code>four-keys</code></a> или Cycle Time от GitHub.</p>
+
+
+
+    <div class="lesson-nav">
+      
+      <a href="../0-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

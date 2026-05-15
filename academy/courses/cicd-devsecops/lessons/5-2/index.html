@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 5.2 · OAuth 2.0 / OIDC до конца — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 5.2 · OAuth 2.0 / OIDC до конца</span>
+    </div>
+
+    <p class="lesson-meta">Module 5 — Secrets, OAuth, 2FA · Lesson 5.2 · <span class="badge-mini">OIDC</span></p>
+    <h1>OAuth 2.0 / OIDC до конца</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://datatracker.ietf.org/doc/html/rfc6749" target="_blank" rel="noopener">RFC 6749 (OAuth 2.0)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc7636" target="_blank" rel="noopener">RFC 7636 (PKCE)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc8628" target="_blank" rel="noopener">RFC 8628 (Device Authorization Grant)</a>,</p>
+<p><a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank" rel="noopener">OpenID Connect Core</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-v2-1/" target="_blank" rel="noopener">OAuth 2.1 draft</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc9700" target="_blank" rel="noopener">OAuth Security BCP RFC 9700</a>.</p>
+
+<h3>Какой flow когда</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Тип клиента</th><th>Flow</th><th>Notes</th></tr>
+<tbody>
+<tr><td>SPA (browser)</td><td><strong>Authorization Code + PKCE</strong></td><td>без <code>client_secret</code></td></tr>
+<tr><td>Mobile native</td><td><strong>Authorization Code + PKCE</strong></td><td>+ system browser (ASWebAuthSession / Custom Tabs)</td></tr>
+<tr><td>Server-to-server (backend)</td><td><strong>Client Credentials</strong></td><td>долгий доступ от своего имени</td></tr>
+<tr><td>CLI / TV / IoT</td><td><strong>Device Authorization Grant</strong> (<code>code</code> + URL)</td><td>RFC 8628</td></tr>
+<tr><td>Legacy SPA (deprecated)</td><td>~~Implicit~~</td><td>удалён в OAuth 2.1</td></tr>
+<tr><td>Username/password</td><td>~~Resource Owner Password~~</td><td>удалён в OAuth 2.1</td></tr>
+</table></div>
+
+<p><strong>Authorization Code + PKCE — последовательность:</strong></p>
+
+<pre class="code-block"><code class="language-">1. client → /authorize?response_type=code&amp;code_challenge=BASE64(SHA256(verifier))&amp;...
+2. user authenticates at IdP
+3. IdP → redirect ?code=ABC
+4. client → /token with code + code_verifier
+5. IdP проверяет SHA256(verifier) == code_challenge → выдаёт access_token + refresh_token + id_token
+</code></pre>
+
+<p><strong>Refresh token rotation</strong> (RFC 9700) — каждый refresh-обмен выдаёт <strong>новый</strong></p>
+<p>refresh-token, старый инвалидируется. Если злоумышленник украл refresh — при</p>
+<p>следующем обмене жертвой система детектит «replay» и отзывает всю цепочку.</p>
+
+<h3>Keycloak в docker-compose (мини-IdP)</h3>
+
+<pre class="code-block"><code class="language-yaml">services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+    ports: ["8080:8080"]
+</code></pre>
+
+<p><strong>Лаба 16</strong> — Keycloak + FastAPI/Node клиент с Auth Code + PKCE + refresh rotation.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../5-1/index.html">← Предыдущий урок</a>
+      <a href="../5-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

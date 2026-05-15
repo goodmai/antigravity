@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 3.1 · Docker правильно — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 3.1 · Docker правильно</span>
+    </div>
+
+    <p class="lesson-meta">Module 3 — Containers, K8s, Pods · Lesson 3.1 · <span class="badge-mini">docker</span></p>
+    <h1>Docker правильно</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/" target="_blank" rel="noopener">Dockerfile best practices</a>,</p>
+<p><a href="https://github.com/GoogleContainerTools/distroless" target="_blank" rel="noopener">distroless</a>,</p>
+<p><a href="https://github.com/opencontainers/image-spec" target="_blank" rel="noopener">OCI Image Spec</a>,</p>
+<p><a href="https://reproducible-builds.org" target="_blank" rel="noopener">reproducible-builds.org</a>.</p>
+
+<p><strong>4 правила «взрослого» Dockerfile:</strong></p>
+
+<ol>
+<li>Multi-stage (builder отдельно, runtime отдельно).</li>
+<li><strong>Distroless</strong> / <code>scratch</code> для runtime — никаких shells, package managers.</li>
+<li><code>USER</code> ≠ root, <code>runAsNonRoot=true</code> в k8s — не выполнится, если есть root.</li>
+<li><code>LABEL org.opencontainers.image.*</code> + SBOM/provenance attestations.</li>
+</ol>
+
+<pre class="code-block"><code class="language-dockerfile"># syntax=docker/dockerfile:1.7
+ARG GO_VERSION=1.23
+ARG ALPINE_VERSION=3.20
+
+# ---- builder ----
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOFLAGS="-trimpath" \
+    go build -ldflags="-s -w -buildid=" -o /out/app ./cmd/app
+
+# ---- runtime ----
+FROM gcr.io/distroless/static-debian12:nonroot
+USER 65532:65532
+COPY --from=builder /out/app /app
+ENTRYPOINT ["/app"]
+
+LABEL org.opencontainers.image.source="https://github.com/me/app" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.revision="$GIT_SHA" \
+      org.opencontainers.image.version="$VERSION"
+</code></pre>
+
+<p><strong>Почему <code>distroless/static-debian12</code>:</strong> ни <code>sh</code>, ни <code>apt</code>, ни <code>curl</code>, ни glibc —</p>
+<p>поверхность атаки минимальна. Если совсем минимум — <code>FROM scratch</code> для Go</p>
+<p>(требует <code>CGO_ENABLED=0</code>).</p>
+
+<p><strong><code>.dockerignore</code> — не забываем:</strong></p>
+
+<pre class="code-block"><code class="language-">.git
+node_modules
+*.md
+.env*
+**/dist
+**/build
+**/.terraform
+</code></pre>
+
+<p>Иначе вы случайно отправите <code>.env</code> в контекст и попадёте в layer. (А слой</p>
+<p>останется в registry, даже если потом удалить файл.)</p>
+
+<p><strong>Лаба 08</strong> — образ Go-сервиса < 30 МБ + scratch + non-root, в CI собрался</p>
+<p>с BuildKit-кэшем.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../2-6/index.html">← Предыдущий урок</a>
+      <a href="../3-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.6 · Multi-cloud DR — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.6 · Multi-cloud DR</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.6 · <span class="badge-mini">DR</span></p>
+    <h1>Multi-cloud DR</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://sre.google/sre-book/managing-incidents/" target="_blank" rel="noopener">Google SRE — Disaster Recovery</a>,</p>
+<p><a href="https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html" target="_blank" rel="noopener">AWS Multi-Region patterns</a>,</p>
+<p><a href="https://learn.microsoft.com/azure/architecture/framework/resiliency/" target="_blank" rel="noopener">Azure recommended DR patterns</a>,</p>
+<p><a href="https://velero.io/docs/" target="_blank" rel="noopener">Velero docs</a>.</p>
+
+<p><strong>4 паттерна</strong> (от дешёвого к дорогому):</p>
+
+<ol>
+<li><strong>Backup & Restore</strong> — RTO часы/дни, RPO часы.</li>
+<li><strong>Pilot light</strong> — критичные части подняты в DR-region, остальное по триггеру.</li>
+</ol>
+<p>RTO десятки минут.</p>
+<ol>
+<li><strong>Warm standby</strong> — уменьшенная копия системы готова. RTO минуты.</li>
+<li><strong>Multi-site active-active</strong> — нагрузка балансируется между регионами.</li>
+</ol>
+<p>RTO ~0, но самая дорогая.</p>
+
+<p><strong>Multi-cloud</strong> усложняет: разные API, разная цена egress, разные модели</p>
+<p>IAM. Используйте, только если ну очень нужно (compliance/lock-in).</p>
+
+<p><strong>Чаще выбираем:</strong> multi-region внутри одного облака (cheaper, simpler), а</p>
+<p>multi-cloud — только для <strong>критичной</strong> части (DNS, storage с GeoCopy).</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] AWS: OIDC → IAM role, IRSA для подов, Secrets Manager rotation 30d.</li>
+<li>[ ] Azure: Federated credentials, Workload Identity, Key Vault soft-delete + purge protection + RBAC.</li>
+<li>[ ] GCP: WIF (без JSON-key), GKE Workload Identity, Secret Manager rotation.</li>
+<li>[ ] IaC: tfsec + checkov + Atlantis-driven approval, OPA-policies.</li>
+<li>[ ] infracost в PR, гейт по абсолютному порогу.</li>
+<li>[ ] DR-pattern выбран сознательно (RTO/RPO документированы).</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/23-aws-oidc/" target="_blank" rel="noopener">Lab 23 — GH→AWS через OIDC</a></li>
+<li><a href="../../labs/24-terraform-atlantis/" target="_blank" rel="noopener">Lab 24 — Terraform + Atlantis + tfsec</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../8-5/index.html">← Предыдущий урок</a>
+      <a href="../9-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.1 · SAST: SonarQube / SonarCloud — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.1 · SAST: SonarQube / SonarCloud</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.1 · <span class="badge-mini">SAST</span></p>
+    <h1>SAST: SonarQube / SonarCloud</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.sonarsource.com/sonarqube/" target="_blank" rel="noopener">SonarQube docs</a>,</p>
+<p><a href="https://docs.sonarsource.com/sonarqube/latest/instance-administration/quality-profiles/" target="_blank" rel="noopener">Sonar Way Quality Profiles</a>,</p>
+<p><a href="https://docs.sonarsource.com/sonarqube/latest/user-guide/clean-as-you-code/" target="_blank" rel="noopener">Sonar Clean as You Code</a>.</p>
+
+<p><strong>Quality Gate</strong> — это «фильтр» между PR и merge. Дефолтный <em>Sonar Way</em> проверяет:</p>
+
+<ul>
+<li>coverage на <strong>новом</strong> коде ≥ 80%,</li>
+<li>duplications на новом коде ≤ 3%,</li>
+<li>security hotspots reviewed = 100%,</li>
+<li>maintainability rating new = A,</li>
+<li>reliability rating new = A,</li>
+<li>security rating new = A.</li>
+</ul>
+
+<p>Подход «<strong>Clean as You Code</strong>» — не пытайтесь зачистить весь legacy. Гейтите</p>
+<p>только <strong>новый</strong> код. Долг чистится естественно, без революций.</p>
+
+<h3>Локальный SonarQube в docker-compose</h3>
+
+<pre class="code-block"><code class="language-yaml"># docker-compose.yml
+services:
+  sonarqube:
+    image: sonarqube:10-community
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD}
+    ports: ["9000:9000"]
+    depends_on: [db]
+    ulimits:
+      nofile: { soft: 65536, hard: 65536 }
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: sonar
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD}
+    volumes: [sonar-pg:/var/lib/postgresql/data]
+volumes: { sonar-pg: {} }
+</code></pre>
+
+<h3><code>sonar-project.properties</code></h3>
+
+<pre class="code-block"><code class="language-">sonar.projectKey=me_app
+sonar.organization=me
+sonar.sources=src
+sonar.tests=tests
+sonar.javascript.lcov.reportPaths=coverage/lcov.info
+sonar.coverage.exclusions=**/*.test.ts,**/migrations/**
+sonar.qualitygate.wait=true
+</code></pre>
+
+<h3>GH Actions job (PR-декорация)</h3>
+
+<pre class="code-block"><code class="language-yaml">- uses: actions/checkout@SHA
+  with: { fetch-depth: 0 }            # для blame и new-code detection
+- uses: SonarSource/sonarqube-scan-action@SHA
+  env:
+    SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    SONAR_HOST_URL: https://sonar.example.com
+</code></pre>
+
+<p><code>sonar.qualitygate.wait=true</code> сделает job красным, если Quality Gate FAIL.</p>
+
+<p><strong>Альтернатива SonarCloud</strong> (если SaaS) — то же самое, но без своего сервера.</p>
+<p>Для open-source — бесплатно.</p>
+
+<p><strong>Лаба 11</strong> — SonarQube в docker-compose, gate в PR, breaking-change падает CI.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../3-5/index.html">← Предыдущий урок</a>
+      <a href="../4-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

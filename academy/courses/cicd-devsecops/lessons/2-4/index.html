@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.4 · iOS: Xcode + fastlane — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.4 · iOS: Xcode + fastlane</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.4 · <span class="badge-mini">iOS</span></p>
+    <h1>iOS: Xcode + fastlane</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.fastlane.tools" target="_blank" rel="noopener">fastlane docs</a>,</p>
+<p><a href="https://developer.apple.com/documentation/appstoreconnectapi" target="_blank" rel="noopener">App Store Connect API key</a>,</p>
+<p><a href="https://docs.fastlane.tools/actions/match/" target="_blank" rel="noopener">match (encrypted certs)</a>.</p>
+
+<p>iOS-сборка обязана:</p>
+
+<ul>
+<li>быть на <strong>macOS</strong> (Xcode), значит self-hosted mac runner или GH macOS-runner;</li>
+<li>быть подписана корректным сертификатом + provisioning profile;</li>
+<li>идти в <strong>TestFlight</strong> через App Store Connect API.</li>
+</ul>
+
+<h3><code>match</code>: сертификаты в git под шифрованием</h3>
+
+<pre class="code-block"><code class="language-ruby"># Matchfile
+git_url("git@github.com:me/certs.git")
+storage_mode("git")
+type("appstore")
+app_identifier(["com.example.myapp"])
+username("dev@example.com")
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">fastlane match appstore --readonly
+</code></pre>
+
+<p>В CI — readonly, ключ дешифрования из секретов (см. Module 5).</p>
+
+<h3>Fastfile: lane для TestFlight</h3>
+
+<pre class="code-block"><code class="language-ruby">default_platform(:ios)
+
+platform :ios do
+  desc "Build &amp; upload to TestFlight"
+  lane :beta do
+    setup_ci                                          # подготовка keychain в CI
+    app_store_connect_api_key(
+      key_id: ENV["APPSTORE_KEY_ID"],
+      issuer_id: ENV["APPSTORE_ISSUER_ID"],
+      key_content: ENV["APPSTORE_KEY_P8"]
+    )
+    match(type: "appstore", readonly: true)
+    increment_build_number(xcodeproj: "MyApp.xcodeproj")
+    build_app(scheme: "MyApp", export_method: "app-store")
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end
+</code></pre>
+
+<h3>GH Actions workflow для iOS</h3>
+
+<pre class="code-block"><code class="language-yaml">name: ios-beta
+on: { workflow_dispatch:, push: { tags: [ 'v*' ] } }
+
+jobs:
+  beta:
+    runs-on: macos-14            # arm64
+    steps:
+      - uses: actions/checkout@SHA
+      - uses: ruby/setup-ruby@SHA
+        with: { ruby-version: '3.3', bundler-cache: true }
+      - run: bundle exec fastlane ios beta
+        env:
+          APPSTORE_KEY_ID:     ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID:  ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_P8:     ${{ secrets.APPSTORE_KEY_P8 }}
+          MATCH_PASSWORD:      ${{ secrets.MATCH_PASSWORD }}
+</code></pre>
+
+<p><strong>Best practices:</strong></p>
+
+<ul>
+<li>ASC API Key (<code>.p8</code>) <strong>вместо</strong> Apple ID + 2FA (последний не работает в CI).</li>
+<li><code>MATCH_PASSWORD</code> — приличная парольная фраза (≥ 20 символов).</li>
+<li><code>setup_ci</code> создаёт временный keychain, после job — удаляется.</li>
+</ul>
+
+<p><strong>Лаба 06</strong> — TestFlight через self-hosted mac runner.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../2-3/index.html">← Предыдущий урок</a>
+      <a href="../2-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

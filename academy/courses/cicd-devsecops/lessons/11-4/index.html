@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11.4 · DR-тренировки — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 11.4 · DR-тренировки</span>
+    </div>
+
+    <p class="lesson-meta">Module 11 — Data: DB, Replication, Backup · Lesson 11.4 · <span class="badge-mini">chaos</span></p>
+    <h1>DR-тренировки</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://sre.google/sre-book/postmortem-culture/" target="_blank" rel="noopener">Google SRE — Postmortem culture</a>,</p>
+<p><a href="https://chaos-mesh.org" target="_blank" rel="noopener">ChaosMesh</a>, <a href="https://litmuschaos.io" target="_blank" rel="noopener">LitmusChaos</a>,</p>
+<p><a href="https://aws.amazon.com/gameday/" target="_blank" rel="noopener">AWS GameDay</a>.</p>
+
+<p><strong>Game Day</strong> — раз в квартал имитируем падение:</p>
+
+<ol>
+<li>Раз в месяц — restore из бэкапа в отдельный namespace, прогон smoke.</li>
+<li>Раз в квартал — «Patroni убит» в staging.</li>
+<li>Раз в полгода — «region недоступен» (через BGP-блок или Chaos).</li>
+<li>Раз в год — полный fire-drill: «прода нет, поднимаем с нуля по runbook'у».</li>
+</ol>
+
+<p><strong>Runbook = git-документ + автоматизация</strong>:</p>
+
+<pre class="code-block"><code class="language-markdown"># Runbook: Postgres region failover
+## Trigger: primary-region недоступен &gt; 5 минут
+## Steps:
+1. `kubectl ctx dr-region`
+2. `patronictl failover --candidate dr-replica-1`
+3. Обновить DNS: `terraform -chdir=infra/dns apply -target=cnames.db`
+4. Verify: `psql -h db.example.com -c 'SELECT now()'`
+5. Notify: Telegram + Slack + status page
+## Verification:
+- [ ] read/write работает
+- [ ] репликация в обратную сторону запустилась
+- [ ] no data loss (last 60s — потеря приемлема, &gt; 5 мин — escalate)
+## Rollback:
+...
+</code></pre>
+
+<p>LitmusChaos workflow:</p>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata: { name: pod-kill }
+spec:
+  appinfo: { appns: prod, applabel: app=api, appkind: deployment }
+  chaosServiceAccount: litmus-admin
+  experiments:
+    - name: pod-delete
+      spec:
+        components:
+          env:
+            - { name: TOTAL_CHAOS_DURATION, value: "60" }
+            - { name: CHAOS_INTERVAL,       value: "10" }
+            - { name: FORCE,                value: "false" }
+</code></pre>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Миграции в отдельном CI-step, не в startup.</li>
+<li>[ ] Expand-Contract по умолчанию, никаких блокирующих ALTER на больших таблицах.</li>
+<li>[ ] Online DDL (gh-ost/pt-osc) для MySQL, <code>CONCURRENTLY</code> для Postgres.</li>
+<li>[ ] Atlas/Flyway/Sqitch lint в PR.</li>
+<li>[ ] Patroni (или RDS Multi-AZ) для prod БД.</li>
+<li>[ ] 3-2-1-1-0 соблюдён, включая offline / immutable.</li>
+<li>[ ] S3 Object Lock в COMPLIANCE mode для критичных бэкапов.</li>
+<li>[ ] Restore rehearsal в pipeline (раз в неделю минимум).</li>
+<li>[ ] Game Day раз в квартал, runbook'и в git.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/29-migrations/" target="_blank" rel="noopener">Lab 29 — Online migration + Atlas lint</a></li>
+<li><a href="../../labs/30-walg-restore/" target="_blank" rel="noopener">Lab 30 — WAL-G + restore rehearsal</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../11-3/index.html">← Предыдущий урок</a>
+      <a href="../12-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

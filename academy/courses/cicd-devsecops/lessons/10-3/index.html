@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10.3 · Landing page CD — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 10.3 · Landing page CD</span>
+    </div>
+
+    <p class="lesson-meta">Module 10 — Edge: VPS, VPN, Landing, Mail · Lesson 10.3 · <span class="badge-mini">CD</span></p>
+    <h1>Landing page CD</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.astro.build" target="_blank" rel="noopener">Astro docs</a>, <a href="https://gohugo.io/documentation/" target="_blank" rel="noopener">Hugo docs</a>,</p>
+<p><a href="https://developers.cloudflare.com/pages/" target="_blank" rel="noopener">Cloudflare Pages</a>,</p>
+<p><a href="https://docs.github.com/en/pages" target="_blank" rel="noopener">GitHub Pages</a>,</p>
+<p><a href="https://www.netlify.com/blog/2016/05/24/some-good-news-about-html-5-mode-on-netlify/" target="_blank" rel="noopener">atomic deploys</a>.</p>
+
+<h3>Astro/Hugo → S3 + CloudFront (или Cloudflare Pages)</h3>
+
+<p><strong>Atomic deploy</strong> = новая версия выкатывается <strong>целиком</strong> или <strong>никак</strong>.</p>
+<p>Решение: положить каждый билд в отдельную «директорию» S3 (<code>/&lt;git-sha&gt;/</code>) и</p>
+<p>обновить <strong>только</strong> CloudFront origin path или один index-файл.</p>
+
+<pre class="code-block"><code class="language-yaml">- name: Build
+  run: npm run build
+
+- name: Upload to S3 (immutable, cache 1y)
+  run: |
+    aws s3 sync ./dist s3://my-cdn/sites/${{ github.sha }}/ \
+      --cache-control "public, max-age=31536000, immutable"
+
+- name: Atomic switch
+  run: |
+    aws s3 cp s3://my-cdn/sites/${{ github.sha }}/index.html \
+              s3://my-cdn/index.html \
+              --cache-control "public, max-age=60, must-revalidate"
+    aws cloudfront create-invalidation --distribution-id $DIST --paths "/index.html"
+</code></pre>
+
+<p><strong>Преимущества:</strong></p>
+
+<ul>
+<li>Откат — это одна копия <code>index.html</code> из предыдущего sha. Секунды.</li>
+<li>Все hash-assets закэшированы у клиентов навсегда — нет «грязных» mix-builds.</li>
+<li>A/B можно сделать через Lambda@Edge / Cloudflare Workers, выбирая разные</li>
+</ul>
+<p>префиксы по cookie.</p>
+
+<h3>SEO / security headers</h3>
+
+<p>Через Lambda@Edge / Cloudflare Workers:</p>
+
+<pre class="code-block"><code class="language-js">response.headers['content-security-policy'] = ["default-src 'self'; ..."];
+response.headers['strict-transport-security'] = ['max-age=63072000; includeSubDomains; preload'];
+response.headers['x-content-type-options'] = ['nosniff'];
+response.headers['referrer-policy'] = ['strict-origin-when-cross-origin'];
+response.headers['permissions-policy'] = ['camera=(), microphone=(), geolocation=()'];
+</code></pre>
+
+<p><code>Sitemap.xml</code>, <code>robots.txt</code>, <code>og:image</code> — генерируются билд-сценарием.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../10-2/index.html">← Предыдущий урок</a>
+      <a href="../10-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

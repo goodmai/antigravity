@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0.3 · Зрелость: OWASP SAMM & DSOMM — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 0.3 · Зрелость: OWASP SAMM & DSOMM</span>
+    </div>
+
+    <p class="lesson-meta">Module 0 — Foundations & Mindset · Lesson 0.3 · <span class="badge-mini">maturity</span></p>
+    <h1>Зрелость: OWASP SAMM & DSOMM</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://owaspsamm.org" target="_blank" rel="noopener">OWASP SAMM 2.x</a>, <a href="https://dsomm.owasp.org" target="_blank" rel="noopener">OWASP DSOMM</a>,</p>
+<p><a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf" target="_blank" rel="noopener">NIST SSDF SP 800-218</a>.</p>
+
+<p><strong>SAMM</strong> делит безопасность на 5 business functions (Governance, Design, Implementation,</p>
+<p>Verification, Operations) × 3 практики каждая. По каждой — 3 уровня зрелости.</p>
+
+<p><strong>DSOMM</strong> более «эксплуатационный» — 4 dimensions (Build & Deployment, Culture &</p>
+<p>Organization, Implementation, Information Gathering) × конкретные практики</p>
+<p>(«Defined build process», «Signed artifacts», «Reproducible defect tracking»).</p>
+
+<p><strong>Что делаем на курсе:</strong></p>
+
+<ul>
+<li>В Module 0 — self-assessment (текущий уровень).</li>
+<li>В Module 12 — повторный assessment (целевой Level 2+ во всех dimensions).</li>
+<li>В capstone — доказательство Level 3 в нескольких практиках (signed artifacts,</li>
+</ul>
+<p>provenance, SBOM, secret-scanning, infra-as-code, audit log).</p>
+
+<p><strong>Канон SSDF (NIST SP 800-218):</strong></p>
+
+<ul>
+<li><strong>PO</strong> Prepare the Organization — роли, политики, обучение.</li>
+<li><strong>PS</strong> Protect the Software — целостность кода, релизных артефактов.</li>
+<li><strong>PW</strong> Produce Well-Secured Software — secure-by-default, проверки.</li>
+<li><strong>RV</strong> Respond to Vulnerabilities — VEX, SLA на патчи, дисклоуз.</li>
+</ul>
+
+<p>В каждой лабе будем помечать, какой SSDF-практике это соответствует.</p>
+
+<h2>Лаба</h2>
+
+<ul>
+<li><strong>Lab 00 — «STRIDE для моего репо»</strong> (<a href="../../labs/00-stride/" target="_blank" rel="noopener"><code>labs/00-stride/</code></a>).</li>
+</ul>
+<p>Сделать DFD, найти 5 угроз, написать митигации в <code>THREAT_MODEL.md</code> своего fork'а.</p>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Считаю свою Lead Time for Changes.</li>
+<li>[ ] Знаю, чем <code>Spoofing</code> отличается от <code>Tampering</code>.</li>
+<li>[ ] Понимаю, что SAMM ≠ DSOMM ≠ SSDF (а <strong>DSOMM</strong> — самый «DevOps-friendly»).</li>
+<li>[ ] Сделал self-assessment по DSOMM (хотя бы 4 dimensions × 1 практика).</li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../0-2/index.html">← Предыдущий урок</a>
+      <a href="../1-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

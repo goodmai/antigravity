@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.1 · AWS: IAM, OIDC, ECR/ECS/EKS — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.1 · AWS: IAM, OIDC, ECR/ECS/EKS</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.1 · <span class="badge-mini">AWS</span></p>
+    <h1>AWS: IAM, OIDC, ECR/ECS/EKS</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://aws.amazon.com/architecture/well-architected/" target="_blank" rel="noopener">AWS Well-Architected Framework</a>,</p>
+<p><a href="https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services" target="_blank" rel="noopener">Configuring OpenID Connect in AWS</a>,</p>
+<p><a href="https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html" target="_blank" rel="noopener">IAM Roles for Service Accounts (IRSA)</a>,</p>
+<p><a href="https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotating-secrets.html" target="_blank" rel="noopener">AWS Secrets Manager rotation</a>.</p>
+
+<h3>Никаких static AWS keys в CI — только OIDC</h3>
+
+<p><strong>Trust policy</strong> на IAM role:</p>
+
+<pre class="code-block"><code class="language-json">{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Federated": "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com" },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      },
+      "StringLike": {
+        "token.actions.githubusercontent.com:sub": "repo:me/app:ref:refs/heads/main"
+      }
+    }
+  }]
+}
+</code></pre>
+
+<p>GH Actions:</p>
+
+<pre class="code-block"><code class="language-yaml">permissions: { id-token: write, contents: read }
+steps:
+  - uses: aws-actions/configure-aws-credentials@SHA
+    with:
+      role-to-assume: arn:aws:iam::123456789012:role/gh-actions-deploy
+      aws-region: eu-west-1
+  - run: aws ecr get-login-password | docker login ...
+</code></pre>
+
+<p><strong>Что выиграли:</strong> в GH Secrets нет <code>AWS_ACCESS_KEY_ID</code>. Скомпрометированный</p>
+<p>GH-токен <strong>не</strong> даёт доступа в AWS — нужен ещё OIDC-trust с правильным <code>sub</code>.</p>
+
+<h3>IRSA для подов в EKS</h3>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123:role/app-role
+</code></pre>
+
+<p>Pod с этой SA получает temporary AWS credentials через IMDS proxy. Доступ</p>
+<p>ограничен IAM policy роли. Никаких ключей в env.</p>
+
+<h3>Secrets Manager + автоматическая ротация</h3>
+
+<pre class="code-block"><code class="language-hcl">resource "aws_secretsmanager_secret" "db" { name = "prod/db" }
+
+resource "aws_secretsmanager_secret_rotation" "db" {
+  secret_id           = aws_secretsmanager_secret.db.id
+  rotation_lambda_arn = aws_lambda_function.rotator.arn
+  rotation_rules { automatically_after_days = 30 }
+}
+</code></pre>
+
+<p>ESO (Module 5) подхватит ротированное значение.</p>
+
+<p><strong>Лаба 23</strong> — GH Actions деплоит в EKS через OIDC, секрет в Secrets Manager,</p>
+<p>поды используют IRSA.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../7-4/index.html">← Предыдущий урок</a>
+      <a href="../8-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

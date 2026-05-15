@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 6.4 · Логи и трейсы: Loki, Tempo, OpenTelemetry — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 6.4 · Логи и трейсы: Loki, Tempo, OpenTelemetry</span>
+    </div>
+
+    <p class="lesson-meta">Module 6 — Observability · Lesson 6.4 · <span class="badge-mini">OTel</span></p>
+    <h1>Логи и трейсы: Loki, Tempo, OpenTelemetry</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://grafana.com/docs/loki/" target="_blank" rel="noopener">Loki docs</a>,</p>
+<p><a href="https://grafana.com/docs/tempo/" target="_blank" rel="noopener">Tempo docs</a>,</p>
+<p><a href="https://opentelemetry.io/docs/specs/" target="_blank" rel="noopener">OpenTelemetry spec</a>,</p>
+<p><a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE book — Monitoring distributed systems</a>.</p>
+
+<p><strong>3 пилона observability:</strong></p>
+
+<ol>
+<li><strong>Metrics</strong> — Prometheus/InfluxDB. Числа во времени, сжимаемые.</li>
+<li><strong>Logs</strong> — Loki (label-indexed, как Prometheus для логов). Не индексирует</li>
+</ol>
+<p>полный текст → дёшево.</p>
+<ol>
+<li><strong>Traces</strong> — Tempo (или Jaeger). Span'ы с trace_id, корреляция cross-service.</li>
+</ol>
+
+<p><strong>Корреляция:</strong> одна и та же <code>trace_id</code> лежит в логе, в метрике (как exemplar)</p>
+<p>и в трейсе. Кликнули по метрике в Grafana → попали в trace → попали в логи</p>
+<p>этого trace_id. Это <strong>exemplars</strong> в Prometheus 2.</p>
+
+<h3>OpenTelemetry Collector</h3>
+
+<pre class="code-block"><code class="language-yaml">receivers:
+  otlp:
+    protocols: { grpc: { endpoint: 0.0.0.0:4317 } }
+processors:
+  batch: {}
+  resourcedetection: { detectors: [env, system, gcp, ec2] }
+exporters:
+  prometheus: { endpoint: 0.0.0.0:9464 }
+  loki:       { endpoint: http://loki:3100/loki/api/v1/push }
+  otlp/tempo: { endpoint: tempo:4317, tls: { insecure: true } }
+service:
+  pipelines:
+    metrics: { receivers: [otlp], processors: [batch, resourcedetection], exporters: [prometheus] }
+    logs:    { receivers: [otlp], processors: [batch], exporters: [loki] }
+    traces:  { receivers: [otlp], processors: [batch], exporters: [otlp/tempo] }
+</code></pre>
+
+<p>Один Collector принимает OTLP — раскладывает в Prom/Loki/Tempo. Это</p>
+<p><strong>vendor-neutral</strong>.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../6-3/index.html">← Предыдущий урок</a>
+      <a href="../6-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

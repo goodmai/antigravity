@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 6.1 · Prometheus: модель данных, PromQL — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 6.1 · Prometheus: модель данных, PromQL</span>
+    </div>
+
+    <p class="lesson-meta">Module 6 — Observability · Lesson 6.1 · <span class="badge-mini">prometheus</span></p>
+    <h1>Prometheus: модель данных, PromQL</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://prometheus.io/docs/" target="_blank" rel="noopener">Prometheus docs</a>,</p>
+<p><a href="https://promlabs.com/promql-cheat-sheet/" target="_blank" rel="noopener">PromQL primer</a>,</p>
+<p><a href="https://github.com/prometheus-operator/prometheus-operator" target="_blank" rel="noopener">Prometheus operator</a>,</p>
+<p><a href="https://openmetrics.io" target="_blank" rel="noopener">OpenMetrics spec</a>.</p>
+
+<h3>Модель</h3>
+
+<pre class="code-block"><code class="language-">metric_name{label_a="v1", label_b="v2"} value @ timestamp
+</code></pre>
+
+<p>Все метрики — <strong>числовые</strong> time-series. Лейблы делают серии уникальными</p>
+<p>(не суйте <code>user_id</code> в лейбл — взорвётся кардинальность).</p>
+
+<p><strong>4 типа</strong> (OpenMetrics):</p>
+<ul>
+<li><code>counter</code> — только растёт (или ресетится на 0): <code>http_requests_total</code>.</li>
+<li><code>gauge</code> — может идти вверх и вниз: <code>temperature_celsius</code>.</li>
+<li><code>histogram</code> — с buckets, считает распределение: <code>http_request_duration_seconds_bucket{le="0.5"}</code>.</li>
+<li><code>summary</code> — с quantiles (менее предпочтителен; histogram + <code>histogram_quantile()</code> лучше).</li>
+</ul>
+
+<h3>PromQL — 10 паттернов</h3>
+
+<pre class="code-block"><code class="language-promql"># RPS за 5 минут
+rate(http_requests_total[5m])
+
+# 99-перцентиль latency
+histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+
+# Error rate (RED)
+sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))
+
+# CPU usage по поду (USE)
+rate(container_cpu_usage_seconds_total{pod="app-xyz"}[5m])
+
+# Top-5 endpoint'ов по латенси
+topk(5, histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)))
+
+# Заметить «упало» (deadman)
+absent(up{job="app"} == 1)
+
+# Прогноз заполнения диска через 4 часа
+predict_linear(node_filesystem_avail_bytes[1h], 4*3600) &lt; 0
+</code></pre>
+
+<h3>Простой Go-экспортер</h3>
+
+<pre class="code-block"><code class="language-go">import "github.com/prometheus/client_golang/prometheus/promauto"
+
+var requestsTotal = promauto.NewCounterVec(
+    prometheus.CounterOpts{ Name: "myapp_requests_total" },
+    []string{"endpoint", "status"})
+</code></pre>
+
+<h3>Service discovery + relabeling</h3>
+
+<pre class="code-block"><code class="language-yaml"># prometheus.yml
+scrape_configs:
+  - job_name: kubernetes-pods
+    kubernetes_sd_configs: [ { role: pod } ]
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: "true"
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        target_label: __metrics_path__
+        regex: (.+)
+</code></pre>
+
+<p><strong>Лаба 18</strong> — экспортер на Go + Prometheus + alerting rule.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../5-5/index.html">← Предыдущий урок</a>
+      <a href="../6-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

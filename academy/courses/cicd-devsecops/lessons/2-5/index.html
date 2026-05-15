@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.5 · Android: AAB, signing, Play Store — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.5 · Android: AAB, signing, Play Store</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.5 · <span class="badge-mini">android</span></p>
+    <h1>Android: AAB, signing, Play Store</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://developer.android.com/guide/app-bundle" target="_blank" rel="noopener">Android App Bundle</a>,</p>
+<p><a href="https://github.com/Triple-T/gradle-play-publisher" target="_blank" rel="noopener">Gradle Play Publisher</a>,</p>
+<p><a href="https://support.google.com/googleplay/android-developer/answer/9842756" target="_blank" rel="noopener">Play App Signing</a>.</p>
+
+<p>С августа 2021 Google Play принимает только <strong>AAB</strong> (не APK). Подпись — двухслойная:</p>
+
+<ol>
+<li><strong>Upload key</strong> — у вас. Им подписываете AAB перед загрузкой.</li>
+<li><strong>App signing key</strong> — у Google (Play App Signing). Им подписывается финальный</li>
+</ol>
+<p>APK, который доезжает до пользователя.</p>
+
+<p>Это даёт <strong>rotate upload key</strong> без потери пользователей — мощная история.</p>
+
+<h3><code>build.gradle.kts</code> (App Module)</h3>
+
+<pre class="code-block"><code class="language-kotlin">android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("UPLOAD_KEYSTORE_PATH"))
+            storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("UPLOAD_KEY_ALIAS")
+            keyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
+}
+
+play {
+    serviceAccountCredentials.set(file("$rootDir/play-sa.json"))
+    track.set("internal")
+    defaultToAppBundles.set(true)
+}
+</code></pre>
+
+<h3>CI</h3>
+
+<pre class="code-block"><code class="language-yaml">- name: Decode keystore
+  run: |
+    echo "${{ secrets.UPLOAD_KEYSTORE_B64 }}" | base64 -d &gt; /tmp/upload.jks
+- name: Build &amp; publish AAB
+  env:
+    UPLOAD_KEYSTORE_PATH:     /tmp/upload.jks
+    UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+    UPLOAD_KEY_ALIAS:         upload
+    UPLOAD_KEY_PASSWORD:      ${{ secrets.UPLOAD_KEY_PASSWORD }}
+  run: ./gradlew publishReleaseBundle
+</code></pre>
+
+<p><strong>Service account JSON</strong> — лежит в Vault (см. Module 5), достаётся в job через</p>
+<p>External Secrets Operator или прямой Vault Agent Sidecar.</p>
+
+<p><strong>Лаба 07</strong> — AAB → internal track + сразу скриншоты через fastlane <code>screengrab</code>.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../2-4/index.html">← Предыдущий урок</a>
+      <a href="../2-6/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

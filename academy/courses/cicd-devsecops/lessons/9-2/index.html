@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 9.2 · Деплой в Akash + хранение артефактов на IPFS — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 9.2 · Деплой в Akash + хранение артефактов на IPFS</span>
+    </div>
+
+    <p class="lesson-meta">Module 9 — DePIN & Decentralized Infrastructure · Lesson 9.2 · <span class="badge-mini">akash</span></p>
+    <h1>Деплой в Akash + хранение артефактов на IPFS</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.akash.network/getting-started/stack-definition-language" target="_blank" rel="noopener">Akash SDL spec</a>,</p>
+<p><a href="https://docs.storacha.network" target="_blank" rel="noopener">web3.storage docs</a>,</p>
+<p><a href="https://docs.ipfs.tech/install/command-line/" target="_blank" rel="noopener">IPFS Kubo CLI</a>,</p>
+<p><a href="https://docs.filecoin.io/storage-providers/" target="_blank" rel="noopener">Filecoin storage providers</a>.</p>
+
+<h3>Akash SDL (Stack Definition Language)</h3>
+
+<pre class="code-block"><code class="language-yaml">---
+version: "2.0"
+services:
+  web:
+    image: ghcr.io/me/app@sha256:abc...       # digest, не tag — критично!
+    expose:
+      - port: 8080
+        as: 80
+        to: [{ global: true }]
+profiles:
+  compute:
+    web:
+      resources:
+        cpu: { units: 1 }
+        memory: { size: 512Mi }
+        storage: { size: 1Gi }
+  placement:
+    dcloud:
+      attributes: { host: akash }
+      signedBy: { anyOf: ["akash1..."] }      # доверяем подписанным аудиторам
+      pricing:
+        web: { denom: uakt, amount: 1000 }
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1
+</code></pre>
+
+<pre class="code-block"><code class="language-bash"># Создаём deployment, ждём bids, выбираем provider, lease
+akash tx deployment create deploy.yml --from $WALLET --gas auto
+akash query market bid list --owner $OWNER
+akash tx market lease create --provider $PROVIDER ...
+# Отправляем манифест выбранному провайдеру
+akash provider send-manifest deploy.yml --provider $PROVIDER --from $WALLET
+</code></pre>
+
+<h3>Артефакты на IPFS/Filecoin</h3>
+
+<pre class="code-block"><code class="language-bash"># IPFS Kubo
+ipfs add -r ./dist                  # → CID Qm...
+ipfs name publish /ipfs/Qm...        # IPNS-указатель (как DNS)
+
+# или web3.storage (управляемый Filecoin pinning)
+w3 up ./dist                         # автоматический pinning
+</code></pre>
+
+<p>CID в адресе <strong>гарантирует</strong> content integrity — IPFS-имя это хеш контента.</p>
+<p>Подмена невозможна (изменится сам адрес).</p>
+
+<p><strong>Использование в проде:</strong></p>
+
+<ul>
+<li>SBOM/SLSA-провенанс храним в Filecoin (immutable archive).</li>
+<li>Static-сайты раздаём через IPFS-gateway (<code>https://cf-ipfs.com/ipfs/$CID</code>)</li>
+</ul>
+<p>+ кэшируем через Cloudflare.</p>
+<ul>
+<li>Артефакты релиза дублируем <code>ghcr.io</code> (быстро) + <code>ipfs://</code> (immutable).</li>
+</ul>
+
+<p><strong>Лаба 25</strong> — публикация контейнера в Akash + артефакт SBOM в IPFS, верификация.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../9-1/index.html">← Предыдущий урок</a>
+      <a href="../9-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

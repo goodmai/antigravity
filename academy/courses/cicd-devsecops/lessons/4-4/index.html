@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.4 · Контейнерное сканирование: Trivy, Grype — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.4 · Контейнерное сканирование: Trivy, Grype</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.4 · <span class="badge-mini">trivy</span></p>
+    <h1>Контейнерное сканирование: Trivy, Grype</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://aquasecurity.github.io/trivy/" target="_blank" rel="noopener">Trivy docs</a>,</p>
+<p><a href="https://github.com/anchore/grype" target="_blank" rel="noopener">Grype</a>,</p>
+<p><a href="https://github.com/goodwithtech/dockle" target="_blank" rel="noopener">Dockle</a>,</p>
+<p><a href="https://cyclonedx.org" target="_blank" rel="noopener">CycloneDX</a>, <a href="https://spdx.dev" target="_blank" rel="noopener">SPDX</a>.</p>
+
+<p><strong>Trivy</strong> покрывает: OS-packages, language deps (npm/pip/maven/...), IaC</p>
+<p>(Terraform/CloudFormation/Kubernetes), secrets, licenses, misconfig.</p>
+
+<pre class="code-block"><code class="language-bash">trivy image --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --format sarif --output trivy.sarif \
+            ghcr.io/me/app:${TAG}
+</code></pre>
+
+<p><code>--ignore-unfixed</code> — не падать на CVE без фикса (нечего делать). <code>--exit-code 1</code></p>
+<p>гейтит CI. SARIF — заливается в GH Security tab.</p>
+
+<p><strong>Trivy + SBOM (CycloneDX):</strong></p>
+
+<pre class="code-block"><code class="language-bash">trivy image --format cyclonedx --output sbom.cdx.json ghcr.io/me/app:${TAG}
+</code></pre>
+
+<p>SBOM сохраняется как артефакт релиза и/или прикрепляется к образу через</p>
+<p><a href="https://oras.land" target="_blank" rel="noopener"><code>oras attach</code></a> или cosign-attest (см. 4.6).</p>
+
+<p><strong>Dockle</strong> — проверяет лучшие практики (root user, latest tag, COPY vs ADD,</p>
+<p>sensitive data в env).</p>
+
+<p><strong>Politika:</strong> в CI gate'имся на <code>HIGH/CRITICAL</code>, но имеем <strong><code>.trivyignore</code></strong> с</p>
+<p>обоснованием каждой исключённой CVE + срок действия (90 дней).</p>
+
+<p><strong>Лаба 13</strong> — CI падает на HIGH-CVE в base image, после bump base — зеленеет.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../4-3/index.html">← Предыдущий урок</a>
+      <a href="../4-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

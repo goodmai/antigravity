@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 3.3 · Kubernetes: Pod, Deployment, Service, Ingress — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 3.3 · Kubernetes: Pod, Deployment, Service, Ingress</span>
+    </div>
+
+    <p class="lesson-meta">Module 3 — Containers, K8s, Pods · Lesson 3.3 · <span class="badge-mini">k8s</span></p>
+    <h1>Kubernetes: Pod, Deployment, Service, Ingress</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://kubernetes.io/docs/concepts/" target="_blank" rel="noopener">Kubernetes docs</a>,</p>
+<p><a href="https://kubernetes.io/docs/setup/best-practices/" target="_blank" rel="noopener">Production-Grade Container Orchestration</a>,</p>
+<p><a href="https://k8spatterns.io" target="_blank" rel="noopener">k8s patterns book</a>.</p>
+
+<p><strong>Архитектура объектов:</strong></p>
+
+<pre class="code-block"><code class="language-">Deployment ──► ReplicaSet ──► Pod (1..N containers)
+                                │
+                                ├── probes (liveness/readiness/startup)
+                                ├── resources (requests/limits)
+                                └── securityContext (runAsNonRoot, RO-fs)
+Service (ClusterIP/NodePort/LB) ──► Endpoints ──► Pods
+Ingress ──► Service ──► Pods
+HPA (CPU/memory/custom) ──► Deployment
+PDB (PodDisruptionBudget) — защита от voluntary disruptions
+</code></pre>
+
+<p><strong>Минимальный production-ready Deployment:</strong></p>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }     # zero-downtime
+  selector: { matchLabels: { app: app } }
+  template:
+    metadata: { labels: { app: app } }
+    spec:
+      automountServiceAccountToken: false                  # минимум привилегий
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/me/app@sha256:abc...              # digest, не tag!
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 8080, name: http }]
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            initialDelaySeconds: 30
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            failureThreshold: 30
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ "ALL" ] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes: [{ name: tmp, emptyDir: {} }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: app }
+spec:
+  selector: { app: app }
+  ports: [{ name: http, port: 80, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: app }
+spec:
+  minAvailable: 2
+  selector: { matchLabels: { app: app } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: app }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: app }
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+</code></pre>
+
+<p><strong>Почему это важно построчно:</strong></p>
+
+<ul>
+<li><code>image: ...@sha256:...</code> — digest гарантирует <strong>тот же</strong> образ, что был на ревью.</li>
+</ul>
+<p>Tag — мутабельный, атакующий может перепушить.</p>
+<ul>
+<li><code>readOnlyRootFilesystem: true</code> — exploit не запишет webshell.</li>
+<li><code>automountServiceAccountToken: false</code> — Pod не должен ходить в kube-API</li>
+</ul>
+<p>без явной нужды.</p>
+<ul>
+<li><code>PDB</code> — не даст drain-у выкосить все реплики разом.</li>
+<li>HPA — реакция на нагрузку, иначе SLO деградирует.</li>
+</ul>
+
+<p><strong>Лаба 09</strong> — k3d-кластер, деплой с HPA, Ingress через Traefik/NGINX,</p>
+<p>zero-downtime rolling update.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../3-2/index.html">← Предыдущий урок</a>
+      <a href="../3-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

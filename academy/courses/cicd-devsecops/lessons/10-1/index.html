@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10.1 · VPS hardening — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 10.1 · VPS hardening</span>
+    </div>
+
+    <p class="lesson-meta">Module 10 — Edge: VPS, VPN, Landing, Mail · Lesson 10.1 · <span class="badge-mini">hardening</span></p>
+    <h1>VPS hardening</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.cisecurity.org/benchmark/ubuntu_linux" target="_blank" rel="noopener">CIS Ubuntu Linux benchmarks</a>,</p>
+<p><a href="https://ubuntu.com/security" target="_blank" rel="noopener">Ubuntu Security guide</a>,</p>
+<p><a href="https://cisofy.com/lynis/" target="_blank" rel="noopener">Lynis docs</a>,</p>
+<p><a href="https://infosec.mozilla.org/guidelines/openssh" target="_blank" rel="noopener">Mozilla SSH guidelines</a>.</p>
+
+<h3>Bootstrap-чек-лист «свежий VPS → защищённый»</h3>
+
+<ol>
+<li><strong>Создание non-root пользователя + ssh-key</strong>:</li>
+</ol>
+<pre class="code-block"><code class="language-bash">   adduser --disabled-password deploy
+   usermod -aG sudo deploy
+   mkdir -p /home/deploy/.ssh &amp;&amp; chmod 700 /home/deploy/.ssh
+   echo "ssh-ed25519 AAAA..." &gt; /home/deploy/.ssh/authorized_keys
+   chown -R deploy:deploy /home/deploy/.ssh &amp;&amp; chmod 600 /home/deploy/.ssh/authorized_keys
+   </code></pre>
+
+<ol>
+<li><strong>SSH hardening</strong> (<code>/etc/ssh/sshd_config.d/99-hardening.conf</code>):</li>
+</ol>
+<pre class="code-block"><code class="language-">   PermitRootLogin no
+   PasswordAuthentication no
+   ChallengeResponseAuthentication no
+   KbdInteractiveAuthentication no
+   PubkeyAuthentication yes
+   AuthenticationMethods publickey
+   MaxAuthTries 3
+   X11Forwarding no
+   AllowUsers deploy
+   Protocol 2
+   KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org
+   Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+   MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+   ClientAliveInterval 300
+   ClientAliveCountMax 2
+   TrustedUserCAKeys /etc/ssh/ca.pub          # для CA-flow из Module 5
+   </code></pre>
+<pre class="code-block"><code class="language-bash">   sshd -t &amp;&amp; systemctl reload ssh
+   </code></pre>
+
+<ol>
+<li><strong>Firewall (nftables предпочтительнее ufw для prod)</strong>:</li>
+</ol>
+<pre class="code-block"><code class="language-bash">   # /etc/nftables.conf
+   table inet filter {
+     chain input {
+       type filter hook input priority 0; policy drop;
+       ct state established,related accept
+       iifname "lo" accept
+       tcp dport 22 accept   # за ним WireGuard, см. 10.2
+       tcp dport {80,443} accept
+       ip protocol icmp limit rate 5/second accept
+     }
+     chain forward { type filter hook forward priority 0; policy drop; }
+     chain output  { type filter hook output  priority 0; policy accept; }
+   }
+   </code></pre>
+<pre class="code-block"><code class="language-bash">   systemctl enable --now nftables
+   </code></pre>
+
+<ol>
+<li><strong>Unattended-upgrades</strong> (только security):</li>
+</ol>
+<pre class="code-block"><code class="language-bash">   apt install -y unattended-upgrades apt-listchanges
+   dpkg-reconfigure -plow unattended-upgrades
+   </code></pre>
+
+<ol>
+<li><strong>Fail2ban</strong> (минимум — sshd):</li>
+</ol>
+<pre class="code-block"><code class="language-ini">   # /etc/fail2ban/jail.local
+   [sshd]
+   enabled = true
+   maxretry = 3
+   bantime = 1h
+   findtime = 10m
+   </code></pre>
+
+<ol>
+<li><strong>auditd</strong> для compliance: трекаем <code>execve</code>, изменения <code>/etc</code>, sudo-команды.</li>
+</ol>
+
+<ol>
+<li><strong>Lynis-аудит</strong> — раз в неделю в cron:</li>
+</ol>
+<pre class="code-block"><code class="language-">   0 6 * * 1 lynis audit system --quick --no-colors &gt; /var/log/lynis.log
+   </code></pre>
+
+<ol>
+<li><strong>Bastion-only access</strong>: SSH-port 22 закрыт извне, открывается <strong>только</strong> через</li>
+</ol>
+<p>WireGuard/Tailscale (см. 10.2).</p>
+
+<p><strong>Лаба 26</strong> — Ansible-role «secure-vps»: bootstrap.sh + idempotent роль.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../9-3/index.html">← Предыдущий урок</a>
+      <a href="../10-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.3 · Homebrew: formula, tap, bottle — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.3 · Homebrew: formula, tap, bottle</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.3 · <span class="badge-mini">brew</span></p>
+    <h1>Homebrew: formula, tap, bottle</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.brew.sh/Formula-Cookbook" target="_blank" rel="noopener">Homebrew Formula Cookbook</a>,</p>
+<p><a href="https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap" target="_blank" rel="noopener">How to Create and Maintain a Tap</a>,</p>
+<p><a href="https://github.com/Homebrew/homebrew-test-bot" target="_blank" rel="noopener">brew test-bot</a>.</p>
+
+<p><strong>Tap</strong> — это GitHub-репозиторий формул, <code>homebrew-&lt;name&gt;</code>.</p>
+
+<pre class="code-block"><code class="language-ruby"># Formula/mycli.rb (в репо homebrew-mytap)
+class Mycli &lt; Formula
+  desc "My CLI"
+  homepage "https://example.com"
+  url "https://github.com/me/mycli/archive/refs/tags/v1.2.3.tar.gz"
+  sha256 "deadbeef..."
+  license "MIT"
+
+  depends_on "go" =&gt; :build
+
+  def install
+    system "go", "build", "-o", bin/"mycli", "./cmd/mycli"
+  end
+
+  test do
+    assert_match "1.2.3", shell_output("#{bin}/mycli --version")
+  end
+end
+</code></pre>
+
+<p>Установка пользователем:</p>
+
+<pre class="code-block"><code class="language-bash">brew tap me/mytap
+brew install mycli
+</code></pre>
+
+<p><strong>Bottle</strong> — pre-built бинарник, чтобы пользователь не ждал компиляции:</p>
+
+<pre class="code-block"><code class="language-bash">brew install --build-bottle mycli
+brew bottle mycli                       # генерит bottle.tar.gz и DSL-патч
+</code></pre>
+
+<p><strong>CI-флоу:</strong> GH Actions matrix (<code>macos-13</code>, <code>macos-14</code>) собирает bottle на</p>
+<p>Intel и Apple Silicon, push в tap-репо, обновляет SHA в формуле.</p>
+
+<p><strong>Лаба 05</strong> — публичный tap для своей CLI с автогенерацией формулы из релиза.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../2-2/index.html">← Предыдущий урок</a>
+      <a href="../2-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
