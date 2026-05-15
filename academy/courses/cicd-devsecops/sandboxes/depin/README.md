@@ -40,6 +40,21 @@ export AKASH_NODE="https://rpc.sandbox-01.aksh.pw:443"
 export AKASH_CHAIN_ID="sandbox-01"
 ```
 
+## Другие протоколы (backend & frontend)
+
+CLI остальных сетей из урока 9.4 — ставятся локально, депозит не нужен для
+`--help`/dry-run:
+
+```bash
+npm i -g @fleek-platform/cli     # Fleek: frontend (IPFS) + edge-functions
+npm i -g @spheron/cli            # Spheron: GPU/compute marketplace (ICL)
+curl -sL https://sphnctl.sh | bash   # альтернативный Spheron CLI
+# Flux: деплой через SSP/Zelcore-кошелёк + flux-cli (app-spec JSON)
+```
+
+Полное сравнение установки/запуска/оплаты/особенностей → урок
+[9.4 — DePIN-протоколы для backend & frontend](../../lessons/9-depin/README.md#94--depin-протоколы-для-backend--frontend-установка-запуск-оплата).
+
 ## Лабы
 
 - [Lab 25 — Akash + IPFS](../../labs/25-akash-ipfs/)
