@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.1 · Приложение как система — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.1 · Приложение как система</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.1 · <span class="badge-mini">C4 · DDD</span></p>
+    <h1>Приложение как система</h1>
+
+    <p><strong>Канон:</strong> <a href="https://c4model.com" target="_blank" rel="noopener">C4 model</a>, <a href="https://www.domainlanguage.com/ddd/reference/" target="_blank" rel="noopener">DDD Reference (Evans)</a>.</p>
+<p>Архитектура начинается не со стека, а с <strong>домена</strong>. Прежде чем
+выбирать базу или язык, мы описываем, <em>что</em> система делает и где
+проходят её границы. Сквозной продукт курса — «маркетплейс цифровых работ +
+лента + платежи» — мы трижды спроектируем по одной и той же сетке из девяти
+кирпичей.</p>
+
+<h3>Девять кирпичей (сетка циркуля)</h3>
+<div class="table-wrap"><table>
+<tr><th>#</th><th>Кирпич</th><th>Вопрос, на который он отвечает</th></tr>
+<tr><td>1</td><td>Compute</td><td>Где выполняется код?</td></tr>
+<tr><td>2</td><td>State / Data</td><td>Где живёт истина о данных?</td></tr>
+<tr><td>3</td><td>Storage / Media</td><td>Где лежат файлы и как они доставляются?</td></tr>
+<tr><td>4</td><td>Messaging</td><td>Как части системы общаются асинхронно?</td></tr>
+<tr><td>5</td><td>Identity / Auth</td><td>Кто пользователь и что ему можно?</td></tr>
+<tr><td>6</td><td>Networking</td><td>Как трафик доходит до сервиса?</td></tr>
+<tr><td>7</td><td>Secrets / Keys</td><td>Где хранятся ключи и как ротуются?</td></tr>
+<tr><td>8</td><td>Observability</td><td>Как мы узнаём, что система жива?</td></tr>
+<tr><td>9</td><td>Delivery / Govern.</td><td>Как изменения попадают в прод?</td></tr>
+</table></div>
+
+<h3>C4: четыре уровня масштаба</h3>
+<p>Мы используем модель C4 как общий язык диаграмм:</p>
+<ol>
+<li><strong>Context</strong> — система как чёрный ящик и её акторы.</li>
+<li><strong>Container</strong> — приложения/хранилища и потоки между ними.</li>
+<li><strong>Component</strong> — внутренние блоки контейнера.</li>
+<li><strong>Code</strong> — по необходимости (UML/классы).</li>
+</ol>
+
+<h3>Bounded Context для маркетплейса</h3>
+<pre class="code-block"><code class="language-">Catalog        — карточки работ, поиск, теги
+Identity        — профили, аутентификация
+Order/Payments  — корзина, оплата, выплаты автору
+Feed            — лента активности и подписки
+Media           — загрузка и доставка файлов работ</code></pre>
+<p>Каждый контекст имеет собственную модель и контракт. Пересечения —
+через явные интеграции, а не общую БД.</p>
+    <div class="note gold"><strong>Артефакт урока.</strong> C4 Context-диаграмма продукта (PlantUML/Structurizr) в личном форке.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../../index.html">← К программе курса</a>
+      <a href="../1-2/index.html" class="next">Урок 1.2 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

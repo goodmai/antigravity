@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.2 · Compute на Google Cloud — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.2 · Compute на Google Cloud</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.2 · <span class="badge-mini">compute</span></p>
+    <h1>Compute на Google Cloud</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/run/docs" target="_blank" rel="noopener">Cloud Run docs</a>, <a href="https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview" target="_blank" rel="noopener">GKE Autopilot</a>.</p>
+<p>Кирпич Compute в Google — это спектр от «отдай контейнер» до «управляй
+кластером».</p>
+
+<div class="table-wrap"><table>
+<tr><th>Сервис</th><th>Когда</th><th>Цена контроля</th></tr>
+<tr><td>Cloud Functions</td><td>событие → короткая функция</td><td>минимум контроля</td></tr>
+<tr><td>Cloud Run</td><td>stateless-контейнер, scale-to-zero</td><td>баланс</td></tr>
+<tr><td>GKE Autopilot</td><td>нужен k8s API, но не ноды</td><td>больше контроля</td></tr>
+<tr><td>GKE Standard</td><td>тонкий тюнинг нод/GPU</td><td>максимум контроля</td></tr>
+</table></div>
+
+<p>Для маркетплейса по умолчанию — <strong>Cloud Run</strong>:
+scale-to-zero экономит на низком трафике, а контейнер переносим.</p>
+    <div class="note gold"><strong>Артефакт урока.</strong> ADR-03 «runtime» — Cloud Run vs GKE с обоснованием.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-1/index.html">← Урок 2.1</a>
+      <a href="../2-3/index.html" class="next">Урок 2.3 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

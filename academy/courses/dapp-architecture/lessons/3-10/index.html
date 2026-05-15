@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.10 · Приватность и ключи — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.10 · Приватность и ключи</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.10 · <span class="badge-mini">MPC / AA / ZK</span></p>
+    <h1>Приватность и ключи</h1>
+
+    <p><strong>Канон:</strong> <a href="https://eips.ethereum.org/EIPS/eip-4337" target="_blank" rel="noopener">ERC-4337</a>, <a href="https://ethereum.org/developers/docs/scaling/zk-rollups/" target="_blank" rel="noopener">zk-SNARKs (Ethereum.org)</a>.</p>
+<p>Аналог кирпича Secrets/Keys (KMS/Secret Manager). Здесь ключ — это
+сам аккаунт, а не доступ к сервису.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Подход</th><th>Что решает</th></tr>
+<tr><td>MPC-кошелёк</td><td>ключ не существует целиком — порог подписей</td></tr>
+<tr><td>ERC-4337 (AA)</td><td>социальное восстановление, спонсор газа, лимиты</td></tr>
+<tr><td>ZK-доказательство</td><td>доказать факт, не раскрывая данные</td></tr>
+</table></div>
+
+<div class="note violet"><strong>Trade-off vs KMS.</strong> KMS: ключ у
+провайдера, отзыв мгновенный. Самокастодиал: суверенитет полный, но
+ответственность и сложность восстановления — на пользователе.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> ADR-05 «управление ключами»: KMS vs MPC/AA с threat-model.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-9/index.html">← Урок 3.9</a>
+      <a href="../3-11/index.html" class="next">Урок 3.11 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

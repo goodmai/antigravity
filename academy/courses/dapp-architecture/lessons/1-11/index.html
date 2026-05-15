@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.11 · Безопасность и поставка — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.11 · Безопасность и поставка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.11 · <span class="badge-mini">security</span></p>
+    <h1>Безопасность и поставка</h1>
+
+    <p><strong>Канон:</strong> <a href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a>, <a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener">OWASP Top 10</a>.</p>
+<p>Безопасность — не финальный этап, а свойство архитектуры. Завершаем
+модуль threat-моделью и Container-диаграммой «классики».</p>
+
+<h3>Базовые требования (ASVS-минимум)</h3>
+<ul>
+<li>Секреты — в секрет-менеджере, не в env-файле в репозитории.</li>
+<li>Весь трафик — TLS; внутренний — mTLS, где возможно.</li>
+<li>Валидация ввода на границе, параметризованные запросы (нет SQLi).</li>
+<li>CI/CD: SAST + SCA + image-scan как гейт мерджа.</li>
+</ul>
+
+<h3>Threat-model (STRIDE, кратко)</h3>
+<div class="table-wrap"><table>
+<tr><th>Угроза</th><th>Пример в маркетплейсе</th><th>Контрмера</th></tr>
+<tr><td>Spoofing</td><td>подделка автора работы</td><td>OIDC + подпись сессии</td></tr>
+<tr><td>Tampering</td><td>правка суммы платежа</td><td>серверная цена, не клиентская</td></tr>
+<tr><td>Repudiation</td><td>«я не покупал»</td><td>аудит-лог с trace_id</td></tr>
+</table></div>
+    <div class="note gold"><strong>Артефакт урока.</strong> C4 Container-диаграмма «классика» + STRIDE-таблица.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-10/index.html">← Урок 1.10</a>
+      <a href="../2-1/index.html" class="next">Урок 2.1 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

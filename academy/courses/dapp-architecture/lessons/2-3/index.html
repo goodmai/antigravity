@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.3 · Данные на Google Cloud — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.3 · Данные на Google Cloud</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.3 · <span class="badge-mini">data</span></p>
+    <h1>Данные на Google Cloud</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/spanner/docs" target="_blank" rel="noopener">Spanner docs</a>, <a href="https://cloud.google.com/firestore/docs" target="_blank" rel="noopener">Firestore docs</a>.</p>
+<p>Тот же кирпич State/Data, но выбор — между управляемыми движками с
+разной моделью согласованности и масштаба.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Сервис</th><th>Модель</th><th>Сильная сторона</th></tr>
+<tr><td>Cloud SQL</td><td>managed Postgres/MySQL</td><td>миграция «как есть»</td></tr>
+<tr><td>AlloyDB</td><td>Postgres-совместимый, HTAP</td><td>аналитика+OLTP</td></tr>
+<tr><td>Spanner</td><td>глобальный, strong consistency</td><td>горизонтальный масштаб + ACID</td></tr>
+<tr><td>Firestore</td><td>документный, real-time</td><td>мобильный/web sync</td></tr>
+</table></div>
+
+<div class="note sky"><strong>Trade-off.</strong> Spanner снимает потолок
+масштаба, но это сильнейший lock-in модуля. Cloud SQL — почти без
+lock-in, но потолок обычного Postgres.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> Схема данных маркетплейса на GCP (выбор движка обоснован).</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-2/index.html">← Урок 2.2</a>
+      <a href="../2-4/index.html" class="next">Урок 2.4 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

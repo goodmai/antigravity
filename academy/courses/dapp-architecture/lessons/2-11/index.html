@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.11 · Эталонная архитектура на Google — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.11 · Эталонная архитектура на Google</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.11 · <span class="badge-mini">reference</span></p>
+    <h1>Эталонная архитектура на Google</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework/cost-optimization" target="_blank" rel="noopener">Architecture Framework: cost</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Well-Architected trade-offs</a>.</p>
+<p>Сводим девять кирпичей в одну Google-проекцию и честно считаем цену.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Кирпич</th><th>Решение</th><th>Lock-in</th></tr>
+<tr><td>Compute</td><td>Cloud Run</td><td>низкий (контейнер)</td></tr>
+<tr><td>Data</td><td>Cloud SQL / Spanner</td><td>низкий / высокий</td></tr>
+<tr><td>Messaging</td><td>Pub/Sub</td><td>средний</td></tr>
+<tr><td>Identity</td><td>Firebase Auth + WIF</td><td>средний</td></tr>
+<tr><td>Delivery</td><td>Cloud Build/Deploy</td><td>средний</td></tr>
+</table></div>
+
+<p>Чек-лист: scale-to-zero включён? error budget определён? есть exit-план
+от Spanner? CMEK на чувствительных данных?</p>
+    <div class="note gold"><strong>Артефакт урока.</strong> C4 Container-диаграмма «Google» + lock-in/cost чек-лист.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-10/index.html">← Урок 2.10</a>
+      <a href="../3-1/index.html" class="next">Урок 3.1 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

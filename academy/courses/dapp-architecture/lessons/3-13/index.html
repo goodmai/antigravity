@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.13 · Эталонная гибридная архитектура · Capstone — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.13 · Эталонная гибридная архитектура · Capstone</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.13 · <span class="badge-mini">Capstone</span></p>
+    <h1>Эталонная гибридная архитектура · Capstone</h1>
+
+    <p><strong>Канон:</strong> <a href="https://github.com/joelparkerhenderson/architecture-decision-record" target="_blank" rel="noopener">ADR (Nygard)</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Well-Architected</a>.</p>
+<p>Финал: три проекции сводятся в одну осознанную гибридную архитектуру.
+Цель — не «всё на блокчейне», а обоснованный микс.</p>
+
+<h3>Матрица выбора 9×3 (фрагмент с рекомендацией)</h3>
+<div class="table-wrap"><table>
+<tr><th>Кирпич</th><th>Рекомендация</th><th>Обоснование</th></tr>
+<tr><td>Compute</td><td>Облако + Akash на батч</td><td>SLA важнее цены на hot-path</td></tr>
+<tr><td>Деньги/права</td><td>on-chain</td><td>истина прав без посредника</td></tr>
+<tr><td>Каталог/лента</td><td>классика + The Graph</td><td>латентность чтения</td></tr>
+<tr><td>Медиа</td><td>IPFS + CDN-кэш</td><td>иммутабельно, дёшево</td></tr>
+<tr><td>Identity</td><td>кошелёк + опц. OIDC</td><td>суверенитет + UX</td></tr>
+<tr><td>Ключи</td><td>AA (ERC-4337)</td><td>восстановление без кастодиана</td></tr>
+</table></div>
+
+<h3>Критерий защиты capstone</h3>
+<ol>
+<li>Матрица 9×3 с trade-off (цена · латентность · доверие · суверенитет · lock-in).</li>
+<li>C4 Context+Container гибрида.</li>
+<li>Threat-model гибрида и обоснование «что централизовать / отдать Google / децентрализовать» — с цифрами.</li>
+</ol>
+    <div class="note gold"><strong>Артефакт урока.</strong> Capstone: матрица 9×3 + C4 гибрида + ADR-набор + threat-model.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-12/index.html">← Урок 3.12</a>
+      <a href="../../index.html" class="next">Завершить курс →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

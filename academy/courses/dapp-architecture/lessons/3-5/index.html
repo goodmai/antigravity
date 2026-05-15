@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.5 · Децентрализованное хранилище — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.5 · Децентрализованное хранилище</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.5 · <span class="badge-mini">IPFS</span></p>
+    <h1>Децентрализованное хранилище</h1>
+
+    <p><strong>Канон:</strong> <a href="https://docs.ipfs.tech" target="_blank" rel="noopener">IPFS docs</a>, <a href="https://www.arweave.org/yellow-paper.pdf" target="_blank" rel="noopener">Arweave yellow-paper</a>.</p>
+<p>Аналог кирпича Storage (GCS/S3). Адресация по <strong>содержимому</strong>
+(CID), а не по пути — ссылка ломается, если контент изменён.</p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>IPFS+Filecoin</th><th>Arweave</th><th>Storj</th></tr>
+<tr><td>Модель</td><td>контент-адрес + сделки хранения</td><td>permaweb, оплата один раз</td><td>S3-совместимый, шардинг</td></tr>
+<tr><td>Долговечность</td><td>пока есть pinning/сделка</td><td>«навсегда»</td><td>SLA-провайдер</td></tr>
+</table></div>
+
+<div class="note violet"><strong>Pinning.</strong> «Загрузил в IPFS» не
+значит «хранится вечно». Без pinning/Filecoin-сделки контент исчезнет —
+это операционная стоимость, которой нет в облаке.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-4/index.html">← Урок 3.4</a>
+      <a href="../3-6/index.html" class="next">Урок 3.6 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.2 · Децентрализованный compute — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.2 · Децентрализованный compute</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.2 · <span class="badge-mini">Akash</span></p>
+    <h1>Децентрализованный compute</h1>
+
+    <p><strong>Канон:</strong> <a href="https://akash.network/docs/getting-started/stack-definition-language/" target="_blank" rel="noopener">Akash SDL</a>, <a href="https://fluence.dev" target="_blank" rel="noopener">Fluence docs</a>.</p>
+<p>Аналог кирпича Compute (Cloud Run/GKE): рынок вычислений, где ноды —
+анонимные провайдеры.</p>
+
+<h3>Модель Akash</h3>
+<pre class="code-block"><code class="language-yaml"># deploy.yaml (SDL) — упрощённо
+services:
+  web: { image: myorg/marketplace:1.0, expose: [{ port: 8080, to: [{global: true}] }] }
+profiles:
+  compute: { web: { resources: { cpu: 0.5, memory: 512Mi } } }
+# деплой → ставки провайдеров (reverse auction) → escrow оплата в AKT</code></pre>
+
+<div class="note violet"><strong>Цена и доверие.</strong> Дешевле облака,
+но провайдер ноды недоверенный: нужны воспроизводимые образы, шифрование
+данных в покое и отсутствие секретов внутри контейнера.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> ADR-04 «compute»: Cloud Run vs Akash (цена/доверие/SLA).</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-1/index.html">← Урок 3.1</a>
+      <a href="../3-3/index.html" class="next">Урок 3.3 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

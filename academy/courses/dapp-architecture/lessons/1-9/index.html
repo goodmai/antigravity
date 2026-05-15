@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.9 · Наблюдаемость — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.9 · Наблюдаемость</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.9 · <span class="badge-mini">o11y</span></p>
+    <h1>Наблюдаемость</h1>
+
+    <p><strong>Канон:</strong> <a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE: Monitoring</a>, <a href="https://opentelemetry.io/docs/" target="_blank" rel="noopener">OpenTelemetry</a>.</p>
+<p>Наблюдаемость — способность ответить на вопрос о системе, который вы
+<em>не</em> предвидели. Три столпа: логи, метрики, трейсы.</p>
+
+<h3>Golden signals</h3>
+<ul>
+<li><strong>Latency</strong> — время ответа (отдельно для ошибок).</li>
+<li><strong>Traffic</strong> — запросов в секунду.</li>
+<li><strong>Errors</strong> — доля неуспеха.</li>
+<li><strong>Saturation</strong> — насколько ресурс «забит».</li>
+</ul>
+
+<h3>Структурные логи</h3>
+<pre class="code-block"><code class="language-json">{"ts":"...","level":"error","trace_id":"abc","msg":"payment failed","order_id":42}</code></pre>
+<p>JSON, а не строка: <code>trace_id</code> связывает лог с трейсом,
+поля — фильтруемы. 12-factor: лог пишется в stdout, маршрутизацию делает
+платформа.</p>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-8/index.html">← Урок 1.8</a>
+      <a href="../1-10/index.html" class="next">Урок 1.10 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

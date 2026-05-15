@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.10 · Масштаб и отказоустойчивость — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.10 · Масштаб и отказоустойчивость</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.10 · <span class="badge-mini">scale</span></p>
+    <h1>Масштаб и отказоустойчивость</h1>
+
+    <p><strong>Канон:</strong> <a href="https://en.wikipedia.org/wiki/PACELC_theorem" target="_blank" rel="noopener">CAP / PACELC (Abadi)</a>, <a href="https://pragprog.com/titles/mnee2/release-it-second-edition/" target="_blank" rel="noopener">Release It! (паттерны устойчивости)</a>.</p>
+<p>Масштаб — это не «добавить серверов», а осознанный выбор между
+согласованностью и доступностью.</p>
+
+<h3>CAP → PACELC</h3>
+<p>При сетевом разделении (<strong>P</strong>) выбираем между
+согласованностью и доступностью. <strong>Else</strong> (нормальная
+работа) — компромисс латентности и согласованности. Для денег — C,
+для ленты — A/латентность.</p>
+
+<h3>Устойчивость к отказам</h3>
+<ul>
+<li><strong>Timeout + retry с jitter</strong> — но только для идемпотентных операций.</li>
+<li><strong>Circuit breaker</strong> — не добивать упавшую зависимость.</li>
+<li><strong>Backpressure</strong> — отвергать нагрузку явно, а не падать.</li>
+<li><strong>Graceful degradation</strong> — лента без рекомендаций лучше, чем 500.</li>
+</ul>
+    <div class="note gold"><strong>Артефакт урока.</strong> ADR-02 «consistency vs availability» для оплаты и для ленты.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-9/index.html">← Урок 1.9</a>
+      <a href="../1-11/index.html" class="next">Урок 1.11 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

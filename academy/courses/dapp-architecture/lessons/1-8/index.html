@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.8 · Идентичность и доступ — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.8 · Идентичность и доступ</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.8 · <span class="badge-mini">OIDC</span></p>
+    <h1>Идентичность и доступ</h1>
+
+    <p><strong>Канон:</strong> <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1" target="_blank" rel="noopener">OAuth 2.1 draft</a>, <a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank" rel="noopener">OIDC Core</a>.</p>
+<p>Аутентификация отвечает «кто ты», авторизация — «что тебе можно». Их
+нельзя смешивать.</p>
+
+<h3>Сессия vs JWT</h3>
+<div class="table-wrap"><table>
+<tr><th></th><th>Серверная сессия</th><th>JWT</th></tr>
+<tr><td>Отзыв</td><td>мгновенный</td><td>сложный (нужен denylist)</td></tr>
+<tr><td>Состояние</td><td>в сторе</td><td>stateless</td></tr>
+<tr><td>Размер</td><td>cookie-id</td><td>токен растёт</td></tr>
+</table></div>
+
+<h3>OAuth 2.1: Authorization Code + PKCE</h3>
+<pre class="code-block"><code class="language-">app → /authorize?code_challenge=... → IdP
+IdP → redirect code → app
+app → /token (code + code_verifier) → access + refresh
+refresh rotation: каждый refresh выдаёт новый refresh, старый аннулируется</code></pre>
+
+<div class="note gold"><strong>RBAC vs ABAC.</strong> RBAC — роли (просто,
+грубо). ABAC — атрибуты (гибко, сложнее аудит). Для маркетплейса:
+RBAC на админку, ABAC на «автор видит только свои выплаты».</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> Диаграмма auth-потока (Authorization Code + PKCE + refresh rotation).</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-7/index.html">← Урок 1.7</a>
+      <a href="../1-9/index.html" class="next">Урок 1.9 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

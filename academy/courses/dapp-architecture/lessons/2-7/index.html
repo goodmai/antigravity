@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.7 · Сеть и периметр — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.7 · Сеть и периметр</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.7 · <span class="badge-mini">VPC</span></p>
+    <h1>Сеть и периметр</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/load-balancing/docs" target="_blank" rel="noopener">Cloud Load Balancing</a>, <a href="https://cloud.google.com/armor/docs" target="_blank" rel="noopener">Cloud Armor</a>.</p>
+<p>Кирпич Networking: глобальный L7-балансировщик, WAF и API-шлюз как
+управляемые сервисы.</p>
+
+<ul>
+<li><strong>Global HTTP(S) LB</strong> — единый anycast-вход, авто-TLS.</li>
+<li><strong>Cloud Armor</strong> — WAF, гео/IP-правила, защита от DDoS.</li>
+<li><strong>Serverless VPC Access</strong> — Cloud Run в приватную сеть.</li>
+<li><strong>Apigee / API Gateway</strong> — квоты, ключи, монетизация API.</li>
+</ul>
+
+<div class="note sky"><strong>Принцип.</strong> Периметр — это политика, а
+не файрвол: правила Cloud Armor версионируются как код вместе с IaC.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-6/index.html">← Урок 2.6</a>
+      <a href="../2-8/index.html" class="next">Урок 2.8 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

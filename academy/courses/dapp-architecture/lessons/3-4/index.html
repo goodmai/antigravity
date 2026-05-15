@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.4 · Состояние: on-chain vs off-chain — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.4 · Состояние: on-chain vs off-chain</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.4 · <span class="badge-mini">on/off-chain</span></p>
+    <h1>Состояние: on-chain vs off-chain</h1>
+
+    <p><strong>Канон:</strong> <a href="https://thegraph.com/docs/" target="_blank" rel="noopener">The Graph docs</a>, <a href="https://docs.soliditylang.org/en/latest/contracts.html#events" target="_blank" rel="noopener">Solidity events</a>.</p>
+<p>Аналог кирпича State/Data. Главное правило: <strong>on-chain — только
+истина прав и денег</strong>, всё остальное — off-chain.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Данные</th><th>Где</th><th>Почему</th></tr>
+<tr><td>владелец работы, баланс</td><td>on-chain</td><td>истина прав</td></tr>
+<tr><td>описание, превью</td><td>IPFS/Arweave</td><td>дорого on-chain</td></tr>
+<tr><td>лента, поиск</td><td>The Graph (индекс)</td><td>чтение из событий</td></tr>
+</table></div>
+
+<p>Контракт пишет событие → The Graph индексирует → фронт читает GraphQL.
+Это децентрализованный аналог «БД + индекс» из модуля 1.</p>
+    <div class="note gold"><strong>Артефакт урока.</strong> Data-схема on-chain/off-chain + subgraph-схема для ленты.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-3/index.html">← Урок 3.3</a>
+      <a href="../3-5/index.html" class="next">Урок 3.5 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

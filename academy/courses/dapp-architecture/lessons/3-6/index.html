@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.6 · Децентрализованная доставка — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.6 · Децентрализованная доставка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.6 · <span class="badge-mini">gateways</span></p>
+    <h1>Децентрализованная доставка</h1>
+
+    <p><strong>Канон:</strong> <a href="https://docs.ipfs.tech/concepts/ipfs-gateway/" target="_blank" rel="noopener">IPFS gateways</a>, <a href="https://fleek.xyz/docs/" target="_blank" rel="noopener">Fleek docs</a>.</p>
+<p>Аналог кирпича доставки (Cloud CDN). p2p-доставка медленнее «холодная»,
+но шлюзы и DePIN-CDN сглаживают латентность.</p>
+
+<ul>
+<li><strong>Шлюз</strong> — мост HTTP↔IPFS; точка цензуры/централизации.</li>
+<li><strong>Fleek/IPFS-CDN</strong> — кэширующий слой над контент-адресом.</li>
+<li><strong>AIOZ</strong> — DePIN-CDN: ноды раздают за вознаграждение.</li>
+</ul>
+
+<div class="note violet"><strong>Граница применимости.</strong> Для
+иммутабельных ассетов (превью работ) p2p отлично; для интерактивного
+динамического контента — латентность всё ещё проигрывает облачному CDN.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-5/index.html">← Урок 3.5</a>
+      <a href="../3-7/index.html" class="next">Урок 3.7 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

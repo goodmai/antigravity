@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.2 · Клиент–сервер и слоистая архитектура — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.2 · Клиент–сервер и слоистая архитектура</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.2 · <span class="badge-mini">layers</span></p>
+    <h1>Клиент–сервер и слоистая архитектура</h1>
+
+    <p><strong>Канон:</strong> <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html" target="_blank" rel="noopener">Clean Architecture (Martin)</a>, <a href="https://12factor.net" target="_blank" rel="noopener">12-Factor App</a>.</p>
+<p>Слоистая («чистая») архитектура задаёт <strong>правило зависимостей</strong>:
+исходный код может зависеть только внутрь — к домену. Инфраструктура (БД, HTTP,
+очереди) зависит от домена, а не наоборот.</p>
+
+<h3>Четыре слоя</h3>
+<div class="table-wrap"><table>
+<tr><th>Слой</th><th>Содержит</th><th>Не знает про</th></tr>
+<tr><td>Presentation</td><td>HTTP-хендлеры, DTO, сериализация</td><td>SQL, брокеры</td></tr>
+<tr><td>Application</td><td>use-cases, оркестрация транзакций</td><td>фреймворк HTTP</td></tr>
+<tr><td>Domain</td><td>сущности, value-objects, правила</td><td>вообще ничего внешнего</td></tr>
+<tr><td>Infrastructure</td><td>репозитории, клиенты, адаптеры</td><td>—</td></tr>
+</table></div>
+
+<h3>Порты и адаптеры</h3>
+<pre class="code-block"><code class="language-">// domain объявляет ПОРТ (интерфейс)
+interface OrderRepository { save(o: Order): Promise&lt;void&gt; }
+
+// infrastructure поставляет АДАПТЕР
+class PgOrderRepository implements OrderRepository { /* SQL */ }
+
+// application получает порт через DI — БД заменяема в тестах</code></pre>
+
+<div class="note gold"><strong>Маркер ошибки.</strong> Если в доменной
+сущности появился <code>import pg</code> или аннотация ORM — правило
+зависимостей нарушено, и домен больше не тестируется без базы.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-1/index.html">← Урок 1.1</a>
+      <a href="../1-3/index.html" class="next">Урок 1.3 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

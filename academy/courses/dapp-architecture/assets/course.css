@@ -1,0 +1,290 @@
+/* △ Архитектура децентрализованного приложения — Daskibo Academy course styles
+   Символ курса — масонский циркуль: измерить, разметить, удержать границы. */
+
+:root {
+  --bg: #0a0a12;
+  --card-bg: rgba(30, 27, 50, 0.55);
+  --accent: #d4af37;          /* gold — циркуль */
+  --accent-2: #a78bfa;        /* violet — децентрализация */
+  --shield: #38bdf8;          /* sky — облако Google */
+  --text: #f5f3ff;
+  --muted: #a1a1b5;
+  --border: rgba(255, 255, 255, 0.1);
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --err: #f87171;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Inter", system-ui, sans-serif;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(212, 175, 55, 0.07) 0%, transparent 32%),
+    radial-gradient(circle at 85% 92%, rgba(167, 139, 250, 0.06) 0%, transparent 32%);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+
+.container {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 48px 20px 96px;
+}
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.crumbs a { color: var(--accent); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.crumbs span.sep { opacity: 0.5; }
+
+.lesson-meta {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  background: linear-gradient(to right, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 16px;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+}
+h2 { font-size: 1.45rem; font-weight: 700; margin: 2.2rem 0 0.7rem; color: var(--text); }
+h3 { font-size: 1.15rem; font-weight: 600; margin: 1.6rem 0 0.5rem; color: var(--text); }
+h4 { font-size: 1rem; font-weight: 600; margin: 1.2rem 0 0.4rem; color: var(--text); }
+
+p { color: var(--text); opacity: 0.92; margin-bottom: 1rem; overflow-wrap: break-word; }
+ul, ol { padding-left: 1.4rem; margin: 1rem 0; color: var(--text); }
+li { margin-bottom: 0.4rem; color: var(--text); opacity: 0.92; }
+li strong { color: var(--text); opacity: 1; }
+a { color: var(--accent); }
+
+code {
+  background: rgba(212, 175, 55, 0.1);
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.88em;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  color: #f0d98c;
+  overflow-wrap: break-word;
+}
+pre.code-block {
+  background: #07070f;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 1rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.88em;
+  color: #e2e8f0;
+}
+pre code { background: none; border: none; padding: 0; color: inherit; font-size: 0.95em; }
+
+.note {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin: 1.2rem 0;
+}
+.note strong { color: var(--accent); }
+.note.gold { border-left-color: var(--accent); }
+.note.gold strong { color: var(--accent); }
+.note.violet { border-left-color: var(--accent-2); }
+.note.violet strong { color: var(--accent-2); }
+.note.sky { border-left-color: var(--shield); }
+.note.sky strong { color: var(--shield); }
+.note.warn { border-left-color: var(--warn); }
+.note.warn strong { color: var(--warn); }
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1.5rem 0;
+  padding: 12px 20px;
+  background: rgba(212, 175, 55, 0.05);
+  border-radius: 0 8px 8px 0;
+}
+blockquote p { margin: 0; color: var(--muted); font-style: italic; }
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1.5rem 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  min-width: 480px;
+}
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+th {
+  background: rgba(212, 175, 55, 0.08);
+  font-weight: 600;
+  color: var(--accent);
+}
+tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}
+
+.checklist { list-style: none; padding-left: 0; }
+.checklist li { padding-left: 1.6rem; position: relative; }
+.checklist li::before {
+  content: '\2610';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Lesson / course landing cards ──────────────────────────────────── */
+
+.module-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 2.2rem 0 0.7rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.module-h h2 { margin: 0; }
+.module-meta { font-size: 0.78rem; color: var(--muted); white-space: nowrap; }
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 12px 0 24px;
+}
+.card {
+  display: block;
+  text-decoration: none;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.card-head .num { color: var(--accent); font-weight: 700; }
+.card-head .badge-mini {
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--accent-2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.card h3 { font-size: 1rem; margin: 4px 0 6px; color: var(--text); }
+.card p { font-size: 0.85rem; color: var(--muted); margin: 0; opacity: 1; }
+
+.lesson-meta .badge-mini {
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--accent-2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72em;
+  font-weight: 700;
+}
+
+.refs h3 { color: var(--accent); }
+.refs ul { font-size: 0.92rem; }
+.refs a { color: var(--accent-2); text-decoration: none; }
+.refs a:hover { text-decoration: underline; }
+
+/* ── Lesson navigation ──────────────────────────────────────────────── */
+
+.lesson-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.lesson-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: background 0.2s, border-color 0.2s;
+  background: rgba(212, 175, 55, 0.04);
+}
+.lesson-nav a:hover { background: rgba(212, 175, 55, 0.1); border-color: var(--accent); }
+.lesson-nav a.next { margin-left: auto; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .container { padding: 32px 16px 72px; }
+  h1 { font-size: 1.9rem; }
+  h2 { font-size: 1.25rem; }
+  h3 { font-size: 1.05rem; }
+  .card-grid { grid-template-columns: 1fr; gap: 12px; }
+  .module-h { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .module-meta { white-space: normal; }
+}
+
+@media (max-width: 640px) {
+  .container { padding: 24px 14px 64px; }
+  h1 { font-size: 1.6rem; }
+  body { line-height: 1.6; }
+  pre.code-block { font-size: 0.8em; padding: 12px 14px; }
+  .note { padding: 12px 14px; }
+  .lesson-nav { gap: 8px; }
+  .lesson-nav a {
+    flex: 1 1 100%;
+    justify-content: center;
+    padding: 12px 14px;
+  }
+  .lesson-nav a.next { margin-left: 0; }
+}
