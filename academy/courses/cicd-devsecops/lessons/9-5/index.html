@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 9.5 · Конкурентная среда DePIN: Akash vs AIOZ и экосистема — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 9.5 · Конкурентная среда DePIN: Akash vs AIOZ и экосистема</span>
+    </div>
+
+    <p class="lesson-meta">Module 9 — DePIN &amp; Decentralized Infrastructure · Lesson 9.5 · <span class="badge-mini">competitive</span></p>
+    <h1>Конкурентная среда DePIN: Akash vs AIOZ и экосистема</h1>
+
+<p><strong>Канон:</strong>
+<a href="https://docs.akash.network" target="_blank" rel="noopener">Akash docs</a>,
+<a href="https://docs.aioz.network" target="_blank" rel="noopener">AIOZ Network docs</a>,
+<a href="https://docs.w3s.link" target="_blank" rel="noopener">AIOZ W3S docs</a>,
+<a href="https://docs.rendernetwork.com" target="_blank" rel="noopener">Render docs</a>,
+<a href="https://docs.golem.network" target="_blank" rel="noopener">Golem docs</a>,
+<a href="https://docs.gensyn.ai" target="_blank" rel="noopener">Gensyn docs</a>.</p>
+
+<p>Рынок DePIN-инфраструктуры фрагментирован: каждый протокол занимает нишу по типу
+нагрузки и модели доверия. Если Akash — это «AWS EC2 децентрализованного мира»
+(контейнерный compute), то AIOZ Network — это «AWS S3 + Cloudflare»
+(хранение + CDN + edge AI). Понимать различия критично при выборе стека.</p>
+
+<h2>1. Полный конкурентный анализ</h2>
+
+<p>Ниже — все значимые игроки DePIN-рынка compute и хранения по состоянию на 2025–2026 год.</p>
+
+<div class="table-wrap"><table>
+<tr>
+  <th>Протокол</th>
+  <th>Ниша</th>
+  <th>Токен</th>
+  <th>Блокчейн</th>
+  <th>Ключевое отличие</th>
+  <th>Use case</th>
+</tr>
+<tbody>
+<tr>
+  <td><strong>Akash</strong></td>
+  <td>General compute (CPU/GPU)</td>
+  <td>AKT</td>
+  <td>Cosmos SDK</td>
+  <td>SDL + reverse-auction; нет egress-fee; mTLS из коробки</td>
+  <td>Микросервисы, K8s-воркнагрузки, CI/CD runners</td>
+</tr>
+<tr>
+  <td><strong>AIOZ Network</strong></td>
+  <td>IaaS + CDN (storage + AI inference)</td>
+  <td>AIOZ</td>
+  <td>Layer-1 EVM + IBC</td>
+  <td>W3S (S3-compatible) + W3AI (edge inference) + W3IPFS; Cosmos IBC-совместимость</td>
+  <td>Медиа-платформы, CDN, edge AI inference, NFT-хостинг</td>
+</tr>
+<tr>
+  <td><strong>Render</strong></td>
+  <td>GPU rendering / AI inference</td>
+  <td>RNDR</td>
+  <td>Solana / Polygon</td>
+  <td>Ориентирован на Blender/GPU-рендеринг; интеграция с Apple Metal и OctaneRender</td>
+  <td>3D/VFX студии, анимация, heavy GPU batch tasks</td>
+</tr>
+<tr>
+  <td><strong>Golem</strong></td>
+  <td>P2P compute marketplace</td>
+  <td>GLM</td>
+  <td>Ethereum + Polygon</td>
+  <td>Python-SDK (yapapi); модель requestor/provider; дробление задач; Ethereum-based</td>
+  <td>Batch-вычисления, научные расчёты, параллельный рендеринг</td>
+</tr>
+<tr>
+  <td><strong>Flux</strong></td>
+  <td>Web3-инфраструктура (always-on)</td>
+  <td>FLUX</td>
+  <td>собственный PoW + PoS</td>
+  <td>HA ≥3 нод из коробки; FluxOS + FDM (LB+SSL); Docker-compose-подобная спецификация</td>
+  <td>Always-on backend, GameFi matchmaking, stateful сервисы</td>
+</tr>
+<tr>
+  <td><strong>iExec</strong></td>
+  <td>Confidential compute (TEE)</td>
+  <td>RLC</td>
+  <td>Ethereum (sidechain)</td>
+  <td>Intel SGX + Trusted Execution Environment; данные зашифрованы даже от провайдера; GDPR-friendly</td>
+  <td>Медицинские данные, финансовые расчёты, конфиденциальные ML-задачи</td>
+</tr>
+<tr>
+  <td><strong>Gensyn</strong></td>
+  <td>AI training (Proof-of-Compute)</td>
+  <td>GEN</td>
+  <td>собственный L1</td>
+  <td>Proof-of-Learning — верифицируемое обучение ML-модели без доверия к ноде; математическое доказательство корректности</td>
+  <td>Обучение ML-моделей в DAO, исследовательские организации</td>
+</tr>
+<tr>
+  <td><strong>IO.net</strong></td>
+  <td>GPU cluster (distributed)</td>
+  <td>IO</td>
+  <td>Solana</td>
+  <td>Агрегация GPU из дата-центров + consumer hardware; Ray/CUDA совместимость</td>
+  <td>Distributed ML training, inference на больших моделях</td>
+</tr>
+</tbody>
+</table></div>
+
+<h2>2. Архитектура AIOZ Network</h2>
+
+<p>AIOZ Network — Layer-1 блокчейн с двойной совместимостью: <strong>EVM</strong>
+(Ethereum-экосистема) и <strong>Cosmos IBC</strong> (межцепочечная передача токенов и
+сообщений). Это означает: смарт-контракты Solidity работают нативно, и одновременно
+возможен IBC-мост к Akash, Osmosis, Cosmos Hub.</p>
+
+<h3>W3S — S3-совместимое объектное хранилище</h3>
+
+<p>Файлы загружаются через S3-compatible API (endpoint: <code>https://s3.w3s.link</code>).
+Каждый объект получает Content-ID (CID) и реплицируется на глобальную сеть нод.
+Раздача контента CDN-маршрутизируется к ближайшей ноде.</p>
+
+<p><strong>Как работает CDN-маршрутизация в AIOZ:</strong></p>
+<p>Для каждого запроса сеть выбирает оптимальную ноду по формуле минимальной латентности:</p>
+
+<pre class="code-block"><code class="language-text">L_min = min_{i ∈ N}(d(n_i, u) + δ_i)
+
+где:
+  N      — множество нод сети, хранящих объект
+  d(n_i, u) — географическое расстояние (или RTT) от ноды n_i до пользователя u
+  δ_i    — текущая нагрузка ноды n_i (задержка из-за очереди обработки)
+  L_min  — минимально достижимая латентность для данного запроса
+</code></pre>
+
+<p>На практике: при запросе видео-файла алгоритм обходит все ноды, имеющие
+реплику, и выбирает ту, у которой <code>d(n_i, u) + δ_i</code> минимально.
+Перегруженная нода в Сингапуре может проиграть незагруженной ноде в Германии,
+если пользователь из Европы.</p>
+
+<h3>W3AI — Edge AI inference</h3>
+
+<p>Запросы к AI-моделям (REST/gRPC) маршрутизируются на edge-ноды по той же
+логике минимизации латентности. Ноды хранят квантизированные модели локально.
+Это снижает latency по сравнению с централизованным облачным inference (нет
+трансатлантического hop).</p>
+
+<h3>W3IPFS — Decentralized hosting</h3>
+
+<p>NFT-метаданные, dApp-фронтенды, статические сайты. Каждый файл адресуется
+через IPFS CID; AIOZ ноды пиннят контент и раздают через HTTP-gateway.
+Аналог Fleek, но с токен-инсентивами для хранящих нод.</p>
+
+<h3>Layer-1: EVM + IBC</h3>
+
+<p>Нативная совместимость с MetaMask, ethers.js, Hardhat (EVM-слой) плюс
+возможность IBC-трансфера токенов из/в Akash, Cosmos Hub, Osmosis.
+Для DevOps-инженера это значит: можно автоматически пополнять AIOZ-кошелёк
+через IBC-мост из кошелька Akash без CEX.</p>
+
+<h2>3. Математическая модель CDN-эффективности</h2>
+
+<p>Классическая задача выбора CDN-ноды формализуется через задачу минимизации
+суммарной задержки. Разберём на Python-псевдокоде:</p>
+
+<pre class="code-block"><code class="language-python">from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class Node:
+    node_id: str
+    region: str
+    rtt_to_user_ms: float   # d(n_i, u) — RTT от ноды до пользователя
+    current_load_ms: float  # δ_i — дополнительная задержка из-за нагрузки
+
+def select_optimal_node(nodes: List[Node]) -> Node:
+    """
+    L_min = min_{i in N}(d(n_i, u) + delta_i)
+    Возвращает ноду с минимальной суммарной задержкой.
+    """
+    return min(nodes, key=lambda n: n.rtt_to_user_ms + n.current_load_ms)
+
+# Пример: пользователь из Москвы, запрашивает видео-файл
+nodes = [
+    Node("sg-01", "Singapore", rtt_to_user_ms=180, current_load_ms=5),   # 185 ms
+    Node("de-01", "Frankfurt",  rtt_to_user_ms=45,  current_load_ms=120), # 165 ms
+    Node("us-01", "New York",   rtt_to_user_ms=130, current_load_ms=10),  # 140 ms
+    Node("ru-01", "Moscow",     rtt_to_user_ms=10,  current_load_ms=200), # 210 ms — перегружена!
+]
+
+best = select_optimal_node(nodes)
+print(f"Optimal: {best.node_id} ({best.region})")
+# Output: Optimal: us-01 (New York)  ← перегруженная московская нода проигрывает!
+</code></pre>
+
+<p><strong>Вывод для практики:</strong> географически близкая нода не всегда
+оптимальна. В AIOZ маршрутизатор учитывает текущую нагрузку нод в реальном
+времени — именно поэтому CDN-эффективность AIOZ выше наивного «ближайший сервер».</p>
+
+<h2>4. Akash vs AIOZ — когда что выбирать</h2>
+
+<div class="table-wrap"><table>
+<tr><th>Критерий</th><th>Akash</th><th>AIOZ Network</th></tr>
+<tbody>
+<tr><td><strong>Тип нагрузки</strong></td><td>Container compute (CPU/GPU)</td><td>Storage + CDN + edge AI inference</td></tr>
+<tr><td><strong>Аналог в AWS</strong></td><td>EC2 / ECS / EKS</td><td>S3 + CloudFront + SageMaker Endpoint</td></tr>
+<tr><td><strong>API для разработчика</strong></td><td>SDL (YAML-like), akash CLI</td><td>S3-compatible REST API, AWS CLI</td></tr>
+<tr><td><strong>Барьер входа</strong></td><td>Средний (SDL, Cosmos wallet, reverse-auction)</td><td>Низкий (знакомый S3 API + AWS CLI)</td></tr>
+<tr><td><strong>Оплата</strong></td><td>AKT / USDC escrow, поблочно</td><td>AIOZ токен</td></tr>
+<tr><td><strong>Блокчейн-база</strong></td><td>Cosmos SDK</td><td>Layer-1 EVM + Cosmos IBC</td></tr>
+<tr><td><strong>Egress fee</strong></td><td>$0</td><td>$0 (для нод-участников)</td></tr>
+<tr><td><strong>Идеален для</strong></td><td>Микросервисы, K8s-workloads, CI/CD, API-серверы</td><td>Медиа-хранение, CDN, стриминг, edge AI, NFT-метаданные</td></tr>
+<tr><td><strong>Не подходит для</strong></td><td>Статика/CDN, архивное хранение больших файлов</td><td>Сложная контейнерная оркестрация, stateful databases</td></tr>
+</tbody>
+</table></div>
+
+<blockquote>
+<p><strong>Правило большого пальца:</strong> если ваш bottleneck — это <em>вычисления</em>
+(CPU, GPU, memory для кода) → Akash. Если bottleneck — <em>хранение и раздача контента</em>
+(bandwidth, latency до пользователя) → AIOZ. Для ML-проектов нередко нужны оба:
+Akash для training/serving, AIOZ для хранения datasets и раздачи результатов.</p>
+</blockquote>
+
+<h2>5. Практика: работа с AIOZ W3S через S3 API</h2>
+
+<p>AIOZ W3S полностью совместим с AWS S3 API. Это означает: любой инструмент,
+работающий с S3 (AWS CLI, boto3, Terraform S3 backend, MinIO клиент), работает
+с AIOZ W3S с минимальными изменениями — только меняем endpoint.</p>
+
+<pre class="code-block"><code class="language-bash"># Конфигурация AWS CLI для работы с AIOZ W3S
+aws configure set aws_access_key_id $AIOZ_KEY
+aws configure set aws_secret_access_key $AIOZ_SECRET
+
+# Загрузка артефакта (HTML test report) в AIOZ W3S
+aws s3 cp ./test-report.html s3://my-bucket/reports/test-report.html \
+  --endpoint-url https://s3.w3s.link
+
+# Загрузка целой директории (например, Playwright report)
+aws s3 sync ./playwright-report/ s3://my-bucket/playwright/ \
+  --endpoint-url https://s3.w3s.link
+
+# Получение публичного URL (если bucket public)
+echo "Report URL: https://my-bucket.s3.w3s.link/reports/test-report.html"
+
+# Список объектов в bucket
+aws s3 ls s3://my-bucket/ --endpoint-url https://s3.w3s.link
+
+# Удаление объекта
+aws s3 rm s3://my-bucket/reports/old-report.html \
+  --endpoint-url https://s3.w3s.link
+</code></pre>
+
+<p>В GH Actions — через переменные окружения из Secrets:</p>
+
+<pre class="code-block"><code class="language-yaml">- name: Upload test report to AIOZ W3S
+  id: aioz-upload
+  run: |
+    # Конфигурируем AWS CLI для AIOZ endpoint
+    aws configure set aws_access_key_id "$AIOZ_KEY"
+    aws configure set aws_secret_access_key "$AIOZ_SECRET"
+
+    # Синхронизируем директорию с отчётом
+    aws s3 sync ./playwright-report/ \
+      s3://${{ vars.AIOZ_BUCKET }}/reports/${{ github.run_id }}/ \
+      --endpoint-url https://s3.w3s.link
+
+    # Формируем публичную ссылку
+    REPORT_URL="https://${{ vars.AIOZ_BUCKET }}.s3.w3s.link/reports/${{ github.run_id }}/index.html"
+
+    # Записываем в Step Summary
+    echo "## Test Report (AIOZ W3S)" >> $GITHUB_STEP_SUMMARY
+    echo "URL: $REPORT_URL" >> $GITHUB_STEP_SUMMARY
+    echo "report-url=$REPORT_URL" >> $GITHUB_OUTPUT
+  env:
+    AIOZ_KEY: ${{ secrets.AIOZ_ACCESS_KEY }}
+    AIOZ_SECRET: ${{ secrets.AIOZ_SECRET_KEY }}
+</code></pre>
+
+<h2>6. Гибридная архитектура: Akash (compute) + AIOZ (storage + CDN)</h2>
+
+<p>Комбинация двух DePIN-протоколов даёт полный стек без централизованных облаков:
+Akash обрабатывает запросы, AIOZ хранит и раздаёт артефакты.</p>
+
+<pre class="code-block"><code class="language-yaml">---
+# deploy.yml — Akash SDL
+# API-сервис использует AIOZ W3S как объектное хранилище
+version: "2.0"
+services:
+  api:
+    image: ghcr.io/myorg/api@sha256:abc...
+    env:
+      - STORAGE_ENDPOINT=https://s3.w3s.link   # AIOZ W3S endpoint
+      - STORAGE_BUCKET=my-artifacts             # имя bucket в AIOZ
+      - STORAGE_REGION=us-east-1                # любое (S3-compatible)
+    expose:
+      - port: 8080
+        as: 8080
+        to: [{ global: true }]
+  worker:
+    image: ghcr.io/myorg/worker@sha256:def...
+    env:
+      - STORAGE_ENDPOINT=https://s3.w3s.link
+      - STORAGE_BUCKET=my-artifacts
+      - QUEUE_SIZE=10
+    expose:
+      - port: 9323    # metrics
+        to: [{ global: false }]
+profiles:
+  compute:
+    api:
+      resources:
+        cpu: { units: 2 }
+        memory: { size: 2Gi }
+        storage: { size: 10Gi }
+    worker:
+      resources:
+        cpu: { units: 4 }
+        memory: { size: 4Gi }
+        storage: { size: 20Gi }
+  placement:
+    dcloud:
+      attributes: { host: akash }
+      signedBy: { anyOf: ["akash1..."] }
+      pricing:
+        api: { denom: uakt, amount: 300 }
+        worker: { denom: uakt, amount: 600 }
+deployment:
+  api:
+    dcloud:
+      profile: api
+      count: 1
+  worker:
+    dcloud:
+      profile: worker
+      count: 1
+</code></pre>
+
+<p><strong>Как это работает:</strong></p>
+<ol>
+  <li>Akash-deployment поднимает <code>api</code> и <code>worker</code> контейнеры.</li>
+  <li>Worker обрабатывает задачи (например, видео-транскодинг) и сохраняет
+  результаты в AIOZ W3S через S3 API (<code>STORAGE_ENDPOINT</code>).</li>
+  <li>Пользователи получают готовые файлы напрямую из AIOZ CDN — без нагрузки
+  на Akash-ноду и без egress-fee с обеих сторон.</li>
+</ol>
+
+<p><strong>Что сохраняется в AIOZ W3S:</strong> видеофайлы, ML-модели, test-отчёты,
+SBOM/провенанс, build-артефакты. Всё, что нужно хранить долго и раздавать быстро.</p>
+
+<div class="callout callout-task">
+  <h3>Задания к уроку</h3>
+  <ol>
+    <li><strong>Задание 1:</strong> Изучите документацию AIOZ W3S
+    (<a href="https://docs.aioz.network" target="_blank" rel="noopener">docs.aioz.network</a>)
+    и ответьте письменно:
+    <ul>
+      <li>В чём принципиальное отличие между <strong>W3S</strong> (объектное хранилище)
+      и <strong>W3IPFS</strong> (IPFS-хостинг) с точки зрения адресации контента?</li>
+      <li>Для каких задач SDET-инженера подходит W3S, а для каких — W3IPFS?
+      Приведите по одному конкретному примеру.</li>
+    </ul>
+    </li>
+    <li><strong>Задание 2:</strong> Спроектируйте архитектуру для видеостриминг-стартапа.
+    Используйте минимум 2 DePIN-протокола. Опишите:
+    <ul>
+      <li>Где размещается compute (API-сервер, encoding-worker)?</li>
+      <li>Где хранятся видеофайлы (исходники и транскодированные версии)?</li>
+      <li>Как контент раздаётся конечным пользователям?</li>
+      <li>Как организован fallback при недоступности DePIN-ноды?</li>
+    </ul>
+    Оформите как текстовую схему или список с объяснением выбора каждого компонента.
+    </li>
+    <li><strong>Задание 3:</strong> Напишите GH Actions step, который после прогона
+    Playwright-тестов:
+    <ul>
+      <li>Загружает HTML-отчёт (<code>./playwright-report/</code>) в AIOZ W3S
+      через AWS CLI с кастомным endpoint (<code>https://s3.w3s.link</code>)</li>
+      <li>Формирует публичную ссылку на отчёт</li>
+      <li>Выводит ссылку в GitHub Step Summary через <code>$GITHUB_STEP_SUMMARY</code></li>
+      <li>Использует секреты <code>AIOZ_ACCESS_KEY</code> и <code>AIOZ_SECRET_KEY</code>
+      из GitHub Secrets</li>
+    </ul>
+    </li>
+  </ol>
+</div>
+
+<hr>
+
+    <div class="lesson-nav">
+      <a href="../9-4/index.html">← Предыдущий урок</a>
+      <a href="../10-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

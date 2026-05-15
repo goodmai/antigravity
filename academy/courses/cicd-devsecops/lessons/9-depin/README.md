@@ -321,6 +321,94 @@ multi-provider + fallback на централизованного провайд
 - [ ] Баланс escrow (AKT/USDC/FLUX) под мониторингом + авто-topup.
 - [ ] Flux/Akash подписка/lease имеет renew-автоматизацию (не истечёт молча).
 
+---
+
+## 9.5 · Конкурентная среда DePIN: Akash vs AIOZ и экосистема
+
+**Канон:** [AIOZ Network docs](https://docs.aioz.network),
+[AIOZ W3S docs](https://docs.w3s.link),
+[Render docs](https://docs.rendernetwork.com),
+[Golem docs](https://docs.golem.network),
+[Gensyn docs](https://docs.gensyn.ai).
+
+Рынок DePIN фрагментирован. Akash — «AWS EC2» (контейнерный compute);
+AIOZ Network — «AWS S3 + Cloudflare» (хранение + CDN + edge AI inference).
+
+### Полный конкурентный анализ
+
+| Протокол | Ниша | Токен | Ключевое отличие |
+|---|---|---|---|
+| **Akash** | General compute (CPU/GPU) | AKT | SDL + reverse-auction, Cosmos SDK, нет egress-fee |
+| **AIOZ** | IaaS + CDN | AIOZ | W3S (S3-совместимое) + W3AI + W3IPFS; EVM + IBC |
+| **Render** | GPU rendering / AI inference | RNDR | Blender/GPU-рендеринг; Apple Metal интеграция |
+| **Golem** | P2P compute marketplace | GLM | Python-SDK (yapapi); requestor/provider модель; Ethereum |
+| **Flux** | Web3-инфраструктура | FLUX | HA ≥3 нод; FluxOS + FDM (LB+SSL) |
+| **iExec** | Confidential compute (TEE) | RLC | Intel SGX + TEE; GDPR-friendly workloads |
+| **Gensyn** | AI training | GEN | Proof-of-Learning — верифицируемое ML-обучение |
+
+### AIOZ Network Architecture
+
+AIOZ — Layer-1 блокчейн (EVM + Cosmos IBC) с тремя продуктами:
+
+- **W3S** — S3-compatible object storage. Объекты → CID → глобальная сеть нод.
+  Работает с AWS CLI через `--endpoint-url https://s3.w3s.link`.
+- **W3AI** — Edge AI inference. Запросы маршрутизируются к ближайшей/наименее
+  загруженной ноде: `L_min = min_{i∈N}(d(n_i, u) + δ_i)`.
+- **W3IPFS** — Decentralized hosting для NFT-метаданных, dApps, статики.
+
+### Математическая модель CDN-эффективности
+
+```
+L_min = min_{i ∈ N}(d(n_i, u) + δ_i)
+```
+
+где `d(n_i, u)` — RTT от ноды до пользователя, `δ_i` — нагрузка ноды.
+Перегруженная ближняя нода может проиграть незагруженной дальней.
+
+### Akash vs AIOZ: когда что выбирать
+
+| Критерий | Akash | AIOZ |
+|---|---|---|
+| Тип нагрузки | Container compute | Storage + CDN + edge AI |
+| AWS-аналог | EC2 / EKS | S3 + CloudFront |
+| API | SDL (YAML), akash CLI | S3-compatible REST, AWS CLI |
+| Идеален для | Микросервисы, K8s, CI/CD | Медиа, CDN, стриминг, edge AI |
+
+### AIOZ W3S — S3-compatible пример
+
+```bash
+aws configure set aws_access_key_id $AIOZ_KEY
+aws configure set aws_secret_access_key $AIOZ_SECRET
+
+# Upload
+aws s3 cp ./test-report.html s3://my-bucket/reports/test-report.html \
+  --endpoint-url https://s3.w3s.link
+
+# Sync директорию
+aws s3 sync ./playwright-report/ s3://my-bucket/playwright/ \
+  --endpoint-url https://s3.w3s.link
+```
+
+### Гибридная архитектура (Akash compute + AIOZ storage)
+
+```yaml
+# deploy.yml — Akash SDL
+services:
+  api:
+    image: ghcr.io/myorg/api@sha256:abc...
+    env:
+      - STORAGE_ENDPOINT=https://s3.w3s.link   # AIOZ W3S
+      - STORAGE_BUCKET=my-artifacts
+    expose:
+      - port: 8080
+        to: [{ global: true }]
+```
+
+Akash обрабатывает запросы → результаты сохраняются в AIOZ W3S → пользователи
+получают файлы напрямую из AIOZ CDN без egress-fee на обеих сторонах.
+
+---
+
 ## Лабы модуля
 
 - [Lab 25 — Akash deploy + IPFS artifacts](../../labs/25-akash-ipfs/)
