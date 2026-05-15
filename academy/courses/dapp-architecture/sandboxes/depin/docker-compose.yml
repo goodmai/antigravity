@@ -1,0 +1,34 @@
+version: "3.8"
+# Sandbox: depin — DePIN без оплаты.
+# Akash CLI (валидация/построение SDL-деплоя офлайн) +
+# два libp2p-узла (Kubo) для демонстрации p2p pubsub из урока 3.8.
+
+services:
+  akash:
+    image: ghcr.io/akash-network/node:0.34.1
+    entrypoint: ["sh", "-c", "sleep infinity"]
+    working_dir: /work
+    volumes:
+      - ./deploy.yaml:/work/deploy.yaml:ro
+
+  peer-a:
+    image: ipfs/kubo:v0.30.0
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "5011:5001"   # API peer-a
+    volumes:
+      - peer-a:/data/ipfs
+
+  peer-b:
+    image: ipfs/kubo:v0.30.0
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "5012:5001"   # API peer-b
+    volumes:
+      - peer-b:/data/ipfs
+
+volumes:
+  peer-a: {}
+  peer-b: {}

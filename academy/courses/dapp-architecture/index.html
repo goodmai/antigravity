@@ -239,6 +239,33 @@
       </a>
     </div>
 
+    <div class="module-h">
+      <h2>Sandboxes</h2>
+      <span class="module-meta">4 изолированных стенда · docker compose up · без облака и газа</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./sandboxes/classic/README.md">
+        <div class="card-head"><span class="num">classic</span><span class="badge-mini">Модуль 1</span></div>
+        <h3>API + PostgreSQL + Redis + Kafka + MinIO</h3>
+        <p>Классические кирпичи без облака: state, кэш, событийность, S3-хранилище.</p>
+      </a>
+      <a class="card" href="./sandboxes/gcp-lite/README.md">
+        <div class="card-head"><span class="num">gcp-lite</span><span class="badge-mini">Модуль 2</span></div>
+        <h3>Firestore + Pub/Sub + fake-gcs эмуляторы</h3>
+        <p>Паттерны Google Cloud без счёта и сервис-аккаунтов, офлайн.</p>
+      </a>
+      <a class="card" href="./sandboxes/chain/README.md">
+        <div class="card-head"><span class="num">chain</span><span class="badge-mini">Модуль 3</span></div>
+        <h3>Anvil + IPFS Kubo + Graph Node</h3>
+        <p>Блокчейн + контент-адресуемое хранилище + индексация локально.</p>
+      </a>
+      <a class="card" href="./sandboxes/depin/README.md">
+        <div class="card-head"><span class="num">depin</span><span class="badge-mini">Модуль 3</span></div>
+        <h3>Akash CLI + libp2p demo</h3>
+        <p>DePIN-деплой и p2p pubsub без оплаты AKT и тестнетов.</p>
+      </a>
+    </div>
+
     <div class="note">
       <strong>Критерий завершения.</strong> C4-диаграммы (Context+Container)
       по каждому из 3 модулей, ≥5 ADR по спорным решениям и

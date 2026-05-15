@@ -1,0 +1,60 @@
+version: "3.8"
+# Sandbox: chain — блокчейн + хранилище + индексация локально, без газа.
+# Compute/State (Anvil — локальная EVM), Storage (IPFS Kubo),
+# Observability/индекс (Graph Node + Postgres под него).
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    entrypoint: ["anvil"]
+    command: ["--host", "0.0.0.0", "--chain-id", "31337", "--block-time", "2"]
+    ports: ["8545:8545"]
+
+  ipfs:
+    image: ipfs/kubo:v0.30.0
+    ports:
+      - "5001:5001"   # API
+      - "8081:8080"   # gateway (8080 занят graph-node)
+    volumes:
+      - ipfs-data:/data/ipfs
+
+  graph-postgres:
+    image: postgres:16.4-alpine
+    environment:
+      POSTGRES_USER: graph
+      POSTGRES_PASSWORD: graph
+      POSTGRES_DB: graph
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      - graph-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graph"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  graph-node:
+    image: graphprotocol/graph-node:v0.35.1
+    depends_on:
+      anvil:
+        condition: service_started
+      ipfs:
+        condition: service_started
+      graph-postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"   # GraphQL HTTP
+      - "8020:8020"   # JSON-RPC (deploy subgraph)
+      - "8030:8030"   # subgraph indexing status
+    environment:
+      postgres_host: graph-postgres
+      postgres_user: graph
+      postgres_pass: graph
+      postgres_db: graph
+      ipfs: "ipfs:5001"
+      ethereum: "local:http://anvil:8545"
+      GRAPH_LOG: info
+
+volumes:
+  ipfs-data: {}
+  graph-pg: {}
