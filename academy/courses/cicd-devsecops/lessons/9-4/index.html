@@ -169,7 +169,36 @@ sphnctl deployment get &lt;id&gt;              # URL + статус
 ICL ≈ SDL; для тяжёлого AI-backend — топ, чистый frontend дешевле отдать
 через Fleek.</p>
 
-<h2>Матрица выбора</h2>
+<h2>Реальные сценарии использования</h2>
+
+<p>Прежде чем смотреть на матрицу — четыре конкретных кейса, где каждый протокол
+выглядит наиболее органично:</p>
+
+<h3>Akash: E-commerce стартап без egress-fee</h3>
+<p>Node.js API (Express, 3 реплики) + React SPA (nginx) деплоятся в одном SDL.
+Трафик исходит от пользователей в ~5 странах; egress в AWS обошёлся бы
+$200+/мес, в Akash — <strong>$0</strong>. Стартап экономит ~$180/мес только
+на исходящем трафике при 500 GB/мес.</p>
+
+<h3>Fleek: DAO публикует governance portal</h3>
+<p>Статический SPA (React + Vite) деплоится на IPFS с ENS-доменом
+(<code>dao.eth</code>). Члены DAO голосуют on-chain; фронтенд цензуро-устойчив
+(нет единого хоста), адрес меняется только при новом релизе. Fleek обеспечивает
+авто-pinning + CDN + ENS-обновление в одной командой <code>fleek sites deploy</code>.</p>
+
+<h3>Flux: GameFi-проект с гарантированным HA</h3>
+<p>Matchmaking backend (WebSocket, stateful сессии) требует ≥3 реплик в разных
+дата-центрах. Flux запускает каждое приложение на минимум 3 нодах
+с автоматическим load-balancing через FDM — без настройки ALB/ingress.
+При падении одной ноды Flux автоматически переносит трафик на оставшиеся.</p>
+
+<h3>Spheron: ML-команда запускает LLM inference</h3>
+<p>Команда из 5 человек разрабатывает inference endpoint для LLaMA-3 70B.
+GPU (A100 80GB) на AWS стоит $3.67/h on-demand; на Spheron — ~$1.2/h.
+ICL-манифест идентичен SDL Akash, миграция заняла 2 часа.
+При 8 ч/день разработки экономия ~$60/мес на одном инженере.</p>
+
+
 
 <div class="table-wrap"><table>
 <tr><th>Протокол</th><th>Backend</th><th>Frontend</th><th>Оплата</th><th>Брать когда</th></tr>
@@ -183,6 +212,71 @@ ICL ≈ SDL; для тяжёлого AI-backend — топ, чистый fronten
 <p><strong>Правило:</strong> frontend → Fleek (DX + ENS); универсальный
 backend → Akash; always-on HA-стек → Flux; GPU/AI-backend → Spheron.
 В проде — multi-provider + fallback на централизованного провайдера (см. 9.3).</p>
+
+<h2>5. AIOZ Network — IaaS + CDN (пятый игрок матрицы)</h2>
+
+<p><strong>Назначение:</strong> AIOZ — это Layer-1 блокчейн (EVM + Cosmos IBC) с тремя
+продуктами: объектное хранилище <strong>W3S</strong> (S3-compatible), edge AI-inference
+<strong>W3AI</strong> и децентрализованный IPFS-хостинг <strong>W3IPFS</strong>.
+Аналог комбинации AWS S3 + Cloudflare, но без централизации.</p>
+
+<p><strong>Три продукта AIOZ:</strong></p>
+<ul>
+  <li><strong>W3S (Web3 Storage)</strong> — S3-совместимое объектное хранилище. Файлы
+  хранятся в глобальной сети нод с Content-ID (CID). Работает с AWS CLI через
+  кастомный endpoint.</li>
+  <li><strong>W3AI</strong> — Edge AI inference. Запросы к ML-моделям маршрутизируются
+  на ближайший физически узел сети, снижая latency для конечного пользователя.</li>
+  <li><strong>W3IPFS</strong> — Decentralized hosting для NFT-метаданных, dApp-фронтендов,
+  статических сайтов. Ближе к Fleek по назначению.</li>
+</ul>
+
+<p><strong>Когда выбрать AIOZ вместо других:</strong></p>
+<ul>
+  <li>Стриминг медиа и большие медиа-архивы (видео, аудио) — CDN-оптимизация нода → пользователь.</li>
+  <li>AI inference с требованием низкой latency — W3AI маршрутизирует на edge-ноду.</li>
+  <li>Когда нужна S3-совместимость без AWS (команда знает AWS CLI — барьер входа минимальный).</li>
+  <li>Разработчики уже используют IPFS — W3IPFS = знакомый интерфейс с токен-инсентивами.</li>
+</ul>
+
+<p><strong>Отличие от Akash:</strong> Akash = «serverless/cloud instances» (контейнерная
+оркестрация, compute). AIOZ = «IaaS + CDN» (хранение, раздача контента, edge inference).
+Оба построены на Cosmos SDK, оба без vendor lock-in, но занимают разные ниши.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Протокол</th><th>Backend</th><th>Frontend</th><th>Storage/CDN</th><th>Оплата</th><th>Брать когда</th></tr>
+<tbody>
+<tr><td><strong>Akash</strong></td><td>✅ любой контейнер</td><td>✅ nginx/static</td><td>—</td><td>AKT/USDC escrow, reverse-auction</td><td>универсальный compute, нет egress-fee</td></tr>
+<tr><td><strong>Fleek</strong></td><td>⚠️ только edge-functions</td><td>✅✅ IPFS+ENS+CDN</td><td>IPFS pinning</td><td>подписка/credits</td><td>Jamstack/SPA + ENS</td></tr>
+<tr><td><strong>Flux</strong></td><td>✅ Docker, HA ≥3</td><td>✅ Docker/static</td><td>Flux Storage</td><td>FLUX, expire</td><td>always-on HA без облака</td></tr>
+<tr><td><strong>Spheron</strong></td><td>✅✅ GPU/AI</td><td>✅ контейнер</td><td>—</td><td>USDC escrow, per-second</td><td>GPU/AI-нагрузки</td></tr>
+<tr><td><strong>AIOZ</strong></td><td>⚠️ W3AI edge inference</td><td>✅ W3IPFS</td><td>✅✅ W3S (S3-compatible CDN)</td><td>AIOZ токен</td><td>медиа, большие файлы, edge AI, S3-замена</td></tr>
+</tbody>
+</table></div>
+
+<div class="callout callout-task">
+  <h3>Задания к уроку</h3>
+  <ol>
+    <li><strong>Задание 1:</strong> Для каждого из четырёх сценариев выберите подходящий
+    DePIN-протокол и обоснуйте выбор (2–3 предложения):
+    <ul>
+      <li>Стриминговая видеоплатформа (100 GB видео/день, глобальная аудитория)</li>
+      <li>DAO-фронтенд с ENS-доменом (SPA, требование цензуро-устойчивости)</li>
+      <li>AI inference API (LLaMA 70B, требование latency &lt; 500 мс)</li>
+      <li>Stateful база данных PostgreSQL (требование persistent storage + HA)</li>
+    </ul>
+    </li>
+    <li><strong>Задание 2:</strong> Рассчитайте стоимость деплоя на месяц (720 ч) для
+    конфигурации 2 CPU / 4 GB RAM / 100 GB SSD:
+    <ul>
+      <li>Akash: по текущим ценам в <a href="https://console.akash.network" target="_blank" rel="noopener">Akash Console</a> (ориентир: ≈$15–20/мес)</li>
+      <li>AWS t3.medium (2 vCPU / 4 GB): по текущим <a href="https://aws.amazon.com/ec2/pricing/on-demand/" target="_blank" rel="noopener">on-demand ценам</a> (ориентир: ≈$30/мес)</li>
+      <li>Добавьте egress-стоимость: 50 GB исходящего трафика (Akash — бесплатно, AWS — $0.09/GB)</li>
+      <li>Итого: какова реальная экономия с учётом egress?</li>
+    </ul>
+    </li>
+  </ol>
+</div>
 
 <hr>
 
@@ -209,7 +303,7 @@ backend → Akash; always-on HA-стек → Flux; GPU/AI-backend → Spheron.
 
     <div class="lesson-nav">
       <a href="../9-3/index.html">← Предыдущий урок</a>
-      <a href="../10-1/index.html" class="next">Следующий урок →</a>
+      <a href="../9-5/index.html" class="next">Следующий урок →</a>
     </div>
   </div>
 

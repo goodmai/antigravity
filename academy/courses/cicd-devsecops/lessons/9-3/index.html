@@ -56,6 +56,126 @@
 </ul>
 <p>а не в env-var каждой среды.</p>
 
+<h2>Расширенный workflow с мониторингом escrow-баланса</h2>
+
+<pre class="code-block"><code class="language-yaml">jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check Akash escrow balance
+        id: escrow-check
+        run: |
+          BALANCE=$(akash query deployment get \
+            --owner $WALLET_ADDRESS \
+            --dseq $DEPLOYMENT_SEQ \
+            --output json | jq -r '.escrow_account.balance.amount')
+          # Переводим из uakt в AKT (делим на 1_000_000)
+          AKT=$(echo "scale=4; $BALANCE / 1000000" | bc)
+          echo "balance=$AKT" >> $GITHUB_OUTPUT
+          echo "Escrow balance: $AKT AKT"
+
+      - name: Alert if balance low
+        if: ${{ steps.escrow-check.outputs.balance < 0.5 }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d text="⚠️ Akash escrow balance LOW: ${{ steps.escrow-check.outputs.balance }} AKT — пополните deployment!"
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Deploy to Akash (primary)
+        id: akash
+        continue-on-error: true
+        run: |
+          akash tx deployment create deploy.yml --from $WALLET --gas auto
+          curl --fail https://akash-deployment.example.com/health
+
+      - name: Fallback to AWS EKS
+        if: steps.akash.outcome == 'failure'
+        run: |
+          aws eks update-kubeconfig --name my-cluster
+          kubectl apply -f k8s/
+</code></pre>
+
+<h2>Кейс: SaaS-продукт экономит 60% на compute</h2>
+
+<p>Реальная архитектура: Akash как <strong>primary</strong> (дешёвый compute),
+AWS EKS как <strong>fallback</strong> (надёжность). При 720 часах в месяц:</p>
+
+<ul>
+  <li>Akash: ~$58/мес (8 CPU / 16 GB) vs AWS: ~$245/мес — <strong>экономия 76%</strong>.</li>
+  <li>Фактическая uptime Akash ~99.5% → 3.6 ч/мес downtime.</li>
+  <li>При fallback на EKS эти 3.6 ч стоят ~$1.2 → итого ~$59.2/мес.</li>
+  <li>Vs чистый AWS: $245/мес → <strong>реальная экономия ~60%</strong>.</li>
+</ul>
+
+<h3>Bash-скрипт мониторинга баланса AKT с Telegram-алертом</h3>
+
+<pre class="code-block"><code class="language-bash">#!/usr/bin/env bash
+# monitor-escrow.sh — запускать через cron каждые 15 минут
+
+set -euo pipefail
+
+WALLET="${AKASH_WALLET_ADDRESS}"
+DSEQ="${AKASH_DEPLOYMENT_SEQ}"
+MIN_BALANCE=0.5   # AKT — порог для алерта
+TG_TOKEN="${TELEGRAM_BOT_TOKEN}"
+TG_CHAT="${TELEGRAM_CHAT_ID}"
+
+# Получаем баланс escrow
+RAW=$(akash query deployment get \
+  --owner "$WALLET" \
+  --dseq "$DSEQ" \
+  --output json 2>/dev/null)
+
+if [ $? -ne 0 ]; then
+  echo "ERROR: deployment not found or Akash RPC unavailable"
+  exit 1
+fi
+
+BALANCE_UAKT=$(echo "$RAW" | jq -r '.escrow_account.balance.amount // "0"')
+BALANCE_AKT=$(echo "scale=6; $BALANCE_UAKT / 1000000" | bc)
+
+echo "Current escrow balance: $BALANCE_AKT AKT"
+
+# Сравниваем с порогом (bc возвращает 1 если выражение истинно)
+IS_LOW=$(echo "$BALANCE_AKT < $MIN_BALANCE" | bc -l)
+
+if [ "$IS_LOW" -eq 1 ]; then
+  MSG="⚠️ *Akash Escrow Alert*%0A"
+  MSG+="Balance: \`${BALANCE_AKT} AKT\`%0A"
+  MSG+="Threshold: \`${MIN_BALANCE} AKT\`%0A"
+  MSG+="Action required: top up deployment \`${DSEQ}\`"
+
+  curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+    -d "chat_id=${TG_CHAT}" \
+    -d "text=${MSG}" \
+    -d "parse_mode=Markdown" \
+    > /dev/null
+
+  echo "ALERT sent to Telegram"
+  exit 2  # non-zero для cron-мониторинга
+fi
+
+echo "Balance OK"
+</code></pre>
+
+<div class="callout callout-task">
+  <h3>Задания к уроку</h3>
+  <ol>
+    <li><strong>Задание 1:</strong> Расширьте GH Actions workflow из урока: добавьте шаг
+    проверки баланса escrow через <code>akash query deployment get</code> и
+    Telegram-уведомление при balance &lt; 0.5 AKT. Шаг должен выполняться
+    <em>до</em> деплоя и блокировать его при нулевом балансе
+    (используйте <code>if: steps.escrow.outputs.balance &gt; 0</code>).</li>
+    <li><strong>Задание 2:</strong> Объясните, почему mTLS-сертификаты нельзя хранить
+    как GitHub Secrets в двух разных Environments (например, <code>akash-prod</code>
+    и <code>aws-prod</code>) — и предложите решение через HashiCorp Vault из
+    модуля 5 (укажите конкретный auth-метод Vault и путь к секрету).</li>
+  </ol>
+</div>
+
 <hr>
 
 

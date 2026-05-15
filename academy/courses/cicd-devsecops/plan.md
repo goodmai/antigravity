@@ -1,6 +1,6 @@
 # CI/CD DevSecOps Mastery — План и структура курса
 
-> **Версия:** 1.2 · **Длительность:** 12 модулей · 62 урока · 24 лабы · 10 sandbox-сред
+> **Версия:** 1.3 · **Длительность:** 12 модулей · 63 урока · 24 лабы · 10 sandbox-сред
 > **Уровень:** Intermediate → Senior · **Язык:** RU (с EN-терминологией)
 > **Подход:** «секьюрити с первой строки» (shift-left), всё проверяется в песочнице
 > прежде, чем уйдёт в продакшн.
@@ -164,14 +164,15 @@
 | 8.5 | FinOps в CI/CD | infracost в PR, бюджеты на dev-окружения, idle-detection | — |
 | 8.6 | Multi-cloud DR | active-passive vs active-active, RTO/RPO, traffic-shifting | — |
 
-### Module 9 · DePIN & Decentralized Infrastructure (4 урока)
+### Module 9 · DePIN & Decentralized Infrastructure (5 уроков)
 
 | # | Урок | Что внутри | Лаба |
 |---|------|-----------|------|
 | 9.1 | DePIN: модель и экономика | Akash, Render, IO.net, Helium, Filecoin, Arweave | — |
 | 9.2 | Деплой в Akash + хранение артефактов на Filecoin/IPFS | SDL-манифесты, escrow, web3.storage | Lab 25 · публикация контейнера в Akash + артефакт в IPFS |
 | 9.3 | Гибрид: GH Actions → Akash, fallback на AWS | стоимость и латентность, threat model доверия к ноде | — |
-| 9.4 | DePIN-протоколы для backend & frontend | Akash / Fleek / Flux / Spheron — установка, запуск, оплата, особенности, матрица выбора | — |
+| 9.4 | DePIN-протоколы для backend & frontend | Akash / Fleek / Flux / Spheron / AIOZ — установка, запуск, оплата, особенности, матрица выбора | — |
+| 9.5 | Конкурентная среда DePIN: Akash vs AIOZ | Render, Golem, Flux, iExec, Gensyn vs Akash; AIOZ W3S/W3AI/W3IPFS; математическая модель CDN; матрица выбора | — |
 
 ### Module 10 · Edge: VPS, VPN, Landing, Mail (4 урока)
 

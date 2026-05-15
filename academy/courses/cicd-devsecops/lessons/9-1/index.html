@@ -70,6 +70,67 @@
 <tr><td>Network split / censorship</td><td>multi-provider deploy + fail-over</td></tr>
 </table></div>
 
+<h2>Конкурентная среда: Akash и альтернативы</h2>
+
+<p>Akash — это не единственный DePIN-протокол для compute. Рынок фрагментирован:
+каждый игрок занимает нишу по типу нагрузки, модели доверия и способу монетизации.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Протокол</th><th>Ниша</th><th>Токен</th><th>Ключевое отличие</th></tr>
+<tbody>
+<tr><td><strong>Akash</strong></td><td>General compute (CPU/GPU)</td><td>AKT</td><td>SDL + reverse-auction, Cosmos SDK, нет egress-fee</td></tr>
+<tr><td><strong>Render</strong></td><td>GPU rendering / AI inference</td><td>RNDR</td><td>Ориентирован на Blender/GPU-рендеринг; интеграция с Apple Metal</td></tr>
+<tr><td><strong>Golem</strong></td><td>P2P compute marketplace</td><td>GLM</td><td>Python-SDK (yapapi), задачи дробятся на requestor/provider; Ethereum-based</td></tr>
+<tr><td><strong>Flux</strong></td><td>Web3-инфраструктура (always-on)</td><td>FLUX</td><td>HA ≥3 нод из коробки, FluxOS + FDM, Docker-compose spec</td></tr>
+<tr><td><strong>iExec</strong></td><td>Confidential compute (TEE)</td><td>RLC</td><td>Intel SGX + Trusted Execution Environment; GDPR-friendly рабочие нагрузки</td></tr>
+<tr><td><strong>Gensyn</strong></td><td>AI training (Proof-of-Compute)</td><td>GEN</td><td>Proof-of-Learning: верифицируемое обучение ML-модели без доверия к ноде</td></tr>
+</table></div>
+
+<p><strong>Когда выбрать что:</strong></p>
+<ul>
+  <li><strong>Akash</strong> — универсальный микросервис, K8s-style контейнеры, нет egress-fee.</li>
+  <li><strong>Render</strong> — GPU-рендеринг анимации, тяжёлые 3D/VFX-задачи.</li>
+  <li><strong>Golem</strong> — batch-задачи с Python-SDK, когда нужна дешёвая параллелизация.</li>
+  <li><strong>Flux</strong> — always-on backend с HA без облака и DevOps-команды.</li>
+  <li><strong>iExec</strong> — конфиденциальные вычисления под GDPR/HIPAA (SGX-защита).</li>
+  <li><strong>Gensyn</strong> — ML-обучение с верифицируемым результатом (исследования, DAO).</li>
+</ul>
+
+<h2>Кейс: AI-стартап с 5 000 запросов/сутки выбирает между AWS и DePIN</h2>
+
+<p>Стартап запускает FastAPI-инференс (1 CPU / 2 GB RAM) с пиками нагрузки в
+дневное время. Сравниваем AWS c5.2xlarge vs Akash-эквивалент:</p>
+
+<div class="table-wrap"><table>
+<tr><th>Параметр</th><th>AWS c5.2xlarge</th><th>Akash (эквивалент)</th></tr>
+<tbody>
+<tr><td>CPU / RAM</td><td>8 vCPU / 16 GB</td><td>8 CPU / 16 GB</td></tr>
+<tr><td>Цена/час</td><td>~$0.34/h (on-demand, us-east-1)</td><td>~$0.08/h (reverse-auction)</td></tr>
+<tr><td>Цена/мес (720 h)</td><td>~$245</td><td>~$58</td></tr>
+<tr><td>Egress fee</td><td>$0.09/GB (исходящий трафик)</td><td>$0 (нет egress-fee)</td></tr>
+<tr><td>SLA</td><td>99.99%</td><td>~99.5% (нет гарантий)</td></tr>
+<tr><td>Экономия</td><td>—</td><td><strong>~76% на compute</strong></td></tr>
+</table></div>
+
+<p><strong>Вывод по кейсу:</strong> при 5 000 запросов/сутки и tolerance к редким
+перезапускам (lease-expiry) — DePIN даёт 76% экономии. При требовании SLA 99.99%
+или PCI-DSS compliance — AWS обязателен как минимум для fallback-слоя (см. урок 9.3).</p>
+
+<div class="callout callout-task">
+  <h3>Задания к уроку</h3>
+  <ol>
+    <li><strong>Задание 1:</strong> Перечислите 3 условия, при которых DePIN <em>не</em> подходит
+    для вашего проекта — и обоснуйте по threat model из таблицы выше (привяжите каждое
+    условие к конкретной угрозе).</li>
+    <li><strong>Задание 2:</strong> Составьте threat model для гипотетического DePIN-деплоя:
+    3 угрозы + контрмера каждой по методологии STRIDE из урока 0.2 (укажите букву STRIDE
+    для каждой угрозы: S/T/R/I/D/E).</li>
+    <li><strong>Задание 3:</strong> Выберите одного конкурента Akash из таблицы
+    (Render / Golem / Flux / iExec / Gensyn) — опишите конкретный use case вашего
+    проекта, где этот протокол предпочтительнее Akash, и объясните почему.</li>
+  </ol>
+</div>
+
 <hr>
 
 
