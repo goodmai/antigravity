@@ -140,6 +140,33 @@
 <h1>Lesson 14: Prompt Engineering for Claude Code</h1>
 <p>Writing effective prompts for an agentic coding assistant is different from prompting a chat model. Tasks need to be decomposable, instructions need to be precise, and context needs to be focused.</p>
 
+<h2>The CADE Formula</h2>
+<p>CADE is a four-part structure for writing prompts that consistently produce accurate, contextually appropriate results. Each component eliminates a different class of ambiguity.</p>
+<ul>
+  <li><strong>C — Context:</strong> What is the system, and what is its role? <em>"We have a FastAPI backend monolith backed by MongoDB. This service handles payments only."</em></li>
+  <li><strong>A — Action:</strong> What exactly should Claude do? <em>"Refactor the Stripe integration into a separate async adapter class."</em></li>
+  <li><strong>D — Details:</strong> What are the non-negotiable constraints? <em>"Must follow OWASP security standards. No blocking I/O calls. Secrets via environment variables only."</em></li>
+  <li><strong>E — Examples:</strong> What does the target pattern look like? <em>"Structure it like the repository pattern in <code>src/repositories/user_repo.py</code>."</em></li>
+</ul>
+<p>Assembling all four parts into a single prompt gives Claude everything it needs to start without asking clarifying questions:</p>
+<pre><code>&gt; Context: FastAPI monolith + MongoDB, payments service only.
+  Action: Refactor the Stripe integration into a separate async adapter class.
+  Details: OWASP compliant, no blocking I/O, secrets from env vars only.
+  Examples: Follow the pattern in src/repositories/user_repo.py</code></pre>
+
+<blockquote>
+  <strong>Anti-pattern — Vibe Coding:</strong> Short, vague prompts like "add auth" or "make it faster" force Claude to fill in missing variables with assumptions. Those assumptions are often wrong, frequently insecure, and always inconsistent with the rest of your codebase. CADE replaces assumptions with specifications.
+</blockquote>
+
+<h2>The Three C Rule</h2>
+<p>Every effective Claude Code prompt satisfies three properties simultaneously:</p>
+<ul>
+  <li><strong>Clear</strong> — grammatically unambiguous. One reading of the sentence, not two.</li>
+  <li><strong>Complete</strong> — contains all variables Claude needs to start. No implicit knowledge required from the developer's head.</li>
+  <li><strong>Contextual</strong> — accounts for the current state of the branch. Names the files that are relevant, references the last thing that changed, notes any constraints imposed by work already in progress.</li>
+</ul>
+<p>A prompt that fails even one of these properties will either produce a wrong result on the first pass or require a follow-up to resolve the missing information — which is slower than writing the complete prompt upfront.</p>
+
 <h2>Task Decomposition</h2>
 <p>Don't ask Claude to do everything in one prompt. Break complex tasks into steps:</p>
 <pre><code># Bad
@@ -155,6 +182,17 @@
 <pre><code>&gt; Before making any changes, explain your plan for refactoring this function.
   List the steps you'll take and any risks you see.</code></pre>
 <p>This "plan first" approach surfaces misunderstandings before code is changed.</p>
+
+<h2>Plan Mode (Shift+Tab)</h2>
+<p>Pressing <kbd>Shift+Tab</kbd> twice activates Plan Mode. In Plan Mode, Claude analyzes the codebase and generates a detailed, step-by-step plan for the requested task — but makes <em>no file changes</em>. The plan is presented for your review before any action is taken.</p>
+<p>Plan Mode is the correct starting point for any task that touches system architecture, spans multiple modules, or has non-obvious downstream effects. It lets you catch logical errors, architectural mismatches, or overlooked dependencies before they become committed code — which is significantly cheaper to fix than rolling back changes after the fact.</p>
+<p>Use Plan Mode as a default gate for:</p>
+<ul>
+  <li>Projects with real users where an incorrect change has operational consequences</li>
+  <li>Tasks involving complex external integrations (payment processors, identity providers, message queues)</li>
+  <li>Any surface with a significant attack area — auth, permissions, data access layers</li>
+</ul>
+<p>After reviewing the plan, type <strong>proceed</strong> to execute it, or refine specific steps before Claude acts.</p>
 
 <h2>Precise Specifications</h2>
 <ul>

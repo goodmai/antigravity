@@ -143,10 +143,23 @@
 <h2>Understanding the Context Window</h2>
 <p>Claude Sonnet 4.6 supports a 200,000-token context window. At roughly 750 words per 1,000 tokens, that's about 150,000 words — enough for a long conversation or a moderately large codebase. But context has a cost: processing more tokens is slower and more expensive.</p>
 
+<h2>Why Context Degrades</h2>
+<p>As a session grows, quality degrades — not because Claude becomes less capable, but because of how the Transformer attention mechanism works. Attention is distributed across every token in the context window. When the window fills up, earlier tokens receive proportionally less weight. The agent starts forgetting original instructions, hallucinating syntax from similar-but-wrong patterns it has seen earlier in the session, and ignoring established conventions that were established early on.</p>
+<p>This applies to both context window sizes available today: the standard <strong>200,000 token</strong> window and the <strong>1 million token</strong> enterprise window. A larger window delays the problem but does not eliminate it — dilution is proportional to window utilization, not absolute token count. The practical consequence is that long, uninterrupted sessions produce worse results than shorter, focused sessions with deliberate context resets.</p>
+
 <h2>The /compact Command</h2>
 <p>When your session grows long, use <code>/compact</code>:</p>
 <pre><code>/compact</code></pre>
 <p>Claude summarizes the conversation history, compressing it significantly while preserving key facts, decisions, and file states. The summary replaces the raw history in context.</p>
+
+<h2>Cross-Session Continuity with session_notes.md</h2>
+<p>A terminal restart or the end of a working day wipes conversational context entirely. The workaround is to make context persistence explicit before you close the session.</p>
+<p>Before ending a session, ask Claude to write its key findings, open questions, and unresolved tasks to a file:</p>
+<pre><code>&gt; Before we stop: write a summary of what we found, what's still broken,
+  and the next logical step to session_notes.md</code></pre>
+<p>At the start of the next session, restore context immediately with the <code>@</code> file reference syntax:</p>
+<pre><code>&gt; @session_notes.md — continue from here</code></pre>
+<p>This technique is especially valuable after a terminal crash, when picking up mid-task the following morning, or when handing off work to another developer. The file acts as a structured checkpoint that costs almost no tokens to load and eliminates the need to re-explain what was already established.</p>
 
 <h2>CLAUDE.md Scoping</h2>
 <p>CLAUDE.md files are injected at session start. Keep them focused:</p>

@@ -162,6 +162,24 @@
   <li><strong>Current focus</strong> — what you're working on right now</li>
 </ul>
 
+<h2>File Size Discipline</h2>
+<p>The optimal CLAUDE.md is around <strong>60 lines</strong>. The hard limit is <strong>300 lines</strong>. Beyond that, the agent starts selectively ignoring rules — especially those near the end of the document. The reason: Claude Code's own system prompt already consumes a significant portion of the instruction budget, so a bloated CLAUDE.md competes with the agent's core directives.</p>
+<p>The governing principle is to include only what Claude <em>cannot</em> infer by reading the source code itself. Non-obvious things belong in CLAUDE.md; obvious things do not.</p>
+
+<table>
+  <thead>
+    <tr><th>GOOD to include</th><th>BAD to include (Claude can infer this)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Specific test command: <code>npm run test:unit -- --watch</code></td><td>"We use TypeScript" (visible from any .ts file)</td></tr>
+    <tr><td>Git branch naming convention: <code>feat/&lt;ticket&gt;-&lt;slug&gt;</code></td><td>"Components are in src/components" (obvious from the tree)</td></tr>
+    <tr><td>Non-standard build path: <code>./scripts/compile.sh --env staging</code></td><td>"Use async/await" (visible from the existing code style)</td></tr>
+    <tr><td>Implicit architectural decision: "all external HTTP calls go through <code>src/gateway/</code>"</td><td>"Don't use var" (ESLint config already enforces this)</td></tr>
+  </tbody>
+</table>
+
+<p>For large projects with many subsystems, split rules into a <code>.claude/rules/</code> directory. Each file in that directory covers one domain (e.g., <code>payments.md</code>, <code>auth.md</code>, <code>infrastructure.md</code>). The agent loads them on demand based on the context of the current task, keeping the active instruction set small and relevant.</p>
+
 <h2>Example CLAUDE.md</h2>
 <pre><code># Project: Antigravity Academy
 
