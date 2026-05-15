@@ -1,0 +1,27 @@
+@startuml container-classic
+' C4 Container — проекция «Классика» (урок 1.11).
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Маркетплейс — Containers · Модуль 1 (классика)
+
+Person(buyer, "Покупатель")
+Person(author, "Автор")
+
+System_Boundary(mp, "Маркетплейс") {
+  Container(api, "API", "контейнер", "Слоистая архитектура, use-cases")
+  ContainerDb(pg, "PostgreSQL", "RDBMS", "Истина: заказы, права, балансы")
+  ContainerDb(redis, "Redis", "cache", "Горячие чтения, идемпотентность")
+  ContainerQueue(kafka, "Kafka", "broker", "Событийность, outbox-relay")
+  Container(obj, "Object Storage + CDN", "S3/MinIO", "Медиа работ, presigned URL")
+}
+
+System_Ext(idp, "OAuth 2.1 / OIDC IdP")
+
+Rel(buyer, api, "REST", "HTTPS")
+Rel(author, obj, "Прямая загрузка", "presigned PUT")
+Rel(api, pg, "SQL (ACID)")
+Rel(api, redis, "cache get/set")
+Rel(api, kafka, "publish (outbox)")
+Rel(kafka, api, "consume (идемпотентно)")
+Rel(api, idp, "Authorization Code + PKCE")
+@enduml

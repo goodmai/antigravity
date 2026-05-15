@@ -10,8 +10,9 @@
 архитектурные решения принимались сравнением trade-off, а не по моде.
 
 - 📋 **План и хребет:** [`plan.md`](./plan.md)
-- 📚 **Уроки:** `lessons/` *(наполняются по плану)*
-- 🧱 **Sandboxes:** `sandboxes/` *(classic · gcp-lite · chain · depin)*
+- 📚 **Уроки:** [`lessons/`](./lessons/) *(35 уроков · 3 модуля)* — старт: [урок 1.1](./lessons/1-1/index.html)
+- 🧱 **Sandboxes:** [`sandboxes/`](./sandboxes/) *(classic · gcp-lite · chain · depin)*
+- 📐 **Артефакты:** [`artifacts/`](./artifacts/) *(ADR · C4 · capstone-матрица)*
 
 ## Три проекции одного домена
 

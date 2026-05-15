@@ -1,0 +1,22 @@
+@startuml context
+' C4 Context — общий для всех трёх проекций (урок 1.1).
+' Домен не меняется между модулями — меняется только реализация контейнеров.
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Маркетплейс цифровых работ — System Context
+
+Person(buyer, "Покупатель", "Ищет и покупает цифровые работы")
+Person(author, "Автор", "Публикует работы, получает выплаты")
+Person(admin, "Модератор", "Модерация каталога и споров")
+
+System(marketplace, "Маркетплейс", "Каталог + лента + платежи + медиа")
+
+System_Ext(payments, "Платёжный рельс", "Карта / стейблкоин / on-chain — зависит от проекции")
+System_Ext(idp, "Identity провайдер", "OIDC / Firebase Auth / кошелёк — зависит от проекции")
+
+Rel(buyer, marketplace, "Просмотр, покупка", "HTTPS")
+Rel(author, marketplace, "Публикация работ", "HTTPS")
+Rel(admin, marketplace, "Модерация")
+Rel(marketplace, payments, "Оплата и выплаты")
+Rel(marketplace, idp, "Аутентификация")
+@enduml

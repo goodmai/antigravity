@@ -1,0 +1,27 @@
+@startuml container-gcp
+' C4 Container — проекция «Google Cloud» (урок 2.11). Та же сетка, managed-first.
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Маркетплейс — Containers · Модуль 2 (Google Cloud)
+
+Person(buyer, "Покупатель")
+Person(author, "Автор")
+
+System_Boundary(mp, "Маркетплейс на GCP") {
+  Container(run, "Cloud Run", "managed контейнер", "Stateless, scale-to-zero")
+  ContainerDb(sql, "Cloud SQL / Spanner", "managed RDBMS", "Истина данных")
+  ContainerQueue(ps, "Pub/Sub", "managed broker", "Event-driven, at-least-once")
+  ContainerDb(bq, "BigQuery", "warehouse", "Продуктовая аналитика")
+  Container(gcs, "Cloud Storage + Cloud CDN", "objects", "Медиа, signed URL")
+}
+
+System_Ext(fb, "Firebase Auth + WIF", "Identity юзеров + федерация сервисов")
+
+Rel(buyer, run, "HTTPS", "Global LB + Cloud Armor")
+Rel(author, gcs, "Прямая загрузка", "signed URL")
+Rel(run, sql, "SQL")
+Rel(run, ps, "publish")
+Rel(ps, run, "push (идемпотентно)")
+Rel(ps, bq, "BigQuery subscription")
+Rel(run, fb, "Auth + Workload Identity")
+@enduml
