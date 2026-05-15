@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 31: Docker Best Practices — Rootless, Docker Hub, GHCR | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 25%),
+          radial-gradient(circle at 80% 80%, rgba(129, 140, 248, 0.05) 0%, transparent 25%);
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover { opacity: 0.8; }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+        color: var(--accent-primary);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+        color: var(--text-main);
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li { margin-bottom: 0.5rem; }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+        color: var(--text-dim);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td { background: rgba(30, 41, 59, 0.25); }
+
+      .section-card {
+        background: var(--card-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 24px;
+        margin: 1.5rem 0;
+        transition: border-color 0.2s;
+      }
+
+      .section-card:hover { border-color: var(--accent-primary); }
+
+      .badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        margin-right: 8px;
+      }
+
+      .badge-security { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
+      .badge-registry { background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; }
+      .badge-ci { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.3); color: #818cf8; }
+      .badge-arch { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
+
+      .checklist { list-style: none; padding-left: 0; }
+      .checklist li { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0.75rem; }
+      .checklist li::before {
+        content: "□";
+        color: var(--accent-primary);
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .warning-box {
+        background: rgba(239,68,68,0.08);
+        border: 1px solid rgba(239,68,68,0.25);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 1.5rem 0;
+        color: #fca5a5;
+        font-size: 0.9rem;
+      }
+
+      .tip-box {
+        background: rgba(56,189,248,0.08);
+        border: 1px solid rgba(56,189,248,0.25);
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin: 1.5rem 0;
+        color: #7dd3fc;
+        font-size: 0.9rem;
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+      <main>
+
+        <h1>Урок 31: Docker Best Practices</h1>
+        <p style="font-size:1.1rem; color: var(--text-dim);">
+          Rootless-демон · Docker Hub · GitHub Container Registry · Multiarch · Сканирование CVE · CI/CD
+        </p>
+
+        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
+
+        <!-- Rootless -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">🔒 Rootless Docker</h2>
+          <span class="badge badge-security">Безопасность</span>
+          <p>
+            По умолчанию Docker-демон работает с правами root. Если злоумышленник вырывается из контейнера — он получает root на хосте.
+            Rootless-режим запускает демон внутри пространства имён пользователя: компрометация контейнера не даёт доступ к системе.
+          </p>
+          <pre><code># Установить rootless-инструменты
+dockerd-rootless-setuptool.sh install
+
+# Добавить в ~/.bashrc
+export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock
+
+# Проверить
+docker info | grep -i rootless   # rootless: true</code></pre>
+
+          <table>
+            <thead>
+              <tr><th>Функция</th><th>Обычный Docker</th><th>Rootless</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Публикация порта &lt; 1024</td><td>✅</td><td>❌ (нужен sysctl)</td></tr>
+              <tr><td>overlay2 storage driver</td><td>✅</td><td>✅ (ядро ≥ 5.11)</td></tr>
+              <tr><td>Docker-in-Docker</td><td>✅</td><td>⚠️</td></tr>
+              <tr><td>GPU passthrough</td><td>✅</td><td>✅ (через --device)</td></tr>
+            </tbody>
+          </table>
+
+          <div class="tip-box">
+            💡 В rootless-режиме обязательно добавьте <code>USER nonroot</code> в Dockerfile —
+            процесс внутри контейнера также не будет root.
+          </div>
+        </div>
+
+        <!-- Multi-stage + distroless -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">📦 Multi-stage builds и минимальный образ</h2>
+          <p>
+            Используйте многоступенчатую сборку: первый stage компилирует, второй содержит только рантайм.
+            Distroless-образ не имеет shell — attack surface минимален.
+          </p>
+          <pre><code># Stage 1: сборка
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o server .
+
+# Stage 2: только бинарник
+FROM gcr.io/distroless/static-debian12
+COPY --from=builder /app/server /server
+USER nonroot:nonroot
+ENTRYPOINT ["/server"]</code></pre>
+        </div>
+
+        <!-- Docker Hub -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">🐳 Публикация в Docker Hub</h2>
+          <span class="badge badge-registry">Реестр</span>
+          <pre><code># Аутентификация через Access Token (не пароль!)
+docker login -u &lt;username&gt;
+
+# Тегирование
+docker tag myapp:1.0.0 myusername/myapp:1.0.0
+docker tag myapp:1.0.0 myusername/myapp:latest
+
+# Пуш
+docker push myusername/myapp:1.0.0
+docker push myusername/myapp:latest</code></pre>
+          <div class="warning-box">
+            ⚠️ Никогда не используйте только тег <code>latest</code>. Без версионного тега
+            невозможно откатиться к предыдущему образу.
+          </div>
+        </div>
+
+        <!-- GHCR -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">🐙 GitHub Container Registry (GHCR)</h2>
+          <span class="badge badge-registry">Реестр</span>
+          <p>
+            GHCR хранит образы рядом с кодом на GitHub. Поддерживает гранулярные права
+            (<code>read</code>, <code>write</code>, <code>admin</code>) на уровне пакета.
+          </p>
+          <pre><code># Аутентификация — GITHUB_TOKEN генерируется автоматически в Actions
+echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+
+# Формат тега: ghcr.io/&lt;owner&gt;/&lt;repo&gt;:&lt;tag&gt;
+docker build -t ghcr.io/myorg/myapp:1.0.0 .
+docker push ghcr.io/myorg/myapp:1.0.0</code></pre>
+        </div>
+
+        <!-- Multiarch -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">🏗️ Мультиархитектурные образы (buildx)</h2>
+          <span class="badge badge-arch">Multi-arch</span>
+          <p>
+            Один тег — для <code>linux/amd64</code> и <code>linux/arm64</code>.
+            Образ работает и на x86-сервере, и на Apple M-чипах, и на Raspberry Pi.
+          </p>
+          <pre><code># Создать builder с поддержкой эмуляции
+docker buildx create --name multiarch --driver docker-container --use
+docker buildx inspect --bootstrap
+
+# Собрать и сразу запушить для двух платформ
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --tag ghcr.io/myorg/myapp:1.0.0 \
+  --push \
+  .
+
+# Проверить манифест
+docker buildx imagetools inspect ghcr.io/myorg/myapp:1.0.0</code></pre>
+        </div>
+
+        <!-- CI/CD GitHub Actions -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">⚙️ GitHub Actions — полный пайплайн</h2>
+          <span class="badge badge-ci">CI/CD</span>
+          <pre><code># .github/workflows/docker.yml
+name: Docker Build &amp; Push
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif</code></pre>
+        </div>
+
+        <!-- BuildKit secrets -->
+        <div class="section-card">
+          <h2 style="margin-top:0;">🔑 BuildKit secrets — без утечки токенов</h2>
+          <span class="badge badge-security">Безопасность</span>
+          <pre><code># Dockerfile
+# syntax=docker/dockerfile:1
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+
+# Секрет доступен только во время RUN, не попадает в образ
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
+    npm ci
+
+COPY . .
+CMD ["node", "server.js"]</code></pre>
+          <pre><code># Сборка с секретом
+docker build --secret id=npmrc,src=$HOME/.npmrc -t myapp .</code></pre>
+          <div class="warning-box">
+            ⚠️ Никогда не передавайте секреты через <code>ARG</code> или <code>ENV</code> —
+            они видны в <code>docker history</code> и в слоях образа.
+          </div>
+        </div>
+
+        <!-- Checklist -->
+        <h2>✅ Чеклист лучших практик</h2>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Практика</th><th>Инструмент</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Запускайте демон без root</td><td><code>dockerd-rootless</code></td></tr>
+            <tr><td>2</td><td>Используйте non-root USER в Dockerfile</td><td><code>USER 1001</code></td></tr>
+            <tr><td>3</td><td>Не храните секреты в слоях образа</td><td>BuildKit secrets, <code>.dockerignore</code></td></tr>
+            <tr><td>4</td><td>Минимальный базовый образ</td><td><code>distroless</code>, <code>alpine</code>, <code>scratch</code></td></tr>
+            <tr><td>5</td><td>Multi-stage builds</td><td>Dockerfile stages</td></tr>
+            <tr><td>6</td><td>Тегируйте версией + sha</td><td><code>semver</code>, <code>sha-*</code></td></tr>
+            <tr><td>7</td><td>Сканируйте CVE перед пушем</td><td>Trivy, Docker Scout</td></tr>
+            <tr><td>8</td><td>Мультиарх: amd64 + arm64</td><td><code>docker buildx</code></td></tr>
+            <tr><td>9</td><td>Кэш слоёв в CI</td><td><code>cache-from/to: type=gha</code></td></tr>
+            <tr><td>10</td><td>Read-only filesystem в рантайме</td><td><code>docker run --read-only</code></td></tr>
+          </tbody>
+        </table>
+
+        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
+
+        <h2>📝 Практические задания</h2>
+        <blockquote>Артефакты — в <code>artifacts/lesson-31/</code>.</blockquote>
+
+        <ol>
+          <li>
+            <strong>Rootless setup</strong> — включите rootless Docker.
+            Убедитесь, что <code>docker run hello-world</code> работает без <code>sudo</code>.
+            Зафиксируйте вывод <code>docker info | grep -A5 Security</code>.
+          </li>
+          <li>
+            <strong>Multi-stage Dockerfile</strong> — напишите multi-stage Dockerfile для своего приложения
+            на distroless или alpine. Измерьте разницу в размере (<code>docker images</code>).
+          </li>
+          <li>
+            <strong>Docker Hub push</strong> — запушите образ с тегами <code>v1.0.0</code> и <code>latest</code>.
+            Убедитесь, что он доступен публично.
+          </li>
+          <li>
+            <strong>GHCR через GitHub Actions</strong> — создайте workflow <code>docker.yml</code>,
+            который при пуше в <code>main</code> собирает образ и пушит в GHCR.
+          </li>
+          <li>
+            <strong>Multiarch</strong> — добавьте поддержку <code>linux/amd64,linux/arm64</code>.
+            Проверьте через <code>imagetools inspect</code>.
+          </li>
+          <li>
+            <strong>Сканирование</strong> — добавьте шаг Trivy в pipeline.
+            Загрузите SARIF-отчёт в Security → Code scanning.
+          </li>
+          <li>
+            <strong>BuildKit secrets</strong> — перепишите зависимость с приватным токеном
+            через <code>--mount=type=secret</code>. Убедитесь, что <code>docker history</code> не содержит токена.
+          </li>
+        </ol>
+
+        <h2>Definition of Done</h2>
+        <ul class="checklist">
+          <li>Rootless-режим включён, <code>docker info</code> показывает <code>rootless: true</code>.</li>
+          <li>Образ собран через multi-stage и запушен в Docker Hub с тегом <code>v1.0.0</code>.</li>
+          <li>Тот же образ запушен в GHCR через GitHub Actions.</li>
+          <li>Multiarch-манифест содержит <code>linux/amd64</code> и <code>linux/arm64</code>.</li>
+          <li>Trivy не нашёл CRITICAL CVE в образе.</li>
+          <li>Dockerfile использует <code>USER nonroot</code> и не хранит секреты в слоях.</li>
+        </ul>
+
+        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
+
+        <h2>Что дальше</h2>
+        <p>
+          Урок 14 (Docker &amp; Microservices) закрывает оркестрацию сервисов.<br/>
+          Урок 15 (CI/CD Pipelines) — полный пайплайн GitHub Actions с keyless-аутентификацией в GCP.
+        </p>
+
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>
