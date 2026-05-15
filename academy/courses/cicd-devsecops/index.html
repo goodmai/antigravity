@@ -20,7 +20,7 @@
       <span>CI/CD DevSecOps Mastery 🛡️</span>
     </div>
 
-    <p class="lesson-meta">Course · 13 modules · 60 lessons · 24 labs · 10 sandboxes · capstone</p>
+    <p class="lesson-meta">Course · 13 modules · 61 lessons · 24 labs · 10 sandboxes · capstone</p>
     <h1>CI/CD DevSecOps Mastery 🛡️</h1>
     <p>
       Курс «<strong>CI/CD DevSecOps Mastery</strong>» — путь от первого
@@ -52,41 +52,54 @@
       <a class="card" href="./lessons/0-1/index.html">
         <div class="card-head"><span class="num">Lesson 0.1</span><span class="badge-mini">mindset</span></div>
         <h3>DevSecOps как поток ценности</h3>
+        <p>DORA-метрики: Lead Time, MTTR, Change Failure Rate, Deployment Frequency.</p>
       </a>
       <a class="card" href="./lessons/0-2/index.html">
         <div class="card-head"><span class="num">Lesson 0.2</span><span class="badge-mini">STRIDE</span></div>
         <h3>Threat modeling за 30 минут</h3>
+        <p>STRIDE, abuse cases, attack surface. Лаба — STRIDE-карта своего проекта.</p>
       </a>
       <a class="card" href="./lessons/0-3/index.html">
         <div class="card-head"><span class="num">Lesson 0.3</span><span class="badge-mini">maturity</span></div>
-        <h3>Зрелость: OWASP SAMM & DSOMM</h3>
+        <h3>Зрелость: OWASP SAMM &amp; DSOMM</h3>
+        <p>Self-assessment и дорожная карта зрелости по 4 измерениям.</p>
       </a>
     </div>
 
     <div class="module-h">
       <h2>Module 1 — CI/CD Foundations</h2>
-      <span class="module-meta">Lessons 1.1–1.5</span>
+      <span class="module-meta">Lessons 1.1–1.6</span>
     </div>
     <div class="card-grid">
       <a class="card" href="./lessons/1-1/index.html">
         <div class="card-head"><span class="num">Lesson 1.1</span><span class="badge-mini">pipelines</span></div>
         <h3>Анатомия пайплайна</h3>
+        <p>Stages, jobs, fan-in/out, идемпотентность. Лаба — «Hello-Pipeline» в GH Actions.</p>
       </a>
       <a class="card" href="./lessons/1-2/index.html">
         <div class="card-head"><span class="num">Lesson 1.2</span><span class="badge-mini">git</span></div>
         <h3>Git workflows</h3>
+        <p>Trunk-based vs GitFlow vs GitHub flow, protected branches, CODEOWNERS.</p>
       </a>
       <a class="card" href="./lessons/1-3/index.html">
         <div class="card-head"><span class="num">Lesson 1.3</span><span class="badge-mini">hooks</span></div>
         <h3>Git hooks: client + server</h3>
+        <p>pre-commit, commit-msg (Conventional Commits), pre-receive, husky, lefthook.</p>
       </a>
       <a class="card" href="./lessons/1-4/index.html">
         <div class="card-head"><span class="num">Lesson 1.4</span><span class="badge-mini">actions</span></div>
         <h3>GitHub Actions глубоко</h3>
+        <p>Reusable workflows, matrix, environments, OIDC, concurrency.</p>
       </a>
       <a class="card" href="./lessons/1-5/index.html">
         <div class="card-head"><span class="num">Lesson 1.5</span><span class="badge-mini">runners</span></div>
         <h3>Runners: hosted vs self-hosted, ARC</h3>
+        <p>Ephemeral runners, autoscale на K8s через Actions Runner Controller.</p>
+      </a>
+      <a class="card" href="./lessons/1-6/index.html">
+        <div class="card-head"><span class="num">Lesson 1.6</span><span class="badge-mini">promotion</span></div>
+        <h3>Правильный деплой: PR → test → dev → prod</h3>
+        <p>Build once / promote many, PR-гейты, GitHub Environments, переменные окружения по средам.</p>
       </a>
     </div>
 
@@ -98,26 +111,32 @@
       <a class="card" href="./lessons/2-1/index.html">
         <div class="card-head"><span class="num">Lesson 2.1</span><span class="badge-mini">deb</span></div>
         <h3>Ubuntu/Debian: .deb, PPA, репозитории</h3>
+        <p>dpkg-deb, dh_make, debhelper, reprepro, aptly. Лаба — .deb в локальный aptly-репо.</p>
       </a>
       <a class="card" href="./lessons/2-2/index.html">
         <div class="card-head"><span class="num">Lesson 2.2</span><span class="badge-mini">snap</span></div>
-        <h3>Snap & Flatpak</h3>
+        <h3>Snap &amp; Flatpak</h3>
+        <p>snapcraft.yaml, confinement, channels, Flatpak-манифесты.</p>
       </a>
       <a class="card" href="./lessons/2-3/index.html">
         <div class="card-head"><span class="num">Lesson 2.3</span><span class="badge-mini">brew</span></div>
         <h3>Homebrew: formula, tap, bottle</h3>
+        <p>brew create, test-bot, GitHub Pages tap. Лаба — публичный tap для своей CLI.</p>
       </a>
       <a class="card" href="./lessons/2-4/index.html">
         <div class="card-head"><span class="num">Lesson 2.4</span><span class="badge-mini">iOS</span></div>
         <h3>iOS: Xcode + fastlane</h3>
+        <p>match (зашифрованные certs), gym, pilot, App Store Connect API key.</p>
       </a>
       <a class="card" href="./lessons/2-5/index.html">
         <div class="card-head"><span class="num">Lesson 2.5</span><span class="badge-mini">android</span></div>
         <h3>Android: AAB, signing, Play Store</h3>
+        <p>Gradle Play Publisher, key rotation, Play App Signing.</p>
       </a>
       <a class="card" href="./lessons/2-6/index.html">
         <div class="card-head"><span class="num">Lesson 2.6</span><span class="badge-mini">GoReleaser</span></div>
         <h3>Кросс-платформенные артефакты</h3>
+        <p>GoReleaser, JReleaser, electron-builder, tauri.</p>
       </a>
     </div>
 
@@ -129,22 +148,27 @@
       <a class="card" href="./lessons/3-1/index.html">
         <div class="card-head"><span class="num">Lesson 3.1</span><span class="badge-mini">docker</span></div>
         <h3>Docker правильно</h3>
+        <p>Multi-stage, distroless, .dockerignore, OCI metadata, reproducible builds.</p>
       </a>
       <a class="card" href="./lessons/3-2/index.html">
         <div class="card-head"><span class="num">Lesson 3.2</span><span class="badge-mini">buildkit</span></div>
         <h3>BuildKit / buildx / kaniko</h3>
+        <p>Cache mounts, SBOM/provenance attestations, rootless-сборка.</p>
       </a>
       <a class="card" href="./lessons/3-3/index.html">
         <div class="card-head"><span class="num">Lesson 3.3</span><span class="badge-mini">k8s</span></div>
         <h3>Kubernetes: Pod, Deployment, Service, Ingress</h3>
+        <p>requests/limits, probes, PDB, HPA. Лаба — деплой в k3d с HPA + Ingress.</p>
       </a>
       <a class="card" href="./lessons/3-4/index.html">
         <div class="card-head"><span class="num">Lesson 3.4</span><span class="badge-mini">helm</span></div>
         <h3>Helm vs Kustomize</h3>
+        <p>values, overlays, secrets-strategy — когда что выбирать.</p>
       </a>
       <a class="card" href="./lessons/3-5/index.html">
         <div class="card-head"><span class="num">Lesson 3.5</span><span class="badge-mini">policy</span></div>
         <h3>Pod-security: Kyverno / Gatekeeper</h3>
+        <p>Pod Security Standards, runAsNonRoot, NetworkPolicies, seccomp.</p>
       </a>
     </div>
 
@@ -156,26 +180,32 @@
       <a class="card" href="./lessons/4-1/index.html">
         <div class="card-head"><span class="num">Lesson 4.1</span><span class="badge-mini">SAST</span></div>
         <h3>SAST: SonarQube / SonarCloud</h3>
+        <p>Quality Gates, профили, PR-декорация. Лаба — SonarQube в docker-compose.</p>
       </a>
       <a class="card" href="./lessons/4-2/index.html">
         <div class="card-head"><span class="num">Lesson 4.2</span><span class="badge-mini">semgrep</span></div>
         <h3>SAST альтернативы: Semgrep, CodeQL</h3>
+        <p>Custom rules, taint analysis, кастомные паттерны.</p>
       </a>
       <a class="card" href="./lessons/4-3/index.html">
         <div class="card-head"><span class="num">Lesson 4.3</span><span class="badge-mini">SCA</span></div>
         <h3>SCA: Dependabot, Renovate, OWASP DC</h3>
+        <p>Lockfiles, ranges, авто-merge безопасных патчей, Snyk.</p>
       </a>
       <a class="card" href="./lessons/4-4/index.html">
         <div class="card-head"><span class="num">Lesson 4.4</span><span class="badge-mini">trivy</span></div>
         <h3>Контейнерное сканирование: Trivy, Grype</h3>
+        <p>Severity gate, ignore-policies, SBOM (CycloneDX), Dockle.</p>
       </a>
       <a class="card" href="./lessons/4-5/index.html">
         <div class="card-head"><span class="num">Lesson 4.5</span><span class="badge-mini">secrets</span></div>
         <h3>Secret-scanning: gitleaks, trufflehog</h3>
+        <p>pre-commit + CI + history-scan утёкших секретов.</p>
       </a>
       <a class="card" href="./lessons/4-6/index.html">
         <div class="card-head"><span class="num">Lesson 4.6</span><span class="badge-mini">SLSA</span></div>
         <h3>Supply chain: SLSA, cosign, in-toto, Scorecard</h3>
+        <p>sign+verify, provenance, rekor. Лаба — cosign verify в admission-controller.</p>
       </a>
     </div>
 
@@ -187,22 +217,27 @@
       <a class="card" href="./lessons/5-1/index.html">
         <div class="card-head"><span class="num">Lesson 5.1</span><span class="badge-mini">vault</span></div>
         <h3>Надёжное хранение секретов</h3>
+        <p>Vault, AWS SM, Azure KV, GCP SM, SOPS+age, External Secrets Operator.</p>
       </a>
       <a class="card" href="./lessons/5-2/index.html">
         <div class="card-head"><span class="num">Lesson 5.2</span><span class="badge-mini">OIDC</span></div>
         <h3>OAuth 2.0 / OIDC до конца</h3>
+        <p>Authorization Code + PKCE, Client Credentials, Device Flow, refresh rotation.</p>
       </a>
       <a class="card" href="./lessons/5-3/index.html">
         <div class="card-head"><span class="num">Lesson 5.3</span><span class="badge-mini">webauthn</span></div>
         <h3>2FA/MFA: TOTP, WebAuthn, push</h3>
+        <p>RFC 6238, FIDO2 attestation, recovery codes. Лаба — passkeys на Node.</p>
       </a>
       <a class="card" href="./lessons/5-4/index.html">
         <div class="card-head"><span class="num">Lesson 5.4</span><span class="badge-mini">keys</span></div>
         <h3>Ключи: SSH, GPG, age, signed commits</h3>
+        <p>ed25519 &gt; rsa, ротация, отзыв, hardware (YubiKey, SoloKey).</p>
       </a>
       <a class="card" href="./lessons/5-5/index.html">
         <div class="card-head"><span class="num">Lesson 5.5</span><span class="badge-mini">NIST</span></div>
         <h3>Требования к ключам и 2FA: NIST 800-63B</h3>
+        <p>AAL2/AAL3, lockout, replay protection, OIDC в CI вместо PAT.</p>
       </a>
     </div>
 
@@ -214,22 +249,27 @@
       <a class="card" href="./lessons/6-1/index.html">
         <div class="card-head"><span class="num">Lesson 6.1</span><span class="badge-mini">prometheus</span></div>
         <h3>Prometheus: модель данных, PromQL</h3>
+        <p>scrape, relabeling, recording rules, federation. Лаба — экспортер на Go.</p>
       </a>
       <a class="card" href="./lessons/6-2/index.html">
         <div class="card-head"><span class="num">Lesson 6.2</span><span class="badge-mini">grafana</span></div>
         <h3>Grafana: дашборды как код</h3>
+        <p>provisioning, datasource, variables, library panels, Grafana OnCall.</p>
       </a>
       <a class="card" href="./lessons/6-3/index.html">
         <div class="card-head"><span class="num">Lesson 6.3</span><span class="badge-mini">influx</span></div>
         <h3>InfluxDB v2 + Telegraf</h3>
+        <p>bucket, retention, Flux, downsampling. Лаба — IoT-метрики → Grafana.</p>
       </a>
       <a class="card" href="./lessons/6-4/index.html">
         <div class="card-head"><span class="num">Lesson 6.4</span><span class="badge-mini">OTel</span></div>
         <h3>Логи и трейсы: Loki, Tempo, OpenTelemetry</h3>
+        <p>golden signals, RED/USE, exemplars — связка метрик, логов и трейсов.</p>
       </a>
       <a class="card" href="./lessons/6-5/index.html">
         <div class="card-head"><span class="num">Lesson 6.5</span><span class="badge-mini">SLO</span></div>
         <h3>SLO/SLI и error-budget alerts</h3>
+        <p>multi-window multi-burn-rate (Google SRE), Sloth.</p>
       </a>
     </div>
 
@@ -241,18 +281,22 @@
       <a class="card" href="./lessons/7-1/index.html">
         <div class="card-head"><span class="num">Lesson 7.1</span><span class="badge-mini">telegram</span></div>
         <h3>Telegram Bot API: пайплайн → чат</h3>
+        <p>webhooks vs long-polling, MarkdownV2, threads. Лаба — билд + покрытие в TG.</p>
       </a>
       <a class="card" href="./lessons/7-2/index.html">
         <div class="card-head"><span class="num">Lesson 7.2</span><span class="badge-mini">slack</span></div>
         <h3>Slack: incoming webhook vs Slack App</h3>
+        <p>Block Kit, signed requests, slash-команды для ChatOps.</p>
       </a>
       <a class="card" href="./lessons/7-3/index.html">
         <div class="card-head"><span class="num">Lesson 7.3</span><span class="badge-mini">discord</span></div>
         <h3>Discord webhooks / embeds + Bot</h3>
+        <p>лимиты embed-полей, components/buttons, rate limits.</p>
       </a>
       <a class="card" href="./lessons/7-4/index.html">
         <div class="card-head"><span class="num">Lesson 7.4</span><span class="badge-mini">alertmanager</span></div>
         <h3>Alertmanager как маршрутизатор</h3>
+        <p>inhibit, route tree, throttling, дедупликация. Лаба — TG + Slack + Discord.</p>
       </a>
     </div>
 
@@ -264,26 +308,32 @@
       <a class="card" href="./lessons/8-1/index.html">
         <div class="card-head"><span class="num">Lesson 8.1</span><span class="badge-mini">AWS</span></div>
         <h3>AWS: IAM, OIDC, ECR/ECS/EKS</h3>
+        <p>OIDC → GH Actions, IRSA для EKS, без long-lived AWS-ключей.</p>
       </a>
       <a class="card" href="./lessons/8-2/index.html">
         <div class="card-head"><span class="num">Lesson 8.2</span><span class="badge-mini">azure</span></div>
         <h3>Azure: Entra ID, AKS, Key Vault</h3>
+        <p>federated credentials, Managed Identity, DevOps Pipelines.</p>
       </a>
       <a class="card" href="./lessons/8-3/index.html">
         <div class="card-head"><span class="num">Lesson 8.3</span><span class="badge-mini">GCP</span></div>
         <h3>GCP: Workload Identity, GKE, Secret Manager</h3>
+        <p>Workload Identity Federation, без service-account JSON-файлов в CI.</p>
       </a>
       <a class="card" href="./lessons/8-4/index.html">
         <div class="card-head"><span class="num">Lesson 8.4</span><span class="badge-mini">IaC</span></div>
         <h3>IaC: Terraform / OpenTofu + Pulumi + Crossplane</h3>
+        <p>state-locking, drift, policy-as-code (OPA, Sentinel, Checkov).</p>
       </a>
       <a class="card" href="./lessons/8-5/index.html">
         <div class="card-head"><span class="num">Lesson 8.5</span><span class="badge-mini">FinOps</span></div>
         <h3>FinOps в CI/CD</h3>
+        <p>infracost в PR, бюджеты на dev-окружения, idle-detection.</p>
       </a>
       <a class="card" href="./lessons/8-6/index.html">
         <div class="card-head"><span class="num">Lesson 8.6</span><span class="badge-mini">DR</span></div>
         <h3>Multi-cloud DR</h3>
+        <p>active-passive vs active-active, RTO/RPO, traffic-shifting.</p>
       </a>
     </div>
 
@@ -295,14 +345,17 @@
       <a class="card" href="./lessons/9-1/index.html">
         <div class="card-head"><span class="num">Lesson 9.1</span><span class="badge-mini">DePIN</span></div>
         <h3>DePIN: модель и экономика</h3>
+        <p>Akash, Render, IO.net, Helium, Filecoin, Arweave — обзор и экономика.</p>
       </a>
       <a class="card" href="./lessons/9-2/index.html">
         <div class="card-head"><span class="num">Lesson 9.2</span><span class="badge-mini">akash</span></div>
         <h3>Деплой в Akash + хранение артефактов на IPFS</h3>
+        <p>SDL-манифесты, escrow, web3.storage. Лаба — контейнер в Akash + IPFS.</p>
       </a>
       <a class="card" href="./lessons/9-3/index.html">
         <div class="card-head"><span class="num">Lesson 9.3</span><span class="badge-mini">hybrid</span></div>
         <h3>Гибрид: GH Actions → Akash, fallback на AWS</h3>
+        <p>стоимость и латентность, threat model доверия к ноде.</p>
       </a>
     </div>
 
@@ -314,18 +367,22 @@
       <a class="card" href="./lessons/10-1/index.html">
         <div class="card-head"><span class="num">Lesson 10.1</span><span class="badge-mini">hardening</span></div>
         <h3>VPS hardening</h3>
+        <p>unattended-upgrades, SSH ed25519+CA, fail2ban, nftables, auditd, Lynis.</p>
       </a>
       <a class="card" href="./lessons/10-2/index.html">
         <div class="card-head"><span class="num">Lesson 10.2</span><span class="badge-mini">VPN</span></div>
         <h3>VPN: WireGuard, Tailscale, OpenVPN</h3>
+        <p>split-tunneling, ACL, MFA-доступ к bastion.</p>
       </a>
       <a class="card" href="./lessons/10-3/index.html">
         <div class="card-head"><span class="num">Lesson 10.3</span><span class="badge-mini">CD</span></div>
         <h3>Landing page CD</h3>
+        <p>static site (Astro/Hugo) → S3/Pages/Cloudflare, atomic deploy, A/B, sitemap.</p>
       </a>
       <a class="card" href="./lessons/10-4/index.html">
         <div class="card-head"><span class="num">Lesson 10.4</span><span class="badge-mini">mail</span></div>
         <h3>Mail-сервер</h3>
+        <p>mailcow / Postal / Postfix+Dovecot, SPF/DKIM/DMARC, MTA-STS, TLS-RPT.</p>
       </a>
     </div>
 
@@ -337,18 +394,22 @@
       <a class="card" href="./lessons/11-1/index.html">
         <div class="card-head"><span class="num">Lesson 11.1</span><span class="badge-mini">migrations</span></div>
         <h3>DB в CI/CD</h3>
+        <p>миграции (Flyway/Liquibase/Atlas), expand-contract, online DDL (gh-ost).</p>
       </a>
       <a class="card" href="./lessons/11-2/index.html">
         <div class="card-head"><span class="num">Lesson 11.2</span><span class="badge-mini">replication</span></div>
         <h3>Репликация</h3>
+        <p>Postgres streaming/logical, MySQL GTID, Patroni, Galera, кворум.</p>
       </a>
       <a class="card" href="./lessons/11-3/index.html">
         <div class="card-head"><span class="num">Lesson 11.3</span><span class="badge-mini">backup</span></div>
         <h3>Бэкапы: 3-2-1-1-0</h3>
+        <p>pgBackRest/WAL-G, Restic, Borg, S3 Object Lock (immutable), Velero.</p>
       </a>
       <a class="card" href="./lessons/11-4/index.html">
         <div class="card-head"><span class="num">Lesson 11.4</span><span class="badge-mini">chaos</span></div>
         <h3>DR-тренировки</h3>
+        <p>game days, ChaosMesh/LitmusChaos, runbook restore-rehearsal.</p>
       </a>
     </div>
 
@@ -360,18 +421,22 @@
       <a class="card" href="./lessons/12-1/index.html">
         <div class="card-head"><span class="num">Lesson 12.1</span><span class="badge-mini">mistakes</span></div>
         <h3>Топ-30 типичных ошибок</h3>
+        <p>secret в логе, latest-тег, root в контейнере, self-merge, PAT в actions.</p>
       </a>
       <a class="card" href="./lessons/12-2/index.html">
         <div class="card-head"><span class="num">Lesson 12.2</span><span class="badge-mini">hardening</span></div>
         <h3>Pipeline hardening</h3>
+        <p>least-privilege GITHUB_TOKEN, pinned actions (SHA), typosquat-защита.</p>
       </a>
       <a class="card" href="./lessons/12-3/index.html">
         <div class="card-head"><span class="num">Lesson 12.3</span><span class="badge-mini">checklist</span></div>
         <h3>Чек-листы перед prod</h3>
+        <p>go-live checklist, SLSA L3, прод-гейт перед выкатом.</p>
       </a>
       <a class="card" href="./lessons/12-4/index.html">
         <div class="card-head"><span class="num">Lesson 12.4</span><span class="badge-mini">capstone</span></div>
         <h3>Capstone</h3>
+        <p>подписанный мульти-арх образ → cosign → ArgoCD → EKS + Akash + alerts.</p>
       </a>
     </div>
 
