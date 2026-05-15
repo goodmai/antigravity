@@ -33,12 +33,48 @@ Antigravity обеспечивает бесшовную интеграцию с 
 2.  Если проекта нет, попросите _"Объясни, как создать новый проект Firebase через консоль"_.
 
 
-## Ключевые концепции
+## 🔬 Как это работает глубже
 
-- Основная тема урока
+Главный архитектурный принцип облачной работы агента — **keyless**. Вместо
+долгоживущих JSON-ключей сервис-аккаунтов используется Workload Identity
+Federation / OIDC:
 
-## Рекомендуемые источники
+```
+CI или среда ──(OIDC-токен)──▶ GCP STS ──(короткоживущий токен)──▶ GCP API
+```
 
-1. Официальная документация Antigravity
-2. Claude Documentation
-3. Relevant research papers
+Ключи не хранятся ни в репозитории, ни в секретах CI — токен живёт минуты
+и привязан к конкретной нагрузке. Это закрывает главный вектор утечки.
+
+Firestore Rules — это код безопасности, который тестируется эмулятором
+**локально, без облака**: пишешь правило → гоняешь кейсы доступа в
+эмуляторе → деплоишь только зелёное.
+
+## ⚠️ Типичные ошибки
+
+- **JSON-ключ в репозитории/CI-секрете.** Классическая утечка; используй
+  Workload Identity Federation.
+- **`allow read, write: if true`** в Firestore Rules — открытая база.
+  По умолчанию всё должно быть запрещено.
+- **Деплой без эмулятора.** Правила безопасности нужно проверять локально
+  до выката.
+- **Широкие IAM-роли.** `Owner` сервис-аккаунту вместо минимально нужной.
+
+## 🧠 Ключевые концепции
+
+- **Keyless / Workload Identity Federation** — доступ без долгоживущих ключей.
+- **Firestore Rules как код** — тестируемая модель доступа.
+- **Эмулятор Firebase** — локальная проверка правил.
+- **Least privilege IAM** — минимальные роли сервис-аккаунтов.
+
+## 🧪 Практика
+
+Закрепи в **[Лабе 13 — Облако: Firebase и GCP](../../labs/13/README.md)**
+(7 задач): `firebase init`, безопасные Firestore Rules, эмулятор,
+keyless-auth, IaC для Cloud Run, разбор Cloud Logging.
+
+## 📚 Источники
+
+1. Workload Identity Federation — https://cloud.google.com/iam/docs/workload-identity-federation
+2. Firebase Security Rules — https://firebase.google.com/docs/rules
+3. Firebase Local Emulator Suite — https://firebase.google.com/docs/emulator-suite

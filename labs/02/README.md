@@ -1,339 +1,118 @@
-# Лабораторная работа №2: Antigravity в GitHub Codespaces
+# Лаба 02: Артефакты и обратная связь
 
-GitHub Codespaces предоставляет полноценную облачную среду разработки прямо в браузере. В этой лабораторной настраиваем готовое рабочее пространство с предустановленным Antigravity: открыл — и уже работаешь.
+> 🔗 Практика к [Уроку 2](../../lessons/2/README.md) — *Обратная связь на уровне артефактов*
 
-## Что такое GitHub Codespaces
+Учимся давать агенту точечную обратную связь на конкретные артефакты, а не общими словами в чате.
 
-Codespaces — это контейнер на базе VS Code, запущенный на серверах GitHub. Ты получаешь:
-- Полноценный Linux-терминал
-- VS Code с расширениями
-- Персистентное хранилище (пока не удалишь)
-- До 60 часов бесплатно в месяц (Free план)
+## 🎯 Цель
 
-## Быстрый старт: запустить Antigravity в Codespaces
+Закрепить материал Урока 2 через 7 практических задач в облачной
+песочнице GitHub. Каждая задача имеет явный **критерий приёмки** — лаба
+считается сданной, когда выполнен финальный чек-лист.
 
-### 1. Форкни репозиторий
+## 🧪 Песочница (мультиплатформа)
 
-```
-https://github.com/goodmai/antigravity → Fork
-```
+**Рекомендуется для этой лабы:** GitHub Codespaces — полноценный Linux + Docker + GitHub PR-флоу, универсальна для любой задачи.
 
-### 2. Открой в Codespaces
+Любую задачу можно выполнить в одной из песочниц (быстрый запуск):
 
-```
-Репозиторий → зелёная кнопка «Code» → Codespaces → Create codespace on main
-```
+- GitHub Codespaces — `https://github.com/goodmai/antigravity` → **Code ▾ → Codespaces → Create**
+- github.dev — открой репозиторий и нажми клавишу **`.`**
+- Gitpod — `https://gitpod.io/#https://github.com/goodmai/antigravity`
+- StackBlitz — `https://stackblitz.com/github/goodmai/antigravity`
 
-Через 1-2 минуты откроется VS Code в браузере с уже клонированным репозиторием.
-
-### 3. Установи зависимости через терминал
-
-В открытом терминале Codespace:
+Полная шпаргалка (bootstrap-скрипт, devcontainer, секреты, выбор платформы): **[../SANDBOX_SETUP.md](../SANDBOX_SETUP.md)**.
 
 ```bash
-# Проверь Python
-python3 --version   # нужен 3.10+
-
-# Установи Pandoc (для сборки уроков)
-sudo apt-get install -y pandoc
-
-# Установи Antigravity IDE через системный пакетный менеджер (Ubuntu/Codespaces)
-sudo add-apt-repository ppa:antigravity/ppa -y
-sudo apt-get update
-sudo apt-get install -y antigravity
-
-# На macOS — через Homebrew:
-# brew install antigravity
-
-# Проверь установку
-antigravity --version
+# единый вход в любой песочнице
+bash scripts/sandbox-bootstrap.sh
 ```
 
-### 4. Настрой API-ключ
+## 📋 Задачи
 
-```bash
-# Создай файл окружения
-echo 'export GEMINI_API_KEY="your-api-key-here"' >> ~/.bashrc
-source ~/.bashrc
+### Задача 1 — Сгенерировать артефакт
 
-# Или используй Codespaces Secrets (рекомендуется)
-# GitHub → Settings → Codespaces → New secret → GEMINI_API_KEY
-```
+**Цель:** Получить документ для ревью.
 
-### 5. Настрой глобальные правила Antigravity
+**Шаги:**
+1. Попроси агента сделать `ARCHITECTURE.md` для учебного сервиса.
+2. Сохрани как артефакт.
 
-```bash
-mkdir -p ~/.gemini
-cat > ~/.gemini/GEMINI.md << 'EOF'
-# Global Antigravity Rules
+**Критерий приёмки:** Артефакт создан и открывается в превью.
 
-## Рабочий язык
-Общайся на русском языке.
+### Задача 2 — Точечный комментарий
 
-## Стиль кода
-- Python: async/await, Pydantic V2, type hints
-- JS/TS: functional style, no var
-EOF
-```
+**Цель:** Дать feedback к фрагменту, а не к чату.
 
-### 6. Собери уроки и открой академию локально
+**Шаги:**
+1. Выдели абзац в артефакте и оставь inline-замечание.
+2. Попроси переработать только его.
 
-```bash
-cd ~/workspace/antigravity
-python3 scripts/convert_lessons.py
+**Критерий приёмки:** Изменён только прокомментированный фрагмент.
 
-# Запусти простой HTTP-сервер
-python3 -m http.server 8080
-```
+### Задача 3 — Diff-ревью
 
-Codespaces автоматически предложит открыть порт 8080 в браузере.
+**Цель:** Проверять изменения по диффу.
 
-## Автоматизация через devcontainer.json
+**Шаги:**
+1. Внеси правку через агента.
+2. Просмотри артефакт-diff и прими/отклони.
 
-Чтобы всё устанавливалось автоматически при создании Codespace:
+**Критерий приёмки:** В истории видно принятие/отклонение по диффу.
 
-```bash
-mkdir -p .devcontainer
-```
+### Задача 4 — Чек-лист ревью
 
-```json
-// .devcontainer/devcontainer.json
-{
-  "name": "Antigravity Academy",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "postCreateCommand": "bash .devcontainer/setup.sh",
-  "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance",
-        "esbenp.prettier-vscode",
-        "yzhang.markdown-all-in-one"
-      ],
-      "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "python.defaultInterpreterPath": "/usr/bin/python3"
-      }
-    }
-  },
-  "forwardPorts": [8080],
-  "portsAttributes": {
-    "8080": {
-      "label": "Antigravity Academy",
-      "onAutoForward": "openBrowser"
-    }
-  }
-}
-```
+**Цель:** Формализовать критерии приёмки артефакта.
 
-```bash
-#!/bin/bash
-# .devcontainer/setup.sh
+**Шаги:**
+1. Создай `review/checklist.md` из 6 критериев качества документа.
 
-set -e
+**Критерий приёмки:** Чек-лист покрывает структуру, точность, полноту.
 
-echo "=== Antigravity Codespace Setup ==="
+### Задача 5 — Цикл правок
 
-# Системные зависимости
-sudo apt-get update -qq
-sudo apt-get install -y -qq pandoc
+**Цель:** Несколько итераций по одному артефакту.
 
-# Antigravity IDE — установка через APT (OS native package manager)
-sudo add-apt-repository ppa:antigravity/ppa -y -qq 2>/dev/null || true
-sudo apt-get install -y -qq antigravity
+**Шаги:**
+1. Сделай 3 итерации улучшения, каждый раз — конкретное замечание.
 
-# Python-зависимости
-pip install --quiet fastmcp requests
+**Критерий приёмки:** Качество растёт измеримо (по чек-листу).
 
-# Настройка Antigravity
-mkdir -p ~/.gemini
-if [ ! -f ~/.gemini/GEMINI.md ]; then
-  cp .agent/rules/template-global.md ~/.gemini/GEMINI.md 2>/dev/null || \
-  echo "# Antigravity Global Rules" > ~/.gemini/GEMINI.md
-fi
+### Задача 6 — Сравнение версий
 
-# Сборка уроков
-python3 scripts/convert_lessons.py
+**Цель:** Откатиться к лучшей версии.
 
-echo "=== Setup complete! ==="
-echo "Run: antigravity"
-```
+**Шаги:**
+1. Сравни v1/v2/v3, аргументируй выбор в `review/decision.md`.
 
-```bash
-chmod +x .devcontainer/setup.sh
-```
+**Критерий приёмки:** Решение обосновано ссылками на критерии.
 
-## Управление секретами
+### Задача 7 — Артефакт-тест
 
-Никогда не храни API-ключи в коде. Используй Codespaces Secrets:
+**Цель:** Привязать обратную связь к тесту.
 
-```
-GitHub.com → Settings → Codespaces → Secrets → New secret
+**Шаги:**
+1. Попроси сгенерировать тест, дай feedback на падающий кейс.
 
-Имя:  GEMINI_API_KEY
-Значение: AI...xxxxxxxx
-Репозиторий: goodmai/antigravity
-```
+**Критерий приёмки:** Тест зелёный после направленной обратной связи.
 
-В терминале Codespace секрет автоматически доступен как переменная окружения:
+## ✅ Чек-лист сдачи
 
-```bash
-echo $GEMINI_API_KEY    # проверка
-antigravity             # запуск — ключ подхватится автоматически
-```
+- [ ] Задача 1: Сгенерировать артефакт
+- [ ] Задача 2: Точечный комментарий
+- [ ] Задача 3: Diff-ревью
+- [ ] Задача 4: Чек-лист ревью
+- [ ] Задача 5: Цикл правок
+- [ ] Задача 6: Сравнение версий
+- [ ] Задача 7: Артефакт-тест
 
-## Полезные команды в Codespace
+## 🧭 Связь с курсом
 
-```bash
-# Статус Codespace
-gh codespace list
+- **Теория:** [Урок 2](../../lessons/2/README.md) — *Обратная связь на уровне артефактов*
+- **Песочницы:** общая шпаргалка [labs/SANDBOX_SETUP.md](../SANDBOX_SETUP.md)
+- **Капстоун курса:** [labs/CAPSTONE.md](../CAPSTONE.md) — TeleDrive Ecosystem
+- **Навигация:** ← [Лаба 01](../01/README.md) · [Лаба 03](../03/README.md) →
 
-# Остановить (сэкономить часы)
-# Просто закрой вкладку браузера — Codespace засыпает через 30 мин
+---
 
-# Пересоздать с нуля (если сломалось)
-# GitHub → Repository → Code → Codespaces → ⋯ → Delete → Create new
-
-# Скачать файлы
-# VS Code → Explorer → ПКМ на файл → Download
-```
-
-## Лимиты бесплатного плана
-
-| Параметр | Free | Pro |
-|----------|------|-----|
-| Часов в месяц | 60 | 180 |
-| Хранилище | 15 GB | 20 GB |
-| Машина | 2 CPU / 4 GB RAM | до 32 CPU |
-| Одновременных Codespaces | 2 | 5 |
-
-## Замена VS Code на Antigravity IDE через OS-пакет
-
-Стандартный Codespace открывается в VS Code. Чтобы заменить его на Antigravity IDE (автономная среда разработки), используй OS-пакет в devcontainer:
-
-### Способ 1: Полная замена редактора — чистая терминальная среда
-
-В `devcontainer.json` добавь поле `"customizations.codespaces.editor"`:
-
-```json
-{
-  "name": "Antigravity IDE",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "customizations": {
-    "codespaces": {
-      "editor": "none"
-    }
-  },
-  "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
-  "postStartCommand": "antigravity",
-  "forwardPorts": [8080]
-}
-```
-
-`"editor": "none"` отключает автооткрытие VS Code — Codespace запускается как чистая терминальная среда.
-
-### Способ 2: Установка Antigravity IDE через OS-пакет в setup.sh
-
-```bash
-#!/bin/bash
-# .devcontainer/setup-antigravity-ide.sh
-set -e
-
-echo "=== Installing Antigravity IDE via OS packages ==="
-
-# 1. Системные зависимости
-sudo apt-get update -qq
-sudo apt-get install -y -qq \
-    pandoc \
-    tmux \
-    htop \
-    jq
-
-# 2. Antigravity IDE — установка через APT
-#    Ubuntu/Codespaces:
-sudo add-apt-repository ppa:antigravity/ppa -y -qq
-sudo apt-get install -y -qq antigravity
-#    macOS (локально): brew install antigravity
-
-# 3. Настройка Antigravity как IDE по умолчанию
-mkdir -p ~/.gemini
-cat > ~/.gemini/GEMINI.md << 'EOF'
-# Antigravity IDE — Global Config
-trigger: always
-Ты работаешь как автономный IDE-агент. При старте:
-1. Покажи структуру проекта (tree -L 2)
-2. Предложи план работы на сессию
-EOF
-
-# 4. Настрой bash profile — Antigravity запускается при открытии терминала
-cat >> ~/.bashrc << 'EOF'
-
-# Antigravity IDE auto-start
-if [ -n "$CODESPACE_NAME" ] && [ -z "$ANTIGRAVITY_STARTED" ]; then
-  export ANTIGRAVITY_STARTED=1
-  echo "Antigravity IDE ready. Run: antigravity"
-fi
-EOF
-
-# 5. Алиасы для быстрого запуска
-echo 'alias ide="antigravity"' >> ~/.bashrc
-echo 'alias ag="antigravity"' >> ~/.bashrc
-
-# 6. Сборка академии
-python3 scripts/convert_lessons.py
-
-echo "=== Antigravity IDE installed ==="
-echo "Start with: antigravity  (or alias: ide / ag)"
-```
-
-### Способ 3: devcontainer с Antigravity как primary IDE
-
-Полный `devcontainer.json` для Antigravity-first workflow:
-
-```json
-{
-  "name": "Antigravity IDE",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
-  "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
-  },
-  "postCreateCommand": "bash .devcontainer/setup-antigravity-ide.sh",
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "terminal.integrated.profiles.linux": {
-          "Antigravity": {
-            "path": "/bin/bash",
-            "args": ["-c", "antigravity; exec bash"]
-          }
-        },
-        "terminal.integrated.defaultProfile.linux": "Antigravity"
-      }
-    }
-  },
-  "remoteEnv": {
-    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
-  },
-  "forwardPorts": [8080]
-}
-```
-
-ВS Code остаётся как оболочка, но **терминал по умолчанию сразу запускает Antigravity IDE** — вместо обычного bash.
-
-### Проверка установки
-
-```bash
-# После открытия Codespace
-antigravity --version     # Antigravity IDE установлен
-echo $GEMINI_API_KEY      # ключ доступен из Codespaces Secrets
-ide                       # алиас — запуск Antigravity IDE
-```
-
-## Результат лабораторной
-
-После выполнения у тебя будет:
-- `devcontainer.json` + `setup-antigravity-ide.sh` в `.devcontainer/`
-- Codespace с автоустановкой Antigravity IDE через OS-пакет (`apt` / `brew`)
-- Antigravity запускается автоматически при открытии терминала
-- VS Code заменён / дополнен Antigravity как primary IDE
-- API-ключ безопасно хранится в Codespaces Secrets
+*Сгенерировано `scripts/generate_labs.py`. Правьте генератор, а не выходные файлы.*
