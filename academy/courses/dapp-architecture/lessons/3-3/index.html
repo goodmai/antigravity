@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.3 · Блокчейн как backend — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.3 · Блокчейн как backend</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.3 · <span class="badge-mini">EVM</span></p>
+    <h1>Блокчейн как backend</h1>
+
+    <p><strong>Канон:</strong> <a href="https://ethereum.org/developers/docs/" target="_blank" rel="noopener">Ethereum dev docs</a>, <a href="https://eips.ethereum.org/EIPS/eip-1559" target="_blank" rel="noopener">EIP-1559</a>.</p>
+<p>Блокчейн — это не «база», а детерминированный реплицируемый
+<strong>application-слой</strong> с дорогим состоянием и публичным
+исполнением.</p>
+
+<ul>
+<li><strong>Детерминизм:</strong> никакого <code>random</code>/времени —
+все ноды должны прийти к тому же состоянию.</li>
+<li><strong>Газ:</strong> вычисление и хранение стоят денег; EIP-1559 —
+base fee (сжигается) + tip.</li>
+<li><strong>Аккаунты:</strong> EOA (ключ) и контрактные.</li>
+</ul>
+
+<pre class="code-block"><code class="language-solidity">// контракт = публичная, неизменяемая бизнес-логика
+function purchase(uint256 workId) external payable {
+    require(msg.value == price[workId], "bad price");
+    owner[workId] = msg.sender;          // состояние = дорогое
+    emit Purchased(workId, msg.sender);  // событие = дешёвый индекс
+}</code></pre>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-2/index.html">← Урок 3.2</a>
+      <a href="../3-4/index.html" class="next">Урок 3.4 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

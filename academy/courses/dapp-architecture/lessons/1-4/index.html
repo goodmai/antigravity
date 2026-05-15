@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.4 · API-стили и контракты — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.4 · API-стили и контракты</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.4 · <span class="badge-mini">API</span></p>
+    <h1>API-стили и контракты</h1>
+
+    <p><strong>Канон:</strong> <a href="https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm" target="_blank" rel="noopener">REST (Fielding, гл. 5)</a>, <a href="https://spec.openapis.org/oas/latest.html" target="_blank" rel="noopener">OpenAPI Specification</a>.</p>
+<p>Контракт — это <strong>обещание</strong> между командами. Стиль API
+выбирается по характеру взаимодействия, а не по моде.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Стиль</th><th>Когда</th><th>Слабое место</th></tr>
+<tr><td>REST</td><td>ресурсный CRUD, кэш на HTTP</td><td>over/under-fetching</td></tr>
+<tr><td>GraphQL</td><td>гибкие клиенты, агрегация</td><td>сложность кэша, N+1</td></tr>
+<tr><td>gRPC</td><td>сервис↔сервис, низкая латентность</td><td>браузер без прокси</td></tr>
+</table></div>
+
+<h3>Обратная совместимость</h3>
+<ul>
+<li>Добавлять поля — можно; удалять/менять смысл — ломающее изменение.</li>
+<li>Версионируйте контракт (<code>/v1</code>, media-type), а не URL «на глаз».</li>
+<li>Контракт-тесты в CI ловят нарушение раньше прода.</li>
+</ul>
+
+<pre class="code-block"><code class="language-yaml">paths:
+  /works/{id}:
+    get:
+      responses:
+        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Work' } } } }
+        '404': { description: not found }</code></pre>
+    <div class="note gold"><strong>Артефакт урока.</strong> OpenAPI-контракт ядра маркетплейса (Catalog + Orders).</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-3/index.html">← Урок 1.3</a>
+      <a href="../1-5/index.html" class="next">Урок 1.5 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

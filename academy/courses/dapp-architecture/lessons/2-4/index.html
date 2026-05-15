@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.4 · Аналитика и события — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.4 · Аналитика и события</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.4 · <span class="badge-mini">Pub/Sub</span></p>
+    <h1>Аналитика и события</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/pubsub/docs" target="_blank" rel="noopener">Pub/Sub docs</a>, <a href="https://cloud.google.com/bigquery/docs" target="_blank" rel="noopener">BigQuery docs</a>.</p>
+<p>Кирпич Messaging в Google — это управляемый Pub/Sub + аналитический
+сток в BigQuery.</p>
+
+<h3>Event-driven serverless</h3>
+<pre class="code-block"><code class="language-">Cloud Run ──publish──▶ Pub/Sub topic
+                         ├─ push → Cloud Run (обработчик)
+                         └─ BigQuery subscription → аналитика SQL</code></pre>
+
+<ul>
+<li>Pub/Sub — at-least-once; обработчик так же обязан быть идемпотентным.</li>
+<li>Eventarc маршрутизирует события сервисов (например, объект в Storage).</li>
+<li>BigQuery — сток для продуктовой аналитики, не операционная БД.</li>
+</ul>
+    <div class="note gold"><strong>Артефакт урока.</strong> Event-flow «оплата → выплата» на Pub/Sub + BigQuery sink.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-3/index.html">← Урок 2.3</a>
+      <a href="../2-5/index.html" class="next">Урок 2.5 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

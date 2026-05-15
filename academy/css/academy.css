@@ -440,6 +440,7 @@ body::after {
 .course-card.claude::before      { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
 .course-card.rust::before        { background: linear-gradient(90deg, #fb923c, #dc2626); }
 .course-card.web3::before        { background: linear-gradient(90deg, var(--accent3), #0ea5e9); }
+.course-card.dapp::before        { background: linear-gradient(90deg, #d4af37, #a78bfa); }
 
 .course-icon {
   font-size: 2.5rem;

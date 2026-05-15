@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.6 · Identity на Google Cloud — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.6 · Identity на Google Cloud</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.6 · <span class="badge-mini">IAM</span></p>
+    <h1>Identity на Google Cloud</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/iam/docs/overview" target="_blank" rel="noopener">Cloud IAM overview</a>, <a href="https://cloud.google.com/iam/docs/workload-identity-federation" target="_blank" rel="noopener">Workload Identity Federation</a>.</p>
+<p>Два разных IAM: <strong>пользователи</strong> продукта (Identity
+Platform / Firebase Auth) и <strong>сервисы</strong> (Cloud IAM роли).</p>
+
+<h3>Workload Identity Federation</h3>
+<p>Главная идея безопасности модуля: <em>никаких долгоживущих
+service-account ключей</em>. CI/CD и внешние ворклоады получают
+короткоживущий токен по федерации (OIDC), а не JSON-файл.</p>
+
+<pre class="code-block"><code class="language-">GitHub Actions (OIDC) ─▶ STS обмен ─▶ временный GCP-токен ─▶ деплой
+                          (нет хранимого секрета)</code></pre>
+    <div class="note gold"><strong>Артефакт урока.</strong> Auth-поток на GCP: Firebase Auth (юзеры) + WIF (CI).</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-5/index.html">← Урок 2.5</a>
+      <a href="../2-7/index.html" class="next">Урок 2.7 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

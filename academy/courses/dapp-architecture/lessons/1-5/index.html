@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.5 · Состояние и данные: реляционка — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.5 · Состояние и данные: реляционка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.5 · <span class="badge-mini">PostgreSQL</span></p>
+    <h1>Состояние и данные: реляционка</h1>
+
+    <p><strong>Канон:</strong> <a href="https://www.postgresql.org/docs/current/" target="_blank" rel="noopener">PostgreSQL docs</a>, <a href="https://dataintensive.net" target="_blank" rel="noopener">DDIA (Kleppmann), гл. 7</a>.</p>
+<p>Реляционная БД даёт <strong>ACID</strong> и сильные инварианты. По
+умолчанию начинайте с PostgreSQL — это «истина» системы.</p>
+
+<h3>Транзакции и изоляция</h3>
+<p>Уровень изоляции определяет, какие аномалии возможны. Для денежных
+операций — как минимум <code>REPEATABLE READ</code>, а инварианты баланса
+защищаются ограничениями БД, не кодом приложения.</p>
+
+<h3>Миграции expand-contract</h3>
+<pre class="code-block"><code class="language-sql">-- 1. EXPAND: добавить nullable-колонку, деплой кода, читающего обе формы
+ALTER TABLE orders ADD COLUMN total_cents bigint;
+-- 2. BACKFILL: перенести данные пачками
+-- 3. CONTRACT: сделать NOT NULL, убрать старую колонку
+ALTER TABLE orders ALTER COLUMN total_cents SET NOT NULL;</code></pre>
+<p>Так схема меняется без даунтайма и совместима со старым и новым кодом
+одновременно.</p>
+
+<div class="note gold"><strong>Индексы.</strong> Индекс ускоряет чтение и
+замедляет запись. Индексируйте под реальные запросы (<code>EXPLAIN
+ANALYZE</code>), а не «на всякий случай».</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> ER-модель маркетплейса + одна expand-contract миграция.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-4/index.html">← Урок 1.4</a>
+      <a href="../1-6/index.html" class="next">Урок 1.6 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

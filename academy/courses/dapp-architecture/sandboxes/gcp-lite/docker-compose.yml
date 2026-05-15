@@ -1,0 +1,31 @@
+version: "3.8"
+# Sandbox: gcp-lite — паттерны Google Cloud без счёта и без аккаунта.
+# State (Firestore emulator), Messaging (Pub/Sub emulator),
+# Storage (fake-gcs-server вместо Cloud Storage).
+
+services:
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:494.0.0-emulators
+    command: >
+      gcloud emulators firestore start
+      --host-port=0.0.0.0:8080
+      --project=demo
+    ports: ["8080:8080"]
+
+  pubsub:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:494.0.0-emulators
+    command: >
+      gcloud beta emulators pubsub start
+      --host-port=0.0.0.0:8085
+      --project=demo
+    ports: ["8085:8085"]
+
+  fake-gcs:
+    image: fsouza/fake-gcs-server:1.50
+    command: ["-scheme", "http", "-port", "4443", "-public-host", "localhost:4443"]
+    ports: ["4443:4443"]
+    volumes:
+      - gcs-data:/data
+
+volumes:
+  gcs-data: {}

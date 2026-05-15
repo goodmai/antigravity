@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.8 · Данные и сообщения p2p — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.8 · Данные и сообщения p2p</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.8 · <span class="badge-mini">p2p</span></p>
+    <h1>Данные и сообщения p2p</h1>
+
+    <p><strong>Канон:</strong> <a href="https://docs.libp2p.io" target="_blank" rel="noopener">libp2p docs</a>, <a href="https://developers.ceramic.network" target="_blank" rel="noopener">Ceramic docs</a>.</p>
+<p>Аналог кирпича Messaging/изменяемых данных (Pub/Sub, Firestore) без
+сервера: peer-to-peer + <strong>CRDT</strong> для конфликт-free слияния.</p>
+
+<ul>
+<li><strong>libp2p pubsub</strong> — транспорт сообщений между пирами.</li>
+<li><strong>OrbitDB / Ceramic</strong> — изменяемые «потоки» поверх IPFS.</li>
+<li><strong>CRDT</strong> — конкурентные правки сходятся без координатора.</li>
+</ul>
+
+<div class="note violet"><strong>Граница.</strong> Хорошо для социального
+графа/комментариев (eventual ок), плохо для денежных инвариантов —
+там нужна строгая согласованность из урока 3.3.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-7/index.html">← Урок 3.7</a>
+      <a href="../3-9/index.html" class="next">Урок 3.9 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

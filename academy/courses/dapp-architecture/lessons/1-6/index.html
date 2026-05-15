@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.6 · Кэш, очереди, событийность — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.6 · Кэш, очереди, событийность</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.6 · <span class="badge-mini">events</span></p>
+    <h1>Кэш, очереди, событийность</h1>
+
+    <p><strong>Канон:</strong> <a href="https://microservices.io/patterns/data/transactional-outbox.html" target="_blank" rel="noopener">Transactional Outbox</a>, <a href="https://kafka.apache.org/documentation/#design" target="_blank" rel="noopener">Kafka design</a>.</p>
+<p>Асинхронность развязывает компоненты по времени, но вводит
+<strong>eventual consistency</strong> и дубли сообщений.</p>
+
+<h3>Идемпотентность — обязательна</h3>
+<p>Брокеры дают «at-least-once»: одно и то же событие может прийти дважды.
+Потребитель обязан быть идемпотентным — через ключ дедупликации.</p>
+
+<h3>Паттерн Outbox</h3>
+<pre class="code-block"><code class="language-">[tx] INSERT order ; INSERT outbox(event)   ← один коммит, атомарно
+ relay → читает outbox → публикует в Kafka → помечает отправленным</code></pre>
+<p>Outbox решает «двойную запись»: нельзя атомарно записать в БД и брокер,
+поэтому пишем событие в ту же транзакцию, а доставляем отдельно.</p>
+
+<div class="note violet"><strong>Кэш.</strong> Redis — это ускоритель, не
+источник истины. Стратегия инвалидации (TTL / write-through) должна быть
+явной, иначе вы кэшируете баги.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> Sequence-диаграмма event-flow «оплата → выплата автору».</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-5/index.html">← Урок 1.5</a>
+      <a href="../1-7/index.html" class="next">Урок 1.7 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

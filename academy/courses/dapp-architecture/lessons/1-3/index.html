@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.3 · Монолит → модульный монолит → микросервисы — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.3 · Монолит → модульный монолит → микросервисы</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.3 · <span class="badge-mini">decompose</span></p>
+    <h1>Монолит → модульный монолит → микросервисы</h1>
+
+    <p><strong>Канон:</strong> <a href="https://www.oreilly.com/library/view/fundamentals-of-software/9781492043447/" target="_blank" rel="noopener">Fundamentals of Software Architecture</a>, <a href="https://martinfowler.com/bliki/MonolithFirst.html" target="_blank" rel="noopener">MonolithFirst (Fowler)</a>.</p>
+<p>Микросервисы — не цель, а компромисс. Распределённость покупает
+независимый деплой ценой сетевых отказов, eventual consistency и
+операционной сложности.</p>
+
+<h3>Спектр декомпозиции</h3>
+<pre class="code-block"><code class="language-">монолит ──▶ модульный монолит ──▶ микросервисы
+ одна       чёткие границы            независимый
+ сборка     внутри процесса            деплой + сеть
+ простой    рефакторинг дёшев          сложно отлаживать</code></pre>
+
+<h3>Где резать границу сервиса</h3>
+<ul>
+<li>По <strong>bounded context</strong>, а не по техническому слою.</li>
+<li>Высокая внутренняя связность, низкое зацепление наружу.</li>
+<li>Разный темп изменений или нагрузки → кандидат на отделение.</li>
+<li><strong>Закон Конвея:</strong> структура системы повторит структуру команд.</li>
+</ul>
+
+<div class="note violet"><strong>Рекомендация курса.</strong> Начинайте
+модульным монолитом с явными границами. Выделяйте сервис только когда
+доказана независимая причина изменения или масштабирования.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> ADR-01 «стиль декомпозиции» — контекст, варианты, решение, последствия.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-2/index.html">← Урок 1.2</a>
+      <a href="../1-4/index.html" class="next">Урок 1.4 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

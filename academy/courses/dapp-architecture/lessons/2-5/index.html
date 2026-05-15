@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.5 · Хранилище и доставка — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.5 · Хранилище и доставка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.5 · <span class="badge-mini">CDN</span></p>
+    <h1>Хранилище и доставка</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/storage/docs/storage-classes" target="_blank" rel="noopener">Cloud Storage classes</a>, <a href="https://cloud.google.com/cdn/docs" target="_blank" rel="noopener">Cloud CDN docs</a>.</p>
+<p>Тот же паттерн, что в классике (объектное хранилище + presigned + CDN),
+но управляемый и интегрированный с IAM.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Класс</th><th>Когда</th></tr>
+<tr><td>Standard</td><td>горячие ассеты, частый доступ</td></tr>
+<tr><td>Nearline / Coldline</td><td>бэкапы, редкий доступ</td></tr>
+<tr><td>Archive</td><td>долгое хранение, дешёвое</td></tr>
+</table></div>
+
+<p>Signed URL / Signed Cookie дают приватную доставку; Cloud CDN кэширует
+на периметре. Media CDN — для видео-стриминга работ.</p>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../2-4/index.html">← Урок 2.4</a>
+      <a href="../2-6/index.html" class="next">Урок 2.6 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

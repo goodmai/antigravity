@@ -1,0 +1,36 @@
+---
+# Akash SDL — децентрализованный аналог Cloud Run (урок 3.2).
+# Валидируется офлайн в этой песочнице, без AKT и без подключения к сети.
+version: "2.0"
+
+services:
+  web:
+    image: ghcr.io/your-org/marketplace:1.0
+    expose:
+      - port: 8080
+        as: 80
+        to:
+          - global: true
+
+profiles:
+  compute:
+    web:
+      resources:
+        cpu:
+          units: 0.5
+        memory:
+          size: 512Mi
+        storage:
+          size: 512Mi
+  placement:
+    dcloud:
+      pricing:
+        web:
+          denom: uakt
+          amount: 1000
+
+deployment:
+  web:
+    dcloud:
+      profile: web
+      count: 1

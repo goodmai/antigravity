@@ -1,0 +1,29 @@
+@startuml container-hybrid
+' C4 Container — эталонный гибрид (урок 3.13, capstone).
+' Осознанный микс: что централизовать, что отдать Google, что децентрализовать.
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Маркетплейс — Containers · Capstone (гибрид)
+
+Person(buyer, "Покупатель", "Кошелёк / опц. OIDC")
+Person(author, "Автор")
+
+System_Boundary(mp, "Гибридная архитектура") {
+  Container(api, "API / BFF", "облако (Cloud Run)", "Hot-path, SLA-критичное чтение")
+  ContainerDb(idx, "The Graph", "indexer", "Каталог/лента — чтение из событий")
+  Container(chain, "Smart contracts", "EVM", "Истина прав и денег")
+  Container(ipfs, "IPFS + CDN-кэш", "content-addressed", "Иммутабельное медиа")
+  Container(batch, "Batch compute", "Akash", "Несрочные задачи без секретов")
+}
+
+System_Ext(oracle, "Chainlink", "Фиды/keeper для on/off-chain")
+
+Rel(buyer, api, "HTTPS")
+Rel(buyer, chain, "Покупка (подпись кошельком)")
+Rel(author, ipfs, "Загрузка работы → CID")
+Rel(chain, idx, "events")
+Rel(api, idx, "GraphQL (лента/каталог)")
+Rel(api, ipfs, "Резолв CID")
+Rel(chain, oracle, "Внешние данные / автоматизация")
+Rel(api, batch, "Офлайн-задачи")
+@enduml

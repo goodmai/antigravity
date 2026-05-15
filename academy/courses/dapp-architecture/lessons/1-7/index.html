@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 1.7 · Файлы и медиа — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 1.7 · Файлы и медиа</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.7 · <span class="badge-mini">media</span></p>
+    <h1>Файлы и медиа</h1>
+
+    <p><strong>Канон:</strong> <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html" target="_blank" rel="noopener">AWS S3 presigned URLs</a>, <a href="https://developer.mozilla.org/docs/Web/HTTP/Caching" target="_blank" rel="noopener">MDN: HTTP caching</a>.</p>
+<p>Файлы не хранят в БД и не гоняют через бэкенд. Объектное хранилище +
+<strong>presigned URL</strong> + CDN — индустриальный паттерн.</p>
+
+<h3>Прямая загрузка через presigned URL</h3>
+<pre class="code-block"><code class="language-">client → POST /uploads        (бэкенд выдаёт presigned PUT URL)
+client → PUT  s3://bucket/... (грузит напрямую, минуя бэкенд)
+client → POST /uploads/confirm (бэкенд валидирует, пишет метаданные)</code></pre>
+<p>Бэкенд не пропускает через себя гигабайты — он только авторизует и
+фиксирует метаданные.</p>
+
+<h3>Доставка через CDN</h3>
+<ul>
+<li>Иммутабельные ассеты — <code>Cache-Control: max-age=31536000, immutable</code>.</li>
+<li>Версионирование через хэш в имени файла, а не query-параметр.</li>
+<li>Приватный контент — короткоживущие подписанные ссылки.</li>
+</ul>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-6/index.html">← Урок 1.6</a>
+      <a href="../1-8/index.html" class="next">Урок 1.8 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

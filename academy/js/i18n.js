@@ -109,6 +109,19 @@
       ar: 'Solidity، العقود الذكية، بروتوكولات DeFi وتطوير dApp على سلاسل EVM.',
       fr: "Solidity, contrats intelligents, protocoles DeFi et développement de dApps sur chaînes EVM.",
     },
+    course_dapp_title: {
+      en: 'Decentralized Application Architecture', ru: 'Архитектура децентрализованного приложения',
+      es: 'Arquitectura de aplicaciones descentralizadas', zh: '去中心化应用架构',
+      ar: 'بنية التطبيقات اللامركزية', fr: "Architecture d'application décentralisée",
+    },
+    course_dapp_desc: {
+      en: 'One product designed three ways on a fixed 9-brick grid: classic, Google Cloud and decentralized analogues. Trade-offs, ADRs, C4 diagrams and a 9×3 capstone choice matrix instead of memorizing a stack.',
+      ru: 'Один продукт, спроектированный тремя способами по неизменной сетке из 9 «кирпичей»: классика, облако Google и децентрализованные аналоги. Trade-off, ADR, C4-диаграммы и capstone-матрица выбора 9×3 вместо зубрёжки стека.',
+      es: 'Un producto diseñado de tres formas sobre una rejilla fija de 9 bloques: clásico, Google Cloud y análogos descentralizados. Trade-offs, ADR, diagramas C4 y una matriz de elección 9×3.',
+      zh: '同一产品在固定的 9 块网格上以三种方式设计：经典、Google Cloud 和去中心化对应方案。权衡、ADR、C4 图与 9×3 选型矩阵。',
+      ar: 'منتج واحد مصمم بثلاث طرق على شبكة ثابتة من 9 لبنات: الكلاسيكي، Google Cloud والنظائر اللامركزية. مقايضات وADR ومخططات C4 ومصفوفة اختيار 9×3.',
+      fr: "Un produit conçu de trois façons sur une grille fixe de 9 briques : classique, Google Cloud et analogues décentralisés. Trade-offs, ADR, diagrammes C4 et matrice de choix 9×3.",
+    },
     /* ── Auth ────────────────────────────────────────── */
     auth_connect_metamask: {
       en: 'Connect MetaMask', ru: 'Подключить MetaMask', es: 'Conectar MetaMask',

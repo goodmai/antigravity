@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.7 · Децентрализованная идентичность — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.7 · Децентрализованная идентичность</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.7 · <span class="badge-mini">SIWE / DID</span></p>
+    <h1>Децентрализованная идентичность</h1>
+
+    <p><strong>Канон:</strong> <a href="https://eips.ethereum.org/EIPS/eip-4361" target="_blank" rel="noopener">EIP-4361 (SIWE)</a>, <a href="https://www.w3.org/TR/did-core/" target="_blank" rel="noopener">W3C DID Core</a>.</p>
+<p>Аналог кирпича Identity (OIDC/Cloud IAM). Идентичность = контроль
+приватного ключа; нет центрального IdP.</p>
+
+<h3>Sign-In with Ethereum</h3>
+<pre class="code-block"><code class="language-">1. сервер → nonce
+2. кошелёк подписывает структурированное сообщение (домен+nonce)
+3. сервер проверяет подпись → сессия
+   (нет пароля, нет хранилища учёток, нельзя «забыть пароль»)</code></pre>
+
+<div class="note violet"><strong>Цена модели.</strong> Нет «восстановления
+доступа»: потеря ключа = потеря аккаунта. DID/VC добавляют атрибуты
+(«верифицированный автор») без раскрытия личности.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> Auth-поток на кошельке (SIWE) + сравнение с OIDC из 1.8.</div>
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-6/index.html">← Урок 3.6</a>
+      <a href="../3-8/index.html" class="next">Урок 3.8 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

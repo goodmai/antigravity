@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>△ Архитектура децентрализованного приложения — Daskibo Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/academy.css" />
+  <link rel="stylesheet" href="./assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <span>△ Архитектура децентрализованного приложения</span>
+    </div>
+
+    <p class="lesson-meta">Course · 3 модуля · 35 уроков · сквозной проект · capstone</p>
+    <h1>△ Архитектура децентрализованного приложения</h1>
+    <p>
+      Курс учит <strong>проектировать</strong>, а не зубрить стек. Один и тот же
+      продукт — «маркетплейс цифровых работ + лента + платежи» — строится
+      тремя способами по неизменной сетке из 9 «кирпичей», чтобы
+      архитектурные решения принимались сравнением trade-off, а не по моде.
+    </p>
+
+    <div class="note gold">
+      <strong>Символ курса — масонский циркуль △:</strong> один домен мы
+      трижды «обводим вокруг центра» — классикой, облаком Google и
+      децентрализацией. <a href="./plan.md">plan.md</a> ·
+      <a href="./README.md">README.md</a>.
+    </div>
+
+    <div class="note violet">
+      <strong>Сравнение, а не вера.</strong> Для каждого кирпича — trade-off:
+      стоимость, латентность, доверие, суверенитет данных, операционная
+      сложность, vendor lock-in. Финал — осознанный гибрид, а не «всё на
+      блокчейне».
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль 1 — Современный классический подход</h2>
+      <span class="module-meta">Уроки 1.1–1.11 · централизованная индустриальная архитектура</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/1-1/index.html">
+        <div class="card-head"><span class="num">Урок 1.1</span><span class="badge-mini">C4 · DDD</span></div>
+        <h3>Приложение как система</h3>
+        <p>Домен, границы контекстов (DDD), контракты, уровни C4.</p>
+      </a>
+      <a class="card" href="./lessons/1-2/index.html">
+        <div class="card-head"><span class="num">Урок 1.2</span><span class="badge-mini">layers</span></div>
+        <h3>Клиент–сервер и слоистая архитектура</h3>
+        <p>Presentation / application / domain / infrastructure, направление зависимостей.</p>
+      </a>
+      <a class="card" href="./lessons/1-3/index.html">
+        <div class="card-head"><span class="num">Урок 1.3</span><span class="badge-mini">decompose</span></div>
+        <h3>Монолит → модульный монолит → микросервисы</h3>
+        <p>Связность/зацепление, границы сервисов, цена распределённости, закон Конвея.</p>
+      </a>
+      <a class="card" href="./lessons/1-4/index.html">
+        <div class="card-head"><span class="num">Урок 1.4</span><span class="badge-mini">API</span></div>
+        <h3>API-стили и контракты</h3>
+        <p>REST, GraphQL, gRPC, OpenAPI, версионирование, обратная совместимость.</p>
+      </a>
+      <a class="card" href="./lessons/1-5/index.html">
+        <div class="card-head"><span class="num">Урок 1.5</span><span class="badge-mini">PostgreSQL</span></div>
+        <h3>Состояние и данные: реляционка</h3>
+        <p>PostgreSQL, нормализация, ACID, индексы, миграции expand-contract.</p>
+      </a>
+      <a class="card" href="./lessons/1-6/index.html">
+        <div class="card-head"><span class="num">Урок 1.6</span><span class="badge-mini">events</span></div>
+        <h3>Кэш, очереди, событийность</h3>
+        <p>Redis, Kafka/RabbitMQ, идемпотентность, outbox, eventual consistency.</p>
+      </a>
+      <a class="card" href="./lessons/1-7/index.html">
+        <div class="card-head"><span class="num">Урок 1.7</span><span class="badge-mini">media</span></div>
+        <h3>Файлы и медиа</h3>
+        <p>Объектное хранилище, presigned URL, CDN, обработка загрузок.</p>
+      </a>
+      <a class="card" href="./lessons/1-8/index.html">
+        <div class="card-head"><span class="num">Урок 1.8</span><span class="badge-mini">OIDC</span></div>
+        <h3>Идентичность и доступ</h3>
+        <p>Сессии vs JWT, OAuth 2.1 / OIDC, RBAC/ABAC, refresh-rotation.</p>
+      </a>
+      <a class="card" href="./lessons/1-9/index.html">
+        <div class="card-head"><span class="num">Урок 1.9</span><span class="badge-mini">o11y</span></div>
+        <h3>Наблюдаемость</h3>
+        <p>Структурные логи, метрики, трейсы, golden signals, 12-factor.</p>
+      </a>
+      <a class="card" href="./lessons/1-10/index.html">
+        <div class="card-head"><span class="num">Урок 1.10</span><span class="badge-mini">scale</span></div>
+        <h3>Масштаб и отказоустойчивость</h3>
+        <p>LB, реплики, шардирование, CAP/PACELC, деградация, backpressure.</p>
+      </a>
+      <a class="card" href="./lessons/1-11/index.html">
+        <div class="card-head"><span class="num">Урок 1.11</span><span class="badge-mini">security</span></div>
+        <h3>Безопасность и поставка</h3>
+        <p>OWASP ASVS, секреты, CI/CD, IaC, threat-model классической схемы.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль 2 — Облачный Google подход</h2>
+      <span class="module-meta">Уроки 2.1–2.11 · managed-first на Google Cloud</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/2-1/index.html">
+        <div class="card-head"><span class="num">Урок 2.1</span><span class="badge-mini">SRE</span></div>
+        <h3>Философия Google Cloud</h3>
+        <p>Managed-first, SRE, Architecture Framework, error budget, цена владения.</p>
+      </a>
+      <a class="card" href="./lessons/2-2/index.html">
+        <div class="card-head"><span class="num">Урок 2.2</span><span class="badge-mini">compute</span></div>
+        <h3>Compute на Google Cloud</h3>
+        <p>Cloud Run, GKE Autopilot, App Engine, Cloud Functions — матрица выбора.</p>
+      </a>
+      <a class="card" href="./lessons/2-3/index.html">
+        <div class="card-head"><span class="num">Урок 2.3</span><span class="badge-mini">data</span></div>
+        <h3>Данные на Google Cloud</h3>
+        <p>Cloud SQL, AlloyDB, Spanner, Firestore, Bigtable — критерии выбора.</p>
+      </a>
+      <a class="card" href="./lessons/2-4/index.html">
+        <div class="card-head"><span class="num">Урок 2.4</span><span class="badge-mini">Pub/Sub</span></div>
+        <h3>Аналитика и события</h3>
+        <p>BigQuery, Pub/Sub, Dataflow, Eventarc, event-driven serverless.</p>
+      </a>
+      <a class="card" href="./lessons/2-5/index.html">
+        <div class="card-head"><span class="num">Урок 2.5</span><span class="badge-mini">CDN</span></div>
+        <h3>Хранилище и доставка</h3>
+        <p>Cloud Storage классы, Cloud CDN, Media CDN, подписанные URL.</p>
+      </a>
+      <a class="card" href="./lessons/2-6/index.html">
+        <div class="card-head"><span class="num">Урок 2.6</span><span class="badge-mini">IAM</span></div>
+        <h3>Identity на Google Cloud</h3>
+        <p>Cloud IAM, Identity Platform / Firebase Auth, Workload Identity Federation.</p>
+      </a>
+      <a class="card" href="./lessons/2-7/index.html">
+        <div class="card-head"><span class="num">Урок 2.7</span><span class="badge-mini">VPC</span></div>
+        <h3>Сеть и периметр</h3>
+        <p>VPC, Serverless VPC Access, Cloud Load Balancing, Cloud Armor, Apigee.</p>
+      </a>
+      <a class="card" href="./lessons/2-8/index.html">
+        <div class="card-head"><span class="num">Урок 2.8</span><span class="badge-mini">KMS</span></div>
+        <h3>Секреты и ключи</h3>
+        <p>Secret Manager, Cloud KMS, CMEK/CSEK, ротация.</p>
+      </a>
+      <a class="card" href="./lessons/2-9/index.html">
+        <div class="card-head"><span class="num">Урок 2.9</span><span class="badge-mini">SLO</span></div>
+        <h3>Observability на Google Cloud</h3>
+        <p>Cloud Logging/Monitoring/Trace/Profiler, SLO и error budget по SRE.</p>
+      </a>
+      <a class="card" href="./lessons/2-10/index.html">
+        <div class="card-head"><span class="num">Урок 2.10</span><span class="badge-mini">IaC</span></div>
+        <h3>Доставка и IaC</h3>
+        <p>Cloud Build, Artifact Registry, Cloud Deploy, Terraform / Config Connector.</p>
+      </a>
+      <a class="card" href="./lessons/2-11/index.html">
+        <div class="card-head"><span class="num">Урок 2.11</span><span class="badge-mini">reference</span></div>
+        <h3>Эталонная архитектура на Google</h3>
+        <p>Serverless backend + Firebase + BigQuery, чек-лист стоимости/SRE, lock-in.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Модуль 3 — Децентрализованные аналоги и альтернативы</h2>
+      <span class="module-meta">Уроки 3.1–3.13 · цена, доверие и граница применимости</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/3-1/index.html">
+        <div class="card-head"><span class="num">Урок 3.1</span><span class="badge-mini">карта</span></div>
+        <h3>Карта соответствий</h3>
+        <p>Таблица «классика ↔ Google ↔ децентрализация», спектр децентрализации.</p>
+      </a>
+      <a class="card" href="./lessons/3-2/index.html">
+        <div class="card-head"><span class="num">Урок 3.2</span><span class="badge-mini">Akash</span></div>
+        <h3>Децентрализованный compute</h3>
+        <p>Akash (SDL), Fluence, Golem, Flux — модель, оплата, доверие к ноде.</p>
+      </a>
+      <a class="card" href="./lessons/3-3/index.html">
+        <div class="card-head"><span class="num">Урок 3.3</span><span class="badge-mini">EVM</span></div>
+        <h3>Блокчейн как backend</h3>
+        <p>EVM, смарт-контракты, аккаунты/газ, EIP-1559, детерминизм.</p>
+      </a>
+      <a class="card" href="./lessons/3-4/index.html">
+        <div class="card-head"><span class="num">Урок 3.4</span><span class="badge-mini">on/off-chain</span></div>
+        <h3>Состояние: on-chain vs off-chain</h3>
+        <p>Цена storage, события/логи, индексация через The Graph.</p>
+      </a>
+      <a class="card" href="./lessons/3-5/index.html">
+        <div class="card-head"><span class="num">Урок 3.5</span><span class="badge-mini">IPFS</span></div>
+        <h3>Децентрализованное хранилище</h3>
+        <p>IPFS/Filecoin, Arweave (permaweb), Storj — content addressing, pinning.</p>
+      </a>
+      <a class="card" href="./lessons/3-6/index.html">
+        <div class="card-head"><span class="num">Урок 3.6</span><span class="badge-mini">gateways</span></div>
+        <h3>Децентрализованная доставка</h3>
+        <p>IPFS-шлюзы, Fleek, AIOZ, кэш и латентность p2p.</p>
+      </a>
+      <a class="card" href="./lessons/3-7/index.html">
+        <div class="card-head"><span class="num">Урок 3.7</span><span class="badge-mini">SIWE / DID</span></div>
+        <h3>Децентрализованная идентичность</h3>
+        <p>Кошелёк, SIWE (EIP-4361), DID/Verifiable Credentials, ENS.</p>
+      </a>
+      <a class="card" href="./lessons/3-8/index.html">
+        <div class="card-head"><span class="num">Урок 3.8</span><span class="badge-mini">p2p</span></div>
+        <h3>Данные и сообщения p2p</h3>
+        <p>Ceramic, OrbitDB, Gun, libp2p pubsub, CRDT.</p>
+      </a>
+      <a class="card" href="./lessons/3-9/index.html">
+        <div class="card-head"><span class="num">Урок 3.9</span><span class="badge-mini">oracles</span></div>
+        <h3>Оракулы и внешний мир</h3>
+        <p>Chainlink, мост on/off-chain, доверенные фиды, keeper&#x27;ы.</p>
+      </a>
+      <a class="card" href="./lessons/3-10/index.html">
+        <div class="card-head"><span class="num">Урок 3.10</span><span class="badge-mini">MPC / AA / ZK</span></div>
+        <h3>Приватность и ключи</h3>
+        <p>Самокастодиальные кошельки, MPC, account abstraction (ERC-4337), ZK.</p>
+      </a>
+      <a class="card" href="./lessons/3-11/index.html">
+        <div class="card-head"><span class="num">Урок 3.11</span><span class="badge-mini">indexers</span></div>
+        <h3>Наблюдаемость децентрализованных систем</h3>
+        <p>The Graph, Dune, RPC/ноды, мониторинг финализации и реоргов.</p>
+      </a>
+      <a class="card" href="./lessons/3-12/index.html">
+        <div class="card-head"><span class="num">Урок 3.12</span><span class="badge-mini">DAO</span></div>
+        <h3>Управление и поставка</h3>
+        <p>DAO, on-chain governance, аудит контрактов, детерминированные сборки, upgradeability.</p>
+      </a>
+      <a class="card" href="./lessons/3-13/index.html">
+        <div class="card-head"><span class="num">Урок 3.13</span><span class="badge-mini">Capstone</span></div>
+        <h3>Эталонная гибридная архитектура · Capstone</h3>
+        <p>Сведение трёх проекций, матрица выбора 9×3, threat-model, что централизовать.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Артефакты</h2>
+      <span class="module-meta">что студент сдаёт · ADR · C4 · capstone-матрица</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./artifacts/README.md">
+        <div class="card-head"><span class="num">artifacts</span><span class="badge-mini">обзор</span></div>
+        <h3>Состав и критерий завершения</h3>
+        <p>Что сдаётся по каждому модулю и как рендерить C4.</p>
+      </a>
+      <a class="card" href="./artifacts/adr/0000-template.md">
+        <div class="card-head"><span class="num">ADR</span><span class="badge-mini">×5 + шаблон</span></div>
+        <h3>Architecture Decision Records</h3>
+        <p>Шаблон Nygard + 5 заготовок (декомпозиция, CAP, runtime, compute, ключи).</p>
+      </a>
+      <a class="card" href="./artifacts/c4/container-hybrid.puml">
+        <div class="card-head"><span class="num">C4</span><span class="badge-mini">PlantUML</span></div>
+        <h3>C4-диаграммы 3 проекций</h3>
+        <p>Context + Container «классика / Google / гибрид» в C4-PlantUML.</p>
+      </a>
+      <a class="card" href="./artifacts/capstone-matrix.md">
+        <div class="card-head"><span class="num">capstone</span><span class="badge-mini">9×3</span></div>
+        <h3>Матрица выбора + threat-model</h3>
+        <p>Финальный артефакт: trade-off 9 кирпичей × 3 парадигмы.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Sandboxes</h2>
+      <span class="module-meta">4 изолированных стенда · docker compose up · без облака и газа</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./sandboxes/classic/README.md">
+        <div class="card-head"><span class="num">classic</span><span class="badge-mini">Модуль 1</span></div>
+        <h3>API + PostgreSQL + Redis + Kafka + MinIO</h3>
+        <p>Классические кирпичи без облака: state, кэш, событийность, S3-хранилище.</p>
+      </a>
+      <a class="card" href="./sandboxes/gcp-lite/README.md">
+        <div class="card-head"><span class="num">gcp-lite</span><span class="badge-mini">Модуль 2</span></div>
+        <h3>Firestore + Pub/Sub + fake-gcs эмуляторы</h3>
+        <p>Паттерны Google Cloud без счёта и сервис-аккаунтов, офлайн.</p>
+      </a>
+      <a class="card" href="./sandboxes/chain/README.md">
+        <div class="card-head"><span class="num">chain</span><span class="badge-mini">Модуль 3</span></div>
+        <h3>Anvil + IPFS Kubo + Graph Node</h3>
+        <p>Блокчейн + контент-адресуемое хранилище + индексация локально.</p>
+      </a>
+      <a class="card" href="./sandboxes/depin/README.md">
+        <div class="card-head"><span class="num">depin</span><span class="badge-mini">Модуль 3</span></div>
+        <h3>Akash CLI + libp2p demo</h3>
+        <p>DePIN-деплой и p2p pubsub без оплаты AKT и тестнетов.</p>
+      </a>
+    </div>
+
+    <div class="note">
+      <strong>Критерий завершения.</strong> C4-диаграммы (Context+Container)
+      по каждому из 3 модулей, ≥5 ADR по спорным решениям и
+      <strong>Capstone</strong>: матрица выбора 9×3 + эталонная гибридная
+      архитектура с обоснованием trade-off и threat-model.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../js/header.js"></script>
+  <script src="../../js/i18n.js"></script>
+</body>
+</html>

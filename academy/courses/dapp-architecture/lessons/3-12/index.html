@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 3.12 · Управление и поставка — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 3.12 · Управление и поставка</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.12 · <span class="badge-mini">DAO</span></p>
+    <h1>Управление и поставка</h1>
+
+    <p><strong>Канон:</strong> <a href="https://docs.openzeppelin.com/upgrades-plugins/" target="_blank" rel="noopener">OpenZeppelin upgrades</a>, <a href="https://docs.openzeppelin.com/contracts/governance" target="_blank" rel="noopener">Governor docs</a>.</p>
+<p>Аналог кирпича Delivery/Governance (CI/CD + IAM). Кто и как меняет
+правила системы — само становится частью протокола.</p>
+
+<ul>
+<li><strong>Иммутабельность vs upgradeability</strong>: proxy-паттерн даёт
+обновляемость ценой нового вектора доверия (кто владеет proxy-admin).</li>
+<li><strong>Аудит контрактов</strong> — аналог обязательного SAST-гейта.</li>
+<li><strong>DAO/Governor</strong>: изменения через голосование + timelock.</li>
+<li><strong>Детерминированная сборка</strong> — проверяемый bytecode.</li>
+</ul>
+
+<div class="note violet"><strong>Аналог.</strong> Timelock + multisig — это
+«четыре глаза» и change-management, но проверяемые на цепочке, а не в
+корпоративном процессе.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../3-11/index.html">← Урок 3.11</a>
+      <a href="../3-13/index.html" class="next">Урок 3.13 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

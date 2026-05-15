@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Урок 2.1 · Философия Google Cloud — Архитектура децентрализованного приложения</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">△ Архитектура децентрализованного приложения</a>
+      <span class="sep">/</span>
+      <span>Урок 2.1 · Философия Google Cloud</span>
+    </div>
+
+    <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.1 · <span class="badge-mini">SRE</span></p>
+    <h1>Философия Google Cloud</h1>
+
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Google Cloud Architecture Framework</a>, <a href="https://sre.google/sre-book/table-of-contents/" target="_blank" rel="noopener">Google SRE Book</a>.</p>
+<p>Облако Google переписывает те же девять кирпичей в логике
+<strong>managed-first</strong>: вы платите за то, чтобы не управлять
+инфраструктурой, и обмениваете контроль на скорость и SRE-практики.</p>
+
+<h3>Error budget</h3>
+<p>SLO 99.9% = бюджет ~43 мин/мес недоступности. Пока бюджет не исчерпан —
+катим фичи; исчерпан — замораживаем релизы и чиним надёжность. Это
+инженерный, а не политический рычаг.</p>
+
+<div class="note sky"><strong>Цена владения.</strong> Managed дешевле
+людей, но дороже железа и привязывает (lock-in). Каждый выбор в этом
+модуле сопровождается строкой trade-off: стоимость · lock-in · контроль.</div>
+    
+    <hr>
+
+    <div class="lesson-nav">
+      <a href="../1-11/index.html">← Урок 1.11</a>
+      <a href="../2-2/index.html" class="next">Урок 2.2 →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
