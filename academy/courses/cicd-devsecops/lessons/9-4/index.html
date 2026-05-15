@@ -169,7 +169,36 @@ sphnctl deployment get &lt;id&gt;              # URL + статус
 ICL ≈ SDL; для тяжёлого AI-backend — топ, чистый frontend дешевле отдать
 через Fleek.</p>
 
-<h2>Матрица выбора</h2>
+<h2>Реальные сценарии использования</h2>
+
+<p>Прежде чем смотреть на матрицу — четыре конкретных кейса, где каждый протокол
+выглядит наиболее органично:</p>
+
+<h3>Akash: E-commerce стартап без egress-fee</h3>
+<p>Node.js API (Express, 3 реплики) + React SPA (nginx) деплоятся в одном SDL.
+Трафик исходит от пользователей в ~5 странах; egress в AWS обошёлся бы
+$200+/мес, в Akash — <strong>$0</strong>. Стартап экономит ~$180/мес только
+на исходящем трафике при 500 GB/мес.</p>
+
+<h3>Fleek: DAO публикует governance portal</h3>
+<p>Статический SPA (React + Vite) деплоится на IPFS с ENS-доменом
+(<code>dao.eth</code>). Члены DAO голосуют on-chain; фронтенд цензуро-устойчив
+(нет единого хоста), адрес меняется только при новом релизе. Fleek обеспечивает
+авто-pinning + CDN + ENS-обновление в одной командой <code>fleek sites deploy</code>.</p>
+
+<h3>Flux: GameFi-проект с гарантированным HA</h3>
+<p>Matchmaking backend (WebSocket, stateful сессии) требует ≥3 реплик в разных
+дата-центрах. Flux запускает каждое приложение на минимум 3 нодах
+с автоматическим load-balancing через FDM — без настройки ALB/ingress.
+При падении одной ноды Flux автоматически переносит трафик на оставшиеся.</p>
+
+<h3>Spheron: ML-команда запускает LLM inference</h3>
+<p>Команда из 5 человек разрабатывает inference endpoint для LLaMA-3 70B.
+GPU (A100 80GB) на AWS стоит $3.67/h on-demand; на Spheron — ~$1.2/h.
+ICL-манифест идентичен SDL Akash, миграция заняла 2 часа.
+При 8 ч/день разработки экономия ~$60/мес на одном инженере.</p>
+
+
 
 <div class="table-wrap"><table>
 <tr><th>Протокол</th><th>Backend</th><th>Frontend</th><th>Оплата</th><th>Брать когда</th></tr>

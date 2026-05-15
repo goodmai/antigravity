@@ -96,6 +96,96 @@ w3 up ./dist                         # автоматический pinning
 
 <p><strong>Лаба 25</strong> — публикация контейнера в Akash + артефакт SBOM в IPFS, верификация.</p>
 
+<h2>Кейс: SDET-инженер запускает Playwright E2E-тесты в Akash</h2>
+
+<p>Задача: параллельно запустить 10 Playwright-воркеров в Akash, собрать HTML-отчёт
+и опубликовать его в IPFS. Экономия по сравнению с GitHub-hosted runners при
+долгих E2E-прогонах — от 60% (нет посекундной тарификации, только lease-стоимость).</p>
+
+<h3>SDL-манифест: test-runner + nginx report server</h3>
+
+<pre class="code-block"><code class="language-yaml">---
+version: "2.0"
+services:
+  test-runner:
+    image: ghcr.io/myorg/playwright@sha256:abc...   # digest — обязательно!
+    env:
+      - BASE_URL=https://staging.example.com
+      - WORKERS=10
+    expose:
+      - port: 9323    # Prometheus metrics endpoint
+        to: [{ global: false }]   # метрики — только внутри deployment
+  report:
+    image: nginx:alpine
+    expose:
+      - port: 80
+        as: 80
+        to: [{ global: true }]    # публичный доступ к HTML-отчёту
+profiles:
+  compute:
+    test-runner:
+      resources:
+        cpu: { units: 4 }
+        memory: { size: 4Gi }
+        storage: { size: 5Gi }
+    report:
+      resources:
+        cpu: { units: 0.5 }
+        memory: { size: 256Mi }
+        storage: { size: 1Gi }
+  placement:
+    dcloud:
+      attributes: { host: akash }
+      signedBy: { anyOf: ["akash1..."] }
+      pricing:
+        test-runner: { denom: uakt, amount: 500 }
+        report: { denom: uakt, amount: 100 }
+deployment:
+  test-runner:
+    dcloud:
+      profile: test-runner
+      count: 1
+  report:
+    dcloud:
+      profile: report
+      count: 1
+</code></pre>
+
+<h3>GH Actions: публикация test report в IPFS</h3>
+
+<pre class="code-block"><code class="language-yaml">- name: Upload Playwright report to IPFS
+  id: ipfs-upload
+  run: |
+    # Устанавливаем w3 CLI (web3.storage)
+    npm install -g @web3-storage/w3cli
+    # Авторизуемся через токен из секрета
+    w3 login --no-browser --token "$W3_TOKEN"
+    # Загружаем директорию с отчётом, получаем CID
+    CID=$(w3 up ./playwright-report --no-wrap --json | jq -r '.root."/"."/"')
+    echo "Report CID: $CID"
+    # Записываем CID в GitHub Step Summary
+    echo "## Playwright Test Report" >> $GITHUB_STEP_SUMMARY
+    echo "IPFS CID: \`$CID\`" >> $GITHUB_STEP_SUMMARY
+    echo "Gateway URL: https://cf-ipfs.com/ipfs/$CID" >> $GITHUB_STEP_SUMMARY
+    echo "cid=$CID" >> $GITHUB_OUTPUT
+  env:
+    W3_TOKEN: ${{ secrets.W3_STORAGE_TOKEN }}
+</code></pre>
+
+<div class="callout callout-task">
+  <h3>Задания к уроку</h3>
+  <ol>
+    <li><strong>Задание 1:</strong> Напишите SDL-манифест для стека FastAPI + Redis:
+    backend (FastAPI) слушает порт 8000 и доступен глобально; Redis слушает
+    порт 6379, но доступен <em>только внутри</em> deployment (не глобально).
+    Укажите ресурсы: API — 2 CPU / 1 GiB RAM, Redis — 1 CPU / 512 MiB RAM.</li>
+    <li><strong>Задание 2:</strong> Добавьте в GH Actions пайплайн шаг, который
+    после прогона тестов загружает HTML test report в IPFS через <code>w3 CLI</code>
+    и записывает полученный CID + публичную gateway-ссылку в GitHub Step Summary
+    (используйте <code>$GITHUB_STEP_SUMMARY</code>).</li>
+  </ol>
+</div>
+
 <hr>
 
 
