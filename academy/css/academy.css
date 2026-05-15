@@ -160,6 +160,8 @@ body::after {
 
 .lang-switcher {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
   align-items: center;
   direction: ltr; /* Ensure flags stay LTR regardless of document direction */
