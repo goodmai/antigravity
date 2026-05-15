@@ -1,0 +1,6 @@
+# Apprise — единый bridge для Telegram / Slack / Discord.
+# Заменяй значения через env-vars или прокидывай через docker secret.
+urls:
+  - "tgram://${TG_BOT_TOKEN}/${TG_CHAT_ID}/"
+  - "slack://${SLACK_TOKEN_A}/${SLACK_TOKEN_B}/${SLACK_TOKEN_C}/"
+  - "discord://${DISCORD_WEBHOOK_ID}/${DISCORD_WEBHOOK_TOKEN}/"

@@ -1,0 +1,36 @@
+version: "3.8"
+services:
+  headscale:
+    image: headscale/headscale:0.23
+    command: ["headscale", "serve"]
+    volumes:
+      - ./config.yaml:/etc/headscale/config.yaml:ro
+      - hs-data:/var/lib/headscale
+    ports:
+      - "8081:8080"
+      - "50443:50443"
+
+  tailscale-1:
+    image: tailscale/tailscale:stable
+    hostname: ts-1
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_EXTRA_ARGS: --login-server=http://headscale:8080
+    cap_add: [NET_ADMIN, SYS_MODULE]
+    devices: ["/dev/net/tun"]
+    volumes: [ts-state-1:/var/lib/tailscale]
+
+  tailscale-2:
+    image: tailscale/tailscale:stable
+    hostname: ts-2
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_EXTRA_ARGS: --login-server=http://headscale:8080
+    cap_add: [NET_ADMIN, SYS_MODULE]
+    devices: ["/dev/net/tun"]
+    volumes: [ts-state-2:/var/lib/tailscale]
+
+volumes:
+  hs-data: {}
+  ts-state-1: {}
+  ts-state-2: {}

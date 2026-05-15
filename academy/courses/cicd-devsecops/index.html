@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CI/CD DevSecOps Mastery 🛡️ — Daskibo Academy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/academy.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <span>CI/CD DevSecOps Mastery 🛡️</span>
+    </div>
+
+    <p class="lesson-meta">Course · 12 modules · 60 lessons · 24 labs · 10 sandboxes · capstone</p>
+    <h1>CI/CD DevSecOps Mastery 🛡️</h1>
+    <p>
+      Курс «<strong>CI/CD DevSecOps Mastery</strong>» — путь от первого
+      <code>git push</code> до подписанного мульти-арх контейнера, который
+      деплоится через ArgoCD на EKS <em>и</em> Akash, бэкапится WAL-G, а
+      падение SLO одновременно прилетает в Telegram, Slack и Discord.
+      Каждый урок открыт <strong>песочницей</strong>: <code>act + k3d + Gitea +
+      Vault + LocalStack</code> — без облака и без оплаты.
+    </p>
+
+    <div class="note">
+      <strong>Sandbox-first.</strong> Любая команда сначала запускается локально:
+      GH Actions через <code>act</code>, k8s через <code>k3d</code>, AWS через
+      <code>LocalStack</code>, Vault через <code>vault server -dev</code>, Sigstore
+      через self-hosted <code>Rekor + Fulcio</code>. Боевой облак — опционален.
+    </div>
+
+    <div class="note cyan">
+      <strong>Канон-источники.</strong> Курс выстроен по OWASP DSOMM/SAMM,
+      NIST SSDF (SP 800-218), SLSA v1.0, CIS Benchmarks, Google SRE и FinOps
+      Foundation. Полный список — в <a href="./plan.md">plan.md</a>.
+    </div>
+
+    <div class="module-h">
+      <h2>Module 0 — Foundations &amp; Mindset</h2>
+      <span class="module-meta">Lessons 0.1–0.3 · prerequisites</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/0-foundations/README.md">
+        <div class="card-head"><span class="num">Module 0</span><span class="badge-mini">mindset</span></div>
+        <h3>DevSecOps как поток ценности</h3>
+        <p>DORA, STRIDE-моделирование, OWASP SAMM/DSOMM self-assessment.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 1 — CI/CD Foundations</h2>
+      <span class="module-meta">Lessons 1.1–1.5</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/1-cicd-foundations/README.md">
+        <div class="card-head"><span class="num">Module 1</span><span class="badge-mini">pipelines</span></div>
+        <h3>Pipelines, hooks, GitHub Runners</h3>
+        <p>Анатомия пайплайна, trunk-based vs GitFlow, husky/lefthook + server-side hooks, reusable workflows, ARC на k8s.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 2 — Multi-platform Packaging</h2>
+      <span class="module-meta">Lessons 2.1–2.6</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/2-packaging/README.md">
+        <div class="card-head"><span class="num">Module 2</span><span class="badge-mini">deb · brew · iOS · Android</span></div>
+        <h3>Сборка пакетов под все платформы</h3>
+        <p><code>.deb</code> + PPA + aptly, Homebrew tap+bottle, iOS TestFlight через fastlane, Android AAB → Play Console, GoReleaser/JReleaser.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 3 — Containers, K8s, Pods</h2>
+      <span class="module-meta">Lessons 3.1–3.5</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/3-containers-k8s/README.md">
+        <div class="card-head"><span class="num">Module 3</span><span class="badge-mini">k8s</span></div>
+        <h3>Docker / BuildKit / Kubernetes</h3>
+        <p>Distroless multi-stage, SBOM/provenance attestations, Pod/Deployment/Service/Ingress, HPA, Kyverno и Pod Security Standards.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 4 — DevSecOps Core</h2>
+      <span class="module-meta">Lessons 4.1–4.6</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/4-devsecops-core/README.md">
+        <div class="card-head"><span class="num">Module 4</span><span class="badge-mini">sast · sca · sbom</span></div>
+        <h3>Сканеры, проверка зависимостей, SonarQube</h3>
+        <p>SonarQube Quality Gate, Semgrep/CodeQL, Renovate/Dependabot/OWASP DC, Trivy/Grype, gitleaks, cosign+SLSA+Rekor.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 5 — Secrets, OAuth, 2FA</h2>
+      <span class="module-meta">Lessons 5.1–5.5</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/5-secrets-auth/README.md">
+        <div class="card-head"><span class="num">Module 5</span><span class="badge-mini">vault · oidc · webauthn</span></div>
+        <h3>Надёжное хранение секретов и аутентификация</h3>
+        <p>Vault + ESO, AWS/Azure/GCP через OIDC (без long-lived ключей), OAuth 2.0 + PKCE, TOTP/WebAuthn, NIST 800-63B AAL2/AAL3.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 6 — Observability</h2>
+      <span class="module-meta">Lessons 6.1–6.5</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/6-observability/README.md">
+        <div class="card-head"><span class="num">Module 6</span><span class="badge-mini">prometheus · grafana · influx</span></div>
+        <h3>Метрики, дашборды, SLO</h3>
+        <p>Prometheus + PromQL, Grafana-as-code, InfluxDB v2 + Telegraf + Flux, Loki/Tempo/OTel, multi-burn-rate alerts.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 7 — Notifications &amp; ChatOps</h2>
+      <span class="module-meta">Lessons 7.1–7.4</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/7-notifications/README.md">
+        <div class="card-head"><span class="num">Module 7</span><span class="badge-mini">tg · slack · discord</span></div>
+        <h3>Доставка событий пайплайна и метрик в чаты</h3>
+        <p>Telegram Bot API, Slack Bolt + Block Kit, Discord webhooks/embeds, Alertmanager как единый маршрутизатор.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 8 — Cloud Practices</h2>
+      <span class="module-meta">Lessons 8.1–8.6</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/8-cloud-practices/README.md">
+        <div class="card-head"><span class="num">Module 8</span><span class="badge-mini">aws · azure · gcp</span></div>
+        <h3>AWS, Azure, Google Cloud</h3>
+        <p>OIDC-федерация без long-lived ключей, EKS/AKS/GKE, Secrets Manager/Key Vault/SM, Terraform+Atlantis+tfsec, infracost.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 9 — DePIN &amp; Decentralized Infra</h2>
+      <span class="module-meta">Lessons 9.1–9.3</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/9-depin/README.md">
+        <div class="card-head"><span class="num">Module 9</span><span class="badge-mini">akash · ipfs · filecoin</span></div>
+        <h3>Депин-инфраструктура</h3>
+        <p>Akash SDL и escrow, артефакты на Filecoin/IPFS, гибрид с AWS, threat model доверия к нодам.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 10 — Edge: VPS, VPN, Landing, Mail</h2>
+      <span class="module-meta">Lessons 10.1–10.4</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/10-edge-vps-vpn-mail/README.md">
+        <div class="card-head"><span class="num">Module 10</span><span class="badge-mini">vps · wireguard · mailcow</span></div>
+        <h3>VPS, VPN, лендинги и mail-сервер</h3>
+        <p>Hardening (ufw/nftables/fail2ban/Lynis), Tailscale/WireGuard/Headscale, Astro/Hugo → S3/Pages, mailcow с SPF/DKIM/DMARC/MTA-STS.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 11 — Data: DB, Replication, Backup</h2>
+      <span class="module-meta">Lessons 11.1–11.4</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/11-data-backup/README.md">
+        <div class="card-head"><span class="num">Module 11</span><span class="badge-mini">db · pgbackrest · velero</span></div>
+        <h3>База, репликация, бэкапы</h3>
+        <p>Online-миграции (gh-ost/pt-osc/Atlas), Postgres streaming/logical, WAL-G/pgBackRest, S3 Object Lock, Velero, restore-rehearsal.</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Module 12 — Mistakes, Best Practices &amp; Capstone</h2>
+      <span class="module-meta">Lessons 12.1–12.4</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./lessons/12-mistakes-and-capstone/README.md">
+        <div class="card-head"><span class="num">Module 12</span><span class="badge-mini">capstone</span></div>
+        <h3>Топ-30 ошибок и финальный capstone</h3>
+        <p>Pinned actions, least-privilege токены, supply-chain hardening, go-live checklist, итоговый проект «end-to-end».</p>
+      </a>
+    </div>
+
+    <div class="module-h">
+      <h2>Labs &amp; Sandboxes</h2>
+      <span class="module-meta">24 labs + capstone · 10 sandboxes</span>
+    </div>
+    <div class="card-grid">
+      <a class="card" href="./labs/README.md">
+        <div class="card-head"><span class="num">Labs</span><span class="badge-mini">hands-on</span></div>
+        <h3>Полный список лаб</h3>
+        <p>STRIDE, hello-pipeline, .deb, brew, TestFlight, AAB, distroless, k3d, SonarQube, Renovate, Trivy, cosign, Vault, WebAuthn, Prometheus, InfluxDB, TG/Slack/Discord, Akash, mailcow, WAL-G, capstone.</p>
+      </a>
+      <a class="card" href="./sandboxes/README.md">
+        <div class="card-head"><span class="num">Sandboxes</span><span class="badge-mini">docker-compose</span></div>
+        <h3>10 изолированных стендов</h3>
+        <p>pipeline, secrets, observability, k8s, cloud-lite, supply-chain, mail, vpn, depin, chaos.</p>
+      </a>
+    </div>
+
+    <div class="note">
+      <strong>Сертификация.</strong> 22/24 лаб с зелёным CI + capstone +
+      OWASP DSOMM ≥ Level 2 во всех 4 dimensions. Подробнее — в
+      <a href="./plan.md">plan.md</a>, секция 6.
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../js/academy.js"></script>
+</body>
+</html>

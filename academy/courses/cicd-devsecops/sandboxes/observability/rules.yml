@@ -1,0 +1,36 @@
+groups:
+  - name: sandbox-demo
+    interval: 30s
+    rules:
+      # Recording rules — пред-агрегация для дашбордов
+      - record: job:node_cpu:rate5m
+        expr: sum by (job) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))
+
+      # Deadman switch
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Target {{ $labels.instance }} is down for >2m"
+
+      # MWMBR-стиль (упрощённо) для error budget SLO 99.9%
+      - alert: ErrorBudgetBurnFast
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) > (14.4 * 0.001)
+          and
+          (sum(rate(http_requests_total{status=~"5.."}[1h])) / sum(rate(http_requests_total[1h]))) > (14.4 * 0.001)
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Burn rate 14.4× — error budget exhausted in ~2 days"
+
+      - alert: ErrorBudgetBurnSlow
+        expr: |
+          (sum(rate(http_requests_total{status=~"5.."}[30m])) / sum(rate(http_requests_total[30m]))) > (6 * 0.001)
+          and
+          (sum(rate(http_requests_total{status=~"5.."}[6h])) / sum(rate(http_requests_total[6h]))) > (6 * 0.001)
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "Burn rate 6× — error budget exhausted in ~5 days"

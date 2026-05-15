@@ -1,0 +1,91 @@
+version: "3.8"
+# Sandbox: observability — Prometheus + Grafana + InfluxDB v2 + Loki + Tempo +
+# Alertmanager + Apprise (для notifications в TG/Slack/Discord)
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules.yml:/etc/prometheus/rules.yml:ro
+      - prom-data:/prometheus
+    ports: ["9090:9090"]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports: ["9093:9093"]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["3000:3000"]
+
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUX_PASSWORD:-changeme123}
+      DOCKER_INFLUXDB_INIT_ORG: daskibo
+      DOCKER_INFLUXDB_INIT_BUCKET: metrics
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-my-super-secret-token}
+    volumes:
+      - influx-data:/var/lib/influxdb2
+    ports: ["8086:8086"]
+
+  telegraf:
+    image: telegraf:1.31-alpine
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on: [influxdb]
+
+  loki:
+    image: grafana/loki:3.1.1
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports: ["3100:3100"]
+    volumes:
+      - loki-data:/loki
+
+  tempo:
+    image: grafana/tempo:2.5.0
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml:ro
+    ports:
+      - "3200:3200"     # tempo
+      - "4317:4317"     # otlp grpc
+      - "4318:4318"     # otlp http
+
+  apprise:
+    image: caronc/apprise:1.1.6
+    environment:
+      APPRISE_CONFIG_LOCK: "no"
+    volumes:
+      - ./apprise/config.yml:/config/apprise.yml:ro
+    ports: ["8000:8000"]
+
+  # Demo target — Go-сервис с /metrics для лабораторки 18
+  demo-app:
+    image: prom/node-exporter:v1.8.2
+    ports: ["9100:9100"]
+
+volumes:
+  prom-data: {}
+  grafana-data: {}
+  influx-data: {}
+  loki-data: {}
