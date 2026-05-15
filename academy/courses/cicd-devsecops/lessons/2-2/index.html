@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.2 · Snap & Flatpak — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.2 · Snap & Flatpak</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.2 · <span class="badge-mini">snap</span></p>
+    <h1>Snap & Flatpak</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://snapcraft.io/docs/snapcraft-yaml-reference" target="_blank" rel="noopener">snapcraft.io/docs</a>,</p>
+<p><a href="https://docs.flatpak.org/en/latest/flatpak-builder-command-reference.html" target="_blank" rel="noopener">Flatpak builder reference</a>.</p>
+
+<p><strong>Snap</strong> — Canonical, confinement через AppArmor, авто-обновления, transactional</p>
+<p>rollback (через btrfs-снэпы на /). Каналы: <code>stable</code>/<code>candidate</code>/<code>beta</code>/<code>edge</code>.</p>
+
+<pre class="code-block"><code class="language-yaml"># snapcraft.yaml
+name: mycli
+base: core22
+version: '1.2.3'
+summary: My CLI
+description: |
+  ...
+grade: stable
+confinement: strict
+parts:
+  mycli:
+    plugin: go
+    source: .
+apps:
+  mycli:
+    command: bin/mycli
+    plugs: [home, network]
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">snapcraft
+snapcraft upload mycli_1.2.3_amd64.snap --release=stable
+</code></pre>
+
+<p><strong>Flatpak</strong> — нейтральный, sandbox через bubblewrap + portals, runtime-based</p>
+<p>(KDE, GNOME, Freedesktop).</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../2-1/index.html">← Предыдущий урок</a>
+      <a href="../2-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

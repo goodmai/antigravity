@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 5.3 · 2FA/MFA: TOTP, WebAuthn, push — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 5.3 · 2FA/MFA: TOTP, WebAuthn, push</span>
+    </div>
+
+    <p class="lesson-meta">Module 5 — Secrets, OAuth, 2FA · Lesson 5.3 · <span class="badge-mini">webauthn</span></p>
+    <h1>2FA/MFA: TOTP, WebAuthn, push</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://datatracker.ietf.org/doc/html/rfc6238" target="_blank" rel="noopener">RFC 6238 (TOTP)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc4226" target="_blank" rel="noopener">RFC 4226 (HOTP)</a>,</p>
+<p><a href="https://www.w3.org/TR/webauthn-3/" target="_blank" rel="noopener">WebAuthn Level 3</a>,</p>
+<p><a href="https://fidoalliance.org/specifications/" target="_blank" rel="noopener">FIDO Alliance specs</a>,</p>
+<p><a href="https://pages.nist.gov/800-63-3/sp800-63b.html" target="_blank" rel="noopener">NIST SP 800-63B</a>.</p>
+
+<h3>Сравнение факторов</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Фактор</th><th>Phishable?</th><th>Replay?</th><th>NIST AAL</th></tr>
+<tbody>
+<tr><td>SMS-код</td><td>✅ да (SIM-swap)</td><td>⚠ window</td><td>AAL2 (не рекомендуется)</td></tr>
+<tr><td>TOTP (Google Auth, Authy)</td><td>✅ можно фишить код</td><td>⚠ window 30s</td><td>AAL2</td></tr>
+<tr><td>Push-уведомление (Duo, Okta)</td><td>⚠ MFA-fatigue</td><td>нет</td><td>AAL2</td></tr>
+<tr><td><strong>WebAuthn / Passkey</strong></td><td>❌ не фишабельно (domain-bound)</td><td>нет</td><td><strong>AAL3</strong></td></tr>
+<tr><td>Hardware FIDO2 (YubiKey)</td><td>❌</td><td>нет</td><td><strong>AAL3</strong></td></tr>
+</table></div>
+
+<p><strong>WebAuthn / passkeys</strong> — единственный фактор, на который не работает phishing.</p>
+<p>Браузер сам проверяет origin (RP ID) перед подписью. Поэтому **прод-учётки</p>
+<p>DevSecOps инженера обязаны быть на WebAuthn** (GitHub поддерживает с 2021).</p>
+
+<h3>WebAuthn flow (упрощённо)</h3>
+
+<pre class="code-block"><code class="language-">Registration:
+1. server → клиент: PublicKeyCredentialCreationOptions { challenge, rp, user, ... }
+2. authenticator (YubiKey/passkey) генерит keypair
+3. клиент → server: attestation = { credId, publicKey, signature(challenge) }
+4. server сохраняет publicKey + credId
+
+Authentication:
+1. server → клиент: PublicKeyCredentialRequestOptions { challenge, allowCredentials }
+2. authenticator подписывает challenge приватным ключом
+3. клиент → server: assertion = { credId, signature, authenticatorData, clientDataJSON }
+4. server verify подписи через сохранённый publicKey
+</code></pre>
+
+<p><strong>Лаба 17</strong> — Node + <code>@simplewebauthn/server</code> + браузерные passkeys, recovery</p>
+<p>через TOTP fallback.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../5-2/index.html">← Предыдущий урок</a>
+      <a href="../5-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11.3 · Бэкапы: 3-2-1-1-0 — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 11.3 · Бэкапы: 3-2-1-1-0</span>
+    </div>
+
+    <p class="lesson-meta">Module 11 — Data: DB, Replication, Backup · Lesson 11.3 · <span class="badge-mini">backup</span></p>
+    <h1>Бэкапы: 3-2-1-1-0</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.veeam.com/blog/321-backup-rule.html" target="_blank" rel="noopener">Veeam 3-2-1-1-0 rule</a>,</p>
+<p><a href="https://wal-g.readthedocs.io" target="_blank" rel="noopener">WAL-G</a>,</p>
+<p><a href="https://pgbackrest.org" target="_blank" rel="noopener">pgBackRest</a>,</p>
+<p><a href="https://velero.io/docs/" target="_blank" rel="noopener">Velero docs</a>,</p>
+<p><a href="https://restic.net" target="_blank" rel="noopener">Restic</a>, <a href="https://www.borgbackup.org/" target="_blank" rel="noopener">Borg</a>,</p>
+<p><a href="https://litestream.io" target="_blank" rel="noopener">Litestream (SQLite → S3)</a>.</p>
+
+<p><strong>Правило:</strong></p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Значение</th></tr>
+<tbody>
+<tr><td><strong>3</strong></td><td>копии данных</td></tr>
+<tr><td><strong>2</strong></td><td>разных носителя</td></tr>
+<tr><td><strong>1</strong></td><td>offsite</td></tr>
+<tr><td><strong>1</strong></td><td>offline / immutable</td></tr>
+<tr><td><strong>0</strong></td><td>ошибок в тестовых восстановлениях</td></tr>
+</table></div>
+
+<p>«<strong>0</strong>» — единственная метрика, на которую все забивают. Проверяйте restore</p>
+<p><strong>в каждом релизе</strong>.</p>
+
+<h3>WAL-G для Postgres</h3>
+
+<pre class="code-block"><code class="language-bash"># Полный бэкап
+wal-g backup-push /var/lib/postgresql/16/main
+
+# Continuous archive (в postgresql.conf):
+#   archive_mode = on
+#   archive_command = 'wal-g wal-push %p'
+
+# Restore до момента
+wal-g backup-fetch /var/lib/postgresql/16/main LATEST
+# дальше recovery.signal + recovery_target_time = '2026-05-14 12:00:00'
+</code></pre>
+
+<p><code>wal-g</code> пишет в S3/GCS/Azure Blob. Поддерживает дельта-бэкапы (быстрее)</p>
+<p>и шифрование PGP/libsodium.</p>
+
+<h3>S3 Object Lock (immutable)</h3>
+
+<pre class="code-block"><code class="language-bash">aws s3api put-object-lock-configuration --bucket my-backups \
+  --object-lock-configuration '{
+    "ObjectLockEnabled": "Enabled",
+    "Rule": {
+      "DefaultRetention": { "Mode": "COMPLIANCE", "Days": 30 }
+    }
+  }'
+</code></pre>
+
+<p><code>Mode: COMPLIANCE</code> — никто (даже root account) не может удалить объект в</p>
+<p>течение N дней. Защита от ransomware и от angry-admin.</p>
+
+<h3>Velero для k8s</h3>
+
+<pre class="code-block"><code class="language-bash">velero install --provider aws --bucket k8s-backups \
+  --secret-file ./aws-creds --use-volume-snapshots=true \
+  --use-restic
+velero backup create daily-$(date +%F) --include-namespaces prod
+velero schedule create daily --schedule "0 2 * * *" --include-namespaces prod
+</code></pre>
+
+<p>Backup'ит <strong>manifests + PVC-snapshots</strong> (через CSI). Restore — точка-в-точку.</p>
+
+<h3>Restic / Borg для файловых систем</h3>
+
+<pre class="code-block"><code class="language-bash">restic -r b2:my-bucket:repo init
+restic -r b2:my-bucket:repo backup /home/user
+restic -r b2:my-bucket:repo forget --keep-daily 7 --keep-weekly 4 --keep-monthly 12 --prune
+</code></pre>
+
+<p>Дедупликация на блоковом уровне → инкрементальный по факту, но restore любой</p>
+<p>точки даёт «полную» копию.</p>
+
+<p><strong>Лаба 30</strong> — WAL-G в MinIO + restore-rehearsal в CI (восстановили БД,</p>
+<p>прогнали smoke-тесты).</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../11-2/index.html">← Предыдущий урок</a>
+      <a href="../11-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

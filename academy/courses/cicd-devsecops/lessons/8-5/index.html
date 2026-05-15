@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.5 · FinOps в CI/CD — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.5 · FinOps в CI/CD</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.5 · <span class="badge-mini">FinOps</span></p>
+    <h1>FinOps в CI/CD</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.finops.org/framework/" target="_blank" rel="noopener">FinOps Foundation framework</a>,</p>
+<p><a href="https://www.infracost.io/docs/" target="_blank" rel="noopener">infracost docs</a>,</p>
+<p><a href="https://www.opencost.io" target="_blank" rel="noopener">OpenCost</a>.</p>
+
+<p><strong>infracost</strong> в PR — показывает diff стоимости от изменения IaC.</p>
+
+<pre class="code-block"><code class="language-yaml">- uses: infracost/actions/setup@SHA
+- run: infracost breakdown --path=. --format=json --out-file=infracost.json
+- uses: infracost/actions/comment@SHA
+  with:
+    path: infracost.json
+    behavior: update
+</code></pre>
+
+<p>В PR появляется комментарий:</p>
+
+<pre class="code-block"><code class="language-">Monthly cost diff:  +$87.40 (+12%)
+└─ aws_instance.web   +1 instance ($73.00)
+└─ aws_rds_instance   tier change ($14.40)
+</code></pre>
+
+<p>Гейтим merge, если > $X (configurable).</p>
+
+<p><strong>OpenCost / Kubecost</strong> — runtime FinOps в k8s. Видим, сколько стоит каждый</p>
+<p>namespace/label/Deployment.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../8-4/index.html">← Предыдущий урок</a>
+      <a href="../8-6/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

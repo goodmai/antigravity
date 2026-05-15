@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11.1 · DB в CI/CD — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 11.1 · DB в CI/CD</span>
+    </div>
+
+    <p class="lesson-meta">Module 11 — Data: DB, Replication, Backup · Lesson 11.1 · <span class="badge-mini">migrations</span></p>
+    <h1>DB в CI/CD</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://databaserefactoring.com" target="_blank" rel="noopener">Refactoring Databases (S. Ambler)</a>,</p>
+<p><a href="https://github.com/github/gh-ost" target="_blank" rel="noopener">gh-ost (GitHub)</a>,</p>
+<p><a href="https://docs.percona.com/percona-toolkit/pt-online-schema-change.html" target="_blank" rel="noopener">pt-online-schema-change</a>,</p>
+<p><a href="https://atlasgo.io" target="_blank" rel="noopener">Atlas</a>, <a href="https://flywaydb.org" target="_blank" rel="noopener">Flyway</a>, <a href="https://www.liquibase.org" target="_blank" rel="noopener">Liquibase</a>,</p>
+<p><a href="https://sqitch.org" target="_blank" rel="noopener">Sqitch</a>.</p>
+
+<h3>Главное правило: миграции — это <strong>код</strong>, который катится <strong>отдельным шагом</strong>.</h3>
+
+<pre class="code-block"><code class="language-">build → migrate (idempotent) → smoke → cutover → release
+</code></pre>
+
+<p>Никаких <code>ALTER TABLE</code> в <code>application.startup()</code>. Никаких ручных DBA-сессий</p>
+<p>по пятницам.</p>
+
+<h3>Expand-Contract (zero-downtime schema)</h3>
+
+<p>Нельзя за один шаг сделать <code>ALTER COLUMN type</code> без блокировки. Подход:</p>
+
+<ol>
+<li><strong>Expand</strong>: добавляем новую колонку/таблицу, без drop.</li>
+<li><strong>Backfill</strong>: фоном переписываем данные в новый формат.</li>
+<li><strong>Dual-write/dual-read</strong>: оба формата живут одновременно.</li>
+<li><strong>Switch reader</strong>: меняем код на чтение из нового.</li>
+<li><strong>Switch writer</strong>: пишем только в новое.</li>
+<li><strong>Contract</strong>: дропаем старое (через пару недель, не сразу).</li>
+</ol>
+
+<h3>Online DDL для MySQL / MariaDB</h3>
+
+<pre class="code-block"><code class="language-bash">gh-ost --user=admin --password=$PWD --host=mysql.prod \
+       --database=app --table=orders \
+       --alter="ADD COLUMN delivered_at DATETIME NULL" \
+       --execute
+</code></pre>
+
+<p><code>gh-ost</code> создаёт shadow-table, копирует с rate-limit, ловит binlog-изменения,</p>
+<p>делает atomic swap. <strong>0 секунд</strong> блокировки.</p>
+
+<h3>Atlas (declarative migrations)</h3>
+
+<pre class="code-block"><code class="language-hcl">table "users" {
+  schema = schema.public
+  column "id"    { type = bigint, identity = true }
+  column "email" { type = text }
+  index "uq_email" { unique = true, columns = [column.email] }
+}
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">atlas migrate diff --env prod        # сгенерит SQL-патч
+atlas migrate lint --env prod        # проверит на опасные паттерны
+atlas migrate apply --env prod       # применит
+</code></pre>
+
+<p><code>atlas migrate lint</code> ругается на нарушения safety-rules:</p>
+<ul>
+<li>destructive (DROP COLUMN, DROP TABLE) — требует ack;</li>
+<li>backwards-incompatible — warning;</li>
+<li>non-concurrent index — warning (для Postgres <code>CREATE INDEX CONCURRENTLY</code>).</li>
+</ul>
+
+<h3>Migration в CI</h3>
+
+<pre class="code-block"><code class="language-yaml">- name: Lint migrations
+  run: atlas migrate lint --env prod --base atlas://main
+
+- name: Apply to staging
+  run: atlas migrate apply --env staging --tx-mode all
+
+- name: Smoke tests
+  run: ./scripts/smoke.sh
+
+- name: Apply to prod
+  if: github.ref == 'refs/heads/main'
+  environment: prod                  # required reviewers + 2FA
+  run: atlas migrate apply --env prod --tx-mode all
+
+- name: Rollback plan
+  if: failure()
+  run: atlas migrate rollback --env prod    # если поддерживает down-миграцию
+</code></pre>
+
+<p><strong>Лаба 29</strong> — pre-deploy миграция + откат + Atlas lint gate.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../10-4/index.html">← Предыдущий урок</a>
+      <a href="../11-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

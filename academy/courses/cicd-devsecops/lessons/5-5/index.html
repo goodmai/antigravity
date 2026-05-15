@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 5.5 · Требования к ключам и 2FA: NIST 800-63B — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 5.5 · Требования к ключам и 2FA: NIST 800-63B</span>
+    </div>
+
+    <p class="lesson-meta">Module 5 — Secrets, OAuth, 2FA · Lesson 5.5 · <span class="badge-mini">NIST</span></p>
+    <h1>Требования к ключам и 2FA: NIST 800-63B</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://pages.nist.gov/800-63-3/sp800-63b.html" target="_blank" rel="noopener">NIST SP 800-63B (Digital Identity)</a>,</p>
+<p><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication<em>Cheat</em>Sheet.html" target="_blank" rel="noopener">OWASP Authentication Cheat Sheet</a>,</p>
+<p><a href="https://www.bsi.bund.de/EN/Themen/Unternehmen-und-Organisationen/Standards-und-Zertifizierung/Technische-Richtlinien/TR-nach-Thema-sortiert/tr02102/tr02102_node.html" target="_blank" rel="noopener">BSI TR-02102</a>.</p>
+
+<h3>AAL уровни (Authenticator Assurance Level)</h3>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>AAL1</th><th>AAL2</th><th>AAL3</th></tr>
+<tbody>
+<tr><td>Single-factor</td><td>✓</td><td>✗</td><td>✗</td></tr>
+<tr><td>Multi-factor</td><td>—</td><td>✓</td><td>✓</td></tr>
+<tr><td>Phishing-resistant</td><td>—</td><td>—</td><td><strong>✓ (обязательно)</strong></td></tr>
+<tr><td>Hardware authenticator</td><td>—</td><td>optional</td><td><strong>✓</strong></td></tr>
+<tr><td>Verifier impersonation resistance</td><td>—</td><td>optional</td><td><strong>✓</strong></td></tr>
+<tr><td>Replay-resistance</td><td>✓</td><td>✓</td><td>✓</td></tr>
+</table></div>
+
+<p><strong>Что выбираем где:</strong></p>
+
+<ul>
+<li>AAL2 — для большинства сотрудников (TOTP+пароль, или passkey без hw-token).</li>
+<li><strong>AAL3</strong> — для <strong>DevSecOps</strong>, <strong>прод-доступа</strong>, <strong>deployment keys</strong>.</li>
+</ul>
+<p>Только passkey / hw FIDO2 + passphrase.</p>
+
+<h3>Требования к паролям (NIST 2024 update)</h3>
+
+<ul>
+<li>Минимум <strong>8 символов</strong>, рекомендуется ≥ 15.</li>
+<li><strong>Никаких</strong> обязательных composition rules («должна быть заглавная и цифра»)</li>
+</ul>
+<p>— это <strong>снижает</strong> энтропию.</p>
+<ul>
+<li><strong>Никаких</strong> обязательных периодических смен (только при компрометации).</li>
+<li>Проверять против списка <strong>скомпрометированных</strong> паролей (HaveIBeenPwned API).</li>
+<li>Поддержка space + paste + ≥ 64 символа.</li>
+<li><strong>MFA по умолчанию</strong>.</li>
+</ul>
+
+<h3>Требования к 2FA в CI/CD</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Что</th><th>Минимум</th></tr>
+<tbody>
+<tr><td>Доступ к prod GH repo (admin)</td><td>AAL3, hardware FIDO2</td></tr>
+<tr><td>Push в protected branch</td><td>signed commits (gitsign)</td></tr>
+<tr><td>Доступ к Vault unseal-shares</td><td>AAL3, hardware FIDO2, split-key</td></tr>
+<tr><td>Доступ к cloud root account</td><td>AAL3, hardware FIDO2, audit-logged</td></tr>
+<tr><td>Production deploy approval</td><td>AAL2 минимум, environment required reviewers</td></tr>
+<tr><td>Доступ к runner-машинам</td><td>SSH-CA + ed25519-sk</td></tr>
+</table></div>
+
+<h3>Lockout & rate-limiting</h3>
+
+<ul>
+<li>Не более <strong>100 failed attempts</strong> на аккаунт в час (NIST).</li>
+<li>Не более <strong>3 failed</strong> push-уведомлений в минуту (anti-MFA-fatigue).</li>
+<li>Exponential backoff на пароль: 1s, 2s, 4s... до 30s.</li>
+<li><strong>CAPTCHA после 5</strong> — добавляет cost для bot-атак.</li>
+</ul>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Никаких long-lived <code>AWS_ACCESS_KEY_ID</code> в CI secrets — только OIDC-федерация.</li>
+<li>[ ] Production-секреты в Vault / Cloud SM, доставляются через ESO.</li>
+<li>[ ] OAuth 2.0 = Authorization Code + PKCE; нет Implicit/Password Grant.</li>
+<li>[ ] Refresh token rotation включена.</li>
+<li>[ ] Все DevSecOps аккаунты — на WebAuthn/passkey, не SMS/TOTP.</li>
+<li>[ ] Algorithm: ed25519 для SSH/GPG; RSA-2048+ только legacy.</li>
+<li>[ ] SSH через certificate authority с TTL.</li>
+<li>[ ] Signed commits required в protected branches.</li>
+<li>[ ] AAL3 для прод-доступа, AAL2 для остального.</li>
+<li>[ ] Пароли проверяются против HIBP, нет обязательных rotations.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/15-vault-eso/" target="_blank" rel="noopener">Lab 15 — Vault + ESO + ротация</a></li>
+<li><a href="../../labs/16-oauth-pkce/" target="_blank" rel="noopener">Lab 16 — Keycloak + OAuth2 + PKCE</a></li>
+<li><a href="../../labs/17-webauthn/" target="_blank" rel="noopener">Lab 17 — WebAuthn login</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../5-4/index.html">← Предыдущий урок</a>
+      <a href="../6-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

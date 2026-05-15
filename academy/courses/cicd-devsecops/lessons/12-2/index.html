@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 12.2 · Pipeline hardening — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 12.2 · Pipeline hardening</span>
+    </div>
+
+    <p class="lesson-meta">Module 12 — Mistakes, Best Practices & Capstone · Lesson 12.2 · <span class="badge-mini">hardening</span></p>
+    <h1>Pipeline hardening</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions" target="_blank" rel="noopener">GitHub — Security hardening for GitHub Actions</a>,</p>
+<p><a href="https://slsa.dev/spec/v1.0/requirements" target="_blank" rel="noopener">SLSA SLSA-Build-L3</a>,</p>
+<p><a href="https://github.com/ossf/s2c2f" target="_blank" rel="noopener">OpenSSF — Secure Supply Chain Consumption Framework (S2C2F)</a>,</p>
+<p><a href="https://docs.npmjs.com/cli/v10/commands/npm-ci" target="_blank" rel="noopener">npm — pinned dependencies</a>.</p>
+
+<h3>Жёсткие правила для prod-пайплайнов</h3>
+
+<ol>
+<li><strong>Pin by SHA</strong> для всех <code>uses:</code> (renovate с <code>pinDigests: true</code> поддерживает).</li>
+<li><strong>Allowlist actions</strong> в org settings: <code>actions/*, sigstore/*, my-org/*</code>.</li>
+<li><strong>Least-privilege <code>permissions:</code></strong> в workflow + per-job.</li>
+<li><strong><code>concurrency</code></strong> + cancel-in-progress для PR'ов.</li>
+<li><strong>Environments</strong> с <code>required reviewers</code> для prod (+ <code>wait timer</code>).</li>
+<li><strong>OIDC</strong>, никаких long-lived ключей.</li>
+<li><strong>Reusable workflows из internal-only репо</strong> (нельзя из публичных без аудита).</li>
+<li><strong>Code review CODEOWNERS</strong> для <code>.github/workflows/</code>.</li>
+<li><strong><code>harden-runner</code> (StepSecurity)</strong> — мониторит egress runner'а, блокирует</li>
+</ol>
+<p>подозрительные домены.</p>
+<ol>
+<li><strong>SLSA-провенанс</strong> на каждом релизе.</li>
+<li><strong>NPM/PyPi typosquat защита</strong>: <code>npm ci</code> (не <code>install</code>), <code>--ignore-scripts</code></li>
+</ol>
+<p>в CI для untrusted deps, allow-list registry.</p>
+<ol>
+<li><strong>Подписанный workflow</strong> (через gitsign + protected branch).</li>
+</ol>
+
+<h3>Pinned actions с harden-runner</h3>
+
+<pre class="code-block"><code class="language-yaml">- uses: step-security/harden-runner@SHA
+  with:
+    egress-policy: block
+    allowed-endpoints: &gt;
+      api.github.com:443
+      objects.githubusercontent.com:443
+      registry.npmjs.org:443
+      ghcr.io:443
+      eu-west-1.amazonaws.com:443
+</code></pre>
+
+<p>Любой egress на не-allowlisted домен → ошибка job + alert.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../12-1/index.html">← Предыдущий урок</a>
+      <a href="../12-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

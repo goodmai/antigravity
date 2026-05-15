@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.2 · SAST альтернативы: Semgrep, CodeQL — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.2 · SAST альтернативы: Semgrep, CodeQL</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.2 · <span class="badge-mini">semgrep</span></p>
+    <h1>SAST альтернативы: Semgrep, CodeQL</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://semgrep.dev/r" target="_blank" rel="noopener">Semgrep registry</a>,</p>
+<p><a href="https://codeql.github.com/docs/" target="_blank" rel="noopener">CodeQL docs</a>,</p>
+<p><a href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a>.</p>
+
+<p><strong>Semgrep</strong> — pattern-based, легко писать свои правила:</p>
+
+<pre class="code-block"><code class="language-yaml">rules:
+  - id: hardcoded-aws-key
+    pattern-either:
+      - pattern: "AKIA$X"
+    severity: ERROR
+    message: Hardcoded AWS Access Key
+    languages: [generic]
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">semgrep --config=auto --error          # auto = registry + project rules
+</code></pre>
+
+<p><strong>CodeQL</strong> — глубже (taint analysis, data-flow), но дороже на старте. Лучшее</p>
+<p>покрытие для Java/Go/JS/Python/C#/C++.</p>
+
+<pre class="code-block"><code class="language-yaml"># .github/workflows/codeql.yml
+- uses: github/codeql-action/init@SHA
+  with: { languages: 'go,javascript' }
+- uses: github/codeql-action/autobuild@SHA
+- uses: github/codeql-action/analyze@SHA
+</code></pre>
+
+<p><strong>Когда что:</strong> Semgrep — быстро, кастомные правила; CodeQL — глубокий</p>
+<p>taint-анализ + GitHub Security tab.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../4-1/index.html">← Предыдущий урок</a>
+      <a href="../4-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

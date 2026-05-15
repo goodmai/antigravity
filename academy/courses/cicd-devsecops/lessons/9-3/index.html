@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 9.3 · Гибрид: GH Actions → Akash, fallback на AWS — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 9.3 · Гибрид: GH Actions → Akash, fallback на AWS</span>
+    </div>
+
+    <p class="lesson-meta">Module 9 — DePIN & Decentralized Infrastructure · Lesson 9.3 · <span class="badge-mini">hybrid</span></p>
+    <h1>Гибрид: GH Actions → Akash, fallback на AWS</h1>
+
+
+<pre class="code-block"><code class="language-yaml">jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Deploy to Akash (primary)
+        id: akash
+        continue-on-error: true
+        run: |
+          akash tx deployment create deploy.yml --from $WALLET ...
+          # health-check
+          curl --fail https://akash-deployment.example.com/health
+
+      - name: Fallback to AWS EKS
+        if: steps.akash.outcome == 'failure'
+        run: |
+          aws eks update-kubeconfig --name my-cluster
+          kubectl apply -f k8s/
+</code></pre>
+
+<p><strong>Threat model гибрида:</strong></p>
+
+<ul>
+<li>DNS управляется одним provider (Cloudflare/Route53). При его падении —</li>
+</ul>
+<p>ни Akash, ни AWS не доступны → нужен <strong>multi-DNS</strong> (anycast + secondary).</p>
+<ul>
+<li>mTLS-сертификаты у обоих провайдеров одинаковые → ключ должен быть в Vault,</li>
+</ul>
+<p>а не в env-var каждой среды.</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Решение о DePIN — осознанное, не «хайп» (есть метрика выгоды).</li>
+<li>[ ] Threat model документирована (compromised node ≠ конец света).</li>
+<li>[ ] Контейнер в Akash запинен по digest, не tag.</li>
+<li>[ ] SBOM/провенанс продублирован в IPFS/Filecoin.</li>
+<li>[ ] Fallback на централизованного провайдера прописан и проверен.</li>
+<li>[ ] mTLS / encryption at rest для всех данных в DePIN.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/25-akash-ipfs/" target="_blank" rel="noopener">Lab 25 — Akash deploy + IPFS artifacts</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../9-2/index.html">← Предыдущий урок</a>
+      <a href="../10-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.1 · Ubuntu/Debian: .deb, PPA, репозитории — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.1 · Ubuntu/Debian: .deb, PPA, репозитории</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.1 · <span class="badge-mini">deb</span></p>
+    <h1>Ubuntu/Debian: .deb, PPA, репозитории</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.debian.org/doc/manuals/maint-guide/" target="_blank" rel="noopener">Debian New Maintainers' Guide</a>,</p>
+<p><a href="https://manpages.debian.org/bookworm/debhelper/debhelper.7.en.html" target="_blank" rel="noopener">debhelper docs</a>,</p>
+<p><a href="https://packaging.ubuntu.com" target="_blank" rel="noopener">Ubuntu Packaging Guide</a>,</p>
+<p><a href="https://manpages.debian.org/bookworm/reprepro/reprepro.1.en.html" target="_blank" rel="noopener">reprepro</a>,</p>
+<p><a href="https://www.aptly.info" target="_blank" rel="noopener">aptly</a>.</p>
+
+<h3>Anatomy of <code>.deb</code></h3>
+
+<pre class="code-block"><code class="language-">mypkg_1.2.3-1_amd64.deb
+├── debian-binary       # версия формата
+├── control.tar.gz      # control, postinst, prerm, conffiles
+└── data.tar.xz         # сам контент пакета (/usr/bin/..., /etc/..., /lib/systemd/...)
+</code></pre>
+
+<h3>Минимальный <code>debian/</code> дерева пакета</h3>
+
+<pre class="code-block"><code class="language-">debian/
+├── changelog       # ОБЯЗАТЕЛЬНО, dch -i для новых записей
+├── control         # имя, версия, deps, описание
+├── rules           # makefile, "dh $@" для большинства случаев
+├── compat          # уровень debhelper (13 для bookworm)
+├── copyright       # лицензия
+└── source/format   # "3.0 (native)" или "3.0 (quilt)"
+</code></pre>
+
+<p><code>debian/control</code>:</p>
+
+<pre class="code-block"><code class="language-">Source: mycli
+Section: utils
+Priority: optional
+Maintainer: You &lt;you@example.com&gt;
+Build-Depends: debhelper-compat (= 13), golang-go
+Standards-Version: 4.6.2
+
+Package: mycli
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: My CLI tool
+ Подробное описание.
+</code></pre>
+
+<p>Сборка:</p>
+
+<pre class="code-block"><code class="language-bash">dpkg-buildpackage -us -uc -b           # -b: только binary, без подписи
+lintian *.deb                          # обязательная проверка стиля
+debsign -k &lt;gpg-key-id&gt; *.changes      # подпись релиза
+</code></pre>
+
+<h3>PPA (Launchpad) vs свой aptly-репо</h3>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>PPA</th><th>aptly self-host</th></tr>
+<tbody>
+<tr><td>Кто хостит</td><td>Launchpad (Canonical)</td><td>вы</td></tr>
+<tr><td>Подпись</td><td>автоматически</td><td>свой GPG-key</td></tr>
+<tr><td>Кэш CDN</td><td>да</td><td>через CloudFront/Bunny/Caddy</td></tr>
+<tr><td>Цена</td><td>бесплатно</td><td>$$ за S3+CDN</td></tr>
+<tr><td>Контроль</td><td>низкий</td><td>полный</td></tr>
+</table></div>
+
+<h3>aptly + S3 + CloudFront</h3>
+
+<pre class="code-block"><code class="language-bash">aptly repo create -distribution=jammy -component=main myrepo
+aptly repo add myrepo build/*.deb
+aptly publish repo -gpg-key="..." myrepo s3:mybucket:
+</code></pre>
+
+<pre class="code-block"><code class="language-"># /etc/apt/sources.list.d/myrepo.list (у клиента)
+deb [signed-by=/etc/apt/keyrings/myrepo.gpg] https://apt.example.com jammy main
+</code></pre>
+
+<p><strong>Безопасно:</strong> <code>signed-by=</code> (а <strong>не</strong> <code>apt-key add</code>, который deprecated и</p>
+<p>небезопасен — overrides всех ключей).</p>
+
+<p><strong>Лаба 04</strong> — собрать <code>.deb</code> в CI, опубликовать в локальный aptly, установить</p>
+<p>из своего источника.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../1-5/index.html">← Предыдущий урок</a>
+      <a href="../2-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

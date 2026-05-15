@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 0.2 · Threat modeling за 30 минут — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 0.2 · Threat modeling за 30 минут</span>
+    </div>
+
+    <p class="lesson-meta">Module 0 — Foundations & Mindset · Lesson 0.2 · <span class="badge-mini">STRIDE</span></p>
+    <h1>Threat modeling за 30 минут</h1>
+
+
+<p><strong>Канон:</strong> Microsoft STRIDE, OWASP Threat Modeling, «Threat Modeling: Designing</p>
+<p>for Security» (A. Shostack).</p>
+
+<p><strong>STRIDE</strong> — шесть классов угроз:</p>
+
+<div class="table-wrap"><table>
+<tr><th>Буква</th><th>Угроза</th><th>Контрмера в CI/CD</th></tr>
+<tbody>
+<tr><td><strong>S</strong>poofing</td><td>подмена identity</td><td>OIDC + 2FA, signed commits, signed images (cosign)</td></tr>
+<tr><td><strong>T</strong>ampering</td><td>подмена данных/артефактов</td><td>provenance + SLSA L3, immutable storage</td></tr>
+<tr><td><strong>R</strong>epudiation</td><td>отказ от действий</td><td>подписанные коммиты, audit log в Rekor</td></tr>
+<tr><td><strong>I</strong>nformation disclosure</td><td>утечка</td><td>секреты в Vault, gitleaks, mTLS</td></tr>
+<tr><td><strong>D</strong>enial of Service</td><td>отказ в обслуживании</td><td>rate-limit на runners, concurrency, quotas</td></tr>
+<tr><td><strong>E</strong>levation of privilege</td><td>эскалация</td><td>least-privilege токены, RBAC, Kyverno</td></tr>
+</table></div>
+
+<p><strong>Метод за 30 минут:</strong></p>
+
+<ol>
+<li>Рисуем data-flow diagram (DFD) пайплайна: dev → repo → CI → registry → cluster.</li>
+<li>Помечаем trust-boundaries (где меняется уровень доверия — это «кости» STRIDE).</li>
+<li>Для каждой границы — 6 вопросов STRIDE.</li>
+<li>Ставим <strong>DREAD</strong> или <strong>CVSS</strong> для приоритета (или просто H/M/L).</li>
+</ol>
+
+<p><strong>Лаба 00</strong> — STRIDE-карта вашего реального репозитория.</p>
+
+
+
+    <div class="lesson-nav">
+      <a href="../0-1/index.html">← Предыдущий урок</a>
+      <a href="../0-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 2.6 · Кросс-платформенные артефакты — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 2.6 · Кросс-платформенные артефакты</span>
+    </div>
+
+    <p class="lesson-meta">Module 2 — Multi-platform Packaging · Lesson 2.6 · <span class="badge-mini">GoReleaser</span></p>
+    <h1>Кросс-платформенные артефакты</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://goreleaser.com/intro/" target="_blank" rel="noopener">GoReleaser</a>,</p>
+<p><a href="https://jreleaser.org" target="_blank" rel="noopener">JReleaser</a>, <a href="https://www.electron.build" target="_blank" rel="noopener">electron-builder</a>,</p>
+<p><a href="https://v2.tauri.app/distribute/" target="_blank" rel="noopener">Tauri</a>.</p>
+
+<h3>GoReleaser (Go-CLI на все платформы за один файл)</h3>
+
+<pre class="code-block"><code class="language-yaml"># .goreleaser.yaml
+version: 2
+
+builds:
+  - main: ./cmd/mycli
+    binary: mycli
+    env: [ "CGO_ENABLED=0" ]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - format: tar.gz
+    format_overrides: [{ goos: windows, format: zip }]
+
+nfpms:                   # .deb / .rpm / .apk
+  - id: packages
+    package_name: mycli
+    formats: [deb, rpm, apk]
+    maintainer: You &lt;you@example.com&gt;
+
+brews:                   # автогенерация Homebrew formula
+  - name: mycli
+    repository: { owner: me, name: homebrew-mytap }
+    homepage: https://example.com
+    license: MIT
+
+snapcrafts:
+  - publish: true
+    summary: My CLI
+    description: ...
+
+dockers:
+  - image_templates:
+      - "ghcr.io/me/mycli:{{ .Version }}-amd64"
+    use: buildx
+    build_flag_templates: ["--platform=linux/amd64"]
+
+signs:
+  - cmd: cosign
+    args: ["sign-blob", "--yes", "--output-signature=${signature}", "${artifact}"]
+    artifacts: all
+</code></pre>
+
+<p>Запуск в CI: <code>goreleaser release --clean</code> — собирает архивы, deb/rpm, Homebrew</p>
+<p>формулу, Snap, Docker-образ, подписывает cosign'ом.</p>
+
+<h3>JReleaser (JVM-стек: Maven Central, Homebrew, .deb, Docker)</h3>
+
+<p>Аналог для Java/Kotlin: <code>jreleaser full-release</code>. Удобно публикует в</p>
+<p>Maven Central через <a href="https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/" target="_blank" rel="noopener">Sonatype OSSRH</a>.</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] <code>.deb</code> собран в CI, лёг в aptly, проверен <code>lintian</code>.</li>
+<li>[ ] Подписан <strong>GPG-key</strong>, клиент использует <code>signed-by=</code>, не <code>apt-key</code>.</li>
+<li>[ ] Homebrew tap имеет автогенерируемую формулу при релизе.</li>
+<li>[ ] iOS-сборка идёт через <code>match</code> + ASC API key, <strong>без</strong> Apple ID + 2FA.</li>
+<li>[ ] Android-сборка использует AAB + Play App Signing, upload-key rotatable.</li>
+<li>[ ] Кросс-платформа — один <code>.goreleaser.yaml</code> / <code>jreleaser.yml</code>, никакого</li>
+</ul>
+<p>ручного дублирования.</p>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/04-deb-aptly/" target="_blank" rel="noopener">Lab 04 — <code>.deb</code> + aptly</a></li>
+<li><a href="../../labs/05-brew-tap/" target="_blank" rel="noopener">Lab 05 — Homebrew tap</a></li>
+<li><a href="../../labs/06-ios-testflight/" target="_blank" rel="noopener">Lab 06 — iOS TestFlight</a></li>
+<li><a href="../../labs/07-android-aab/" target="_blank" rel="noopener">Lab 07 — Android AAB → Play</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../2-5/index.html">← Предыдущий урок</a>
+      <a href="../3-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

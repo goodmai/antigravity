@@ -1,0 +1,112 @@
+/* CI/CD DevSecOps Mastery — course styles */
+:root {
+  --accent: #22d3ee;     /* cyan — security */
+  --accent-2: #0ea5e9;
+  --shield: #f59e0b;     /* amber — warning/audit */
+  --ok: #34d399;
+  --err: #f87171;
+}
+
+.lesson-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+  flex-wrap: wrap;
+}
+
+.lesson-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  background: rgba(34, 211, 238, 0.04);
+}
+
+.lesson-nav a:hover {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: var(--accent);
+}
+
+.lesson-nav a.next {
+  margin-left: auto;
+}
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  margin: 1.5rem 0;
+  padding: 12px 20px;
+  background: rgba(34, 211, 238, 0.05);
+  border-radius: 0 8px 8px 0;
+}
+
+blockquote p {
+  margin: 0;
+  color: var(--muted, #94a3b8);
+  font-style: italic;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th, td {
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+}
+
+th {
+  background: rgba(34, 211, 238, 0.08);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border, rgba(255,255,255,0.1));
+  margin: 2rem 0;
+}
+
+ul, ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+  color: var(--muted, #94a3b8);
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+li strong {
+  color: var(--text, #f8fafc);
+}
+
+.checklist {
+  list-style: none;
+  padding: 0;
+}
+
+.checklist li::before {
+  content: '□ ';
+  color: var(--accent);
+  font-weight: 600;
+}

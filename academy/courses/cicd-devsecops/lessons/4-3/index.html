@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.3 · SCA: Dependabot, Renovate, OWASP DC — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.3 · SCA: Dependabot, Renovate, OWASP DC</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.3 · <span class="badge-mini">SCA</span></p>
+    <h1>SCA: Dependabot, Renovate, OWASP DC</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.renovatebot.com" target="_blank" rel="noopener">Renovate docs</a>,</p>
+<p><a href="https://docs.github.com/en/code-security/dependabot" target="_blank" rel="noopener">Dependabot docs</a>,</p>
+<p><a href="https://owasp.org/www-project-dependency-check/" target="_blank" rel="noopener">OWASP Dependency-Check</a>,</p>
+<p><a href="https://osv.dev" target="_blank" rel="noopener">OSV.dev</a>, <a href="https://nvd.nist.gov" target="_blank" rel="noopener">NVD</a>.</p>
+
+<p><strong>Renovate vs Dependabot:</strong></p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Dependabot</th><th>Renovate</th></tr>
+<tbody>
+<tr><td>Конфиг</td><td>YAML, простой</td><td>JSON5/JSON, <strong>очень</strong> гибкий</td></tr>
+<tr><td>Группировка</td><td>базовая</td><td>rich (по path/manager/regex)</td></tr>
+<tr><td>Schedule</td><td>базовый</td><td>cron-like</td></tr>
+<tr><td>Auto-merge</td><td>через GH UI</td><td>встроенный, с правилами</td></tr>
+<tr><td>Self-host</td><td>нет</td><td>да (whitesource/renovate)</td></tr>
+</table></div>
+
+<p><strong>Минимальный <code>renovate.json</code>:</strong></p>
+
+<pre class="code-block"><code class="language-json5">{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "schedule:earlyMondays",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "timezone": "Europe/Berlin",
+  "rangeStrategy": "bump",
+  "lockFileMaintenance": { "enabled": true, "schedule": ["before 4am on monday"] },
+  "vulnerabilityAlerts": { "labels": ["security"], "automerge": true },
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["patch", "pin"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "groupName": "npm dev deps"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "pinDigests": true                   // pin by sha256:... в манифестах
+    }
+  ]
+}
+</code></pre>
+
+<p><strong>Что важно:</strong></p>
+
+<ul>
+<li><code>vulnerabilityAlerts.automerge: true</code> — патчи уязвимостей сливаются авто-мерджем</li>
+</ul>
+<p>(после CI), не ждут вас.</p>
+<ul>
+<li><code>pinDigests: true</code> для docker — образы запиниваются по digest, не tag.</li>
+<li><code>groupName</code> уменьшает шум: один PR на все dev-deps в неделю.</li>
+</ul>
+
+<p><strong>OWASP Dependency-Check</strong> — оффлайн SCA по NVD, хорошо для air-gapped</p>
+<p>окружений.</p>
+
+<p><strong>Лаба 12</strong> — Renovate-конфиг с группировкой, автомердж патчей, security-PR</p>
+<p>с приоритетом.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../4-2/index.html">← Предыдущий урок</a>
+      <a href="../4-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

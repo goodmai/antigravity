@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 6.2 · Grafana: дашборды как код — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 6.2 · Grafana: дашборды как код</span>
+    </div>
+
+    <p class="lesson-meta">Module 6 — Observability · Lesson 6.2 · <span class="badge-mini">grafana</span></p>
+    <h1>Grafana: дашборды как код</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://grafana.com/docs/grafana/latest/" target="_blank" rel="noopener">Grafana docs</a>,</p>
+<p><a href="https://grafana.com/docs/grafana/latest/administration/provisioning/" target="_blank" rel="noopener">Grafana provisioning</a>,</p>
+<p><a href="https://github.com/grafana/grafonnet" target="_blank" rel="noopener">grafonnet (Jsonnet)</a>,</p>
+<p><a href="https://grafana.com/docs/oncall/latest/" target="_blank" rel="noopener">Grafana OnCall</a>.</p>
+
+<h3>Datasource + Dashboard provisioning</h3>
+
+<pre class="code-block"><code class="language-yaml"># /etc/grafana/provisioning/datasources/prometheus.yml
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    isDefault: true
+</code></pre>
+
+<pre class="code-block"><code class="language-yaml"># /etc/grafana/provisioning/dashboards/dashboards.yml
+apiVersion: 1
+providers:
+  - name: 'default'
+    folder: 'App'
+    options:
+      path: /var/lib/grafana/dashboards
+</code></pre>
+
+<p>Дашборды-JSON лежат в git. Изменения — через PR. <strong>Никаких ручных правок в UI</strong></p>
+<p>(они потеряются при перезапуске или перезатрутся git-state).</p>
+
+<h3>Golden Dashboard (RED/USE) — шаблон</h3>
+
+<ul>
+<li><strong>Rate</strong>: <code>sum by (endpoint) (rate(http_requests_total[1m]))</code></li>
+<li><strong>Errors</strong>: <code>sum(rate(http_requests_total{status=~"5.."}[1m]))</code></li>
+<li><strong>Duration</strong>: <code>histogram_quantile(0.99, ...)</code></li>
+<li><strong>CPU/Memory</strong>: <code>rate(container_cpu_usage_seconds_total[1m])</code>,</li>
+</ul>
+<p><code>container_memory_working_set_bytes</code></p>
+<ul>
+<li><strong>Saturation</strong>: queue length, GC pause time.</li>
+</ul>
+
+<h3>Grafana OnCall — alerting routing</h3>
+
+<p><code>oncall.yml</code>:</p>
+
+<pre class="code-block"><code class="language-yaml">integrations:
+  - name: prometheus-prod
+    type: alertmanager
+routes:
+  - match: { severity: "critical" }
+    notify: [ phone, telegram, slack ]
+  - match: { severity: "warning" }
+    notify: [ slack ]
+</code></pre>
+
+<p>Связка с Module 7 — push в TG/Slack/Discord.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../6-1/index.html">← Предыдущий урок</a>
+      <a href="../6-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

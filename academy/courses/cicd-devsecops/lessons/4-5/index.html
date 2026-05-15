@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 4.5 · Secret-scanning: gitleaks, trufflehog — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 4.5 · Secret-scanning: gitleaks, trufflehog</span>
+    </div>
+
+    <p class="lesson-meta">Module 4 — DevSecOps Core · Lesson 4.5 · <span class="badge-mini">secrets</span></p>
+    <h1>Secret-scanning: gitleaks, trufflehog</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://github.com/gitleaks/gitleaks" target="_blank" rel="noopener">gitleaks</a>,</p>
+<p><a href="https://github.com/trufflesecurity/trufflehog" target="_blank" rel="noopener">trufflehog</a>,</p>
+<p><a href="https://docs.github.com/en/code-security/secret-scanning" target="_blank" rel="noopener">GitHub Advanced Security secret scanning</a>.</p>
+
+<p><strong>3 точки проверки:</strong></p>
+
+<ol>
+<li><strong>Pre-commit</strong> (через husky/lefthook) — DX, отлавливает 90% случаев.</li>
+<li><strong>CI</strong> — required check, <strong>нельзя обойти</strong> <code>--no-verify</code>.</li>
+<li><strong>History scan</strong> — раз в неделю, ищем утечки в <strong>истории</strong> ветки.</li>
+</ol>
+
+<pre class="code-block"><code class="language-bash"># CI: только staged-diff PR (быстро)
+gitleaks detect --redact --no-banner --exit-code 1
+
+# Раз в неделю: всю историю
+gitleaks detect --redact --log-opts="--all"
+</code></pre>
+
+<p><strong>Если секрет уже утёк:</strong></p>
+
+<ol>
+<li><strong>Немедленно ротейтим</strong> (это первый шаг, не последний).</li>
+<li>Чистим историю (<code>git filter-repo</code>) — но для public-репо считаем, что</li>
+</ol>
+<p>секрет уже скомпрометирован, удаление <strong>не помогает</strong>.</p>
+<ol>
+<li>Логируем инцидент, делаем post-mortem.</li>
+</ol>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../4-4/index.html">← Предыдущий урок</a>
+      <a href="../4-6/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

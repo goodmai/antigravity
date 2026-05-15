@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 1.4 · GitHub Actions глубоко — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 1.4 · GitHub Actions глубоко</span>
+    </div>
+
+    <p class="lesson-meta">Module 1 — CI/CD Foundations · Lesson 1.4 · <span class="badge-mini">actions</span></p>
+    <h1>GitHub Actions глубоко</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://github.com/actions/toolkit" target="_blank" rel="noopener">actions/toolkit</a>,</p>
+<p><a href="https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions" target="_blank" rel="noopener">Workflow syntax</a>,</p>
+<p><a href="https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect" target="_blank" rel="noopener">OIDC in Actions</a>,</p>
+<p><a href="https://docs.github.com/en/actions/using-workflows/reusing-workflows" target="_blank" rel="noopener">Reusable workflows</a>.</p>
+
+<p><strong>Что должно быть в каждом «взрослом» репо:</strong></p>
+
+<ol>
+<li><strong>Reusable workflows</strong> (<code>.github/workflows/_*.yml</code> + <code>workflow_call</code>) — DRY.</li>
+<li><strong>OIDC → cloud</strong>, никаких <code>AWS_ACCESS_KEY_ID</code> в secrets.</li>
+<li><strong>Environments</strong> с <code>required reviewers</code> и <code>wait timer</code> для prod.</li>
+<li><strong>Composite actions</strong> или <strong>JavaScript actions</strong> под общие шаги.</li>
+<li><strong>Matrix + <code>include</code>/<code>exclude</code></strong> для платформ.</li>
+<li><strong><code>actions/cache@SHA</code></strong> с правильным ключом (хеш lock-файла).</li>
+</ol>
+
+<h3>Reusable workflow</h3>
+
+<pre class="code-block"><code class="language-yaml"># .github/workflows/_build.yml
+on:
+  workflow_call:
+    inputs:
+      arch: { required: true, type: string }
+    secrets:
+      registry-token: { required: true }
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps: [ ... ]
+</code></pre>
+
+<pre class="code-block"><code class="language-yaml"># .github/workflows/ci.yml
+jobs:
+  build-amd64:
+    uses: ./.github/workflows/_build.yml
+    with: { arch: amd64 }
+    secrets:
+      registry-token: ${{ secrets.GHCR_TOKEN }}
+</code></pre>
+
+<h3>OIDC → AWS (никаких static keys)</h3>
+
+<pre class="code-block"><code class="language-yaml">permissions:
+  id-token: write
+  contents: read
+
+steps:
+  - uses: aws-actions/configure-aws-credentials@SHA
+    with:
+      role-to-assume: arn:aws:iam::123:role/gh-actions-ci
+      aws-region: eu-west-1
+</code></pre>
+
+<p>Зеркальная настройка в IAM: trust policy на <code>repo:owner/repo:ref:refs/heads/main</code>.</p>
+<p>Подробно — в Module 8.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../1-3/index.html">← Предыдущий урок</a>
+      <a href="../1-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

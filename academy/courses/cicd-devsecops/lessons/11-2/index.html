@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 11.2 · Репликация — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 11.2 · Репликация</span>
+    </div>
+
+    <p class="lesson-meta">Module 11 — Data: DB, Replication, Backup · Lesson 11.2 · <span class="badge-mini">replication</span></p>
+    <h1>Репликация</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.postgresql.org/docs/current/high-availability.html" target="_blank" rel="noopener">Postgres replication docs</a>,</p>
+<p><a href="https://dev.mysql.com/doc/refman/8.0/en/replication-gtids.html" target="_blank" rel="noopener">MySQL GTID replication</a>,</p>
+<p><a href="https://patroni.readthedocs.io" target="_blank" rel="noopener">Patroni docs</a>,</p>
+<p><a href="https://galeracluster.com/library/documentation/" target="_blank" rel="noopener">Galera Cluster</a>.</p>
+
+<h3>Postgres: streaming vs logical</h3>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Streaming (physical)</th><th>Logical</th></tr>
+<tbody>
+<tr><td>Что копирует</td><td>WAL побайтово</td><td>row-level events</td></tr>
+<tr><td>Selective tables</td><td>нет</td><td>да</td></tr>
+<tr><td>Cross-version</td><td>нет</td><td><strong>да</strong> (для major upgrade без downtime)</td></tr>
+<tr><td>Кейсы</td><td>HA-pair, read-replica</td><td>upgrade, MV, multi-tenant fan-out</td></tr>
+</table></div>
+
+<h3>Patroni (auto-failover для Postgres)</h3>
+
+<pre class="code-block"><code class="language-yaml"># patroni.yml
+scope: cluster1
+namespace: /service/
+restapi: { listen: 0.0.0.0:8008 }
+etcd: { hosts: etcd1:2379,etcd2:2379,etcd3:2379 }
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+        wal_level: logical
+        max_wal_senders: 10
+        max_replication_slots: 10
+        hot_standby: "on"
+</code></pre>
+
+<p>Patroni следит за лидером через etcd. Падение лидера → автопромоушн самой</p>
+<p>свежей реплики. RTO ≈ 30s.</p>
+
+<h3>Кворум</h3>
+
+<ul>
+<li>3 узла — выдержит 1 падение.</li>
+<li>5 узлов — выдержит 2.</li>
+<li>2 узла + arbiter — дешёвый split-brain protection.</li>
+</ul>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../11-1/index.html">← Предыдущий урок</a>
+      <a href="../11-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

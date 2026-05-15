@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.4 · IaC: Terraform / OpenTofu + Pulumi + Crossplane — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.4 · IaC: Terraform / OpenTofu + Pulumi + Crossplane</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.4 · <span class="badge-mini">IaC</span></p>
+    <h1>IaC: Terraform / OpenTofu + Pulumi + Crossplane</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://developer.hashicorp.com/terraform/docs" target="_blank" rel="noopener">Terraform docs</a>,</p>
+<p><a href="https://opentofu.org" target="_blank" rel="noopener">OpenTofu (fork)</a>,</p>
+<p><a href="https://www.runatlantis.io" target="_blank" rel="noopener">Atlantis docs</a>,</p>
+<p><a href="https://aquasecurity.github.io/tfsec/" target="_blank" rel="noopener">tfsec</a>, <a href="https://www.checkov.io" target="_blank" rel="noopener">Checkov</a>,</p>
+<p><a href="https://docs.crossplane.io" target="_blank" rel="noopener">Crossplane</a>, <a href="https://www.pulumi.com/docs/" target="_blank" rel="noopener">Pulumi</a>.</p>
+
+<h3>Что выбрать</h3>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Terraform</th><th>OpenTofu</th><th>Pulumi</th><th>Crossplane</th></tr>
+<tbody>
+<tr><td>Лицензия</td><td>BUSL (с 2023)</td><td>MPL-2.0 ✓ FOSS</td><td>Apache 2</td><td>Apache 2</td></tr>
+<tr><td>Язык</td><td>HCL</td><td>HCL</td><td>TS/Go/Python/C#</td><td>YAML + CRDs</td></tr>
+<tr><td>Best for</td><td>mainstream</td><td>OSS-only-policy</td><td>dev-heavy</td><td>k8s-native</td></tr>
+</table></div>
+
+<p><strong>Совет:</strong> для большинства — OpenTofu (форк Terraform после смены лицензии,</p>
+<p>drop-in compatible). Pulumi — если у вас сильная dev-команда, не хочется HCL.</p>
+<p>Crossplane — если вы уже в k8s по уши, и хочется GitOps для AWS/GCP-ресурсов.</p>
+
+<h3>Atlantis: PR-driven Terraform</h3>
+
+<pre class="code-block"><code class="language-yaml"># atlantis.yaml
+version: 3
+projects:
+  - dir: infra/prod
+    workspace: prod
+    workflow: prod
+    autoplan: { when_modified: ["*.tf", "*.tfvars"], enabled: true }
+    apply_requirements: [approved, mergeable]
+workflows:
+  prod:
+    plan:
+      steps:
+        - run: tfsec --soft-fail .
+        - run: checkov -d . --skip-check CKV_AWS_8 --quiet
+        - init
+        - plan
+</code></pre>
+
+<p>В PR появляется auto-generated plan + tfsec/checkov-результаты. Apply делается</p>
+<p>после approve и merge.</p>
+
+<p><strong>Безопасность:</strong></p>
+
+<ul>
+<li>Atlantis сам не должен ходить в prod с long-lived ключами — он берёт</li>
+</ul>
+<p>временные через OIDC (или IRSA, если в EKS).</p>
+<ul>
+<li>Policy-as-Code: <code>OPA/Conftest</code> или <code>Sentinel</code> (если Terraform Cloud).</li>
+</ul>
+
+<p><strong>Лаба 24</strong> — Terraform + Atlantis + tfsec в PR.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../8-3/index.html">← Предыдущий урок</a>
+      <a href="../8-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

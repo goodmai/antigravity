@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.2 · Azure: Entra ID, AKS, Key Vault — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.2 · Azure: Entra ID, AKS, Key Vault</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.2 · <span class="badge-mini">azure</span></p>
+    <h1>Azure: Entra ID, AKS, Key Vault</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://learn.microsoft.com/azure/cloud-adoption-framework/" target="_blank" rel="noopener">Azure Cloud Adoption Framework</a>,</p>
+<p><a href="https://learn.microsoft.com/entra/workload-id/workload-identity-federation" target="_blank" rel="noopener">Workload Identity Federation in Entra</a>,</p>
+<p><a href="https://learn.microsoft.com/azure/aks/workload-identity-overview" target="_blank" rel="noopener">AKS Workload Identity</a>,</p>
+<p><a href="https://learn.microsoft.com/azure/key-vault/general/soft-delete-overview" target="_blank" rel="noopener">Key Vault soft-delete & purge protection</a>.</p>
+
+<h3>Federated credentials (без secret client_id+secret)</h3>
+
+<p>В App Registration → Federated credentials → «GitHub Actions deploying»:</p>
+
+<pre class="code-block"><code class="language-">Issuer:   https://token.actions.githubusercontent.com
+Subject:  repo:me/app:ref:refs/heads/main
+Audience: api://AzureADTokenExchange
+</code></pre>
+
+<pre class="code-block"><code class="language-yaml">- uses: azure/login@SHA
+  with:
+    client-id:      ${{ secrets.AZURE_CLIENT_ID }}
+    tenant-id:      ${{ secrets.AZURE_TENANT_ID }}
+    subscription-id:${{ secrets.AZURE_SUBSCRIPTION_ID }}
+</code></pre>
+
+<p>Никакого <code>client-secret</code> в GH Secrets.</p>
+
+<h3>AKS Workload Identity (аналог IRSA)</h3>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  annotations:
+    azure.workload.identity/client-id: &lt;APP_CLIENT_ID&gt;
+</code></pre>
+
+<pre class="code-block"><code class="language-yaml"># Pod
+spec:
+  serviceAccountName: app
+  containers:
+    - name: app
+      image: ...
+      env:
+        - name: AZURE_CLIENT_ID
+          value: &lt;APP_CLIENT_ID&gt;
+</code></pre>
+
+<h3>Key Vault — обязательно</h3>
+
+<ul>
+<li><code>Soft-delete: enabled</code> (минимум 7 дней — recovery после случайного удаления).</li>
+<li><code>Purge protection: enabled</code> (нельзя hard-delete до окончания SD-периода).</li>
+<li><code>RBAC</code> (не legacy access policies) — gran granularity.</li>
+<li><code>Private endpoint</code> для production.</li>
+</ul>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../8-1/index.html">← Предыдущий урок</a>
+      <a href="../8-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

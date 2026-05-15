@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 9.1 · DePIN: модель и экономика — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 9.1 · DePIN: модель и экономика</span>
+    </div>
+
+    <p class="lesson-meta">Module 9 — DePIN & Decentralized Infrastructure · Lesson 9.1 · <span class="badge-mini">DePIN</span></p>
+    <h1>DePIN: модель и экономика</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.akash.network" target="_blank" rel="noopener">Akash docs</a>,</p>
+<p><a href="https://docs.rendernetwork.com" target="_blank" rel="noopener">Render docs</a>,</p>
+<p><a href="https://docs.io.net" target="_blank" rel="noopener">IO.net</a>,</p>
+<p><a href="https://docs.helium.com" target="_blank" rel="noopener">Helium</a>,</p>
+<p><a href="https://docs.filecoin.io" target="_blank" rel="noopener">Filecoin docs</a>,</p>
+<p><a href="https://www.arweave.org/yellow-paper.pdf" target="_blank" rel="noopener">Arweave Yellow Paper</a>.</p>
+
+<p><strong>DePIN</strong> — это блокчейн-инсентив + физическое железо. Провайдеры (вы, я,</p>
+<p>дата-центр) поставляют ресурс (CPU/GPU/storage/радиосигнал), пользователи</p>
+<p>платят токеном.</p>
+
+<p><strong>Когда оправдано:</strong></p>
+
+<ul>
+<li>Высокая стоимость egress в AWS/GCP (DePIN часто без egress fee).</li>
+<li>GPU-нагрузки (IO.net/Render значительно дешевле AWS GPU).</li>
+<li>Чувствительность к <strong>vendor lock-in</strong> или geopolitical risk.</li>
+<li>Архивное хранение (Filecoin/Arweave — pay-once-store-forever).</li>
+<li>Censorship-resistance (open-source, dissent).</li>
+</ul>
+
+<p><strong>Когда </strong>не<strong> оправдано:</strong></p>
+
+<ul>
+<li>Low-latency RT-сервисы (узлы географически разбросаны, RT не гарантирован).</li>
+<li>Compliance с PCI-DSS / HIPAA / GDPR (трудно подписать DPA с децентрализованной</li>
+</ul>
+<p>сетью).</p>
+<ul>
+<li>Production-доступ с SLA 99.99% (DePIN-SLA обычно 99.5–99.9%).</li>
+<li>Гипер-secret workloads, где compromised node ≡ disaster.</li>
+</ul>
+
+<p><strong>Threat model:</strong></p>
+
+<div class="table-wrap"><table>
+<tr><th>Угроза</th><th>Контрмера</th></tr>
+<tbody>
+<tr><td>Compromised node читает память контейнера</td><td>encryption at rest + memory + confidential compute (TEE/AMD SEV/Intel SGX)</td></tr>
+<tr><td>Node MITM-ит трафик</td><td>mTLS + cert-pinning</td></tr>
+<tr><td>Node фейкует metrics</td><td>independent verification (Prom external pull)</td></tr>
+<tr><td>Network split / censorship</td><td>multi-provider deploy + fail-over</td></tr>
+</table></div>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../8-6/index.html">← Предыдущий урок</a>
+      <a href="../9-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

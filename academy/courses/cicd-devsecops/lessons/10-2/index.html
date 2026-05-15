@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10.2 · VPN: WireGuard, Tailscale, OpenVPN — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 10.2 · VPN: WireGuard, Tailscale, OpenVPN</span>
+    </div>
+
+    <p class="lesson-meta">Module 10 — Edge: VPS, VPN, Landing, Mail · Lesson 10.2 · <span class="badge-mini">VPN</span></p>
+    <h1>VPN: WireGuard, Tailscale, OpenVPN</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://www.wireguard.com/papers/wireguard.pdf" target="_blank" rel="noopener">WireGuard whitepaper</a>,</p>
+<p><a href="https://tailscale.com/kb" target="_blank" rel="noopener">Tailscale docs</a>,</p>
+<p><a href="https://github.com/juanfont/headscale" target="_blank" rel="noopener">Headscale (open-source coordinator)</a>,</p>
+<p><a href="https://openvpn.net/community-resources/" target="_blank" rel="noopener">OpenVPN docs</a>.</p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>WireGuard</th><th>Tailscale</th><th>Headscale (self-host)</th><th>OpenVPN</th></tr>
+<tbody>
+<tr><td>Криптография</td><td>modern (ChaCha20, Noise)</td><td>WireGuard под капотом</td><td>WireGuard</td><td>OpenSSL (TLS)</td></tr>
+<tr><td>NAT-обход</td><td>manual</td><td>автомат (DERP)</td><td>автомат</td><td>манипуляции</td></tr>
+<tr><td>ACL</td><td>manual <code>[Peer]</code></td><td>rich JSON ACL</td><td>rich JSON ACL</td><td>manual</td></tr>
+<tr><td>SSO/2FA</td><td>нет</td><td>да (Google/MS/Okta)</td><td>через OIDC</td><td>плагины</td></tr>
+<tr><td>Стоимость</td><td>бесплатно</td><td>freemium</td><td>бесплатно</td><td>бесплатно</td></tr>
+<tr><td>Best for</td><td>small team / point-to-point</td><td>enterprise zero-trust</td><td>sovereign self-host</td><td>legacy compatibility</td></tr>
+</table></div>
+
+<h3>Tailscale ACL для DevSecOps</h3>
+
+<pre class="code-block"><code class="language-jsonc">// tailnet ACL
+{
+  "groups": {
+    "group:devsecops": ["alice@example.com", "bob@example.com"]
+  },
+  "tagOwners": {
+    "tag:prod-bastion": ["group:devsecops"],
+    "tag:ci-runner":    ["group:devsecops"]
+  },
+  "acls": [
+    { "action": "accept", "src": ["group:devsecops"], "dst": ["tag:prod-bastion:22"] },
+    { "action": "accept", "src": ["tag:ci-runner"],  "dst": ["tag:prod-bastion:22"] }
+  ],
+  "ssh": [
+    {
+      "action": "check",          // повторно проверять каждые 12h
+      "src":    ["group:devsecops"],
+      "dst":    ["tag:prod-bastion"],
+      "users":  ["deploy"]
+    }
+  ]
+}
+</code></pre>
+
+<p><code>action: check</code> + Tailscale SSO + hardware 2FA — login на bastion получает</p>
+<p><strong>AAL3 + audit log</strong> в Tailscale Admin.</p>
+
+<h3>Headscale (self-hosted Tailscale coordinator)</h3>
+
+<p>Открытый сервер, который заменяет облако Tailscale. Клиенты — стандартный</p>
+<p><code>tailscaled</code>. Подходит, когда нельзя зависеть от внешнего SaaS (regulated /</p>
+<p>sovereign / on-prem).</p>
+
+<p><strong>Лаба 27</strong> — Headscale + Tailscale-клиенты + ACL.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../10-1/index.html">← Предыдущий урок</a>
+      <a href="../10-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

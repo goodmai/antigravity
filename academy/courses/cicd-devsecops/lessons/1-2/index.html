@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 1.2 · Git workflows — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 1.2 · Git workflows</span>
+    </div>
+
+    <p class="lesson-meta">Module 1 — CI/CD Foundations · Lesson 1.2 · <span class="badge-mini">git</span></p>
+    <h1>Git workflows</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://trunkbaseddevelopment.com" target="_blank" rel="noopener">trunk-based development</a>,</p>
+<p><a href="https://nvie.com/posts/a-successful-git-branching-model/" target="_blank" rel="noopener">GitFlow original</a>,</p>
+<p><a href="https://docs.github.com/en/get-started/quickstart/github-flow" target="_blank" rel="noopener">GitHub flow</a>.</p>
+
+<p>Сравнение:</p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Trunk-based</th><th>GitFlow</th><th>GitHub flow</th></tr>
+<tbody>
+<tr><td>Долгие ветки</td><td>❌ < 1 дня</td><td>✅ release/*</td><td>❌</td></tr>
+<tr><td>Подходит для</td><td>continuous deploy</td><td>shrink-wrap (1 релиз в N недель)</td><td>continuous delivery</td></tr>
+<tr><td>Сложность</td><td>низкая</td><td>высокая</td><td>средняя</td></tr>
+</table></div>
+
+<p><strong>Trunk-based + feature flags</strong> — стандарт для DORA Elite. Поэтому в курсе по</p>
+<p>умолчанию используем именно его.</p>
+
+<p><strong>Protected branches</strong> (минимум):</p>
+
+<ul>
+<li>require PR review (≥ 1 approver, CODEOWNERS-driven),</li>
+<li>require signed commits (gitsign/GPG),</li>
+<li>require status checks: <code>lint</code>, <code>test</code>, <code>sonar</code>, <code>trivy</code>,</li>
+<li>require linear history,</li>
+<li>block force-push на <code>main</code>,</li>
+<li>include administrators (без исключений).</li>
+</ul>
+
+<p><strong>CODEOWNERS</strong> (<code>.github/CODEOWNERS</code>):</p>
+
+<pre class="code-block"><code class="language-">*.tf            @platform/infra
+charts/         @platform/k8s
+.github/        @security/devsecops    # workflow меняет только sec-team
+infra/secrets/  @security/devsecops
+</code></pre>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../1-1/index.html">← Предыдущий урок</a>
+      <a href="../1-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

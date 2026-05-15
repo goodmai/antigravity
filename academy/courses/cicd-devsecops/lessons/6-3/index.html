@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 6.3 · InfluxDB v2 + Telegraf — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 6.3 · InfluxDB v2 + Telegraf</span>
+    </div>
+
+    <p class="lesson-meta">Module 6 — Observability · Lesson 6.3 · <span class="badge-mini">influx</span></p>
+    <h1>InfluxDB v2 + Telegraf</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.influxdata.com/influxdb/v2/" target="_blank" rel="noopener">InfluxDB v2 docs</a>,</p>
+<p><a href="https://docs.influxdata.com/telegraf/v1/plugins/" target="_blank" rel="noopener">Telegraf plugins</a>,</p>
+<p><a href="https://docs.influxdata.com/flux/v0/" target="_blank" rel="noopener">Flux language</a>.</p>
+
+<p><strong>Когда InfluxDB вместо Prometheus:</strong></p>
+
+<ul>
+<li><strong>IoT</strong> и <strong>event-driven</strong> метрики (с тегами высокой кардинальности).</li>
+<li>Долгие ретеншены с downsampling (Prometheus тут слабее без Thanos/Mimir/Cortex).</li>
+<li>Метрики <strong>бизнес-уровня</strong> (продажи, клики), не только инфра.</li>
+</ul>
+
+<h3>Telegraf → InfluxDB</h3>
+
+<pre class="code-block"><code class="language-toml"># telegraf.conf
+[agent]
+  interval = "10s"
+  flush_interval = "10s"
+
+[[inputs.cpu]]
+[[inputs.mem]]
+[[inputs.docker]]
+[[inputs.http]]
+  urls = ["https://myapp.example.com/health"]
+  data_format = "json"
+
+[[outputs.influxdb_v2]]
+  urls = ["http://influxdb:8086"]
+  token = "$INFLUX_TOKEN"
+  organization = "myorg"
+  bucket = "metrics"
+</code></pre>
+
+<h3>Flux: downsampling + retention</h3>
+
+<pre class="code-block"><code class="language-flux">// каждый час пишем агрегаты в bucket "metrics_1h" (RP = 90d)
+option task = {name: "downsample-1h", every: 1h}
+
+from(bucket: "metrics")
+  |&gt; range(start: -1h)
+  |&gt; filter(fn: (r) =&gt; r._measurement == "http")
+  |&gt; aggregateWindow(every: 1m, fn: mean)
+  |&gt; to(bucket: "metrics_1h", org: "myorg")
+</code></pre>
+
+<p>В bucket'е <code>metrics</code> — retention 7d (raw, дорого), в <code>metrics_1h</code> — 90d</p>
+<p>(дёшево). Это <strong>downsampling pyramid</strong>.</p>
+
+<p><strong>Лаба 19</strong> — Telegraf → InfluxDB → Grafana, IoT-метрики устройств с downsampling.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../6-2/index.html">← Предыдущий урок</a>
+      <a href="../6-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

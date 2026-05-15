@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 3.4 · Helm vs Kustomize — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 3.4 · Helm vs Kustomize</span>
+    </div>
+
+    <p class="lesson-meta">Module 3 — Containers, K8s, Pods · Lesson 3.4 · <span class="badge-mini">helm</span></p>
+    <h1>Helm vs Kustomize</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://helm.sh/docs/chart<em>best</em>practices/" target="_blank" rel="noopener">Helm best practices</a>,</p>
+<p><a href="https://kustomize.io" target="_blank" rel="noopener">Kustomize official docs</a>,</p>
+<p><a href="https://argo-cd.readthedocs.io" target="_blank" rel="noopener">ArgoCD Helm/Kustomize integration</a>.</p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Helm</th><th>Kustomize</th></tr>
+<tbody>
+<tr><td>Концепция</td><td>template + values</td><td>overlays + patches</td></tr>
+<tr><td>Сложность</td><td>выше (Go templates, _helpers.tpl)</td><td>ниже (чистый YAML)</td></tr>
+<tr><td>Версии</td><td>charts + dependencies</td><td>git-tag</td></tr>
+<tr><td>Best for</td><td>дистрибутив (oss-чарт)</td><td>внутренний моно-репо</td></tr>
+<tr><td>Подводный камень</td><td>string templating → bugs</td><td>overlays-дерево становится сложным</td></tr>
+</table></div>
+
+<p><strong>Совет:</strong> Helm — когда вы <strong>публикуете</strong> чарт для других. Kustomize — для</p>
+<p><strong>своего</strong> монорепо с env-overlays (<code>base</code>, <code>overlays/dev</code>, <code>overlays/prod</code>).</p>
+
+<p>Современный паттерн: Helm-чарт (от vendor) + Kustomize-патчи поверх (<code>kustomize</code></p>
+<p>теперь поддерживает inflateHelmChart). Лучшее из двух миров.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../3-3/index.html">← Предыдущий урок</a>
+      <a href="../3-5/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

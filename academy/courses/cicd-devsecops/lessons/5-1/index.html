@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 5.1 · Надёжное хранение секретов — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 5.1 · Надёжное хранение секретов</span>
+    </div>
+
+    <p class="lesson-meta">Module 5 — Secrets, OAuth, 2FA · Lesson 5.1 · <span class="badge-mini">vault</span></p>
+    <h1>Надёжное хранение секретов</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://developer.hashicorp.com/vault/docs" target="_blank" rel="noopener">HashiCorp Vault docs</a>,</p>
+<p><a href="https://docs.aws.amazon.com/secretsmanager/" target="_blank" rel="noopener">AWS Secrets Manager</a>,</p>
+<p><a href="https://learn.microsoft.com/azure/key-vault/" target="_blank" rel="noopener">Azure Key Vault</a>,</p>
+<p><a href="https://cloud.google.com/secret-manager/docs" target="_blank" rel="noopener">GCP Secret Manager</a>,</p>
+<p><a href="https://external-secrets.io" target="_blank" rel="noopener">External Secrets Operator</a>,</p>
+<p><a href="https://github.com/getsops/sops" target="_blank" rel="noopener">SOPS + age</a>.</p>
+
+<h3>Иерархия плохого → хорошего хранения</h3>
+
+<div class="table-wrap"><table>
+<tr><th>Уровень</th><th>Где</th><th>Оценка</th></tr>
+<tbody>
+<tr><td><strong>F</strong></td><td><code>.env</code> в git, в Slack-сообщении</td><td>🚫 утечка вопрос времени</td></tr>
+<tr><td><strong>D</strong></td><td>GitHub Secrets как long-lived AWS keys</td><td>⚠ компрометация даёт постоянный доступ</td></tr>
+<tr><td><strong>C</strong></td><td>GitHub Environment Secrets + required reviewers</td><td>✅ ок для multi-stage, но still long-lived</td></tr>
+<tr><td><strong>B</strong></td><td>Vault / AWS SM / Azure KV / GCP SM + short-lived API tokens</td><td>✅ хорошо</td></tr>
+<tr><td><strong>A</strong></td><td>OIDC-федерация: CI получает <strong>временный</strong> STS-token, никаких static keys</td><td>🎯 цель</td></tr>
+</table></div>
+
+<h3>Vault + ESO + Kubernetes</h3>
+
+<pre class="code-block"><code class="language-yaml"># SecretStore (один на namespace)
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata: { name: vault-store, namespace: prod }
+spec:
+  provider:
+    vault:
+      server: "https://vault.example.com"
+      path: "secret"
+      version: "v2"
+      auth:
+        kubernetes:                    # k8s ServiceAccount → Vault token
+          mountPath: "kubernetes"
+          role: "prod-app"
+          serviceAccountRef: { name: app }
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata: { name: app-secrets, namespace: prod }
+spec:
+  refreshInterval: 1h                  # ротация без redeploy
+  secretStoreRef: { name: vault-store, kind: SecretStore }
+  target: { name: app-secrets }
+  data:
+    - secretKey: DATABASE_URL
+      remoteRef: { key: prod/app, property: database_url }
+    - secretKey: JWT_KEY
+      remoteRef: { key: prod/app, property: jwt_key }
+</code></pre>
+
+<p><strong>Что выигрываем:</strong></p>
+
+<ul>
+<li>Секрет в k8s Secret — <strong>производный</strong> артефакт, не первоисточник.</li>
+<li>Ротация в Vault → ESO обновит k8s Secret через 1h без redeploy</li>
+</ul>
+<p>(если приложение умеет reload).</p>
+<ul>
+<li>Audit-trail Vault показывает, кто и когда получил секрет.</li>
+</ul>
+
+<h3>SOPS + age (для GitOps без vendor lock-in)</h3>
+
+<pre class="code-block"><code class="language-bash"># Шифруем `secrets.yaml`
+sops --encrypt --age age1abc... secrets.yaml &gt; secrets.enc.yaml
+</code></pre>
+
+<p>В git лежит только <code>secrets.enc.yaml</code>. CI/FluxCD расшифровывает age-ключом</p>
+<p>(который в Vault или GitHub Secret). Хорошо подходит для <strong>decentralized</strong></p>
+<p>команд: нет центрального Vault, но шифрование сильное.</p>
+
+<p><strong>Сравнение:</strong></p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Vault + ESO</th><th>SOPS + age</th></tr>
+<tbody>
+<tr><td>Centralized</td><td>да</td><td>нет (git — источник)</td></tr>
+<tr><td>Rotate без redeploy</td><td>да</td><td>нет (commit + apply)</td></tr>
+<tr><td>Audit</td><td>rich</td><td>git log</td></tr>
+<tr><td>Сложность</td><td>выше</td><td>ниже</td></tr>
+<tr><td>Best for</td><td>enterprise</td><td>OSS / небольшие команды</td></tr>
+</table></div>
+
+<p><strong>Лаба 15</strong> — Vault dev + ESO в k3d, ротация через Vault Agent.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../4-6/index.html">← Предыдущий урок</a>
+      <a href="../5-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

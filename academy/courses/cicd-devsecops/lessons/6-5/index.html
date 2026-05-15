@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 6.5 · SLO/SLI и error-budget alerts — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 6.5 · SLO/SLI и error-budget alerts</span>
+    </div>
+
+    <p class="lesson-meta">Module 6 — Observability · Lesson 6.5 · <span class="badge-mini">SLO</span></p>
+    <h1>SLO/SLI и error-budget alerts</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://sre.google/workbook/implementing-slos/" target="_blank" rel="noopener">Google SRE Workbook — Implementing SLOs</a>,</p>
+<p><a href="https://github.com/slok/sloth" target="_blank" rel="noopener">Sloth</a>, <a href="https://github.com/pyrra-dev/pyrra" target="_blank" rel="noopener">Pyrra</a>,</p>
+<p><a href="https://sre.google/workbook/alerting-on-slos/" target="_blank" rel="noopener">Alerting on SLOs</a>.</p>
+
+<p><strong>SLI</strong> — измерение. <strong>SLO</strong> — цель. <strong>Error Budget</strong> — 1 - SLO за окно.</p>
+
+<p>Пример:</p>
+<ul>
+<li>SLI: <code>success_rate = good_requests / total_requests</code> за rolling 30d.</li>
+<li>SLO: 99.9% за 30d.</li>
+<li>Error budget: 0.1% за 30d ≈ <strong>43.2 минуты</strong> допустимых ошибок.</li>
+</ul>
+
+<h3>Multi-window multi-burn-rate (MWMBR)</h3>
+
+<p>Не алёртим на «5xx > 1%» — это шум. Алёртим на **прогнозную скорость</p>
+<p>сжигания бюджета**.</p>
+
+<pre class="code-block"><code class="language-yaml">groups:
+- name: slo-app
+  rules:
+  - alert: ErrorBudgetBurnFast
+    # за 1ч сжигаем 14.4× обычной скорости — выгорим за 2 дня
+    expr: |
+      ( job:error_rate:ratio5m{job="app"} &gt; 14.4 * 0.001 )
+      and
+      ( job:error_rate:ratio1h{job="app"} &gt; 14.4 * 0.001 )
+    for: 2m
+    labels: { severity: critical }
+  - alert: ErrorBudgetBurnSlow
+    # за 6ч сжигаем 6× — выгорим через 5 дней
+    expr: |
+      ( job:error_rate:ratio30m{job="app"} &gt; 6 * 0.001 )
+      and
+      ( job:error_rate:ratio6h{job="app"}  &gt; 6 * 0.001 )
+    for: 15m
+    labels: { severity: warning }
+</code></pre>
+
+<p>Два окна (короткое + длинное) защищают от:</p>
+
+<ul>
+<li>Ложных тревог (короткие пики не запускают warning).</li>
+<li>Пропуска медленной деградации (длинное окно ловит её).</li>
+</ul>
+
+<p><strong>Sloth/Pyrra</strong> сами генерируют эти правила из YAML-spec:</p>
+
+<pre class="code-block"><code class="language-yaml"># sloth-spec.yaml
+version: "prometheus/v1"
+service: "app"
+slos:
+  - name: "availability"
+    objective: 99.9
+    sli:
+      events:
+        error_query: sum(rate(http_requests_total{status=~"5.."}[{{.window}}]))
+        total_query: sum(rate(http_requests_total[{{.window}}]))
+    alerting:
+      page_alert: { labels: { severity: critical } }
+      ticket_alert: { labels: { severity: warning } }
+</code></pre>
+
+<pre class="code-block"><code class="language-bash">sloth generate -i sloth-spec.yaml -o slo-rules.yaml
+</code></pre>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] Prometheus собирает метрики через k8s SD + relabel.</li>
+<li>[ ] Grafana-дашборды лежат в git и провижонятся, не правятся вручную.</li>
+<li>[ ] InfluxDB используется там, где нужна высокая кардинальность / downsampling.</li>
+<li>[ ] OpenTelemetry Collector — единая точка входа метрик/логов/трейсов.</li>
+<li>[ ] Logs (Loki) и traces (Tempo) коррелируются по trace_id.</li>
+<li>[ ] Алёрты сформированы как MWMBR от SLO, не «5xx > N».</li>
+<li>[ ] Sloth/Pyrra генерируют правила из spec.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/18-prometheus/" target="_blank" rel="noopener">Lab 18 — Prometheus exporter + alert</a></li>
+<li><a href="../../labs/19-influxdb/" target="_blank" rel="noopener">Lab 19 — InfluxDB + Telegraf + Flux</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../6-4/index.html">← Предыдущий урок</a>
+      <a href="../7-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

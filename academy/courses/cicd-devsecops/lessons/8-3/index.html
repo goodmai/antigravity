@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 8.3 · GCP: Workload Identity, GKE, Secret Manager — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 8.3 · GCP: Workload Identity, GKE, Secret Manager</span>
+    </div>
+
+    <p class="lesson-meta">Module 8 — Cloud Practices · Lesson 8.3 · <span class="badge-mini">GCP</span></p>
+    <h1>GCP: Workload Identity, GKE, Secret Manager</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://sre.google" target="_blank" rel="noopener">GCP SRE book</a>,</p>
+<p><a href="https://cloud.google.com/iam/docs/workload-identity-federation" target="_blank" rel="noopener">Workload Identity Federation (WIF)</a>,</p>
+<p><a href="https://cloud.google.com/kubernetes-engine/docs/concepts/workload-identity" target="_blank" rel="noopener">GKE Workload Identity</a>,</p>
+<p><a href="https://cloud.google.com/secret-manager/docs/about-rotation-schedules" target="_blank" rel="noopener">GCP Secret Manager + rotation</a>.</p>
+
+<h3>WIF для GH Actions</h3>
+
+<pre class="code-block"><code class="language-hcl">resource "google_iam_workload_identity_pool" "gh" {
+  workload_identity_pool_id = "gh-pool"
+}
+
+resource "google_iam_workload_identity_pool_provider" "gh" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.gh.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-provider"
+  oidc { issuer_uri = "https://token.actions.githubusercontent.com" }
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.repository" = "assertion.repository"
+  }
+  attribute_condition = "assertion.repository=='me/app'"
+}
+</code></pre>
+
+<pre class="code-block"><code class="language-yaml">- uses: google-github-actions/auth@SHA
+  with:
+    workload_identity_provider: projects/123/locations/global/workloadIdentityPools/gh-pool/providers/gh-provider
+    service_account: gh-deployer@myproject.iam.gserviceaccount.com
+</code></pre>
+
+<p>Без <code>credentials_json</code> в GH Secrets. (Это <strong>большой</strong> скачок безопасности —</p>
+<p>JSON service account key обычно живёт годами и утекает в логи.)</p>
+
+<h3>GKE Workload Identity</h3>
+
+<pre class="code-block"><code class="language-yaml">apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  annotations:
+    iam.gke.io/gcp-service-account: app@myproject.iam.gserviceaccount.com
+</code></pre>
+
+<p>Pod использует SA, под капотом GKE прокси-сервис выдаёт временный GCP-token.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../8-2/index.html">← Предыдущий урок</a>
+      <a href="../8-4/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

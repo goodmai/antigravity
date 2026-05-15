@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 10.4 · Mail-сервер — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 10.4 · Mail-сервер</span>
+    </div>
+
+    <p class="lesson-meta">Module 10 — Edge: VPS, VPN, Landing, Mail · Lesson 10.4 · <span class="badge-mini">mail</span></p>
+    <h1>Mail-сервер</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.mailcow.email" target="_blank" rel="noopener">mailcow docs</a>,</p>
+<p><a href="https://www.postfix.org/documentation.html" target="_blank" rel="noopener">Postfix docs</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc7208" target="_blank" rel="noopener">SPF (RFC 7208)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc6376" target="_blank" rel="noopener">DKIM (RFC 6376)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc7489" target="_blank" rel="noopener">DMARC (RFC 7489)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc8461" target="_blank" rel="noopener">MTA-STS (RFC 8461)</a>,</p>
+<p><a href="https://datatracker.ietf.org/doc/html/rfc8460" target="_blank" rel="noopener">TLS-RPT (RFC 8460)</a>.</p>
+
+<p><strong>Реальность 2026:</strong> Gmail/Outlook требуют для bulk-sender'ов <strong>все четыре</strong>:</p>
+<p>SPF + DKIM aligned + DMARC <code>p=reject</code> + одно-кликабельный unsubscribe (List-Unsubscribe).</p>
+<p>Без этого вы попадаете в Spam.</p>
+
+<h3>DNS-минимум для домена <code>example.com</code></h3>
+
+<pre class="code-block"><code class="language-">example.com.   TXT  "v=spf1 ip4:203.0.113.10 -all"
+mail._domainkey.example.com. TXT  "v=DKIM1; k=rsa; p=MIGfMA0GCSq..."
+_dmarc.example.com.  TXT  "v=DMARC1; p=reject; rua=mailto:dmarc@example.com; ruf=mailto:dmarc@example.com; fo=1; adkim=s; aspf=s"
+_mta-sts.example.com.  TXT  "v=STSv1; id=20260514"
+_smtp._tls.example.com. TXT  "v=TLSRPTv1; rua=mailto:tls-reports@example.com"
+</code></pre>
+
+<p>И HTTPS-файл <code>https://mta-sts.example.com/.well-known/mta-sts.txt</code>:</p>
+
+<pre class="code-block"><code class="language-">version: STSv1
+mode: enforce
+mx: mail.example.com
+max_age: 86400
+</code></pre>
+
+<h3>Mailcow в docker-compose (на VPS)</h3>
+
+<pre class="code-block"><code class="language-bash">git clone https://github.com/mailcow/mailcow-dockerized.git
+cd mailcow-dockerized
+./generate_config.sh                  # отвечаем на 2 вопроса
+docker compose pull &amp;&amp; docker compose up -d
+# UI: https://mail.example.com (admin/moohoo)
+</code></pre>
+
+<p>Mailcow подтягивает Let's Encrypt, ставит rspamd, dovecot, postfix, sogo, ClamAV.</p>
+<p>Через UI генерим DKIM-ключ, в DNS прописываем.</p>
+
+<h3>Проверка</h3>
+
+<pre class="code-block"><code class="language-bash"># 1. Mail-tester.com (создаёт случайный адрес → отправляем туда → видим оценку 10/10)
+# 2. dmarcian.com — проверка DMARC
+# 3. internet.nl — комплексный аудит
+</code></pre>
+
+<p><strong>Лаба 28</strong> — поднять mailcow, получить 10/10 на mail-tester, DMARC aggregate</p>
+<p>отчёты летят в <code>dmarc@example.com</code>.</p>
+
+<hr>
+
+<h2>Чек-лист модуля</h2>
+
+<ul>
+<li>[ ] VPS прошёл bootstrap-чек-лист (ssh hardened, nftables, fail2ban, auditd, unattended).</li>
+<li>[ ] Lynis-отчёт в cron, ≥ Hardening Index 80.</li>
+<li>[ ] SSH-доступ — только через VPN, port 22 закрыт publicly.</li>
+<li>[ ] Tailscale/Headscale ACL описывает кто куда ходит, audit log включён.</li>
+<li>[ ] Лендинг катится atomic-deploy с immutable cache 1y + index revalidate.</li>
+<li>[ ] CSP/HSTS/Permissions-Policy выставлены.</li>
+<li>[ ] Mail-server отправляет с SPF+DKIM+DMARC <code>p=reject</code> + MTA-STS + TLS-RPT.</li>
+<li>[ ] mail-tester.com 10/10.</li>
+</ul>
+
+<h2>Лабы модуля</h2>
+
+<ul>
+<li><a href="../../labs/26-secure-vps/" target="_blank" rel="noopener">Lab 26 — Ansible secure-VPS</a></li>
+<li><a href="../../labs/27-tailscale-acl/" target="_blank" rel="noopener">Lab 27 — Headscale + Tailscale ACL</a></li>
+<li><a href="../../labs/28-mailcow/" target="_blank" rel="noopener">Lab 28 — Mailcow + DMARC</a></li>
+</ul>
+
+
+    <div class="lesson-nav">
+      <a href="../10-3/index.html">← Предыдущий урок</a>
+      <a href="../11-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

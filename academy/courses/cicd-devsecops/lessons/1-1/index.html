@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 1.1 · Анатомия пайплайна — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 1.1 · Анатомия пайплайна</span>
+    </div>
+
+    <p class="lesson-meta">Module 1 — CI/CD Foundations · Lesson 1.1 · <span class="badge-mini">pipelines</span></p>
+    <h1>Анатомия пайплайна</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://docs.github.com/actions" target="_blank" rel="noopener">GH Actions docs</a>, <a href="https://docs.gitlab.com/ee/ci/" target="_blank" rel="noopener">GitLab CI/CD reference</a>,</p>
+<p><a href="https://tekton.dev/docs/concepts/" target="_blank" rel="noopener">Tekton concepts</a>, <a href="https://docs.dagger.io" target="_blank" rel="noopener">Dagger</a>.</p>
+
+<p>Любой пайплайн — это <strong>DAG</strong> из job-узлов с тремя свойствами:</p>
+
+<ol>
+<li><strong>Idempotency</strong> — повторный запуск даёт тот же результат.</li>
+<li><strong>Hermeticity</strong> — никаких неявных зависимостей от окружения (нет «работает на моей машине»).</li>
+<li><strong>Cacheable</strong> — кэширование между запусками детерминировано.</li>
+</ol>
+
+<p><strong>Стадии «по умолчанию»</strong> для backend-сервиса:</p>
+
+<pre class="code-block"><code class="language-">lint → unit-tests → SAST → build → SBOM → SCA → image-scan → sign → push → e2e → deploy(staging) → smoke → deploy(prod)
+</code></pre>
+
+<p><strong>Что важно — fan-in / fan-out:</strong></p>
+
+<ul>
+<li><em>Fan-out</em>: matrix-сборка под <code>linux/amd64</code>, <code>linux/arm64</code>, <code>darwin/arm64</code>.</li>
+<li><em>Fan-in</em>: финальная job ждёт все matrix-результаты, склеивает provenance.</li>
+</ul>
+
+<h3>Минимальный «правильный» GH Actions workflow</h3>
+
+<pre class="code-block"><code class="language-yaml">name: ci
+on:
+  pull_request:
+  push: { branches: [main] }
+
+permissions:
+  contents: read           # least privilege по умолчанию
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true # отменяем устаревшие запуски
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7  ← pinned by SHA, не tag!
+      - uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4.0.3
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - run: npm run lint
+</code></pre>
+
+<p><strong>3 типичные ошибки в этом workflow, которые встречаются у 90% команд:</strong></p>
+
+<ol>
+<li><code>actions/checkout@v4</code> (по тегу) — атакующий перепишет тег ⇒ supply chain.</li>
+</ol>
+<p><strong>Фикс:</strong> pin by full commit SHA + комментарий с версией.</p>
+<ol>
+<li>Дефолтный <code>GITHUB_TOKEN</code> имеет <code>write</code> — даёт лишние права.</li>
+</ol>
+<p><strong>Фикс:</strong> <code>permissions: contents: read</code> сверху.</p>
+<ol>
+<li>Нет <code>concurrency</code> — параллельные запуски на одной ветке гоняют CI вхолостую.</li>
+</ol>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../0-3/index.html">← Предыдущий урок</a>
+      <a href="../1-2/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 7.2 · Slack: incoming webhook vs Slack App — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 7.2 · Slack: incoming webhook vs Slack App</span>
+    </div>
+
+    <p class="lesson-meta">Module 7 — Notifications & ChatOps · Lesson 7.2 · <span class="badge-mini">slack</span></p>
+    <h1>Slack: incoming webhook vs Slack App</h1>
+
+
+<p><strong>Канон:</strong> <a href="https://api.slack.com/" target="_blank" rel="noopener">Slack API docs</a>,</p>
+<p><a href="https://slack.dev/bolt-js/" target="_blank" rel="noopener">Slack Bolt for JS</a>,</p>
+<p><a href="https://app.slack.com/block-kit-builder" target="_blank" rel="noopener">Block Kit Builder</a>,</p>
+<p><a href="https://api.slack.com/authentication/verifying-requests-from-slack" target="_blank" rel="noopener">Slack request signing</a>.</p>
+
+<p><strong>Два уровня:</strong></p>
+
+<div class="table-wrap"><table>
+<tr><th></th><th>Incoming webhook</th><th>Slack App (Bolt)</th></tr>
+<tbody>
+<tr><td>Сложность</td><td>минимум</td><td>выше</td></tr>
+<tr><td>Можно отправлять</td><td>✓</td><td>✓</td></tr>
+<tr><td>Принимать события</td><td>✗</td><td>✓</td></tr>
+<tr><td>Slash-команды</td><td>✗</td><td>✓</td></tr>
+<tr><td>Interactive components (buttons)</td><td>через webhook URL</td><td>✓ нативно</td></tr>
+<tr><td>Best for</td><td>алёрты, простые уведомления</td><td>ChatOps</td></tr>
+</table></div>
+
+<h3>Incoming webhook (5 минут)</h3>
+
+<pre class="code-block"><code class="language-bash">curl -X POST $SLACK_WEBHOOK -H 'Content-Type: application/json' -d '{
+  "blocks": [
+    { "type": "header", "text": { "type": "plain_text", "text": "🚀 Deploy to prod" } },
+    { "type": "section", "fields": [
+      { "type": "mrkdwn", "text": "*Service*\napp" },
+      { "type": "mrkdwn", "text": "*Version*\nv1.2.3" }
+    ]},
+    { "type": "context", "elements": [
+      { "type": "mrkdwn", "text": "&lt;https://github.com/.../actions/runs/123|Run #123&gt; by &lt;@U123&gt;" }
+    ]}
+  ]
+}'
+</code></pre>
+
+<h3>Slack App + slash-команда <code>/deploy</code></h3>
+
+<p><code>/deploy app v1.2.3</code> запускает <code>workflow_dispatch</code> в GH Actions.</p>
+
+<pre class="code-block"><code class="language-ts">// Bolt JS
+app.command('/deploy', async ({ ack, command, respond }) =&gt; {
+  await ack();
+  const [service, version] = command.text.split(/\s+/);
+  if (!isAllowed(command.user_id, service)) {
+    return respond(`🚫 ${command.user_id} not allowed to deploy ${service}`);
+  }
+  await octokit.actions.createWorkflowDispatch({
+    owner: 'me', repo: service,
+    workflow_id: 'deploy.yml',
+    ref: 'main',
+    inputs: { version }
+  });
+  await respond(`🚀 ${service} ${version} deploying — by &lt;@${command.user_id}&gt;`);
+});
+</code></pre>
+
+<p><strong>Безопасность:</strong></p>
+
+<ul>
+<li><strong>Проверяем подпись</strong> <code>X-Slack-Signature</code> (HMAC-SHA256 от <code>v0:&lt;timestamp&gt;:&lt;body&gt;</code>)</li>
+</ul>
+<p>и timestamp в пределах <strong>5 минут</strong> (защита от replay).</p>
+<ul>
+<li>Allowlist user_id → service.</li>
+<li>Логируем команду в audit log (chatops-audit).</li>
+</ul>
+
+<p><strong>Лаба 21</strong> — <code>/deploy</code> slash command, allowlist, audit-log в InfluxDB.</p>
+
+<hr>
+
+
+
+    <div class="lesson-nav">
+      <a href="../7-1/index.html">← Предыдущий урок</a>
+      <a href="../7-3/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>
