@@ -97,11 +97,32 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 
 ## 🧪 Laboratory & Capstone
 
-Practical application of Antigravity power.
+**One lab per lesson** — `labs/NN` ↔ `lessons/N`. Each lab has **≥ 7
+hands-on tasks** with explicit acceptance criteria, executed entirely in
+**cloud GitHub sandboxes** (multi-platform: Codespaces, Gitpod, Cloud
+Shell, StackBlitz, CodeSandbox, Replit, github.dev).
 
-- **[Lab 01: TeleDrive Ecosystem](https://goodmai.github.io/antigravity/labs/01/)**: Full-stack integration of Telegram, Obsidian, and Google Drive.
-- **[Lab 02: Antigravity in GitHub Codespaces](https://goodmai.github.io/antigravity/labs/02/)**: devcontainer.json, auto-install of Gemini CLI, one-click cloud environment.
-- **[Lab 03: Antigravity in Cloud IDEs](https://goodmai.github.io/antigravity/labs/03/)**: Setup via terminal in Gitpod, Google Cloud Shell, and Replit. Platform comparison.
+- **Sandbox cheat-sheet:** [`labs/SANDBOX_SETUP.md`](./labs/SANDBOX_SETUP.md) — bootstrap script, devcontainer, secrets, platform choice.
+- **Capstone:** [`labs/CAPSTONE.md`](./labs/CAPSTONE.md) — TeleDrive Ecosystem (Telegram + Obsidian + Google Drive).
+- **Generator:** `python3 scripts/generate_labs.py` regenerates all 30 labs (edit the generator, not the output).
+
+| Lab | Topic | Lab | Topic |
+| :-- | :---- | :-- | :---- |
+| [01](./labs/01/) | Полигон режимов агента | [16](./labs/16/) | Мобильная разработка |
+| [02](./labs/02/) | Артефакты и обратная связь | [17](./labs/17/) | Next.js Full-Stack |
+| [03](./labs/03/) | @Mentions и Workflows | [18](./labs/18/) | Рефакторинг legacy |
+| [04](./labs/04/) | Создание Agent Skill | [19](./labs/19/) | SDLC микросервисов |
+| [05](./labs/05/) | Каталог стандартных скиллов | [20](./labs/20/) | Промпт-инжиниринг |
+| [06](./labs/06/) | Самоисцеляющийся воркфлоу | [21](./labs/21/) | Отладка агентных задач |
+| [07](./labs/07/) | QA Architect | [22](./labs/22/) | Свой MCP-сервер |
+| [08](./labs/08/) | Группы задач | [23](./labs/23/) | Многоагентная оркестрация |
+| [09](./labs/09/) | Browser Subagent (визуальный QA) | [24](./labs/24/) | Большие кодовые базы |
+| [10](./labs/10/) | MCP: подключение | [25](./labs/25/) | Логика и математика ИИ |
+| [11](./labs/11/) | Терминал, безопасность, Turbo | [26](./labs/26/) | Развёртывание среды |
+| [12](./labs/12/) | Playwright + self-healing | [27](./labs/27/) | Управление диалогом |
+| [13](./labs/13/) | Облако: Firebase и GCP | [28](./labs/28/) | Память и контекстное окно |
+| [14](./labs/14/) | Микросервисы и Docker | [29](./labs/29/) | Данные и границы песочницы |
+| [15](./labs/15/) | CI/CD пайплайны | [30](./labs/30/) | Web3 / Solidity |
 
 ---
 

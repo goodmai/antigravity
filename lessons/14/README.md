@@ -28,12 +28,52 @@
 3.  Попросите агента запустить контейнер и проверить, что он отвечает.
 
 
-## Ключевые концепции
+## 🔬 Как это работает глубже
 
-- Основная тема урока
+**Кэш слоёв Docker** — ключ к быстрой сборке. Слои инвалидируются сверху
+вниз: меняешь строку — пересобирается она и всё ниже. Поэтому правильный
+порядок такой:
 
-## Рекомендуемые источники
+```dockerfile
+FROM node:20-slim
+WORKDIR /app
+COPY package*.json ./      # редко меняется → отдельный слой
+RUN npm ci                 # кэшируется, пока не изменился lock
+COPY . .                   # часто меняется → в самом низу
+CMD ["node", "server.js"]
+```
 
-1. Официальная документация Antigravity
-2. Claude Documentation
-3. Relevant research papers
+`COPY . .` до установки зависимостей убивает кэш на каждую правку кода.
+
+**Сеть compose**: сервисы в одной сети резолвят друг друга по имени
+сервиса (`api`, `worker`), а не по `localhost`. «Сервис не видит сервис»
+почти всегда = неверное имя хоста, закрытый порт или сервис ещё не
+`healthy` (нужен `depends_on` + `condition: service_healthy`).
+
+## ⚠️ Типичные ошибки
+
+- **`COPY . .` до `npm ci`** — кэш слоёв не работает, сборка каждый раз с нуля.
+- **`localhost` вместо имени сервиса** в compose-сети.
+- **Секреты в образе** (`ENV SECRET=...`) — видны в `docker history`.
+  Используй `.env` + `.dockerignore`.
+- **Нет healthcheck** — зависимые сервисы стартуют до готовности.
+- **Игнор SIGTERM** — `docker compose down` рвёт активные операции.
+
+## 🧠 Ключевые концепции
+
+- **Кэш слоёв** — порядок инструкций определяет скорость сборки.
+- **Multi-stage build** — лёгкий рантайм-образ без dev-зависимостей.
+- **Сеть compose** — резолв по имени сервиса.
+- **Healthcheck + graceful shutdown** — управляемый жизненный цикл.
+
+## 🧪 Практика
+
+Полная оркестрация — в **[Лабе 14 — Микросервисы и Docker](../../labs/14/README.md)**
+(9 задач): multi-stage Dockerfile, compose-сеть, healthchecks, диагностика
+связности, уменьшение образа, graceful shutdown, тест-профиль.
+
+## 📚 Источники
+
+1. Dockerfile best practices — https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+2. Compose networking — https://docs.docker.com/compose/networking/
+3. Twelve-Factor App — https://12factor.net/
