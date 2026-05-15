@@ -315,7 +315,6 @@ body::after {
   }
   .nav-left { display: none; }
   .nav-logo  { text-align: center; font-size: 1rem; }
-  .lang-switcher { display: none; }
   .nav-auth-btn { display: none; }
   .nav-right { gap: 6px; }
   .toast-container { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); }
