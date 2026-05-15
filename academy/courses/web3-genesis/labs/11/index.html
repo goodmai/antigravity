@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lab 11 · GOSH: Git on-chain hands-on — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lab 11 · GOSH hands-on</span>
+    </div>
+
+    <p class="lesson-meta">Lab · 11 · GOSH · DePIN · Git on-chain</p>
+    <h1>Lab 11 · GOSH: деплой DeFi-контракта в децентрализованное хранилище</h1>
+
+    <p>
+      В этом лабе вы пройдёте полный цикл: установите GOSH CLI, создадите
+      DAO и репозиторий на блокчейне, запушите смарт-контракт курса on-chain,
+      поднимете локальную ноду через Docker Compose и верифицируете Docker-образ
+      через официальное расширение. К концу лаба у вас будет реальный
+      on-chain репозиторий с DeFi-кодом, доступный через стандартный
+      <code>git clone</code>.
+    </p>
+
+    <div class="note">
+      <strong>Цели лаба.</strong> После выполнения всех заданий вы сможете:
+      устанавливать и конфигурировать GOSH CLI; создавать DAO и репозиторий
+      на Acki Nacki testnet; использовать GOSH как обычный Git remote;
+      настраивать CI-зеркалирование; устанавливать Docker Extension и
+      верифицировать образ; запустить локальную ноду и прочитать её статус.
+    </div>
+
+    <h2>Задание 1 — Установка GOSH CLI</h2>
+
+    <p>
+      Установите GOSH CLI и убедитесь, что он работает корректно.
+    </p>
+
+<pre class="code-block"><code># Linux / macOS — официальный install-скрипт
+wget -O - https://raw.githubusercontent.com/gosh-sh/gosh/dev/install.sh \
+  | bash -s
+
+# Добавить в PATH (bash)
+echo 'export PATH=$PATH:$HOME/.gosh' >> ~/.bashrc && source ~/.bashrc
+
+# Проверка
+gosh --version
+# ожидаемый вывод: gosh 6.x.x (или выше)
+
+# Посмотреть доступные команды
+gosh --help</code></pre>
+
+    <p>
+      После установки GOSH CLI создаёт конфиг в <code>~/.gosh/</code>.
+      Здесь хранятся ключи и настройки сети (testnet vs mainnet).
+    </p>
+
+    <h3>Задание 1.1</h3>
+    <p>
+      Выполните <code>gosh --version</code> и убедитесь, что версия ≥ 6.0.0.
+      Выведите результат <code>gosh --help</code> и найдите команды:
+      <code>account</code>, <code>dao</code>, <code>repo</code>, <code>sbom</code>.
+    </p>
+
+    <h2>Задание 2 — Создание аккаунта и DAO</h2>
+
+    <p>
+      GOSH не требует email или пароля — аутентификация через криптографический
+      ключ. На testnet токены можно получить через faucet.
+    </p>
+
+<pre class="code-block"><code># Создать новый аккаунт (генерирует seed phrase)
+gosh account create --name my-defi-dao
+# Сохраните seed phrase в надёжном месте!
+
+# Получить testnet токены через faucet
+gosh faucet --account my-defi-dao
+
+# Проверить баланс
+gosh account info --name my-defi-dao
+
+# Создать DAO (Decentralized Autonomous Organization)
+# DAO управляет репозиториями — кто может пушить, кто апрувит PR
+gosh dao create \
+  --name     web3-genesis-dao \
+  --account  my-defi-dao
+
+# Получить адрес DAO (понадобится при клонировании)
+gosh dao info --name web3-genesis-dao</code></pre>
+
+    <h3>Задание 2.1</h3>
+    <p>
+      Создайте аккаунт и DAO. Скопируйте адрес DAO — он выглядит как
+      <code>0:abcdef1234.../web3-genesis-dao</code>. Этот адрес —
+      смарт-контракт в блокчейне Acki Nacki.
+    </p>
+
+    <h2>Задание 3 — Репозиторий on-chain</h2>
+
+    <p>
+      Создайте репозиторий в GOSH и подключите его к локальному проекту
+      как дополнительный remote. Используйте контракт из лаба 4 или 7.
+    </p>
+
+<pre class="code-block"><code># Создать репозиторий в DAO
+gosh repo create \
+  --dao  web3-genesis-dao \
+  --name secure-vault
+
+# Репозиторий доступен по адресу:
+# gosh://0:&lt;dao-addr&gt;/secure-vault
+
+# --- Вариант A: клонировать пустой репо ---
+git clone gosh://0:&lt;dao-addr&gt;/secure-vault
+cd secure-vault
+
+# Скопировать в него контракт из лаба 4
+cp -r ~/web3-labs/lab04-secure-vault/src ./src
+cp ~/web3-labs/lab04-secure-vault/foundry.toml .
+
+git add .
+git commit -m "feat: initial SecureVault contract"
+git push gosh main
+
+# --- Вариант B: добавить GOSH к существующему репо ---
+cd ~/web3-labs/lab04-secure-vault
+git remote add gosh gosh://0:&lt;dao-addr&gt;/secure-vault
+git push gosh main</code></pre>
+
+    <div class="note">
+      <strong>Что происходит при push.</strong> GOSH CLI разбивает каждый
+      git-объект (commit, tree, blob) на транзакции Acki Nacki.
+      Каждый blob — отдельный смарт-контракт. Commit-объект хранит
+      хеши всех дочерних объектов — так обеспечивается иммутабельность
+      и верифицируемость.
+    </div>
+
+    <h3>Задание 3.1</h3>
+    <p>
+      После успешного <code>git push gosh main</code> откройте браузер
+      и перейдите на <a href="https://app.gosh.sh/" target="_blank" rel="noopener">app.gosh.sh</a>.
+      Найдите свой DAO и репозиторий. Убедитесь, что коммит виден в
+      веб-интерфейсе с правильным сообщением.
+    </p>
+
+    <h3>Задание 3.2</h3>
+    <p>
+      Клонируйте репозиторий <strong>в новую директорию</strong> как будто
+      вы другой разработчик:
+    </p>
+
+<pre class="code-block"><code>cd /tmp
+git clone gosh://0:&lt;dao-addr&gt;/secure-vault cloned-vault
+ls cloned-vault/src/</code></pre>
+
+    <p>
+      Убедитесь, что файлы корректно получены. Это подтверждает, что
+      контракт работает как полноценный Git-сервер.
+    </p>
+
+    <h2>Задание 4 — CI-зеркалирование</h2>
+
+    <p>
+      Настройте автоматическое зеркалирование: при каждом push в GitHub
+      изменения дублируются в GOSH. Это даёт censorship-resistance без
+      изменения привычного workflow команды.
+    </p>
+
+<pre class="code-block"><code># .github/workflows/mirror-gosh.yml
+name: mirror-to-gosh
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # нужна полная история
+
+      - name: Install GOSH CLI
+        run: |
+          wget -q -O - \
+            https://raw.githubusercontent.com/gosh-sh/gosh/dev/install.sh \
+            | bash -s
+          echo "$HOME/.gosh" >> $GITHUB_PATH
+
+      - name: Configure GOSH credentials
+        run: gosh config set key "${{ secrets.GOSH_PRIVATE_KEY }}"
+
+      - name: Push to GOSH
+        run: |
+          git remote add gosh \
+            gosh://0:${{ vars.GOSH_DAO_ADDR }}/secure-vault
+          git push gosh --mirror
+
+      - name: Verify last commit on GOSH
+        run: |
+          GOSH_HEAD=$(gosh repo log \
+            --dao web3-genesis-dao \
+            --repo secure-vault \
+            --limit 1 --format "%H")
+          LOCAL_HEAD=$(git rev-parse HEAD)
+          [ "$GOSH_HEAD" = "$LOCAL_HEAD" ] \
+            && echo "Mirror OK" \
+            || (echo "Mirror MISMATCH" && exit 1)</code></pre>
+
+    <h3>Задание 4.1</h3>
+    <p>
+      Добавьте секрет <code>GOSH_PRIVATE_KEY</code> и переменную
+      <code>GOSH_DAO_ADDR</code> в Settings → Secrets/Variables вашего
+      репозитория. Сделайте тестовый коммит и убедитесь, что workflow
+      выполняется зелёным.
+    </p>
+
+    <h2>Задание 5 — Docker Extension: верификация образа</h2>
+
+    <p>
+      Установите GOSH-расширение в Docker Desktop и верифицируйте,
+      что Docker-образ был собран из кода в вашем GOSH-репозитории.
+    </p>
+
+<pre class="code-block"><code># Установка через Docker CLI (альтернатива GUI)
+docker extension install teamgosh/docker-extension
+
+# Или через Docker Desktop:
+# Extensions → Browse → поиск "GOSH" → Install</code></pre>
+
+    <p>
+      После установки расширение появится в левой панели Docker Desktop.
+    </p>
+
+    <h3>Задание 5.1 — Собрать образ с GOSH-меткой</h3>
+
+<pre class="code-block"><code># Dockerfile для Foundry-тестов контракта
+FROM ghcr.io/foundry-rs/foundry:latest
+WORKDIR /app
+COPY . .
+RUN forge build
+
+# Собрать образ с GOSH-меткой провенанса
+docker build \
+  --label "gosh.repo=0:&lt;dao-addr&gt;/secure-vault" \
+  --label "gosh.commit=$(git rev-parse HEAD)" \
+  -t secure-vault-tests:latest .
+
+# Запустить тесты
+docker run --rm secure-vault-tests:latest forge test -vv</code></pre>
+
+    <h3>Задание 5.2 — Верифицировать в расширении</h3>
+    <p>
+      В GOSH Docker Extension введите имя образа <code>secure-vault-tests:latest</code>.
+      Расширение прочитает GOSH-метки, найдёт соответствующий коммит
+      в блокчейне и покажет статус: ✓ GOSH-verified.
+    </p>
+
+    <div class="note">
+      <strong>Производственный вариант.</strong> Для публичных образов
+      (ghcr.io, Docker Hub) GOSH Extension верифицирует через on-chain
+      Build Record — специальный контракт, который создаётся автоматически
+      при сборке через GOSH CI. Детали: <a href="https://docs.gosh.sh/working-with-gosh/docker-extension/" target="_blank" rel="noopener">docs.gosh.sh/working-with-gosh/docker-extension</a>.
+    </div>
+
+    <h2>Задание 6 — Локальная нода Acki Nacki</h2>
+
+    <p>
+      Запустите локальную ноду в devnet-режиме. Это бесплатно, не требует
+      покупки лицензии и позволяет изучить экономику нод без реальных затрат.
+    </p>
+
+<pre class="code-block"><code># Клонировать официальный репо
+git clone https://github.com/gosh-sh/gosh
+cd gosh/docker-compose
+
+# Скопировать пример конфига
+cp .env.example .env
+
+# В .env указать режим devnet (без реального ключа ноды)
+# NODE_MODE=devnet
+# NODE_KEY=   (оставить пустым для devnet)
+
+# Запустить
+docker compose up -d
+
+# Проверить статус
+docker compose ps
+
+# Посмотреть логи синхронизации
+docker compose logs -f node --tail=50
+
+# Запросить статус через RPC
+curl -s http://localhost:3030/status | jq '{
+  sync_info: .sync_info,
+  validator_info: .validator_info
+}'</code></pre>
+
+    <h3>Задание 6.1</h3>
+    <p>
+      Убедитесь, что нода запустилась и отвечает на RPC-запросы.
+      Запишите значения <code>latest_block_height</code> и
+      <code>catching_up</code> из <code>/status</code>.
+    </p>
+
+    <h3>Задание 6.2 — GOSH CLI через локальную ноду</h3>
+
+<pre class="code-block"><code># Переключить CLI на локальную ноду
+gosh config set endpoint http://localhost:3030
+
+# Создать тестовый аккаунт через локальную ноду
+gosh account create --name local-test
+
+# Получить баланс (devnet токены бесплатны)
+gosh faucet --account local-test
+gosh account info --name local-test
+
+# Вернуться на testnet
+gosh config set endpoint https://net.ton.dev</code></pre>
+
+    <h2>Задание 7 — On-chain SBOM</h2>
+
+    <p>
+      Сгенерируйте Software Bill of Materials для вашего DeFi-контракта
+      и привяжите его к on-chain коммиту.
+    </p>
+
+<pre class="code-block"><code># Установить Syft для генерации SBOM
+curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+  | sh -s -- -b /usr/local/bin
+
+# Сгенерировать SBOM в формате SPDX
+syft dir:./src -o spdx-json > sbom.json
+
+# Добавить SBOM в репозиторий
+git add sbom.json
+git commit -m "chore: add SPDX SBOM v$(date +%Y%m%d)"
+git push gosh main
+
+# Через GOSH CLI можно запросить SBOM конкретного коммита
+gosh sbom \
+  --dao  web3-genesis-dao \
+  --repo secure-vault \
+  --commit $(git rev-parse HEAD)</code></pre>
+
+    <h3>Задание 7.1</h3>
+    <p>
+      Запушьте SBOM в GOSH-репозиторий. Откройте <code>app.gosh.sh</code>,
+      найдите файл <code>sbom.json</code> в коммите и скопируйте
+      его on-chain адрес (TX hash). Это и есть неизменяемая
+      аудиторская запись.
+    </p>
+
+    <h2>Финальный чек-лист</h2>
+
+    <ul>
+      <li><input type="checkbox" /> GOSH CLI установлен, <code>gosh --version</code> возвращает ≥ 6.x</li>
+      <li><input type="checkbox" /> Аккаунт и DAO созданы в testnet</li>
+      <li><input type="checkbox" /> DeFi-контракт запушен в on-chain репозиторий</li>
+      <li><input type="checkbox" /> Клон репозитория из GOSH работает в новой директории</li>
+      <li><input type="checkbox" /> GitHub Actions CI зеркалирует pushes в GOSH</li>
+      <li><input type="checkbox" /> Docker Extension установлено, образ верифицирован</li>
+      <li><input type="checkbox" /> Локальная нода запущена, RPC отвечает на <code>/status</code></li>
+      <li><input type="checkbox" /> SBOM загружен в GOSH с on-chain TX hash</li>
+    </ul>
+
+    <h2>Бонус: расчёт P&amp;L ноды</h2>
+
+    <p>
+      Откройте таблицу из
+      <a href="../../lessons/21/index.html#section5.2">Lesson 21 §5.2</a>
+      и заполните реальные цифры: текущая цена NACKL на
+      <a href="https://www.coingecko.com/" target="_blank" rel="noopener">CoinGecko</a>,
+      ваша стоимость электричества / VPS, скидка GBA (если есть).
+      Рассчитайте breakeven-point в месяцах.
+    </p>
+
+    <div class="nav-links">
+      <a href="../../lessons/21/index.html">← Lesson 21 · GOSH теория</a>
+      <a href="../../index.html">Курс Web3 Genesis →</a>
+    </div>
+  </div>
+
+  <script src="../../../../js/header.js"></script>
+</body>
+</html>

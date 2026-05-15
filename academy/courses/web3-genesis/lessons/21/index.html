@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 21 · GOSH: Git on-chain & DePIN-хранение — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 21 · GOSH: Git on-chain</span>
+    </div>
+
+    <p class="lesson-meta">Модуль V · Lesson 21 · DePIN · decentralized storage · GOSH</p>
+    <h1>GOSH: Git on-chain и децентрализованное хранение для DeFi</h1>
+
+    <p>
+      На DockerCon 2022 команда <strong>GOSH</strong> (Git Open Source Hodler)
+      анонсировала первый в мире блокчейн, нативно реализующий Git-протокол.
+      Репозитории хранятся как смарт-контракты, каждый коммит — транзакция,
+      управление — через DAO, а образы Docker верифицируются по цепочке от
+      исходника до реестра.
+    </p>
+
+    <p>
+      Урок рассматривает GOSH в контексте DeFi-разработки: где он решает
+      реальные проблемы supply chain, как интегрируется в привычный git-workflow,
+      что даёт запуск собственной ноды (DePIN) — от аппаратных требований
+      до экономики вознаграждений.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы умеете: объяснить
+      архитектуру Acki Nacki и место GOSH в ней; назвать 6 user-кейсов
+      для DeFi-проекта; установить GOSH CLI и подключить репозиторий;
+      использовать Docker-расширение для верификации образов; спроектировать
+      DePIN-ноду с реальным P&amp;L — CapEx / OpEx / ожидаемый доход в NACKL.
+    </div>
+
+    <h2>1. Зачем это нужно DeFi-проекту</h2>
+
+    <p>
+      GitHub централизован: один регулятор может заблокировать аккаунт
+      (прецедент — <code>tornado-cash</code>, <code>web3js</code>).
+      Одна скомпрометированная зависимость уничтожила сотни миллионов USD
+      (Solana supply chain attack 2022, <code>event-stream</code> npm 2018).
+      Традиционный CI не знает, что в конечном Docker-образе ровно тот байткод,
+      что прошёл ревью — цепочка прерывается между git push и docker pull.
+    </p>
+
+    <p>
+      GOSH закрывает все три риска одновременно: репозиторий неудалим
+      (смарт-контракт), каждый commit хеширован в блок (immutable provenance),
+      Docker-образ верифицируется как «собранный из этого коммита».
+    </p>
+
+    <table class="compare">
+      <tr><th>Риск</th><th>GitHub</th><th>GOSH</th></tr>
+      <tr>
+        <td>Цензура / блокировка репо</td>
+        <td>Возможно (DMCA, sanction)</td>
+        <td>Невозможно: смарт-контракт</td>
+      </tr>
+      <tr>
+        <td>Подмена зависимости</td>
+        <td>Полагаемся на npm/pypi</td>
+        <td>Хеш зависимости зашит в блок</td>
+      </tr>
+      <tr>
+        <td>Верификация Docker образа</td>
+        <td>Нет нативной цепочки</td>
+        <td>GOSH Extension в Docker Desktop</td>
+      </tr>
+      <tr>
+        <td>DAO-управление кодом</td>
+        <td>CODEOWNERS файл</td>
+        <td>On-chain голосование токенами</td>
+      </tr>
+      <tr>
+        <td>Аудиторская цепочка SBOM</td>
+        <td>Отдельный инструмент (Syft)</td>
+        <td>Deep SBOM встроен в AnyTree</td>
+      </tr>
+    </table>
+
+    <h2>2. Архитектура: Acki Nacki + GOSH</h2>
+
+    <p>
+      GOSH — основной разработчик протокола <strong>Acki Nacki</strong> (L1).
+      Это асинхронный блокчейн, достигающий вероятностного консенсуса за
+      <strong>два шага коммуникации</strong> (быстрый финал, в отличие от
+      BFT-протоколов с O(n²) сообщениями).
+    </p>
+
+<pre class="code-block"><code>┌───────────────────────────────────────────────────────────┐
+│                     Acki Nacki L1                          │
+│                                                            │
+│  Thread 1   Thread 2   Thread 3  …  Thread N               │
+│  (shard)    (shard)    (shard)       (shard)               │
+│     │           │           │            │                 │
+│     └───────────┴───────────┴────────────┘                 │
+│                       │                                    │
+│             BK-nodes (Block Keepers)                       │
+│          probabilistic consensus in 2 steps                │
+└───────────────────────────────────────────────────────────┘
+                          │
+              ┌───────────┴───────────────┐
+              │                           │
+        ┌─────▼──────┐            ┌───────▼──────┐
+        │  GOSH Git  │            │   AnyTree    │
+        │ (on-chain) │            │ (deploy sys) │
+        │            │            │              │
+        │ Repos as   │            │ SBOM-secured │
+        │ contracts  │            │ distribution │
+        └────────────┘            └──────────────┘
+              │
+        ┌─────▼──────────────────────────┐
+        │  Docker Extension              │
+        │  Image → commit → source → ✓  │
+        └────────────────────────────────┘</code></pre>
+
+    <p>
+      Многопоточность означает, что разные репозитории обрабатываются
+      параллельно в разных шардах — нет единой очереди транзакций.
+      Формально верифицированная реализация Git гарантирует: поведение
+      сети совпадает со спецификацией, никакой нод не может «соврать»
+      о содержимом коммита.
+    </p>
+
+    <h2>3. Шесть user-кейсов для DeFi-проекта</h2>
+
+    <h3>3.1 Неудаляемый репозиторий протокола</h3>
+    <p>
+      Смарт-контракт репозитория живёт на блокчейне. Юрисдикция Ethereum /
+      Acki Nacki не совпадает ни с одной страной — контракт нельзя удалить
+      по DMCA или санкционному указу. Tornado Cash Frontend до сих пор
+      доступен через IPFS; теперь можно хранить и сам исходный код так же.
+    </p>
+
+    <h3>3.2 On-chain SBOM и провенанс зависимостей</h3>
+    <p>
+      Каждый <code>yarn.lock</code> или <code>Cargo.lock</code> при коммите
+      превращается в on-chain артефакт. Аудитор или пользователь протокола
+      может верифицировать: «версия Uniswap-v3-sdk в этом деплое — именно
+      этот коммит». Deep SBOM (Software Bill of Materials) строится
+      автоматически через <strong>AnyTree</strong>.
+    </p>
+
+<pre class="code-block"><code># Пример: получить SBOM конкретного деплоя контракта
+gosh sbom \
+  --repo  0:abc123.../my-defi-protocol \
+  --commit 3f7a9e... \
+  --format spdx-json \
+  > sbom-v2.3.0.json</code></pre>
+
+    <h3>3.3 DAO-управление merge-ами</h3>
+    <p>
+      Pull Request в GOSH — on-chain предложение. Merge происходит только
+      после набора кворума (настраивается DAO). Multisig-апрув кода
+      интегрирован с multisig-деплоем контракта: нельзя задеплоить то,
+      что не прошло голосование DAO.
+    </p>
+
+<pre class="code-block"><code>// В DAO-контракте GOSH: пример конфига
+{
+  "quorum": "2/3",          // 2 из 3 мейнтейнеров
+  "roles": ["lead", "sec"], // security reviewer обязателен
+  "timelock_hours": 48      // 48ч задержка после одобрения
+}</code></pre>
+
+    <h3>3.4 Верификация Docker-образов через расширение</h3>
+    <p>
+      GOSH Docker Extension (доступно в Docker Desktop Marketplace) проверяет:
+      образ в registry собран из кода, хранящегося в GOSH. Цепочка доверия:
+      <code>source commit → build artifact → Docker image digest</code>.
+    </p>
+    <p>
+      В CI добавляется одна строка:
+    </p>
+
+<pre class="code-block"><code># .github/workflows/release.yml (или Forgejo / Gitea)
+- name: Verify GOSH provenance
+  uses: gosh-sh/verify-action@v1
+  with:
+    image: ghcr.io/my-org/my-defi:${{ github.sha }}
+    gosh_repo: 0:abc123.../my-defi-protocol</code></pre>
+
+    <h3>3.5 Цензуростойкий npm / cargo proxy</h3>
+    <p>
+      AnyTree создаёт зеркало пакетных реестров (npm, crates.io, PyPI)
+      прямо в GOSH. Если npm-пакет удалён — ваш проект по-прежнему
+      собирается из on-chain зеркала. Особенно актуально для DeFi, где
+      удалённый пакет ломает сборку продакшн-контракта.
+    </p>
+
+    <h3>3.6 Immutable Audit Trail для аудиторских отчётов</h3>
+    <p>
+      Отчёт аудита (PDF или Markdown) можно запинить прямо в коммит
+      репозитория: у него будет неизменяемый блокчейн-адрес. Любой может
+      проверить, что аудит относится именно к этому коду, а не к другой
+      версии контракта.
+    </p>
+
+    <h2>4. Как использовать GOSH</h2>
+
+    <h3>4.1 Установка CLI</h3>
+
+<pre class="code-block"><code># Быстрая установка (Linux/macOS)
+wget -O - https://raw.githubusercontent.com/gosh-sh/gosh/dev/install.sh \
+  | bash -s
+
+# Добавить в PATH
+export PATH=$PATH:$HOME/.gosh
+
+# Проверка
+gosh --version</code></pre>
+
+    <h3>4.2 Создание аккаунта и DAO</h3>
+
+<pre class="code-block"><code># Создать кошелёк / аккаунт
+gosh account create --name my-defi-dao
+
+# Создать DAO (организация на блокчейне)
+gosh dao create \
+  --name     my-defi-dao \
+  --members  0x1234...,0x5678...
+
+# Проверить адрес DAO
+gosh dao info --name my-defi-dao</code></pre>
+
+    <h3>4.3 Репозиторий как обычный Git remote</h3>
+
+<pre class="code-block"><code># Клонировать существующий репозиторий из GOSH
+git clone gosh://0:abc123.../my-defi-protocol
+
+# ИЛИ добавить GOSH как второй remote к существующему репо
+git remote add gosh gosh://0:abc123.../my-defi-protocol
+
+# Push / pull — как обычно
+git push gosh main
+git pull gosh main
+
+# Отличия от GitHub: нет SSH-ключей — подпись транзакцией кошелька
+# GOSH CLI автоматически подписывает push вашим приватным ключом</code></pre>
+
+    <div class="note">
+      <strong>Под капотом.</strong> <code>git push gosh main</code>
+      отправляет транзакцию в Acki Nacki — каждый объект Git
+      (commit, tree, blob) сохраняется как отдельный смарт-контракт.
+      Стоимость транзакции покрывается токенами SHELL (нативный токен
+      для газа в GOSH), которые на freemium-тирах не требуются.
+    </div>
+
+    <h3>4.4 Docker Extension: графический интерфейс</h3>
+
+    <p>
+      Установка через Docker Desktop → Extensions → Search:
+      <strong>GOSH</strong> (команда <code>teamgosh/docker-extension</code>).
+      Расширение даёт:
+    </p>
+    <ul>
+      <li>Создать аккаунт / DAO без CLI</li>
+      <li>Browse по репозиториям GOSH</li>
+      <li>Верифицировать образ: указать <code>image:tag</code> → расширение
+          находит GOSH-коммит, из которого был собран образ</li>
+      <li>One-click clone на локальный диск</li>
+    </ul>
+
+    <h3>4.5 Интеграция в DeFi CI/CD</h3>
+
+<pre class="code-block"><code># Типичный pipeline: GitHub Actions → mirror → GOSH
+name: mirror-to-gosh
+on:
+  push:
+    branches: [main]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Install GOSH CLI
+        run: |
+          wget -O - https://raw.githubusercontent.com/gosh-sh/gosh/dev/install.sh | bash -s
+          echo "$HOME/.gosh" >> $GITHUB_PATH
+
+      - name: Push to GOSH
+        env:
+          GOSH_KEY: ${{ secrets.GOSH_PRIVATE_KEY }}
+        run: |
+          gosh config set key "$GOSH_KEY"
+          git remote add gosh gosh://0:${{ vars.GOSH_REPO_ADDR }}/my-defi
+          git push gosh main --tags</code></pre>
+
+    <h2>5. GOSH в DePIN-архитектуре</h2>
+
+    <p>
+      <strong>DePIN</strong> (Decentralized Physical Infrastructure Networks)
+      — это блокчейн-инсентив поверх физического железа. Операторы нод
+      (Block Keepers в терминологии Acki Nacki) предоставляют вычислительные
+      ресурсы сети и получают вознаграждение в токенах NACKL.
+    </p>
+
+<pre class="code-block"><code>┌───────────────────────────────────────────────────────────────┐
+│                   DePIN-слой GOSH / Acki Nacki                 │
+│                                                                │
+│  Ваш сервер            Сервер A           Сервер B             │
+│  (Block Keeper)       (Block Keeper)     (Block Keeper)        │
+│                                                                │
+│  CPU 8c/16t           …                  …                     │
+│  RAM 64 GB                                                     │
+│  NVMe 1 TB                                                     │
+│  1 Gbit unmetered                                              │
+│       │                                                        │
+│       └────────── консенсус Acki Nacki (2 шага) ──────────────┘
+│                          │
+│                   GOSH-сервисы (git, sbom, anytree)            │
+└───────────────────────────────────────────────────────────────┘</code></pre>
+
+    <h3>5.1 Что даёт запуск своей ноды</h3>
+
+    <table class="compare">
+      <tr><th>Аспект</th><th>Детали</th></tr>
+      <tr>
+        <td><strong>Прямое вознаграждение</strong></td>
+        <td>NACKL-токены (block rewards). График майнинга — 60 лет,
+            дефляционная кривая. Часть блок-вознаграждений уходит
+            валидаторам, часть — в DAO-treasury.</td>
+      </tr>
+      <tr>
+        <td><strong>Суверенный доступ</strong></td>
+        <td>Нода обеспечивает прямой RPC к сети без зависимости от
+            сторонних провайдеров (Infura / Alchemy). Ваш DeFi-бэкенд
+            читает on-chain данные бесплатно.</td>
+      </tr>
+      <tr>
+        <td><strong>Governance-вес</strong></td>
+        <td>Node License = право голоса в протокольных обновлениях.
+            Важно для протоколов, хранящих код в GOSH.</td>
+      </tr>
+      <tr>
+        <td><strong>Latency</strong></td>
+        <td>Подтверждение git push через локальную ноду: ~2–4 сек
+            (против ~10–15 сек через публичные RPC).</td>
+      </tr>
+    </table>
+
+    <h3>5.2 Экономика ноды (P&amp;L расчёт)</h3>
+
+    <table class="compare">
+      <tr><th>Статья</th><th>Сумма</th><th>Комментарий</th></tr>
+      <tr>
+        <td><strong>CapEx: Node License</strong></td>
+        <td>от $1 500</td>
+        <td>Одноразовая покупка лицензии у GOSH Inc.
+            GBA-члены получают скидку 30%. Лицензия NFT-сертификат,
+            перепродаваема.</td>
+      </tr>
+      <tr>
+        <td><strong>OpEx: сервер</strong></td>
+        <td>~$100/мес</td>
+        <td>Oracle Cloud Ampere (8-core ARM, 64 GB RAM, 1 TB NVMe)
+            по партнёрской программе GOSH. VPS-аналог: Hetzner AX41
+            (~€60/мес).</td>
+      </tr>
+      <tr>
+        <td><strong>OpEx: электричество / домашний сервер</strong></td>
+        <td>~$15–30/мес</td>
+        <td>Для желающих держать ноду on-premise.</td>
+      </tr>
+      <tr>
+        <td><strong>Доход: NACKL rewards</strong></td>
+        <td>Переменный</td>
+        <td>Зависит от: числа нод в сети (плановое 20 000),
+            рыночной цены NACKL, доли блоков. При наполненности
+            сети 20k нод &amp; цене токена $X: est. ROI 18–36 мес.</td>
+      </tr>
+      <tr>
+        <td><strong>Breakeven (ориентир)</strong></td>
+        <td>18–24 мес</td>
+        <td>Зависит от цены NACKL в момент launch mainnet.
+            Сеть привлекла $6M в феврале 2025 (Kingsway Capital,
+            Blockchain.com, Hack VC, K5 Global).</td>
+      </tr>
+    </table>
+
+    <div class="note">
+      <strong>Удобство.</strong> Нода разворачивается через Docker Compose:
+      скачать <code>docker-compose.yml</code> из GOSH-репо, подставить
+      приватный ключ лицензии, выполнить <code>docker compose up -d</code>.
+      Мониторинг через Grafana-дашборд (входит в официальный стек).
+      Обновления — стандартный <code>docker compose pull && docker compose up -d</code>.
+    </div>
+
+    <h3>5.3 Минимальные требования к железу</h3>
+
+<pre class="code-block"><code># Block Keeper Node (официальные требования)
+CPU:      8 cores / 16 threads (x86_64 или ARM64)
+RAM:      64 GB
+Storage:  1 TB NVMe SSD
+Network:  1 Gbit/s unmetered (симметричный)
+OS:       Ubuntu 22.04 LTS / Debian 12
+
+# Быстрый старт нода через Docker
+git clone https://github.com/gosh-sh/gosh          # официальный репо
+cd gosh/docker-compose
+
+# Вставить ключ ноды (получается при покупке лицензии)
+echo "NODE_KEY=<ваш-приватный-ключ>" > .env
+
+docker compose up -d
+
+# Проверка синхронизации
+docker compose exec node curl -s http://localhost:3030/status | jq .sync_info</code></pre>
+
+    <h3>5.4 Перспективы DePIN + GOSH</h3>
+
+    <p>
+      Три вектора роста, которые делают экономику ноды интересной:
+    </p>
+
+    <ol>
+      <li>
+        <strong>Enterprise supply chain.</strong> GOSH уже интегрирован
+        с Docker Hub Extension; переговоры с крупными контейнерными реестрами
+        (Harbor, GCR). Каждая верификация образа — транзакция в сети.
+      </li>
+      <li>
+        <strong>AI-агенты и code provenance.</strong> Тренд 2025–2026:
+        AI-агенты коммитят код. Единственный способ верифицировать
+        «кто написал, когда и что было проверено» — on-chain commit.
+        GOSH позиционируется как ledger для AI-generated code.
+      </li>
+      <li>
+        <strong>RWA + код как актив.</strong> DAO управляет кодом как
+        финансовым активом. On-chain merge = on-chain апрув изменений
+        в финансовой системе. Интересно для лицензированных DeFi-протоколов.
+      </li>
+    </ol>
+
+    <h2>6. Ключевые ссылки</h2>
+
+    <table class="compare">
+      <tr><th>Ресурс</th><th>URL</th><th>Для чего</th></tr>
+      <tr>
+        <td>Основной репозиторий</td>
+        <td><a href="https://github.com/gosh-sh/gosh" target="_blank" rel="noopener">github.com/gosh-sh/gosh</a></td>
+        <td>CLI, смарт-контракты, Docker Compose нода</td>
+      </tr>
+      <tr>
+        <td>Документация GOSH</td>
+        <td><a href="https://docs.gosh.sh/" target="_blank" rel="noopener">docs.gosh.sh</a></td>
+        <td>Установка, CLI-справка, API</td>
+      </tr>
+      <tr>
+        <td>Документация Acki Nacki</td>
+        <td><a href="https://github.com/gosh-sh/docs-acki-nacki" target="_blank" rel="noopener">github.com/gosh-sh/docs-acki-nacki</a></td>
+        <td>Архитектура ноды, консенсус, экономика</td>
+      </tr>
+      <tr>
+        <td>GOSH Docker Extension</td>
+        <td><a href="https://hub.docker.com/extensions/teamgosh/docker-extension" target="_blank" rel="noopener">hub.docker.com/extensions/teamgosh/docker-extension</a></td>
+        <td>GUI верификации образов в Docker Desktop</td>
+      </tr>
+      <tr>
+        <td>Docker Extension (docs)</td>
+        <td><a href="https://docs.gosh.sh/working-with-gosh/docker-extension/" target="_blank" rel="noopener">docs.gosh.sh/working-with-gosh/docker-extension</a></td>
+        <td>Подробная инструкция по расширению</td>
+      </tr>
+      <tr>
+        <td>Блог GOSH</td>
+        <td><a href="https://blog.gosh.sh/" target="_blank" rel="noopener">blog.gosh.sh</a></td>
+        <td>Новости: Acki Nacki, AnyTree, партнёрства</td>
+      </tr>
+      <tr>
+        <td>Скидки на ноды (GBA)</td>
+        <td><a href="https://gbaglobal.org/blog/2024/10/16/huge-discounts-on-acki-nacki-nodes/" target="_blank" rel="noopener">gbaglobal.org/…/acki-nacki-nodes</a></td>
+        <td>30% скидка через GBA Global</td>
+      </tr>
+      <tr>
+        <td>Анонс $6M раунда</td>
+        <td><a href="https://chainwire.org/2025/02/28/acki-nacki-secures-over-6m-in-preparation-for-network-launch/" target="_blank" rel="noopener">chainwire.org (Feb 2025)</a></td>
+        <td>Инвесторы, roadmap к mainnet</td>
+      </tr>
+      <tr>
+        <td>ForkLog: DockerCon анонс</td>
+        <td><a href="https://forklog.com/" target="_blank" rel="noopener">forklog.com</a></td>
+        <td>Русскоязычное освещение запуска</td>
+      </tr>
+    </table>
+
+    <h2>7. Сравнение с альтернативами</h2>
+
+    <table class="compare">
+      <tr><th>Решение</th><th>Хранение</th><th>Git-native</th><th>DePIN-нода</th><th>Docker верификация</th></tr>
+      <tr>
+        <td><strong>GOSH</strong></td>
+        <td>On-chain (Acki Nacki)</td>
+        <td>Да (нативный Git)</td>
+        <td>Да (Block Keeper)</td>
+        <td>Да (Extension)</td>
+      </tr>
+      <tr>
+        <td><strong>IPFS + Filecoin</strong></td>
+        <td>Content-addressed</td>
+        <td>Нет (надстройка)</td>
+        <td>Да (Storage Provider)</td>
+        <td>Нет</td>
+      </tr>
+      <tr>
+        <td><strong>Radicle</strong></td>
+        <td>P2P (libp2p)</td>
+        <td>Да</td>
+        <td>Нет (токенов нет)</td>
+        <td>Нет</td>
+      </tr>
+      <tr>
+        <td><strong>Arweave</strong></td>
+        <td>Perma-storage</td>
+        <td>Нет</td>
+        <td>Да (шахтёр)</td>
+        <td>Нет</td>
+      </tr>
+      <tr>
+        <td><strong>GitHub + IPFS</strong></td>
+        <td>Гибрид</td>
+        <td>Частично</td>
+        <td>Нет</td>
+        <td>Нет</td>
+      </tr>
+    </table>
+
+    <p>
+      GOSH выигрывает именно в комбинации: нативный Git-протокол +
+      on-chain consensus + Docker-верификация + DePIN-экономика нод.
+      Ни один другой проект не закрывает все четыре пункта сразу.
+    </p>
+
+    <h2>8. Чек-лист интеграции</h2>
+
+    <ul>
+      <li>
+        <input type="checkbox" />
+        Установить GOSH CLI (<code>install.sh</code>), создать аккаунт
+      </li>
+      <li>
+        <input type="checkbox" />
+        Добавить GOSH как второй <code>git remote</code> к основному репо
+      </li>
+      <li>
+        <input type="checkbox" />
+        Настроить CI-зеркалирование: GitHub Actions / Forgejo → GOSH push
+      </li>
+      <li>
+        <input type="checkbox" />
+        Установить Docker Extension, верифицировать образ проекта
+      </li>
+      <li>
+        <input type="checkbox" />
+        Запустить локальную ноду через <code>docker compose up -d</code>
+        (для тестирования без траты токенов)
+      </li>
+      <li>
+        <input type="checkbox" />
+        Рассчитать P&amp;L ноды (CapEx + 24-мес OpEx vs. ожидаемые NACKL rewards)
+        перед покупкой лицензии
+      </li>
+    </ul>
+
+    <h2>9. Что дальше</h2>
+
+    <p>
+      Следующий шаг — практика в <a href="../../labs/11/index.html">Lab 11</a>:
+      вы установите GOSH CLI, создадите DAO-репозиторий, сделаете push
+      своего DeFi-контракта on-chain и верифицируете Docker-образ
+      через расширение.
+    </p>
+
+    <div class="nav-links">
+      <a href="../20/index.html">← Lesson 20 · Поставка dApp</a>
+      <a href="../../labs/11/index.html">Lab 11 · GOSH hands-on →</a>
+    </div>
+  </div>
+
+  <script src="../../../../js/header.js"></script>
+</body>
+</html>
