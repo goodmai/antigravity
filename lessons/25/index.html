@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 1: Фундаментальная логика и математика ИИ-ассистентов | Anti-Gravity Academy</title>
+    <title>Урок 25: Фундаментальная логика и математика
+ИИ-ассистентов | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -86,11 +87,6 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-      }
-
-      h2 {
-        font-size: 1.5rem;
-        margin-top: 1.5rem;
       }
 
       p {
@@ -182,31 +178,113 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Урок 1: Фундаментальная логика и математика ИИ-ассистентов</h1>
-<p>Для полноценного понимания работы современных ИИ-систем, таких как Claude, необходимо отойти от концепции "магического оракула" и рассмотреть систему как строгую математическую модель предсказания вероятностей. В основе работы языковой модели лежит механизм трансформации текста в числа — токенизация.</p>
-<h2>Математическая модель</h2>
-<p>Текст разбивается на базовые единицы (токены). В среднем для английского языка 1 токен ≈ 0.75 слова, для русского языка соотношение может достигать 1 токен ≈ 0.4 слова из-за сложности морфологии. Модель рассчитывает вероятность появления следующего токена на основе всех предыдущих (контекста). Это можно выразить функцией вероятности P(w_t | w_1, w_2, ..., w_t-1).</p>
-<h2>Архитектурный цикл</h2>
-<p>Архитектурно процесс общения с ИИ представляет собой "агентный цикл" (Agentic Loop). Пользователь выступает инициатором (Perception), формулирует задачу (Planning), ИИ генерирует ответ (Action), а пользователь оценивает результат (Observation). Вычислительная сложность механизма внимания (Attention Mechanism) внутри ИИ растет квадратично — O(N^2) относительно длины текста, что делает критически важным навык лаконичного изложения мыслей.</p>
-<h2>Источники для Урока 1</h2>
-  <li>Официальная документация (Anthropic Intro to Claude): https://docs.anthropic.com/en/docs/intro-to-claude</li>
-<p>2. Академический базис курса: https://goodmai.github.io/antigravity/academy/courses/claude-code/index.html</p>
-<h2>Практические задания</h2>
-  <li>**Токенизация**: Рассчитайте, сколько токенов примерно займет текст на русском языке объемом в 1000 слов.</li>
-<p>2. **Логика вычислений**: Опишите логическую цепочку вычислений, которую производит модель при продолжении фразы "Два плюс два равно...".</p>
-<p>3. **Алгоритмическая сложность**: Сформулируйте своими словами, почему длинные диалоги заставляют ИИ работать медленнее (опираясь на алгоритмическую сложность O(N^2)).</p>
-<p>4. **Агентный цикл**: Напишите пример того, как человек выполняет роль "наблюдателя" в агентном цикле.</p>
-<p>5. **Декомпозиция задач**: Составьте список из 5 профессиональных задач, которые можно декомпозировать (разбить на шаги) для решения с помощью ИИ.</p>
-<h2>Ключевые концепции</h2>
-  <li>**Токенизация** — преобразование текста в числовые векторы</li>
-  <li>**Вероятностное предсказание** — ИИ не "знает" ответ, а предсказывает вероятность</li>
-  <li>**Контекстное окно** — объем информации, который может обработать модель</li>
-  <li>**Агентный цикл** — итеративный процесс взаимодействия человека и ИИ</li>
+        <h1
+        id="урок-25-фундаментальная-логика-и-математика-ии-ассистентов">Урок
+        25: Фундаментальная логика и математика ИИ-ассистентов</h1>
+        <p>Для полноценного понимания работы современных ИИ-систем,
+        таких как Claude, необходимо отойти от концепции "магического
+        оракула" и рассмотреть систему как строгую математическую модель
+        предсказания вероятностей. В основе работы языковой модели лежит
+        механизм трансформации текста в числа — токенизация.</p>
+        <h2 id="математическая-модель">Математическая модель</h2>
+        <p>Текст разбивается на базовые единицы (токены). В среднем для
+        английского языка 1 токен ≈ 0.75 слова, для русского языка
+        соотношение может достигать 1 токен ≈ 0.4 слова из-за сложности
+        морфологии. Модель рассчитывает вероятность появления следующего
+        токена на основе всех предыдущих (контекста). Это можно выразить
+        функцией вероятности P(w_t | w_1, w_2, ..., w_t-1).</p>
+        <h2 id="архитектурный-цикл">Архитектурный цикл</h2>
+        <p>Архитектурно процесс общения с ИИ представляет собой
+        "агентный цикл" (Agentic Loop). Пользователь выступает
+        инициатором (Perception), формулирует задачу (Planning), ИИ
+        генерирует ответ (Action), а пользователь оценивает результат
+        (Observation). Вычислительная сложность механизма внимания
+        (Attention Mechanism) внутри ИИ растет квадратично — O(N^2)
+        относительно длины текста, что делает критически важным навык
+        лаконичного изложения мыслей.</p>
+        <h2 id="источники-для-урока-1">Источники для Урока 1</h2>
+        <ol type="1">
+        <li>Официальная документация (Anthropic Intro to Claude): <a
+        href="https://docs.anthropic.com/en/docs/intro-to-claude">https://docs.anthropic.com/en/docs/intro-to-claude</a></li>
+        <li>Академический базис курса: <a
+        href="https://goodmai.github.io/antigravity/academy/courses/claude-code/index.html">https://goodmai.github.io/antigravity/academy/courses/claude-code/index.html</a></li>
+        </ol>
+        <h2 id="практические-задания">Практические задания</h2>
+        <ol type="1">
+        <li><p><strong>Токенизация</strong>: Рассчитайте, сколько
+        токенов примерно займет текст на русском языке объемом в 1000
+        слов.</p></li>
+        <li><p><strong>Логика вычислений</strong>: Опишите логическую
+        цепочку вычислений, которую производит модель при продолжении
+        фразы "Два плюс два равно...".</p></li>
+        <li><p><strong>Алгоритмическая сложность</strong>: Сформулируйте
+        своими словами, почему длинные диалоги заставляют ИИ работать
+        медленнее (опираясь на алгоритмическую сложность
+        O(N^2)).</p></li>
+        <li><p><strong>Агентный цикл</strong>: Напишите пример того, как
+        человек выполняет роль "наблюдателя" в агентном цикле.</p></li>
+        <li><p><strong>Декомпозиция задач</strong>: Составьте список из
+        5 профессиональных задач, которые можно декомпозировать (разбить
+        на шаги) для решения с помощью ИИ.</p></li>
+        </ol>
+        <h2 id="ключевые-концепции">Ключевые концепции</h2>
+        <ul>
+        <li><strong>Токенизация</strong> — преобразование текста в
+        числовые векторы</li>
+        <li><strong>Вероятностное предсказание</strong> — ИИ не "знает"
+        ответ, а предсказывает вероятность</li>
+        <li><strong>Контекстное окно</strong> — объем информации,
+        который может обработать модель</li>
+        <li><strong>Агентный цикл</strong> — итеративный процесс
+        взаимодействия человека и ИИ</li>
+        </ul>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

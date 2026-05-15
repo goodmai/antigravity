@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 21: Отладка и диагностика агентных задач | Anti-Gravity Academy</title>
+    <title>Отладка и диагностика агентных
+задач | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -177,19 +178,62 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Отладка и диагностика агентных задач</h1>
-
-        <p>Агент может зависнуть, уйти не в ту сторону или вернуть непонятный результат. В этом уроке разбираем систематический подход к диагностике: как читать артефакты задач, распознавать паттерны ошибок и безопасно восстанавливаться.</p>
-
-        <h2>Архитектура наблюдаемости в Antigravity</h2>
-
+        <h1 id="отладка-и-диагностика-агентных-задач">Отладка и
+        диагностика агентных задач</h1>
+        <p>Агент может зависнуть, уйти не в ту сторону или вернуть
+        непонятный результат. В этом уроке разбираем систематический
+        подход к диагностике: как читать артефакты задач, распознавать
+        паттерны ошибок и безопасно восстанавливаться.</p>
+        <h2 id="архитектура-наблюдаемости-в-antigravity">Архитектура
+        наблюдаемости в Antigravity</h2>
         <p>Antigravity оставляет три слоя информации о ходе задачи:</p>
-
         <pre><code>┌─────────────────────────────────────────┐
 │  Task Group (видите в UI)               │
 │  ├── Overarching Goal                   │
@@ -206,148 +250,159 @@
 │  ├── MCP server logs                    │
 │  └── CLI exit codes                     │
 └─────────────────────────────────────────┘</code></pre>
-
-        <h2>Паттерны ошибок и их диагноз</h2>
-
-        <h3>1. Агент «крутится на месте»</h3>
-
-        <p><strong>Симптом</strong>: подзадачи помечаются и снова сбрасываются, нет прогресса.</p>
-
+        <h2 id="паттерны-ошибок-и-их-диагноз">Паттерны ошибок и их
+        диагноз</h2>
+        <h3 id="1-агент-крутится-на-месте">1. Агент «крутится на
+        месте»</h3>
+        <p><strong>Симптом</strong>: подзадачи помечаются и снова
+        сбрасываются, нет прогресса.</p>
         <p><strong>Причины и лечение</strong>:</p>
-
         <table>
-          <thead>
-            <tr>
-              <th>Причина</th>
-              <th>Диагноз</th>
-              <th>Решение</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Нечёткое задание</td>
-              <td>В плане артефакта расплывчатые шаги</td>
-              <td>Уточни задачу с примером ожидаемого результата</td>
-            </tr>
-            <tr>
-              <td>Противоречивые правила</td>
-              <td><code>.agent/rules/</code> конфликтуют между собой</td>
-              <td>Проверь <code>trigger: always</code> правила на пересечения</td>
-            </tr>
-            <tr>
-              <td>Зацикленный тест</td>
-              <td>Тест всегда падает → агент чинит → снова падает</td>
-              <td>Посмотри stdout теста вручную</td>
-            </tr>
-          </tbody>
+        <thead>
+        <tr>
+        <th>Причина</th>
+        <th>Диагноз</th>
+        <th>Решение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Нечёткое задание</td>
+        <td>В плане артефакта расплывчатые шаги</td>
+        <td>Уточни задачу с примером ожидаемого результата</td>
+        </tr>
+        <tr>
+        <td>Противоречивые правила</td>
+        <td><code>.agent/rules/</code> конфликтуют между собой</td>
+        <td>Проверь <code>trigger: always</code> правила на
+        пересечения</td>
+        </tr>
+        <tr>
+        <td>Зацикленный тест</td>
+        <td>Тест всегда падает → агент чинит → снова падает</td>
+        <td>Посмотри stdout теста вручную</td>
+        </tr>
+        </tbody>
         </table>
-
-        <h3>2. MCP инструмент не отвечает</h3>
-
-        <p><strong>Симптом</strong>: в терминале <code>MCP error: connection refused</code> или <code>timeout</code>.</p>
-
-        <pre><code># Проверь статус MCP-серверов
-# Settings → MCP Servers → список онлайн/офлайн
-
-# Перезапусти конкретный сервер (пример для GitHub MCP)
-pkill -f "mcp-server-github"
-# Antigravity перезапустит его автоматически при следующем вызове</code></pre>
-
+        <h3 id="2-mcp-инструмент-не-отвечает">2. MCP инструмент не
+        отвечает</h3>
+        <p><strong>Симптом</strong>: в терминале
+        <code>MCP error: connection refused</code> или
+        <code>timeout</code>.</p>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Проверь статус MCP-серверов</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Settings → MCP Servers → список онлайн/офлайн</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Перезапусти конкретный сервер (пример для GitHub MCP)</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pkill</span> <span class="at">-f</span> <span class="st">&quot;mcp-server-github&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Antigravity перезапустит его автоматически при следующем вызове</span></span></code></pre></div>
         <p><strong>Частые причины</strong>:</p>
         <ul>
-          <li>Сервер требует <code>GITHUB_TOKEN</code> или другой секрет — проверь <code>.env</code></li>
-          <li>Docker-сервер не запущен: <code>docker ps | grep mcp</code></li>
-          <li>Порт занят другим процессом: <code>lsof -i :3000</code></li>
+        <li>Сервер требует <code>GITHUB_TOKEN</code> или другой секрет —
+        проверь <code>.env</code></li>
+        <li>Docker-сервер не запущен:
+        <code>docker ps | grep mcp</code></li>
+        <li>Порт занят другим процессом: <code>lsof -i :3000</code></li>
         </ul>
-
-        <h3>3. Агент редактирует не те файлы</h3>
-
-        <p><strong>Симптом</strong>: File Pills показывают изменения в не связанных с задачей файлах.</p>
-
-        <p><strong>Действие</strong>: немедленно нажми «Stop» → проверь git diff → при необходимости откатись:</p>
-
-        <pre><code>git diff --stat          # что изменилось
-git stash                # сохрани изменения для анализа
-git checkout -- .        # откат рабочего дерева</code></pre>
-
-        <h3>4. Тесты проходили, потом перестали</h3>
-
-        <p><strong>Симптом</strong>: агент сообщает «тесты зелёные», но при ручном запуске они падают.</p>
-
-        <pre><code># Запусти тесты самостоятельно, не через агента
-npm test -- --verbose
-pytest -xvs
-
-# Проверь, не мокировал ли агент тест вместо фикса
-git show HEAD:tests/test_feature.py | grep -E "mock|skip|xfail"</code></pre>
-
-        <h3>5. Неожиданное удаление или перезапись файлов</h3>
-
-        <p><strong>Симптом</strong>: агент выполнил <code>rm</code> или перезаписал важный файл.</p>
-
-        <pre><code># Проверь git history
-git log --oneline -10
-git show HEAD --stat
-
-# Восстанови конкретный файл
-git checkout HEAD~1 -- path/to/file.py</code></pre>
-
-        <h2>Стратегия «чистого дерева»</h2>
-
-        <p>Золотое правило: <strong>всегда работай с чистым git tree</strong> перед запуском агента в Turbo-режиме.</p>
-
-        <pre><code>git status                    # убедись, что нет незакоммиченных изменений
-git stash                     # если есть — сохрани
-# Запускай агента...
-git diff                      # после — просмотри всё что изменилось
-git add -p                    # стейджи только нужное</code></pre>
-
-        <h2>Использование Pending States для контроля</h2>
-
-        <p>В опасных ситуациях агент переходит в <strong>Pending State</strong> и ждёт подтверждения. Используй это:</p>
-
-        <pre><code>&lt;!-- .agent/rules/confirm-destructive.md --&gt;
----
-trigger: always
----
-Перед выполнением любой деструктивной операции (DROP TABLE, rm -rf, git reset --hard,
-деплой в production) создай артефакт с описанием последствий и дождись явного апрува.</code></pre>
-
-        <h2>Диагностический чеклист</h2>
-
+        <h3 id="3-агент-редактирует-не-те-файлы">3. Агент редактирует не
+        те файлы</h3>
+        <p><strong>Симптом</strong>: File Pills показывают изменения в
+        не связанных с задачей файлах.</p>
+        <p><strong>Действие</strong>: немедленно нажми «Stop» → проверь
+        git diff → при необходимости откатись:</p>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff <span class="at">--stat</span>          <span class="co"># что изменилось</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash                <span class="co"># сохрани изменения для анализа</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">--</span> .        <span class="co"># откат рабочего дерева</span></span></code></pre></div>
+        <h3 id="4-тесты-проходили-потом-перестали">4. Тесты проходили,
+        потом перестали</h3>
+        <p><strong>Симптом</strong>: агент сообщает «тесты зелёные», но
+        при ручном запуске они падают.</p>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Запусти тесты самостоятельно, не через агента</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> test <span class="at">--</span> <span class="at">--verbose</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ex">pytest</span> <span class="at">-xvs</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Проверь, не мокировал ли агент тест вместо фикса</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show HEAD:tests/test_feature.py <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-E</span> <span class="st">&quot;mock|skip|xfail&quot;</span></span></code></pre></div>
+        <h3 id="5-неожиданное-удаление-или-перезапись-файлов">5.
+        Неожиданное удаление или перезапись файлов</h3>
+        <p><strong>Симптом</strong>: агент выполнил <code>rm</code> или
+        перезаписал важный файл.</p>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Проверь git history</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> log <span class="at">--oneline</span> <span class="at">-10</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> show HEAD <span class="at">--stat</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Восстанови конкретный файл</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout HEAD~1 <span class="at">--</span> path/to/file.py</span></code></pre></div>
+        <h2 id="стратегия-чистого-дерева">Стратегия «чистого
+        дерева»</h2>
+        <p>Золотое правило: <strong>всегда работай с чистым git
+        tree</strong> перед запуском агента в Turbo-режиме.</p>
+        <div class="sourceCode" id="cb6"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> status                    <span class="co"># убедись, что нет незакоммиченных изменений</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> stash                     <span class="co"># если есть — сохрани</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Запускай агента...</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> diff                      <span class="co"># после — просмотри всё что изменилось</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> add <span class="at">-p</span>                    <span class="co"># стейджи только нужное</span></span></code></pre></div>
+        <h2 id="использование-pending-states-для-контроля">Использование
+        Pending States для контроля</h2>
+        <p>В опасных ситуациях агент переходит в <strong>Pending
+        State</strong> и ждёт подтверждения. Используй это:</p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- .agent/rules/confirm-destructive.md --&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>trigger: always</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>Перед выполнением любой деструктивной операции (DROP TABLE, rm -rf, git reset --hard,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>деплой в production) создай артефакт с описанием последствий и дождись явного апрува.</span></code></pre></div>
+        <h2 id="диагностический-чеклист">Диагностический чеклист</h2>
         <p>Когда что-то идёт не так — пройди по списку:</p>
-
         <pre><code>□ Прочитай последний артефакт — там описан текущий план
 □ Проверь Terminal Output на exit codes != 0
 □ Убедись, что все нужные MCP-серверы онлайн
 □ Запусти тесты вручную — не полагайся только на отчёт агента
 □ git diff — посмотри реальные изменения, не описание
 □ Если агент явно не справляется — Stop → уточни задачу → рестарт</code></pre>
-
-        <h2>Техники превентивной отладки</h2>
-
+        <h2 id="техники-превентивной-отладки">Техники превентивной
+        отладки</h2>
         <p>Лучше предотвратить проблему, чем чинить:</p>
-
-        <pre><code>// workflow: safe-execution
-
-## Перед началом
-- Сделай git commit "before: {task}" как точку отката
-- Убедись, что тесты проходят ДО изменений
-
-## Критерии остановки
-Если за 3 итерации один и тот же тест всё ещё падает —
-останови задачу и создай артефакт с диагнозом.
-
-## После завершения
-- Запусти полный тестовый прогон вручную
-- Проверь git diff на нежелательные изменения</code></pre>
-
-        <h2>Практика</h2>
-
-        <ol>
-          <li>Намеренно создай задачу с нечётким описанием — наблюдай, как агент интерпретирует её</li>
-          <li>Отключи один MCP-сервер и запусти задачу, которая его использует — изучи сообщение об ошибке</li>
-          <li>Настрой правило <code>confirm-destructive</code> из примера выше и проверь его срабатывание</li>
+        <div class="sourceCode" id="cb9"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>// workflow: safe-execution</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Перед началом</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Сделай git commit &quot;before: {task}&quot; как точку отката</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Убедись, что тесты проходят ДО изменений</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Критерии остановки</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>Если за 3 итерации один и тот же тест всё ещё падает —</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>останови задачу и создай артефакт с диагнозом.</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">## После завершения</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Запусти полный тестовый прогон вручную</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Проверь git diff на нежелательные изменения</span></code></pre></div>
+        <h2 id="практика">Практика</h2>
+        <ol type="1">
+        <li>Намеренно создай задачу с нечётким описанием — наблюдай, как
+        агент интерпретирует её</li>
+        <li>Отключи один MCP-сервер и запусти задачу, которая его
+        использует — изучи сообщение об ошибке</li>
+        <li>Настрой правило <code>confirm-destructive</code> из примера
+        выше и проверь его срабатывание</li>
+        </ol>
+        <h2 id="расширенные-стратегии">Расширенные стратегии</h2>
+        <h3 id="работа-с-legacy-кодом">Работа с legacy кодом</h3>
+        <ul>
+        <li>Постепенное улучшение</li>
+        <li>Написание тестов перед изменениями</li>
+        <li>Документирование исторических решений</li>
+        <li>Планомерный рефакторинг</li>
+        </ul>
+        <h2 id="рекомендуемые-источники">Рекомендуемые источники</h2>
+        <ol type="1">
+        <li>Legacy Code Patterns</li>
+        <li>Working Effectively with Legacy Code</li>
         </ol>
       </main>
       <footer class="footer">

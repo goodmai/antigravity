@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x423;&#x440;&#x43E;&#x43A; 14: &#x41C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x44B; &#x438; Docker | Anti-Gravity Academy</title>
+    <title>Урок 14: Микросервисы и Docker | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -84,6 +84,7 @@
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -141,6 +142,30 @@
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -152,48 +177,154 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1 id="&#x443;&#x440;&#x43E;&#x43A;-14-&#x43C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x44B;-&#x438;-docker">&#x423;&#x440;&#x43E;&#x43A; 14: &#x41C;&#x438;&#x43A;&#x440;&#x43E;&#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x44B; &#x438;
+        <h1 id="урок-14-микросервисы-и-docker">Урок 14: Микросервисы и
         Docker</h1>
-        <p>&#x420;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x430; &#x440;&#x430;&#x441;&#x43F;&#x440;&#x435;&#x434;&#x435;&#x43B;&#x435;&#x43D;&#x43D;&#x44B;&#x445; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C; &#x442;&#x440;&#x435;&#x431;&#x443;&#x435;&#x442; &#x43E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x438;.
-        Antigravity &#x431;&#x435;&#x440;&#x435;&#x442; &#x43D;&#x430; &#x441;&#x435;&#x431;&#x44F; &#x440;&#x443;&#x442;&#x438;&#x43D;&#x443; &#x443;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x435;&#x43D;&#x438;&#x44F; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x439;&#x43D;&#x435;&#x440;&#x430;&#x43C;&#x438;.</p>
+        <p>Разработка распределенных систем требует оркестрации.
+        Antigravity берет на себя рутину управления контейнерами.</p>
         <hr />
-        <h2 id="docker-management">&#x1F433; Docker Management</h2>
-        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x43E;&#x43D;&#x438;&#x43C;&#x430;&#x435;&#x442; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x43A;&#x441;&#x442; &#x432;&#x430;&#x448;&#x435;&#x433;&#x43E; &#x43F;&#x440;&#x438;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x44F; (Node.js, Python,
-        Go) &#x438; &#x43C;&#x43E;&#x436;&#x435;&#x442;:</p>
+        <h2 id="whale-docker-management">🐳 Docker Management</h2>
+        <p>Агент понимает контекст вашего приложения (Node.js, Python,
+        Go) и может:</p>
         <ol type="1">
-        <li><strong>&#x413;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; Dockerfile</strong>: &#x41E;&#x43F;&#x442;&#x438;&#x43C;&#x438;&#x437;&#x438;&#x440;&#x443;&#x435;&#x442; &#x441;&#x43B;&#x43E;&#x438;
-        &#x434;&#x43B;&#x44F; &#x43A;&#x44D;&#x448;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x44F;.</li>
-        <li><strong>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x432;&#x430;&#x442;&#x44C; docker-compose.yml</strong>: &#x41D;&#x430;&#x441;&#x442;&#x440;&#x430;&#x438;&#x432;&#x430;&#x435;&#x442;
-        &#x441;&#x435;&#x442;&#x438;, &#x442;&#x43E;&#x43C;&#x430;, &#x43F;&#x435;&#x440;&#x435;&#x43C;&#x435;&#x43D;&#x43D;&#x44B;&#x435; &#x43E;&#x43A;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x44F;.</li>
-        <li><strong>&#x41E;&#x440;&#x43A;&#x435;&#x441;&#x442;&#x440;&#x430;&#x446;&#x438;&#x44F;</strong>: &#x41A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x430; <em>&#x201C;&#x41F;&#x43E;&#x434;&#x43D;&#x438;&#x43C;&#x438; &#x43C;&#x43D;&#x435;
-        &#x43B;&#x43E;&#x43A;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;&#x435; &#x43E;&#x43A;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x435;&#x201D;</em> &#x43F;&#x440;&#x438;&#x432;&#x435;&#x434;&#x435;&#x442; &#x43A; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x443;
-        <code>docker-compose up</code> &#x438; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x43A;&#x435; &#x437;&#x434;&#x43E;&#x440;&#x43E;&#x432;&#x44C;&#x44F;
-        &#x441;&#x435;&#x440;&#x432;&#x438;&#x441;&#x43E;&#x432;.</li>
+        <li><strong>Генерировать Dockerfile</strong>: Оптимизирует слои
+        для кэширования.</li>
+        <li><strong>Создавать docker-compose.yml</strong>: Настраивает
+        сети, тома, переменные окружения.</li>
+        <li><strong>Оркестрация</strong>: Команда <em>"Подними мне
+        локальное окружение"</em> приведет к запуску
+        <code>docker-compose up</code> и проверке здоровья
+        сервисов.</li>
         </ol>
         <hr />
-        <h2 id="&#x434;&#x438;&#x430;&#x433;&#x43D;&#x43E;&#x441;&#x442;&#x438;&#x43A;&#x430;">&#x1F527; &#x414;&#x438;&#x430;&#x433;&#x43D;&#x43E;&#x441;&#x442;&#x438;&#x43A;&#x430;</h2>
-        <p>&#x415;&#x441;&#x43B;&#x438; &#x441;&#x435;&#x440;&#x432;&#x438;&#x441; &#x410; &#x43D;&#x435; &#x432;&#x438;&#x434;&#x438;&#x442; &#x441;&#x435;&#x440;&#x432;&#x438;&#x441; &#x411;: &#x410;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x440;&#x43E;&#x447;&#x438;&#x442;&#x430;&#x435;&#x442; &#x43B;&#x43E;&#x433;&#x438; &#x43E;&#x431;&#x43E;&#x438;&#x445;
-        &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x439;&#x43D;&#x435;&#x440;&#x43E;&#x432;, &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x438;&#x442; &#x43D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x439;&#x43A;&#x438; &#x441;&#x435;&#x442;&#x438; &#x432; compoise-&#x444;&#x430;&#x439;&#x43B;&#x435; &#x438; &#x441;&#x43A;&#x430;&#x436;&#x435;&#x442;:
-        <em>&#x201C;&#x423; &#x442;&#x435;&#x431;&#x44F; &#x437;&#x430;&#x43A;&#x440;&#x44B;&#x442; &#x43F;&#x43E;&#x440;&#x442; 8080 &#x432; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x439;&#x43D;&#x435;&#x440;&#x435; API, &#x434;&#x430;&#x432;&#x430;&#x439; &#x44F; &#x43E;&#x442;&#x43A;&#x440;&#x43E;&#x44E;
-        &#x435;&#x433;&#x43E;&#x201D;</em>.</p>
+        <h2 id="wrench-диагностика">🔧 Диагностика</h2>
+        <p>Если сервис А не видит сервис Б: Агент прочитает логи обоих
+        контейнеров, проверит настройки сети в compoise-файле и скажет:
+        <em>"У тебя закрыт порт 8080 в контейнере API, давай я открою
+        его"</em>.</p>
         <hr />
-        <h2 id="&#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;">&#x1F4DD; &#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;</h2>
+        <h2 id="pencil-задание">📝 Задание</h2>
         <ol type="1">
-        <li>&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E;&#x439; &#x444;&#x430;&#x439;&#x43B; <code>server.js</code> (Express).</li>
-        <li>&#x41F;&#x43E;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;: <em>&#x201C;&#x41E;&#x431;&#x435;&#x440;&#x43D;&#x438; &#x44D;&#x442;&#x43E; &#x43F;&#x440;&#x438;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x435; &#x432; Docker &#x438;
-        &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439; docker-compose &#x444;&#x430;&#x439;&#x43B; &#x434;&#x43B;&#x44F; &#x435;&#x433;&#x43E; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;&#x430;&#x201D;</em>.</li>
-        <li>&#x41F;&#x43E;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x44C; &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x439;&#x43D;&#x435;&#x440; &#x438; &#x43F;&#x440;&#x43E;&#x432;&#x435;&#x440;&#x438;&#x442;&#x44C;, &#x447;&#x442;&#x43E; &#x43E;&#x43D;
-        &#x43E;&#x442;&#x432;&#x435;&#x447;&#x430;&#x435;&#x442;.</li>
+        <li>Создайте простой файл <code>server.js</code> (Express).</li>
+        <li>Попросите агента: <em>"Оберни это приложение в Docker и
+        создай docker-compose файл для его запуска"</em>.</li>
+        <li>Попросите агента запустить контейнер и проверить, что он
+        отвечает.</li>
+        </ol>
+        <h2 id="microscope-как-это-работает-глубже">🔬 Как это работает
+        глубже</h2>
+        <p><strong>Кэш слоёв Docker</strong> — ключ к быстрой сборке.
+        Слои инвалидируются сверху вниз: меняешь строку — пересобирается
+        она и всё ниже. Поэтому правильный порядок такой:</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> node:20-slim</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> package*.json ./      <span class="co"># редко меняется → отдельный слой</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">npm</span> ci                 <span class="co"># кэшируется, пока не изменился lock</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> . .                   <span class="co"># часто меняется → в самом низу</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">&quot;node&quot;</span>, <span class="st">&quot;server.js&quot;</span>]</span></code></pre></div>
+        <p><code>COPY . .</code> до установки зависимостей убивает кэш
+        на каждую правку кода.</p>
+        <p><strong>Сеть compose</strong>: сервисы в одной сети резолвят
+        друг друга по имени сервиса (<code>api</code>,
+        <code>worker</code>), а не по <code>localhost</code>. «Сервис не
+        видит сервис» почти всегда = неверное имя хоста, закрытый порт
+        или сервис ещё не <code>healthy</code> (нужен
+        <code>depends_on</code> +
+        <code>condition: service_healthy</code>).</p>
+        <h2 id="warning-типичные-ошибки">⚠️ Типичные ошибки</h2>
+        <ul>
+        <li><strong><code>COPY . .</code> до
+        <code>npm ci</code></strong> — кэш слоёв не работает, сборка
+        каждый раз с нуля.</li>
+        <li><strong><code>localhost</code> вместо имени сервиса</strong>
+        в compose-сети.</li>
+        <li><strong>Секреты в образе</strong>
+        (<code>ENV SECRET=...</code>) — видны в
+        <code>docker history</code>. Используй <code>.env</code> +
+        <code>.dockerignore</code>.</li>
+        <li><strong>Нет healthcheck</strong> — зависимые сервисы
+        стартуют до готовности.</li>
+        <li><strong>Игнор SIGTERM</strong> —
+        <code>docker compose down</code> рвёт активные операции.</li>
+        </ul>
+        <h2 id="brain-ключевые-концепции">🧠 Ключевые концепции</h2>
+        <ul>
+        <li><strong>Кэш слоёв</strong> — порядок инструкций определяет
+        скорость сборки.</li>
+        <li><strong>Multi-stage build</strong> — лёгкий рантайм-образ
+        без dev-зависимостей.</li>
+        <li><strong>Сеть compose</strong> — резолв по имени
+        сервиса.</li>
+        <li><strong>Healthcheck + graceful shutdown</strong> —
+        управляемый жизненный цикл.</li>
+        </ul>
+        <h2 id="test_tube-практика">🧪 Практика</h2>
+        <p>Полная оркестрация — в <strong><a
+        href="../../labs/14/index.html">Лабе 14 — Микросервисы и
+        Docker</a></strong> (9 задач): multi-stage Dockerfile,
+        compose-сеть, healthchecks, диагностика связности, уменьшение
+        образа, graceful shutdown, тест-профиль.</p>
+        <h2 id="books-источники">📚 Источники</h2>
+        <ol type="1">
+        <li>Dockerfile best practices — <a
+        href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">https://docs.docker.com/develop/develop-images/dockerfile_best-practices/</a></li>
+        <li>Compose networking — <a
+        href="https://docs.docker.com/compose/networking/">https://docs.docker.com/compose/networking/</a></li>
+        <li>Twelve-Factor App — <a
+        href="https://12factor.net/">https://12factor.net/</a></li>
         </ol>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>

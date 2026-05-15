@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>�������� 4: ������������ ������������ (Agent
+    <title>Урок 4: Навыки Агента (Agent
 Skills) | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -178,9 +178,51 @@ Skills) | Anti-Gravity Academy</title>
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
         <h1 id="урок-4-навыки-агента-agent-skills">Урок 4: Навыки Агента
@@ -205,25 +247,25 @@ Skills) | Anti-Gravity Academy</title>
         становится переиспользуемым активом — как функция в коде.</p>
         <table>
         <thead>
-        <tr class="header">
+        <tr>
         <th style="text-align: left;">Без скилла</th>
         <th style="text-align: left;">Со скиллом</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;">Длинный системный промпт в каждом
         диалоге</td>
         <td style="text-align: left;">Короткое описание + автоматическая
         активация</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td style="text-align: left;">Знание живёт у одного
         разработчика</td>
         <td style="text-align: left;">Знание лежит в репозитории и
         версионируется</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;">Нет тестируемости</td>
         <td style="text-align: left;">Скилл можно проверить через
         <code>qa-skill-tester</code> (урок 7)</td>
@@ -235,24 +277,24 @@ Skills) | Anti-Gravity Academy</title>
         <h3 id="21-где-лежат-скиллы">2.1. Где лежат скиллы</h3>
         <table>
         <thead>
-        <tr class="header">
+        <tr>
         <th style="text-align: left;">Расположение</th>
         <th style="text-align: left;">Область действия</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td
         style="text-align: left;"><code>&lt;workspace&gt;/.agent/skills/&lt;name&gt;/</code></td>
         <td style="text-align: left;">Локально для проекта (коммитится в
         репозиторий команды)</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td
         style="text-align: left;"><code>~/.gemini/antigravity/skills/&lt;name&gt;/</code></td>
         <td style="text-align: left;">Глобально для пользователя</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;"><code>skills/&lt;name&gt;/</code>
         в корне Antigravity</td>
         <td style="text-align: left;">Поставляются «из коробки» (см.
@@ -276,21 +318,21 @@ Skills) | Anti-Gravity Academy</title>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span></code></pre></div>
         <table>
         <thead>
-        <tr class="header">
+        <tr>
         <th style="text-align: left;">Поле</th>
         <th style="text-align: left;">Обязательно</th>
         <th style="text-align: left;">Назначение</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;"><code>name</code></td>
         <td style="text-align: left;">нет (по умолчанию — имя
         папки)</td>
         <td style="text-align: left;">Уникальный идентификатор
         <code>kebab-case</code></td>
         </tr>
-        <tr class="even">
+        <tr>
         <td style="text-align: left;"><code>description</code></td>
         <td style="text-align: left;"><strong>да</strong></td>
         <td style="text-align: left;">Триггер для агента: что делает
@@ -298,13 +340,15 @@ Skills) | Anti-Gravity Academy</title>
         </tr>
         </tbody>
         </table>
-        <blockquote>
-        <p>[!IMPORTANT] Описание читается агентом первым. Если оно
-        расплывчатое — скилл не активируется. Хорошее описание содержит:
-        <strong>глагол действия</strong>, <strong>объект</strong>,
-        <strong>ключевые слова-триггеры</strong> на языке
-        пользователя.</p>
-        </blockquote>
+        <div class="important">
+        <div class="title">
+        <p>Important</p>
+        </div>
+        <p>Описание читается агентом первым. Если оно расплывчатое —
+        скилл не активируется. Хорошее описание содержит: <strong>глагол
+        действия</strong>, <strong>объект</strong>, <strong>ключевые
+        слова-триггеры</strong> на языке пользователя.</p>
+        </div>
         <hr />
         <h2 id="3-прогрессивное-раскрытие">3. Прогрессивное
         раскрытие</h2>
@@ -327,13 +371,13 @@ Skills) | Anti-Gravity Academy</title>
         одна ответственность</h3>
         <table>
         <thead>
-        <tr class="header">
+        <tr>
         <th style="text-align: left;">Плохо</th>
         <th style="text-align: left;">Хорошо</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;"><code>dev-helper</code> (всё
         подряд)</td>
         <td style="text-align: left;"><code>pr-review</code>,
@@ -416,33 +460,33 @@ Skills) | Anti-Gravity Academy</title>
         <h2 id="7-анти-паттерны">7. Анти-паттерны</h2>
         <table>
         <thead>
-        <tr class="header">
+        <tr>
         <th style="text-align: left;">Анти-паттерн</th>
         <th style="text-align: left;">Симптом</th>
         <th style="text-align: left;">Что делать</th>
         </tr>
         </thead>
         <tbody>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;"><strong>God-skill</strong></td>
         <td style="text-align: left;"><code>SKILL.md</code> &gt; 500
         строк, описывает 10 разных задач</td>
         <td style="text-align: left;">Разбить на 3–5 узких скиллов</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td style="text-align: left;"><strong>Magic-skill</strong></td>
         <td style="text-align: left;">Описание «помогает с кодом» —
         слишком общее</td>
         <td style="text-align: left;">Указать триггеры и предметную
         область</td>
         </tr>
-        <tr class="odd">
+        <tr>
         <td style="text-align: left;"><strong>Stale-skill</strong></td>
         <td style="text-align: left;">Ссылается на удалённые
         файлы/команды</td>
         <td style="text-align: left;">Добавить smoke-test в CI</td>
         </tr>
-        <tr class="even">
+        <tr>
         <td style="text-align: left;"><strong>Silent-skill</strong></td>
         <td style="text-align: left;">Не активируется, потому что
         описание на английском, а пользователь пишет на русском</td>
@@ -540,11 +584,14 @@ Skills) | Anti-Gravity Academy</title>
         <li><strong>Урок 7</strong> — тестирование скиллов через
         мета-скилл <code>qa-skill-tester</code>.</li>
         </ul>
-        <blockquote>
-        <p>[!TIP] Лучший способ научиться писать скиллы — открыть
+        <div class="tip">
+        <div class="title">
+        <p>Tip</p>
+        </div>
+        <p>Лучший способ научиться писать скиллы — открыть
         <code>skills/skill-creator/SKILL.md</code> и пройти его
         пошагово.</p>
-        </blockquote>
+        </div>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

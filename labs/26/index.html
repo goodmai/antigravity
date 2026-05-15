@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Лаба 26: Развёртывание среды: ПК и
+мобильные | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <div class="container">
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
+      </header>
+      <main>
+        <h1 id="лаба-26-развёртывание-среды-пк-и-мобильные">Лаба 26:
+        Развёртывание среды: ПК и мобильные</h1>
+        <blockquote>
+        <p>🔗 Практика к <a href="../../lessons/26/index.html">Уроку
+        26</a> — <em>Развертывание среды ПК/мобильные</em></p>
+        </blockquote>
+        <p>Воспроизводимая установка и верификация окружения CLI и
+        понимание мобильной песочницы.</p>
+        <h2 id="dart-цель">🎯 Цель</h2>
+        <p>Закрепить материал Урока 26 через 7 практических задач в
+        облачной песочнице GitHub. Каждая задача имеет явный
+        <strong>критерий приёмки</strong> — лаба считается сданной,
+        когда выполнен финальный чек-лист.</p>
+        <h2 id="test_tube-песочница-мультиплатформа">🧪 Песочница
+        (мультиплатформа)</h2>
+        <p><strong>Рекомендуется для этой лабы:</strong> GitHub
+        Codespaces — полноценный Linux + Docker + GitHub PR-флоу,
+        универсальна для любой задачи.</p>
+        <p>Любую задачу можно выполнить в одной из песочниц (быстрый
+        запуск):</p>
+        <ul>
+        <li>GitHub Codespaces —
+        <code>https://github.com/goodmai/antigravity</code> →
+        <strong>Code ▾ → Codespaces → Create</strong></li>
+        <li>Gitpod —
+        <code>https://gitpod.io/#https://github.com/goodmai/antigravity</code></li>
+        <li>Google Cloud Shell —
+        <code>https://shell.cloud.google.com</code> →
+        <code>git clone</code></li>
+        <li>Replit — <em>Create Repl → Import from GitHub</em></li>
+        </ul>
+        <p>Полная шпаргалка (bootstrap-скрипт, devcontainer, секреты,
+        выбор платформы): <strong><a
+        href="../SANDBOX_SETUP.md">../SANDBOX_SETUP.md</a></strong>.</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># единый вход в любой песочнице</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/sandbox-bootstrap.sh</span></code></pre></div>
+        <h2 id="clipboard-задачи">📋 Задачи</h2>
+        <h3 id="задача-1--установка-cli">Задача 1 — Установка CLI</h3>
+        <p><strong>Цель:</strong> Поставить инструмент.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Установи Node + CLI в песочнице.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> <code>--version</code>
+        отдаёт версию.</p>
+        <h3 id="задача-2--верификация-path">Задача 2 — Верификация
+        PATH</h3>
+        <p><strong>Цель:</strong> Проверить путь.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li><code>which</code>/<code>command -v</code>.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Бинарь в $PATH, путь
+        зафиксирован.</p>
+        <h3 id="задача-3--авторизация">Задача 3 — Авторизация</h3>
+        <p><strong>Цель:</strong> Пройти login.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Инициируй OAuth-флоу.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Сессия активна.</p>
+        <h3 id="задача-4--первый-запрос">Задача 4 — Первый запрос</h3>
+        <p><strong>Цель:</strong> Проверить связь.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Отправь тестовый запрос.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Получен ответ — сеть
+        ок.</p>
+        <h3 id="задача-5--сравнение-сред">Задача 5 — Сравнение сред</h3>
+        <p><strong>Цель:</strong> CLI vs мобильная.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Таблица: контроль, доступ к ФС, изоляция.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Различия описаны
+        корректно.</p>
+        <h3 id="задача-6--воспроизводимость">Задача 6 —
+        Воспроизводимость</h3>
+        <p><strong>Цель:</strong> Скриптовать setup.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li><code>setup.sh</code>, который ставит всё с нуля.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Чистый прогон скрипта
+        успешен.</p>
+        <h3 id="задача-7--диагностика-установки">Задача 7 — Диагностика
+        установки</h3>
+        <p><strong>Цель:</strong> Починить сбой.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Сломай PATH, восстанови.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Причина найдена и
+        устранена.</p>
+        <h2 id="white_check_mark-чек-лист-сдачи">✅ Чек-лист сдачи</h2>
+        <ul class="task-list">
+        <li><label><input type="checkbox" />Задача 1: Установка
+        CLI</label></li>
+        <li><label><input type="checkbox" />Задача 2: Верификация
+        PATH</label></li>
+        <li><label><input type="checkbox" />Задача 3:
+        Авторизация</label></li>
+        <li><label><input type="checkbox" />Задача 4: Первый
+        запрос</label></li>
+        <li><label><input type="checkbox" />Задача 5: Сравнение
+        сред</label></li>
+        <li><label><input type="checkbox" />Задача 6:
+        Воспроизводимость</label></li>
+        <li><label><input type="checkbox" />Задача 7: Диагностика
+        установки</label></li>
+        </ul>
+        <h2 id="compass-связь-с-курсом">🧭 Связь с курсом</h2>
+        <ul>
+        <li><strong>Теория:</strong> <a
+        href="../../lessons/26/index.html">Урок 26</a> —
+        <em>Развертывание среды ПК/мобильные</em></li>
+        <li><strong>Песочницы:</strong> общая шпаргалка <a
+        href="../SANDBOX_SETUP.md">labs/SANDBOX_SETUP.md</a></li>
+        <li><strong>Капстоун курса:</strong> <a
+        href="../CAPSTONE.md">labs/CAPSTONE.md</a> — TeleDrive
+        Ecosystem</li>
+        <li><strong>Навигация:</strong> ← <a href="../25/index.html">Лаба
+        25</a> · <a href="../27/index.html">Лаба 27</a> →</li>
+        </ul>
+        <hr />
+        <p><em>Сгенерировано <code>scripts/generate_labs.py</code>.
+        Правьте генератор, а не выходные файлы.</em></p>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

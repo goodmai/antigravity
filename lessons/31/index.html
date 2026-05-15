@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 31: Docker Best Practices — Rootless, Docker Hub, GHCR | Anti-Gravity Academy</title>
+    <title>Урок 31: Docker Best Practices — Rootless, Docker Hub,
+GHCR | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -31,8 +32,16 @@
         font-family: "Inter", sans-serif;
         background-color: var(--bg-dark);
         background-image:
-          radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 25%),
-          radial-gradient(circle at 80% 80%, rgba(129, 140, 248, 0.05) 0%, transparent 25%);
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
         color: var(--text-main);
         min-height: 100vh;
         line-height: 1.6;
@@ -61,7 +70,9 @@
         transition: opacity 0.2s;
       }
 
-      .back-link:hover { opacity: 0.8; }
+      .back-link:hover {
+        opacity: 0.8;
+      }
 
       h1, h2, h3, h4 {
         color: var(--text-main);
@@ -90,7 +101,6 @@
         font-family: monospace;
         font-size: 0.9em;
         border: 1px solid var(--glass-border);
-        color: var(--accent-primary);
       }
 
       pre {
@@ -107,7 +117,6 @@
         padding: 0;
         border: none;
         font-size: 0.9rem;
-        color: var(--text-main);
       }
 
       ul, ol {
@@ -116,14 +125,22 @@
         color: var(--text-dim);
       }
 
-      li { margin-bottom: 0.5rem; }
+      li {
+        margin-bottom: 0.5rem;
+      }
 
       blockquote {
         border-left: 4px solid var(--accent-primary);
         padding-left: 20px;
         margin: 1.5rem 0;
         font-style: italic;
-        color: var(--text-dim);
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
       }
 
       table {
@@ -146,61 +163,8 @@
         font-weight: 600;
       }
 
-      tr:nth-child(even) td { background: rgba(30, 41, 59, 0.25); }
-
-      .section-card {
-        background: var(--card-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 12px;
-        padding: 24px;
-        margin: 1.5rem 0;
-        transition: border-color 0.2s;
-      }
-
-      .section-card:hover { border-color: var(--accent-primary); }
-
-      .badge {
-        display: inline-block;
-        font-size: 0.75rem;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 600;
-        margin-right: 8px;
-      }
-
-      .badge-security { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #f87171; }
-      .badge-registry { background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; }
-      .badge-ci { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.3); color: #818cf8; }
-      .badge-arch { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
-
-      .checklist { list-style: none; padding-left: 0; }
-      .checklist li { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0.75rem; }
-      .checklist li::before {
-        content: "□";
-        color: var(--accent-primary);
-        font-size: 1.1rem;
-        flex-shrink: 0;
-        margin-top: 1px;
-      }
-
-      .warning-box {
-        background: rgba(239,68,68,0.08);
-        border: 1px solid rgba(239,68,68,0.25);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin: 1.5rem 0;
-        color: #fca5a5;
-        font-size: 0.9rem;
-      }
-
-      .tip-box {
-        background: rgba(56,189,248,0.08);
-        border: 1px solid rgba(56,189,248,0.25);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin: 1.5rem 0;
-        color: #7dd3fc;
-        font-size: 0.9rem;
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
       }
 
       .footer {
@@ -214,300 +178,433 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-
-        <h1>Урок 31: Docker Best Practices</h1>
-        <p style="font-size:1.1rem; color: var(--text-dim);">
-          Rootless-демон · Docker Hub · GitHub Container Registry · Multiarch · Сканирование CVE · CI/CD
-        </p>
-
-        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
-
-        <!-- Rootless -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">🔒 Rootless Docker</h2>
-          <span class="badge badge-security">Безопасность</span>
-          <p>
-            По умолчанию Docker-демон работает с правами root. Если злоумышленник вырывается из контейнера — он получает root на хосте.
-            Rootless-режим запускает демон внутри пространства имён пользователя: компрометация контейнера не даёт доступ к системе.
-          </p>
-          <pre><code># Установить rootless-инструменты
-dockerd-rootless-setuptool.sh install
-
-# Добавить в ~/.bashrc
-export DOCKER_HOST=unix://${XDG_RUNTIME_DIR}/docker.sock
-
-# Проверить
-docker info | grep -i rootless   # rootless: true</code></pre>
-
-          <table>
-            <thead>
-              <tr><th>Функция</th><th>Обычный Docker</th><th>Rootless</th></tr>
-            </thead>
-            <tbody>
-              <tr><td>Публикация порта &lt; 1024</td><td>✅</td><td>❌ (нужен sysctl)</td></tr>
-              <tr><td>overlay2 storage driver</td><td>✅</td><td>✅ (ядро ≥ 5.11)</td></tr>
-              <tr><td>Docker-in-Docker</td><td>✅</td><td>⚠️</td></tr>
-              <tr><td>GPU passthrough</td><td>✅</td><td>✅ (через --device)</td></tr>
-            </tbody>
-          </table>
-
-          <div class="tip-box">
-            💡 В rootless-режиме обязательно добавьте <code>USER nonroot</code> в Dockerfile —
-            процесс внутри контейнера также не будет root.
-          </div>
-        </div>
-
-        <!-- Multi-stage + distroless -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">📦 Multi-stage builds и минимальный образ</h2>
-          <p>
-            Используйте многоступенчатую сборку: первый stage компилирует, второй содержит только рантайм.
-            Distroless-образ не имеет shell — attack surface минимален.
-          </p>
-          <pre><code># Stage 1: сборка
-FROM golang:1.22-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o server .
-
-# Stage 2: только бинарник
-FROM gcr.io/distroless/static-debian12
-COPY --from=builder /app/server /server
-USER nonroot:nonroot
-ENTRYPOINT ["/server"]</code></pre>
-        </div>
-
-        <!-- Docker Hub -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">🐳 Публикация в Docker Hub</h2>
-          <span class="badge badge-registry">Реестр</span>
-          <pre><code># Аутентификация через Access Token (не пароль!)
-docker login -u &lt;username&gt;
-
-# Тегирование
-docker tag myapp:1.0.0 myusername/myapp:1.0.0
-docker tag myapp:1.0.0 myusername/myapp:latest
-
-# Пуш
-docker push myusername/myapp:1.0.0
-docker push myusername/myapp:latest</code></pre>
-          <div class="warning-box">
-            ⚠️ Никогда не используйте только тег <code>latest</code>. Без версионного тега
-            невозможно откатиться к предыдущему образу.
-          </div>
-        </div>
-
-        <!-- GHCR -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">🐙 GitHub Container Registry (GHCR)</h2>
-          <span class="badge badge-registry">Реестр</span>
-          <p>
-            GHCR хранит образы рядом с кодом на GitHub. Поддерживает гранулярные права
-            (<code>read</code>, <code>write</code>, <code>admin</code>) на уровне пакета.
-          </p>
-          <pre><code># Аутентификация — GITHUB_TOKEN генерируется автоматически в Actions
-echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-
-# Формат тега: ghcr.io/&lt;owner&gt;/&lt;repo&gt;:&lt;tag&gt;
-docker build -t ghcr.io/myorg/myapp:1.0.0 .
-docker push ghcr.io/myorg/myapp:1.0.0</code></pre>
-        </div>
-
-        <!-- Multiarch -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">🏗️ Мультиархитектурные образы (buildx)</h2>
-          <span class="badge badge-arch">Multi-arch</span>
-          <p>
-            Один тег — для <code>linux/amd64</code> и <code>linux/arm64</code>.
-            Образ работает и на x86-сервере, и на Apple M-чипах, и на Raspberry Pi.
-          </p>
-          <pre><code># Создать builder с поддержкой эмуляции
-docker buildx create --name multiarch --driver docker-container --use
-docker buildx inspect --bootstrap
-
-# Собрать и сразу запушить для двух платформ
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --tag ghcr.io/myorg/myapp:1.0.0 \
-  --push \
-  .
-
-# Проверить манифест
-docker buildx imagetools inspect ghcr.io/myorg/myapp:1.0.0</code></pre>
-        </div>
-
-        <!-- CI/CD GitHub Actions -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">⚙️ GitHub Actions — полный пайплайн</h2>
-          <span class="badge badge-ci">CI/CD</span>
-          <pre><code># .github/workflows/docker.yml
-name: Docker Build &amp; Push
-
-on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-
-permissions:
-  contents: read
-  packages: write
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=sha,prefix=sha-
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH
-
-      - name: Upload SARIF to Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif</code></pre>
-        </div>
-
-        <!-- BuildKit secrets -->
-        <div class="section-card">
-          <h2 style="margin-top:0;">🔑 BuildKit secrets — без утечки токенов</h2>
-          <span class="badge badge-security">Безопасность</span>
-          <pre><code># Dockerfile
-# syntax=docker/dockerfile:1
-FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
-
-# Секрет доступен только во время RUN, не попадает в образ
-RUN --mount=type=secret,id=npmrc,target=/root/.npmrc \
-    npm ci
-
-COPY . .
-CMD ["node", "server.js"]</code></pre>
-          <pre><code># Сборка с секретом
-docker build --secret id=npmrc,src=$HOME/.npmrc -t myapp .</code></pre>
-          <div class="warning-box">
-            ⚠️ Никогда не передавайте секреты через <code>ARG</code> или <code>ENV</code> —
-            они видны в <code>docker history</code> и в слоях образа.
-          </div>
-        </div>
-
-        <!-- Checklist -->
-        <h2>✅ Чеклист лучших практик</h2>
+        <h1
+        id="урок-31-docker-best-practices--rootless-docker-hub-ghcr">Урок
+        31: Docker Best Practices — Rootless, Docker Hub, GHCR</h1>
+        <blockquote>
+        <p>Безопасная контейнеризация: запуск без root, публикация
+        образов в Docker Hub и GitHub Container Registry,
+        мультиархитектурные сборки и автоматизация через CI/CD.</p>
+        </blockquote>
+        <hr />
+        <h2 id="почему-rootless-docker">Почему rootless Docker</h2>
+        <p>По умолчанию Docker-демон работает с правами root. Если
+        злоумышленник вырывается из контейнера, он получает root на
+        хосте. Rootless-режим запускает демон внутри пространства имён
+        пользователя — компрометация контейнера не даёт доступ к
+        системе.</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Включить rootless-режим (одноразово)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">dockerd-rootless-setuptool.sh</span> install</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Экспорт переменных в ~/.bashrc</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">DOCKER_HOST</span><span class="op">=</span>unix://<span class="va">${XDG_RUNTIME_DIR}</span>/docker.sock</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">export</span> <span class="va">PATH</span><span class="op">=</span>/usr/bin:<span class="va">$PATH</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Проверить</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> info <span class="kw">|</span> <span class="fu">grep</span> <span class="at">-i</span> rootless   <span class="co"># должно быть: rootless: true</span></span></code></pre></div>
+        <h3 id="ограничения-rootless">Ограничения rootless</h3>
         <table>
-          <thead>
-            <tr><th>#</th><th>Практика</th><th>Инструмент</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>1</td><td>Запускайте демон без root</td><td><code>dockerd-rootless</code></td></tr>
-            <tr><td>2</td><td>Используйте non-root USER в Dockerfile</td><td><code>USER 1001</code></td></tr>
-            <tr><td>3</td><td>Не храните секреты в слоях образа</td><td>BuildKit secrets, <code>.dockerignore</code></td></tr>
-            <tr><td>4</td><td>Минимальный базовый образ</td><td><code>distroless</code>, <code>alpine</code>, <code>scratch</code></td></tr>
-            <tr><td>5</td><td>Multi-stage builds</td><td>Dockerfile stages</td></tr>
-            <tr><td>6</td><td>Тегируйте версией + sha</td><td><code>semver</code>, <code>sha-*</code></td></tr>
-            <tr><td>7</td><td>Сканируйте CVE перед пушем</td><td>Trivy, Docker Scout</td></tr>
-            <tr><td>8</td><td>Мультиарх: amd64 + arm64</td><td><code>docker buildx</code></td></tr>
-            <tr><td>9</td><td>Кэш слоёв в CI</td><td><code>cache-from/to: type=gha</code></td></tr>
-            <tr><td>10</td><td>Read-only filesystem в рантайме</td><td><code>docker run --read-only</code></td></tr>
-          </tbody>
+        <thead>
+        <tr>
+        <th style="text-align: left;">Функция</th>
+        <th style="text-align: center;">Обычный Docker</th>
+        <th style="text-align: center;">Rootless</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td style="text-align: left;">Publish порт &lt; 1024</td>
+        <td style="text-align: center;">✅</td>
+        <td style="text-align: center;">❌ (нужен
+        <code>sysctl net.ipv4.ip_unprivileged_port_start=80</code>)</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">overlay2 storage driver</td>
+        <td style="text-align: center;">✅</td>
+        <td style="text-align: center;">✅ (ядро ≥ 5.11)</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">Docker-in-Docker</td>
+        <td style="text-align: center;">✅</td>
+        <td style="text-align: center;">⚠️</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">GPU passthrough</td>
+        <td style="text-align: center;">✅</td>
+        <td style="text-align: center;">✅ (через
+        <code>--device</code>)</td>
+        </tr>
+        </tbody>
         </table>
-
-        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
-
-        <h2>📝 Практические задания</h2>
-        <blockquote>Артефакты — в <code>artifacts/lesson-31/</code>.</blockquote>
-
-        <ol>
-          <li>
-            <strong>Rootless setup</strong> — включите rootless Docker.
-            Убедитесь, что <code>docker run hello-world</code> работает без <code>sudo</code>.
-            Зафиксируйте вывод <code>docker info | grep -A5 Security</code>.
-          </li>
-          <li>
-            <strong>Multi-stage Dockerfile</strong> — напишите multi-stage Dockerfile для своего приложения
-            на distroless или alpine. Измерьте разницу в размере (<code>docker images</code>).
-          </li>
-          <li>
-            <strong>Docker Hub push</strong> — запушите образ с тегами <code>v1.0.0</code> и <code>latest</code>.
-            Убедитесь, что он доступен публично.
-          </li>
-          <li>
-            <strong>GHCR через GitHub Actions</strong> — создайте workflow <code>docker.yml</code>,
-            который при пуше в <code>main</code> собирает образ и пушит в GHCR.
-          </li>
-          <li>
-            <strong>Multiarch</strong> — добавьте поддержку <code>linux/amd64,linux/arm64</code>.
-            Проверьте через <code>imagetools inspect</code>.
-          </li>
-          <li>
-            <strong>Сканирование</strong> — добавьте шаг Trivy в pipeline.
-            Загрузите SARIF-отчёт в Security → Code scanning.
-          </li>
-          <li>
-            <strong>BuildKit secrets</strong> — перепишите зависимость с приватным токеном
-            через <code>--mount=type=secret</code>. Убедитесь, что <code>docker history</code> не содержит токена.
-          </li>
-        </ol>
-
-        <h2>Definition of Done</h2>
-        <ul class="checklist">
-          <li>Rootless-режим включён, <code>docker info</code> показывает <code>rootless: true</code>.</li>
-          <li>Образ собран через multi-stage и запушен в Docker Hub с тегом <code>v1.0.0</code>.</li>
-          <li>Тот же образ запушен в GHCR через GitHub Actions.</li>
-          <li>Multiarch-манифест содержит <code>linux/amd64</code> и <code>linux/arm64</code>.</li>
-          <li>Trivy не нашёл CRITICAL CVE в образе.</li>
-          <li>Dockerfile использует <code>USER nonroot</code> и не хранит секреты в слоях.</li>
+        <hr />
+        <h2 id="доставка-образов-в-docker-hub">Доставка образов в Docker
+        Hub</h2>
+        <h3 id="1-настройка">1. Настройка</h3>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Создайте аккаунт на hub.docker.com</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Создайте Access Token: Account Settings → Security → New Access Token</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> login <span class="at">-u</span> <span class="op">&lt;</span>username<span class="op">&gt;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Введите Access Token (не пароль!)</span></span></code></pre></div>
+        <h3 id="2-правильный-тег">2. Правильный тег</h3>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Формат: &lt;username&gt;/&lt;repo&gt;:&lt;tag&gt;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> build <span class="at">-t</span> myapp:1.0.0 .</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> tag myapp:1.0.0 myusername/myapp:1.0.0</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> tag myapp:1.0.0 myusername/myapp:latest</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> push myusername/myapp:1.0.0</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> push myusername/myapp:latest</span></code></pre></div>
+        <h3 id="3-multi-stage--минимальный-образ">3. Multi-stage +
+        минимальный образ</h3>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 1: сборка</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> golang:1.22-alpine <span class="kw">AS</span> builder</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> go.mod go.sum ./</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">go</span> mod download</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> . .</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="va">CGO_ENABLED</span><span class="op">=</span>0 <span class="va">GOOS</span><span class="op">=</span>linux <span class="ex">go</span> build <span class="at">-o</span> server .</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Stage 2: рантайм — только бинарник</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> gcr.io/distroless/static-debian12</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> <span class="op">--from=builder</span> /app/server /server</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">USER</span> nonroot:nonroot</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="kw">ENTRYPOINT</span> [<span class="st">&quot;/server&quot;</span>]</span></code></pre></div>
+        <p>Distroless-образ не содержит shell — снижает attack surface
+        до минимума.</p>
+        <hr />
+        <h2 id="github-container-registry-ghcr">GitHub Container
+        Registry (GHCR)</h2>
+        <p>GHCR хранит образы рядом с кодом на GitHub. Поддерживает
+        гранулярные права (<code>read</code>, <code>write</code>,
+        <code>admin</code>) на уровне пакета.</p>
+        <h3 id="аутентификация">Аутентификация</h3>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Personal Access Token (classic) с правом write:packages</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="va">$GITHUB_TOKEN</span> <span class="kw">|</span> <span class="ex">docker</span> login ghcr.io <span class="at">-u</span> <span class="op">&lt;</span>github-username<span class="op">&gt;</span> --password-stdin</span></code></pre></div>
+        <h3 id="тег-и-пуш">Тег и пуш</h3>
+        <div class="sourceCode" id="cb6"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Формат: ghcr.io/&lt;owner&gt;/&lt;repo&gt;:&lt;tag&gt;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> build <span class="at">-t</span> ghcr.io/myorg/myapp:1.0.0 .</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> push ghcr.io/myorg/myapp:1.0.0</span></code></pre></div>
+        <h3 id="видимость-пакета">Видимость пакета</h3>
+        <p>По умолчанию пакет наследует видимость репозитория. Сделать
+        публичным:
+        <code>GitHub → Packages → &lt;package&gt; → Package Settings → Change visibility</code></p>
+        <hr />
+        <h2 id="мультиархитектурные-образы-buildx">Мультиархитектурные
+        образы (buildx)</h2>
+        <p>Один тег для <code>linux/amd64</code> и
+        <code>linux/arm64</code> — образ работает и на x86-сервере, и на
+        Apple M-чипах, и на Raspberry Pi.</p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Создать builder с поддержкой эмуляции</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> buildx create <span class="at">--name</span> multiarch <span class="at">--driver</span> docker-container <span class="at">--use</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> buildx inspect <span class="at">--bootstrap</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Собрать и сразу запушить для двух платформ</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> buildx build <span class="dt">\</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--platform</span> linux/amd64,linux/arm64 <span class="dt">\</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--tag</span> ghcr.io/myorg/myapp:1.0.0 <span class="dt">\</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--push</span> <span class="dt">\</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  .</span></code></pre></div>
+        <p>Проверка:</p>
+        <div class="sourceCode" id="cb8"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> buildx imagetools inspect ghcr.io/myorg/myapp:1.0.0</span></code></pre></div>
+        <hr />
+        <h2 id="сканирование-образов-trivy--docker-scout">Сканирование
+        образов (Trivy / Docker Scout)</h2>
+        <div class="sourceCode" id="cb9"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Trivy (open source)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">trivy</span> image ghcr.io/myorg/myapp:1.0.0</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Docker Scout (встроен в Docker Desktop)</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> scout cves ghcr.io/myorg/myapp:1.0.0</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> scout recommendations ghcr.io/myorg/myapp:1.0.0</span></code></pre></div>
+        <p>Политика: <strong>не пушить образы с критическими (CRITICAL)
+        CVE</strong> в prod-реестр. Закрепите это в CI.</p>
+        <hr />
+        <h2 id="cicd-github-actions--сборка-и-пуш-в-ghcr">CI/CD: GitHub
+        Actions — сборка и пуш в GHCR</h2>
+        <div class="sourceCode" id="cb10"><pre
+        class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># .github/workflows/docker.yml</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> Docker Build &amp; Push</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">on</span><span class="kw">:</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">push</span><span class="kw">:</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">branches</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="at">main</span><span class="kw">]</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tags</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="st">&quot;v*&quot;</span><span class="kw">]</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="fu">permissions</span><span class="kw">:</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">contents</span><span class="kw">:</span><span class="at"> read</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">packages</span><span class="kw">:</span><span class="at"> write</span><span class="co">   # нужно для GHCR</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="fu">jobs</span><span class="kw">:</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">build</span><span class="kw">:</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">runs-on</span><span class="kw">:</span><span class="at"> ubuntu-latest</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">steps</span><span class="kw">:</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> actions/checkout@v4</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Set up Docker Buildx</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> docker/setup-buildx-action@v3</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Log in to GHCR</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> docker/login-action@v3</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">with</span><span class="kw">:</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">registry</span><span class="kw">:</span><span class="at"> ghcr.io</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">username</span><span class="kw">:</span><span class="at"> ${{ github.actor }}</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">password</span><span class="kw">:</span><span class="at"> ${{ secrets.GITHUB_TOKEN }}</span><span class="co">   # токен генерируется автоматически</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Extract metadata</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">id</span><span class="kw">:</span><span class="at"> meta</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> docker/metadata-action@v5</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">with</span><span class="kw">:</span></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">images</span><span class="kw">:</span><span class="at"> ghcr.io/${{ github.repository }}</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a><span class="fu">          tags</span><span class="kw">: </span><span class="ch">|</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>            type=semver,pattern={{version}}</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>            type=sha,prefix=sha-</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Build and push</span></span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> docker/build-push-action@v6</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">with</span><span class="kw">:</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">context</span><span class="kw">:</span><span class="at"> .</span></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">platforms</span><span class="kw">:</span><span class="at"> linux/amd64,linux/arm64</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">push</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">tags</span><span class="kw">:</span><span class="at"> ${{ steps.meta.outputs.tags }}</span></span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">labels</span><span class="kw">:</span><span class="at"> ${{ steps.meta.outputs.labels }}</span></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">cache-from</span><span class="kw">:</span><span class="at"> type=gha</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">cache-to</span><span class="kw">:</span><span class="at"> type=gha,mode=max</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Scan with Trivy</span></span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> aquasecurity/trivy-action@master</span></span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">with</span><span class="kw">:</span></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">image-ref</span><span class="kw">:</span><span class="at"> ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}</span></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">format</span><span class="kw">:</span><span class="at"> sarif</span></span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">output</span><span class="kw">:</span><span class="at"> trivy-results.sarif</span></span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">severity</span><span class="kw">:</span><span class="at"> CRITICAL,HIGH</span></span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> Upload Trivy results to Security tab</span></span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">uses</span><span class="kw">:</span><span class="at"> github/codeql-action/upload-sarif@v3</span></span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">with</span><span class="kw">:</span></span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">sarif_file</span><span class="kw">:</span><span class="at"> trivy-results.sarif</span></span></code></pre></div>
+        <hr />
+        <h2 id="чеклист-лучших-практик">Чеклист лучших практик</h2>
+        <table>
+        <thead>
+        <tr>
+        <th style="text-align: left;">#</th>
+        <th style="text-align: left;">Практика</th>
+        <th style="text-align: left;">Инструмент</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td style="text-align: left;">1</td>
+        <td style="text-align: left;">Запускайте демон без root</td>
+        <td style="text-align: left;"><code>dockerd-rootless</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">2</td>
+        <td style="text-align: left;">Используйте non-root USER в
+        Dockerfile</td>
+        <td style="text-align: left;"><code>USER 1001</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">3</td>
+        <td style="text-align: left;">Не храните секреты в слоях
+        образа</td>
+        <td style="text-align: left;"><code>.dockerignore</code>,
+        BuildKit secrets</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">4</td>
+        <td style="text-align: left;">Минимальный базовый образ</td>
+        <td style="text-align: left;"><code>distroless</code>,
+        <code>alpine</code>, <code>scratch</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">5</td>
+        <td style="text-align: left;">Multi-stage builds</td>
+        <td style="text-align: left;">Dockerfile stage</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">6</td>
+        <td style="text-align: left;">Тегируйте версией + sha</td>
+        <td style="text-align: left;"><code>semver</code>,
+        <code>sha-*</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">7</td>
+        <td style="text-align: left;">Сканируйте CVE перед пушем</td>
+        <td style="text-align: left;">Trivy, Docker Scout</td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">8</td>
+        <td style="text-align: left;">Мультиарх для amd64 + arm64</td>
+        <td style="text-align: left;"><code>docker buildx</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">9</td>
+        <td style="text-align: left;">Кэш слоёв в CI</td>
+        <td
+        style="text-align: left;"><code>cache-from/to: type=gha</code></td>
+        </tr>
+        <tr>
+        <td style="text-align: left;">10</td>
+        <td style="text-align: left;">Read-only filesystem в
+        рантайме</td>
+        <td
+        style="text-align: left;"><code>docker run --read-only</code></td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="buildkit-secrets--секреты-без-утечки-в-слои">BuildKit
+        secrets — секреты без утечки в слои</h2>
+        <div class="sourceCode" id="cb11"><pre
+        class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span><span class="cv">syntax=docker/dockerfile:1</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> node:20-alpine</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> package*.json ./</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Секрет доступен только во время RUN, не попадает в образ</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="op">--mount=type=secret,id=npmrc,target=/root/.npmrc</span> <span class="op">\</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    <span class="ex">npm</span> ci</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> . .</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">&quot;node&quot;</span>, <span class="st">&quot;server.js&quot;</span>]</span></code></pre></div>
+        <div class="sourceCode" id="cb12"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">docker</span> build <span class="at">--secret</span> id=npmrc,src=<span class="va">$HOME</span>/.npmrc <span class="at">-t</span> myapp .</span></code></pre></div>
+        <hr />
+        <h2 id="типичные-ошибки">Типичные ошибки</h2>
+        <ul>
+        <li><strong><code>latest</code> как единственный тег</strong> —
+        невозможно откатиться к предыдущей версии.</li>
+        <li><strong>Секреты через
+        <code>ARG</code>/<code>ENV</code></strong> — видны в
+        <code>docker history</code> и слоях образа.</li>
+        <li><strong>Пуш без сканирования</strong> — уязвимый образ идёт
+        в прод.</li>
+        <li><strong>Один образ под все платформы (<code>amd64</code>
+        только)</strong> — не работает на arm64/Raspberry Pi.</li>
+        <li><strong>Нет <code>.dockerignore</code></strong> —
+        <code>node_modules</code>, <code>.git</code>, <code>.env</code>
+        попадают в контекст сборки.</li>
         </ul>
-
-        <hr style="border-color: var(--glass-border); margin: 2rem 0;" />
-
-        <h2>Что дальше</h2>
-        <p>
-          Урок 14 (Docker &amp; Microservices) закрывает оркестрацию сервисов.<br/>
-          Урок 15 (CI/CD Pipelines) — полный пайплайн GitHub Actions с keyless-аутентификацией в GCP.
-        </p>
-
+        <hr />
+        <h2 id="definition-of-done">Definition of Done</h2>
+        <ul class="task-list">
+        <li><label><input type="checkbox" />Включён rootless-режим,
+        <code>docker info</code> показывает
+        <code>rootless: true</code>.</label></li>
+        <li><label><input type="checkbox" />Образ собран через
+        multi-stage и запушен в Docker Hub с тегом
+        <code>v1.0.0</code>.</label></li>
+        <li><label><input type="checkbox" />Тот же образ запушен в GHCR
+        через GitHub Actions.</label></li>
+        <li><label><input type="checkbox" />Multiarch-манифест содержит
+        <code>linux/amd64</code> и
+        <code>linux/arm64</code>.</label></li>
+        <li><label><input type="checkbox" />Trivy не нашёл CRITICAL CVE
+        в образе.</label></li>
+        <li><label><input type="checkbox" />Dockerfile использует
+        <code>USER nonroot</code> и не хранит секреты в
+        слоях.</label></li>
+        </ul>
+        <hr />
+        <h2 id="практические-задания">Практические задания</h2>
+        <blockquote>
+        <p>Артефакты — в <code>artifacts/lesson-31/</code>.</p>
+        </blockquote>
+        <h3 id="задание-1--rootless-setup">Задание 1 — Rootless
+        setup</h3>
+        <p>Включите rootless Docker. Убедитесь, что
+        <code>docker run hello-world</code> работает без
+        <code>sudo</code>. Зафиксируйте вывод
+        <code>docker info | grep -A5 Security</code>.</p>
+        <h3 id="задание-2--multi-stage-dockerfile">Задание 2 —
+        Multi-stage Dockerfile</h3>
+        <p>Напишите multi-stage Dockerfile для любого вашего приложения
+        (Node.js или Python). Финальный образ должен быть на
+        <code>distroless</code> или <code>alpine</code>. Измерьте
+        разницу в размере (<code>docker images</code>).</p>
+        <h3 id="задание-3--docker-hub-push">Задание 3 — Docker Hub
+        push</h3>
+        <p>Запушите образ в Docker Hub с тегами <code>v1.0.0</code> и
+        <code>latest</code>. Убедитесь, что он доступен публично.</p>
+        <h3 id="задание-4--ghcr-через-github-actions">Задание 4 — GHCR
+        через GitHub Actions</h3>
+        <p>Создайте workflow <code>docker.yml</code>, который при пуше в
+        <code>main</code> собирает образ и пушит в GHCR. Проверьте, что
+        пакет появился в разделе Packages репозитория.</p>
+        <h3 id="задание-5--multiarch">Задание 5 — Multiarch</h3>
+        <p>Добавьте в workflow поддержку
+        <code>linux/amd64,linux/arm64</code>. Проверьте через
+        <code>imagetools inspect</code>.</p>
+        <h3 id="задание-6--сканирование">Задание 6 — Сканирование</h3>
+        <p>Добавьте шаг Trivy в pipeline. Настройте загрузку
+        SARIF-отчёта в Security → Code scanning.</p>
+        <h3 id="задание-7--buildkit-secrets">Задание 7 — BuildKit
+        secrets</h3>
+        <p>Перепишите одну зависимость, которая требует приватного
+        токена (npm, pip), через <code>--mount=type=secret</code>.
+        Убедитесь, что <code>docker history</code> не содержит
+        токена.</p>
+        <hr />
+        <h2 id="что-дальше">Что дальше</h2>
+        <p>Урок 14 (Docker &amp; Microservices) закрывает оркестрацию
+        сервисов.<br />
+        Урок 15 (CI/CD Pipelines) — полный пайплайн GitHub Actions с
+        keyless-аутентификацией в GCP.</p>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

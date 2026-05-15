@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 5: Анализ данных и границы безопасности песочницы | Anti-Gravity Academy</title>
+    <title>Урок 29: Анализ данных и границы безопасности
+песочницы | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -86,11 +87,6 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-      }
-
-      h2 {
-        font-size: 1.5rem;
-        margin-top: 1.5rem;
       }
 
       p {
@@ -182,73 +178,209 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Урок 5: Анализ данных и границы безопасности песочницы</h1>
-<p>Агент поддерживает мультимодальность — способность обрабатывать не только текстовые векторы, но и визуальные данные (фотографии, графики). Матрица пикселей преобразуется в векторное представление, которое нейросеть анализирует на наличие паттернов.</p>
-<h2>Безопасность: Constitutional AI</h2>
-<p>В архитектуру встроена система Constitutional AI. Любой запрос проходит через фильтры-классификаторы. Если вероятность нарушения "конституции" (этических и логических аксиом) превышает заданный порог, функция активации блокирует ответ.</p>
-<h2>Различия безопасности между платформами</h2>
-<p>Интерфейс мобильного приложения и ПК-версия имеют разные допуски:</p>
-<h3>CLI на ПК (максимальный контроль)</h3>
-  <li>Агент может читать и редактировать файлы вашей системы</li>
-  <li>Требует вашего подтверждения (y/n) для каждой операции</li>
-  <li>Полный доступ к системным ресурсам (с ограничениями)</li>
-  <li>Идеален для разработки и автоматизации</li>
-<h3>Мобильное приложение (строгая изоляция)</h3>
-  <li>Работает в режиме строгой песочницы (Sandbox)</li>
-  <li>Без доступа к файловой системе смартфона</li>
-  <li>Математически безопасна для устройства пользователя</li>
-  <li>Идеальна для конфиденциальности данных</li>
-<h2>Мультимодальные способности</h2>
-<p>Claude может обрабатывать:</p>
-  <li>**Текст** — основной формат</li>
-<p>2. **Изображения** — фотографии, скриншоты, графики</p>
-<p>3. **PDF-документы** — извлечение текста и анализ структуры</p>
-<p>4. **Диаграммы** — распознавание паттернов и связей</p>
-<h2>Процесс анализа изображения</h2>
-<pre><code>Изображение → Токенизация пикселей → Векторное представление 
+        <h1
+        id="урок-29-анализ-данных-и-границы-безопасности-песочницы">Урок
+        29: Анализ данных и границы безопасности песочницы</h1>
+        <p>Агент поддерживает мультимодальность — способность
+        обрабатывать не только текстовые векторы, но и визуальные данные
+        (фотографии, графики). Матрица пикселей преобразуется в
+        векторное представление, которое нейросеть анализирует на
+        наличие паттернов.</p>
+        <h2 id="безопасность-constitutional-ai">Безопасность:
+        Constitutional AI</h2>
+        <p>В архитектуру встроена система Constitutional AI. Любой
+        запрос проходит через фильтры-классификаторы. Если вероятность
+        нарушения "конституции" (этических и логических аксиом)
+        превышает заданный порог, функция активации блокирует ответ.</p>
+        <h2 id="различия-безопасности-между-платформами">Различия
+        безопасности между платформами</h2>
+        <p>Интерфейс мобильного приложения и ПК-версия имеют разные
+        допуски:</p>
+        <h3 id="cli-на-пк-максимальный-контроль">CLI на ПК (максимальный
+        контроль)</h3>
+        <ul>
+        <li>Агент может читать и редактировать файлы вашей системы</li>
+        <li>Требует вашего подтверждения (y/n) для каждой операции</li>
+        <li>Полный доступ к системным ресурсам (с ограничениями)</li>
+        <li>Идеален для разработки и автоматизации</li>
+        </ul>
+        <h3 id="мобильное-приложение-строгая-изоляция">Мобильное
+        приложение (строгая изоляция)</h3>
+        <ul>
+        <li>Работает в режиме строгой песочницы (Sandbox)</li>
+        <li>Без доступа к файловой системе смартфона</li>
+        <li>Математически безопасна для устройства пользователя</li>
+        <li>Идеальна для конфиденциальности данных</li>
+        </ul>
+        <h2 id="мультимодальные-способности">Мультимодальные
+        способности</h2>
+        <p>Claude может обрабатывать:</p>
+        <ol type="1">
+        <li><strong>Текст</strong> — основной формат</li>
+        <li><strong>Изображения</strong> — фотографии, скриншоты,
+        графики</li>
+        <li><strong>PDF-документы</strong> — извлечение текста и анализ
+        структуры</li>
+        <li><strong>Диаграммы</strong> — распознавание паттернов и
+        связей</li>
+        </ol>
+        <h2 id="процесс-анализа-изображения">Процесс анализа
+        изображения</h2>
+        <pre><code>Изображение → Токенизация пикселей → Векторное представление 
              → Анализ паттернов → Извлечение информации
              → Языковой ответ</code></pre>
-<h2>Этические границы Constitutional AI</h2>
-<p>Модель отказывает в:</p>
-  <li>Помощи с нелегальной деятельностью</li>
-  <li>Генерации контента для дезинформации</li>
-  <li>Созданию вредоносного кода с очевидным назначением</li>
-  <li>Нарушении приватности других лиц</li>
-  <li>Сексуализации несовершеннолетних</li>
-  <li>Подробных инструкций по причинению вреда</li>
-<p>Однако может помочь в:</p>
-  <li>Образовательных целях (понимание уязвимостей)</li>
-  <li>Исторических анализах</li>
-  <li>Безопасности и защите (CTF, пентесты с разрешением)</li>
-<h2>Источники для Урока 5</h2>
-  <li>Официальная документация (Vision): https://docs.anthropic.com/en/docs/vision</li>
-<p>2. Базис безопасности (Constitutional AI): https://www.anthropic.com/index/constitutional-ai</p>
-<h2>Практические задания</h2>
-  <li>**Чтение файла на ПК**: На ПК создайте текстовый файл, попросите Claude (CLI) прочитать его и убедитесь, что система запрашивает подтверждение.</li>
-<p>2. **Анализ графика**: Загрузите скриншот с математическим графиком и попросите ИИ извлечь из него числовые данные в виде списка.</p>
-<p>3. **Тестирование безопасности**: Сформулируйте заведомо некорректный запрос и проанализируйте стандартный ответ фильтра безопасности (Constitutional AI).</p>
-<p>4. **Сравнение архитектур**: Опишите логическими терминами, почему мобильное приложение (песочница) концептуально отличается от CLI на ПК.</p>
-<p>5. **Мультимодальный анализ**: Попросите ИИ перевести текст с фотографии на другой язык, оценив объединение визуального парсинга и перевода.</p>
-<h2>Таблица возможностей по платформе</h2>
-| Функция | CLI (ПК) | Мобильное приложение |
-|---------|----------|-------------------|
-| Анализ текста | ✅ | ✅ |
-| Анализ изображений | ✅ | ✅ |
-| Чтение файлов | ✅ (с подтверждением) | ❌ |
-| Редактирование файлов | ✅ (с подтверждением) | ❌ |
-| Запуск команд | ✅ (с подтверждением) | ❌ |
-| Доступ к интернету | ❌ | ❌ |
-| Локальное хранилище | ✅ | ❌ |
-| Constitutional AI фильтр | ✅ | ✅ |
-<h2>Защита личных данных</h2>
-  <li>**На ПК**: Будьте осторожны при запросе на чтение файлов из ~/ с конфиденциальной информацией</li>
-  <li>**На мобильном**: Приложение не может получить доступ к контактам, фото галереи или файлам — только к тому, что вы явно скопируете в текст</li>
-  <li>**В облаке**: Запросы и ответы обрабатываются безопасно, но не забывайте о приватности</li>
+        <h2 id="этические-границы-constitutional-ai">Этические границы
+        Constitutional AI</h2>
+        <p>Модель отказывает в:</p>
+        <ul>
+        <li>Помощи с нелегальной деятельностью</li>
+        <li>Генерации контента для дезинформации</li>
+        <li>Созданию вредоносного кода с очевидным назначением</li>
+        <li>Нарушении приватности других лиц</li>
+        <li>Сексуализации несовершеннолетних</li>
+        <li>Подробных инструкций по причинению вреда</li>
+        </ul>
+        <p>Однако может помочь в:</p>
+        <ul>
+        <li>Образовательных целях (понимание уязвимостей)</li>
+        <li>Исторических анализах</li>
+        <li>Безопасности и защите (CTF, пентесты с разрешением)</li>
+        </ul>
+        <h2 id="источники-для-урока-5">Источники для Урока 5</h2>
+        <ol type="1">
+        <li>Официальная документация (Vision): <a
+        href="https://docs.anthropic.com/en/docs/vision">https://docs.anthropic.com/en/docs/vision</a></li>
+        <li>Базис безопасности (Constitutional AI): <a
+        href="https://www.anthropic.com/index/constitutional-ai">https://www.anthropic.com/index/constitutional-ai</a></li>
+        </ol>
+        <h2 id="практические-задания">Практические задания</h2>
+        <ol type="1">
+        <li><p><strong>Чтение файла на ПК</strong>: На ПК создайте
+        текстовый файл, попросите Claude (CLI) прочитать его и
+        убедитесь, что система запрашивает подтверждение.</p></li>
+        <li><p><strong>Анализ графика</strong>: Загрузите скриншот с
+        математическим графиком и попросите ИИ извлечь из него числовые
+        данные в виде списка.</p></li>
+        <li><p><strong>Тестирование безопасности</strong>: Сформулируйте
+        заведомо некорректный запрос и проанализируйте стандартный ответ
+        фильтра безопасности (Constitutional AI).</p></li>
+        <li><p><strong>Сравнение архитектур</strong>: Опишите
+        логическими терминами, почему мобильное приложение (песочница)
+        концептуально отличается от CLI на ПК.</p></li>
+        <li><p><strong>Мультимодальный анализ</strong>: Попросите ИИ
+        перевести текст с фотографии на другой язык, оценив объединение
+        визуального парсинга и перевода.</p></li>
+        </ol>
+        <h2 id="таблица-возможностей-по-платформе">Таблица возможностей
+        по платформе</h2>
+        <table>
+        <thead>
+        <tr>
+        <th>Функция</th>
+        <th>CLI (ПК)</th>
+        <th>Мобильное приложение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Анализ текста</td>
+        <td>✅</td>
+        <td>✅</td>
+        </tr>
+        <tr>
+        <td>Анализ изображений</td>
+        <td>✅</td>
+        <td>✅</td>
+        </tr>
+        <tr>
+        <td>Чтение файлов</td>
+        <td>✅ (с подтверждением)</td>
+        <td>❌</td>
+        </tr>
+        <tr>
+        <td>Редактирование файлов</td>
+        <td>✅ (с подтверждением)</td>
+        <td>❌</td>
+        </tr>
+        <tr>
+        <td>Запуск команд</td>
+        <td>✅ (с подтверждением)</td>
+        <td>❌</td>
+        </tr>
+        <tr>
+        <td>Доступ к интернету</td>
+        <td>❌</td>
+        <td>❌</td>
+        </tr>
+        <tr>
+        <td>Локальное хранилище</td>
+        <td>✅</td>
+        <td>❌</td>
+        </tr>
+        <tr>
+        <td>Constitutional AI фильтр</td>
+        <td>✅</td>
+        <td>✅</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="защита-личных-данных">Защита личных данных</h2>
+        <ul>
+        <li><strong>На ПК</strong>: Будьте осторожны при запросе на
+        чтение файлов из ~/ с конфиденциальной информацией</li>
+        <li><strong>На мобильном</strong>: Приложение не может получить
+        доступ к контактам, фото галереи или файлам — только к тому, что
+        вы явно скопируете в текст</li>
+        <li><strong>В облаке</strong>: Запросы и ответы обрабатываются
+        безопасно, но не забывайте о приватности</li>
+        </ul>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x423;&#x440;&#x43E;&#x43A; 3: &#x41F;&#x440;&#x43E;&#x434;&#x432;&#x438;&#x43D;&#x443;&#x442;&#x44B;&#x435; &#x442;&#x435;&#x445;&#x43D;&#x438;&#x43A;&#x438; &#x2014; @ Mentions &#x438;
+    <title>Урок 3: Продвинутые техники — @ Mentions и
 Workflows | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -85,6 +85,7 @@ Workflows | Anti-Gravity Academy</title>
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -142,6 +143,30 @@ Workflows | Anti-Gravity Academy</title>
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -153,130 +178,199 @@ Workflows | Anti-Gravity Academy</title>
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1 id="&#x443;&#x440;&#x43E;&#x43A;-3-&#x43F;&#x440;&#x43E;&#x434;&#x432;&#x438;&#x43D;&#x443;&#x442;&#x44B;&#x435;-&#x442;&#x435;&#x445;&#x43D;&#x438;&#x43A;&#x438;-mentions-&#x438;-workflows">&#x423;&#x440;&#x43E;&#x43A; 3:
-        &#x41F;&#x440;&#x43E;&#x434;&#x432;&#x438;&#x43D;&#x443;&#x442;&#x44B;&#x435; &#x442;&#x435;&#x445;&#x43D;&#x438;&#x43A;&#x438; &#x2014; @ Mentions &#x438; Workflows</h1>
-        <p>&#x412; &#x44D;&#x442;&#x43E;&#x43C; &#x443;&#x440;&#x43E;&#x43A;&#x435; &#x43C;&#x44B; &#x440;&#x430;&#x437;&#x431;&#x435;&#x440;&#x435;&#x43C;, &#x43A;&#x430;&#x43A; &#x44D;&#x444;&#x444;&#x435;&#x43A;&#x442;&#x438;&#x432;&#x43D;&#x43E; &#x441;&#x441;&#x44B;&#x43B;&#x430;&#x442;&#x44C;&#x441;&#x44F; &#x43D;&#x430;
-        &#x43A;&#x43E;&#x43D;&#x442;&#x435;&#x43A;&#x441;&#x442; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430; &#x438; &#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x437;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x440;&#x443;&#x442;&#x438;&#x43D;&#x43D;&#x44B;&#x435; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438; &#x441; &#x43F;&#x43E;&#x43C;&#x43E;&#x449;&#x44C;&#x44E;
-        &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;.</p>
-        <h2 id="mentions-&#x443;&#x43F;&#x43E;&#x43C;&#x438;&#x43D;&#x430;&#x43D;&#x438;&#x44F;-&#x444;&#x430;&#x439;&#x43B;&#x43E;&#x432;">1. @ Mentions (&#x423;&#x43F;&#x43E;&#x43C;&#x438;&#x43D;&#x430;&#x43D;&#x438;&#x44F;
-        &#x444;&#x430;&#x439;&#x43B;&#x43E;&#x432;)</h2>
-        <p>&#x412;&#x44B; &#x43C;&#x43E;&#x436;&#x435;&#x442;&#x435; &#x441;&#x441;&#x44B;&#x43B;&#x430;&#x442;&#x44C;&#x441;&#x44F; &#x43D;&#x430; &#x444;&#x430;&#x439;&#x43B;&#x44B; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430; &#x432; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x44F;&#x445; &#x434;&#x43B;&#x44F; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;
-        &#x438;&#x43B;&#x438; &#x432; &#x444;&#x430;&#x439;&#x43B;&#x430;&#x445; &#x43A;&#x43E;&#x43D;&#x444;&#x438;&#x433;&#x443;&#x440;&#x430;&#x446;&#x438;&#x438; (&#x43D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;, <code>.cursorrules</code>)
-        &#x441; &#x43F;&#x43E;&#x43C;&#x43E;&#x449;&#x44C;&#x44E; &#x441;&#x438;&#x43C;&#x432;&#x43E;&#x43B;&#x430; <code>@</code>.</p>
-        <h3 id="&#x43A;&#x430;&#x43A;-&#x44D;&#x442;&#x43E;-&#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;&#x435;&#x442;">&#x41A;&#x430;&#x43A; &#x44D;&#x442;&#x43E; &#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;&#x435;&#x442;:</h3>
+        <h1 id="урок-3-продвинутые-техники---mentions-и-workflows">Урок
+        3: Продвинутые техники — @ Mentions и Workflows</h1>
+        <p>В этом уроке мы разберем, как эффективно ссылаться на
+        контекст проекта и автоматизировать рутинные задачи с помощью
+        воркфлоу.</p>
+        <h2 id="1--mentions-упоминания-файлов">1. @ Mentions (Упоминания
+        файлов)</h2>
+        <p>Вы можете ссылаться на файлы проекта в инструкциях для агента
+        или в файлах конфигурации (например, <code>.cursorrules</code>)
+        с помощью символа <code>@</code>.</p>
+        <h3 id="как-это-работает">Как это работает:</h3>
         <ul>
-        <li><strong>&#x41E;&#x442;&#x43D;&#x43E;&#x441;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x43F;&#x443;&#x442;&#x438;</strong>: <code>@filename</code>
-        &#x2014; &#x438;&#x43D;&#x442;&#x435;&#x440;&#x43F;&#x440;&#x435;&#x442;&#x438;&#x440;&#x443;&#x435;&#x442;&#x441;&#x44F; &#x43E;&#x442;&#x43D;&#x43E;&#x441;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E; &#x440;&#x430;&#x441;&#x43F;&#x43E;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x44F; &#x442;&#x435;&#x43A;&#x443;&#x449;&#x435;&#x433;&#x43E; &#x444;&#x430;&#x439;&#x43B;&#x430;
-        &#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;.</li>
-        <li><strong>&#x410;&#x431;&#x441;&#x43E;&#x43B;&#x44E;&#x442;&#x43D;&#x44B;&#x435; &#x43F;&#x443;&#x442;&#x438;</strong>:
-        <code>@/path/to/file.md</code> &#x2014; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43D;&#x430;&#x447;&#x430;&#x43B;&#x430; &#x438;&#x449;&#x435;&#x442; &#x444;&#x430;&#x439;&#x43B; &#x432;
-        &#x43A;&#x43E;&#x440;&#x43D;&#x435;&#x432;&#x43E;&#x439; &#x441;&#x438;&#x441;&#x442;&#x435;&#x43C;&#x435;, &#x430; &#x435;&#x441;&#x43B;&#x438; &#x43D;&#x435; &#x43D;&#x430;&#x445;&#x43E;&#x434;&#x438;&#x442;, &#x438;&#x449;&#x435;&#x442; &#x43E;&#x442;&#x43D;&#x43E;&#x441;&#x438;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E; &#x43A;&#x43E;&#x440;&#x43D;&#x44F;
-        &#x432;&#x430;&#x448;&#x435;&#x433;&#x43E; &#x440;&#x430;&#x431;&#x43E;&#x447;&#x435;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x440;&#x430;&#x43D;&#x441;&#x442;&#x432;&#x430;
+        <li><strong>Относительные пути</strong>: <code>@filename</code>
+        — интерпретируется относительно расположения текущего файла
+        правил.</li>
+        <li><strong>Абсолютные пути</strong>:
+        <code>@/path/to/file.md</code> — агент сначала ищет файл в
+        корневой системе, а если не находит, ищет относительно корня
+        вашего рабочего пространства
         (<code>workspace/path/to/file.md</code>).</li>
         </ul>
-        <blockquote>
-        <p>[!TIP] &#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435; <code>@ Mentions</code> &#x432; &#x432;&#x430;&#x448;&#x438;&#x445; &#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x430;&#x445;,
-        &#x447;&#x442;&#x43E;&#x431;&#x44B; &#x430;&#x433;&#x435;&#x43D;&#x442; &#x432;&#x441;&#x435;&#x433;&#x434;&#x430; &#x438;&#x43C;&#x435;&#x43B; &#x43F;&#x43E;&#x434; &#x440;&#x443;&#x43A;&#x43E;&#x439; &#x43E;&#x43F;&#x438;&#x441;&#x430;&#x43D;&#x438;&#x435; &#x430;&#x440;&#x445;&#x438;&#x442;&#x435;&#x43A;&#x442;&#x443;&#x440;&#x44B;,
-        &#x441;&#x442;&#x430;&#x439;&#x43B;-&#x433;&#x430;&#x439;&#x434;&#x44B; &#x438;&#x43B;&#x438; &#x441;&#x43F;&#x435;&#x446;&#x438;&#x444;&#x438;&#x43A;&#x430;&#x446;&#x438;&#x438; API.</p>
-        </blockquote>
+        <div class="tip">
+        <div class="title">
+        <p>Tip</p>
+        </div>
+        <p>Используйте <code>@ Mentions</code> в ваших правилах, чтобы
+        агент всегда имел под рукой описание архитектуры, стайл-гайды
+        или спецификации API.</p>
+        </div>
         <hr />
-        <h2 id="workflows-&#x440;&#x430;&#x431;&#x43E;&#x447;&#x438;&#x435;-&#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x44B;">2. Workflows (&#x420;&#x430;&#x431;&#x43E;&#x447;&#x438;&#x435;
-        &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x44B;)</h2>
-        <p><strong>Workflows</strong> &#x2014; &#x44D;&#x442;&#x43E; &#x43F;&#x43E;&#x441;&#x43B;&#x435;&#x434;&#x43E;&#x432;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x43E;&#x441;&#x442;&#x44C; &#x448;&#x430;&#x433;&#x43E;&#x432;,
-        &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435; &#x43D;&#x430;&#x43F;&#x440;&#x430;&#x432;&#x43B;&#x44F;&#x44E;&#x442; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430; &#x447;&#x435;&#x440;&#x435;&#x437; &#x446;&#x435;&#x43F;&#x43E;&#x447;&#x43A;&#x443; &#x437;&#x430;&#x434;&#x430;&#x447; (&#x43D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;, &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A;
-        &#x442;&#x435;&#x441;&#x442;&#x43E;&#x432; -&gt; &#x441;&#x431;&#x43E;&#x440;&#x43A;&#x430; -&gt; &#x434;&#x435;&#x43F;&#x43B;&#x43E;&#x439;).</p>
-        <h3 id="&#x43E;&#x441;&#x43D;&#x43E;&#x432;&#x43D;&#x44B;&#x435;-&#x445;&#x430;&#x440;&#x430;&#x43A;&#x442;&#x435;&#x440;&#x438;&#x441;&#x442;&#x438;&#x43A;&#x438;">&#x41E;&#x441;&#x43D;&#x43E;&#x432;&#x43D;&#x44B;&#x435; &#x445;&#x430;&#x440;&#x430;&#x43A;&#x442;&#x435;&#x440;&#x438;&#x441;&#x442;&#x438;&#x43A;&#x438;:</h3>
-        <figure>
-        <img src="./workflow_flow.png" alt="Workflow Flow Diagram" />
-        <figcaption aria-hidden="true">Workflow Flow
-        Diagram</figcaption>
-        </figure>
+        <h2 id="2-workflows-рабочие-процессы">2. Workflows (Рабочие
+        процессы)</h2>
+        <p><strong>Workflows</strong> — это последовательность шагов,
+        которые направляют агента через цепочку задач (например, запуск
+        тестов -&gt; сборка -&gt; деплой).</p>
+        <h3 id="основные-характеристики">Основные характеристики:</h3>
+        <p><img src="./workflow_flow.png"
+        alt="Workflow Flow Diagram" /></p>
         <ul>
-        <li>&#x421;&#x43E;&#x445;&#x440;&#x430;&#x43D;&#x44F;&#x44E;&#x442;&#x441;&#x44F; &#x43A;&#x430;&#x43A; <code>.md</code> &#x444;&#x430;&#x439;&#x43B;&#x44B;.</li>
-        <li>&#x41F;&#x43E;&#x437;&#x432;&#x43E;&#x43B;&#x44F;&#x44E;&#x442; &#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x437;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x44B;&#x435; &#x438; &#x43F;&#x43E;&#x432;&#x442;&#x43E;&#x440;&#x44F;&#x44E;&#x449;&#x438;&#x435;&#x441;&#x44F;
-        &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x44B;.</li>
-        <li>&#x412;&#x44B;&#x437;&#x44B;&#x432;&#x430;&#x44E;&#x442;&#x441;&#x44F; &#x447;&#x435;&#x440;&#x435;&#x437; &#x441;&#x43B;&#x435;&#x448;-&#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x443;
-        <code>/&#x43D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x435;-&#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;</code>.</li>
+        <li>Сохраняются как <code>.md</code> файлы.</li>
+        <li>Позволяют автоматизировать сложные и повторяющиеся
+        процессы.</li>
+        <li>Вызываются через слеш-команду
+        <code>/название-воркфлоу</code>.</li>
         </ul>
-        <h3 id="&#x43A;&#x430;&#x43A;-&#x441;&#x43E;&#x437;&#x434;&#x430;&#x442;&#x44C;-workflow">&#x41A;&#x430;&#x43A; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x442;&#x44C; Workflow:</h3>
+        <h3 id="как-создать-workflow">Как создать Workflow:</h3>
         <ol type="1">
-        <li>&#x41E;&#x442;&#x43A;&#x440;&#x43E;&#x439;&#x442;&#x435; &#x43F;&#x430;&#x43D;&#x435;&#x43B;&#x44C; <strong>Customizations</strong> (&#x447;&#x435;&#x440;&#x435;&#x437; &#x201C;&#x2026;&#x201D; &#x432;
-        &#x432;&#x435;&#x440;&#x445;&#x43D;&#x435;&#x43C; &#x443;&#x433;&#x43B;&#x443; &#x43F;&#x430;&#x43D;&#x435;&#x43B;&#x438; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;).</li>
-        <li>&#x41F;&#x435;&#x440;&#x435;&#x439;&#x434;&#x438;&#x442;&#x435; &#x432; &#x440;&#x430;&#x437;&#x434;&#x435;&#x43B; <strong>Workflows</strong>.</li>
-        <li>&#x41D;&#x430;&#x436;&#x43C;&#x438;&#x442;&#x435; <strong>+ Global</strong> (&#x434;&#x43E;&#x441;&#x442;&#x443;&#x43F;&#x435;&#x43D; &#x432;&#x435;&#x437;&#x434;&#x435;) &#x438;&#x43B;&#x438;
-        <strong>+ Workspace</strong> (&#x442;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x434;&#x43B;&#x44F; &#x442;&#x435;&#x43A;&#x443;&#x449;&#x435;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430;).</li>
+        <li>Откройте панель <strong>Customizations</strong> (через "..."
+        в верхнем углу панели агента).</li>
+        <li>Перейдите в раздел <strong>Workflows</strong>.</li>
+        <li>Нажмите <strong>+ Global</strong> (доступен везде) или
+        <strong>+ Workspace</strong> (только для текущего проекта).</li>
         </ol>
-        <h3 id="&#x43A;&#x430;&#x43A;-&#x437;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x44C;">&#x41A;&#x430;&#x43A; &#x437;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x44C;:</h3>
-        <p>&#x41F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x432;&#x432;&#x435;&#x434;&#x438;&#x442;&#x435; <code>/</code> &#x432; &#x447;&#x430;&#x442;&#x435; &#x441; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x43E;&#x43C;, &#x438; &#x432;&#x44B; &#x443;&#x432;&#x438;&#x434;&#x438;&#x442;&#x435;
-        &#x441;&#x43F;&#x438;&#x441;&#x43E;&#x43A; &#x434;&#x43E;&#x441;&#x442;&#x443;&#x43F;&#x43D;&#x44B;&#x445; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;. &#x412;&#x44B;&#x431;&#x435;&#x440;&#x438;&#x442;&#x435; &#x43D;&#x443;&#x436;&#x43D;&#x44B;&#x439; &#x438; &#x43D;&#x430;&#x436;&#x43C;&#x438;&#x442;&#x435; Enter.</p>
-        <blockquote>
-        <p>[!NOTE] &#x412;&#x44B; &#x43C;&#x43E;&#x436;&#x435;&#x442;&#x435; &#x432;&#x44B;&#x437;&#x44B;&#x432;&#x430;&#x442;&#x44C; &#x43E;&#x434;&#x438;&#x43D; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x438;&#x437; &#x434;&#x440;&#x443;&#x433;&#x43E;&#x433;&#x43E;!
-        &#x41D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;, <code>/workflow-1</code> &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x441;&#x43E;&#x434;&#x435;&#x440;&#x436;&#x430;&#x442;&#x44C; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43A;&#x446;&#x438;&#x44E;:
-        &#x201C;&#x417;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438; <code>/workflow-2</code>&#x201D;.</p>
-        </blockquote>
+        <h3 id="как-запустить">Как запустить:</h3>
+        <p>Просто введите <code>/</code> в чате с агентом, и вы увидите
+        список доступных воркфлоу. Выберите нужный и нажмите Enter.</p>
+        <div class="note">
+        <div class="title">
+        <p>Note</p>
+        </div>
+        <p>Вы можете вызывать один воркфлоу из другого! Например,
+        <code>/workflow-1</code> может содержать инструкцию: "Запусти
+        <code>/workflow-2</code>".</p>
+        </div>
         <hr />
-        <h2 id="&#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x430;&#x44F;-&#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;">3. &#x410;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x430;&#x44F;
-        &#x433;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F;</h2>
-        <p>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x441;&#x430;&#x43C; &#x433;&#x435;&#x43D;&#x435;&#x440;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x43D;&#x430; &#x43E;&#x441;&#x43D;&#x43E;&#x432;&#x435; &#x432;&#x430;&#x448;&#x435;&#x439; &#x438;&#x441;&#x442;&#x43E;&#x440;&#x438;&#x438;
-        &#x43E;&#x431;&#x449;&#x435;&#x43D;&#x438;&#x44F;! &#x415;&#x441;&#x43B;&#x438; &#x432;&#x44B; &#x442;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x447;&#x442;&#x43E; &#x432;&#x44B;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x43B;&#x438; &#x441;&#x435;&#x440;&#x438;&#x44E; &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x44B;&#x445; &#x434;&#x435;&#x439;&#x441;&#x442;&#x432;&#x438;&#x439;
-        &#x432;&#x440;&#x443;&#x447;&#x43D;&#x443;&#x44E;, &#x43F;&#x43E;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x435;: <em>&#x201C;&#x421;&#x43E;&#x437;&#x434;&#x430;&#x439; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x43D;&#x430; &#x43E;&#x441;&#x43D;&#x43E;&#x432;&#x435; &#x43D;&#x430;&#x448;&#x438;&#x445;
-        &#x43F;&#x43E;&#x441;&#x43B;&#x435;&#x434;&#x43D;&#x438;&#x445; &#x434;&#x435;&#x439;&#x441;&#x442;&#x432;&#x438;&#x439;&#x201D;</em>.</p>
+        <h2 id="3-автоматическая-генерация">3. Автоматическая
+        генерация</h2>
+        <p>Агент может сам генерировать воркфлоу на основе вашей истории
+        общения! Если вы только что выполнили серию сложных действий
+        вручную, попросите: <em>"Создай воркфлоу на основе наших
+        последних действий"</em>.</p>
         <hr />
-        <h2 id="best-practices-&#x43B;&#x443;&#x447;&#x448;&#x438;&#x435;-&#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438;">4. Best Practices
-        (&#x41B;&#x443;&#x447;&#x448;&#x438;&#x435; &#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x43A;&#x438;)</h2>
-        <p>&#x414;&#x43B;&#x44F; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x43D;&#x430;&#x434;&#x435;&#x436;&#x43D;&#x44B;&#x445; &#x438; &#x43F;&#x435;&#x440;&#x435;&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x435;&#x43C;&#x44B;&#x445; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x441;&#x43B;&#x435;&#x434;&#x443;&#x439;&#x442;&#x435;
-        &#x44D;&#x442;&#x438;&#x43C; &#x43F;&#x440;&#x430;&#x432;&#x438;&#x43B;&#x430;&#x43C;:</p>
-        <h3 id="&#x430;&#x442;&#x43E;&#x43C;&#x430;&#x440;&#x43D;&#x43E;&#x441;&#x442;&#x44C;-&#x438;-&#x43C;&#x43E;&#x434;&#x443;&#x43B;&#x44C;&#x43D;&#x43E;&#x441;&#x442;&#x44C;">&#x410;&#x442;&#x43E;&#x43C;&#x430;&#x440;&#x43D;&#x43E;&#x441;&#x442;&#x44C; &#x438;
-        &#x41C;&#x43E;&#x434;&#x443;&#x43B;&#x44C;&#x43D;&#x43E;&#x441;&#x442;&#x44C;</h3>
-        <p>&#x420;&#x430;&#x437;&#x431;&#x438;&#x432;&#x430;&#x439;&#x442;&#x435; &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x44B;&#x435; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438; &#x43D;&#x430; &#x43C;&#x435;&#x43B;&#x43A;&#x438;&#x435; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;. &#x412;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x43E;&#x434;&#x43D;&#x43E;&#x433;&#x43E;
-        &#x43E;&#x433;&#x440;&#x43E;&#x43C;&#x43D;&#x43E;&#x433;&#x43E; &#x43F;&#x440;&#x43E;&#x446;&#x435;&#x441;&#x441;&#x430; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x43D;&#x435;&#x441;&#x43A;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x43C;&#x430;&#x43B;&#x435;&#x43D;&#x44C;&#x43A;&#x438;&#x445;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x435;
-        &#x432;&#x44B;&#x437;&#x44B;&#x432;&#x430;&#x44E;&#x442; &#x434;&#x440;&#x443;&#x433; &#x434;&#x440;&#x443;&#x433;&#x430;.</p>
-        <p><strong>&#x41F;&#x440;&#x438;&#x43C;&#x435;&#x440; (<code>/run-new</code>):</strong> &#x412;&#x43C;&#x435;&#x441;&#x442;&#x43E; &#x442;&#x43E;&#x433;&#x43E;
-        &#x447;&#x442;&#x43E;&#x431;&#x44B; &#x43A;&#x43E;&#x43F;&#x438;&#x440;&#x43E;&#x432;&#x430;&#x442;&#x44C; &#x43B;&#x43E;&#x433;&#x438;&#x43A;&#x443; &#x437;&#x430;&#x432;&#x435;&#x440;&#x448;&#x435;&#x43D;&#x438;&#x44F; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438; &#x432; &#x43A;&#x430;&#x436;&#x434;&#x44B;&#x439; &#x43D;&#x43E;&#x432;&#x44B;&#x439;
-        &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;, &#x43C;&#x44B; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43B;&#x438; &#x432;&#x441;&#x43F;&#x43E;&#x43C;&#x43E;&#x433;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x439; &#x438;&#x43D;&#x441;&#x442;&#x440;&#x443;&#x43C;&#x435;&#x43D;&#x442;:</p>
+        <h2 id="4-best-practices-лучшие-практики">4. Best Practices
+        (Лучшие практики)</h2>
+        <p>Для создания надежных и переиспользуемых воркфлоу следуйте
+        этим правилам:</p>
+        <h3 id="атомарность-и-модульность">Атомарность и
+        Модульность</h3>
+        <p>Разбивайте сложные задачи на мелкие воркфлоу. Вместо одного
+        огромного процесса создайте несколько маленьких, которые
+        вызывают друг друга.</p>
+        <p><strong>Пример (<code>/run-new</code>):</strong> Вместо того
+        чтобы копировать логику завершения задачи в каждый новый
+        воркфлоу, мы создали вспомогательный инструмент:</p>
         <div class="sourceCode" id="cb1"><pre
         class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> &#x412;&#x44B;&#x437;&#x43E;&#x432; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; /new &#x434;&#x43B;&#x44F; &#x444;&#x438;&#x43D;&#x430;&#x43B;&#x438;&#x437;&#x430;&#x446;&#x438;&#x438; &#x437;&#x430;&#x434;&#x430;&#x447;&#x438;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> Вызов воркфлоу /new для финализации задачи</span></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>&#x417;&#x430;&#x43F;&#x443;&#x441;&#x442;&#x438;&#x442;&#x44C; /new</span></code></pre></div>
-        <p>&#x422;&#x435;&#x43F;&#x435;&#x440;&#x44C; &#x43B;&#x44E;&#x431;&#x43E;&#x439; &#x434;&#x440;&#x443;&#x433;&#x43E;&#x439; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x43C;&#x43E;&#x436;&#x435;&#x442; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x201C;&#x432;&#x44B;&#x437;&#x432;&#x430;&#x442;&#x44C;&#x201D;
-        <code>/run-new</code> &#x438;&#x43B;&#x438; &#x43F;&#x440;&#x44F;&#x43C;&#x43E; <code>/new</code>.</p>
-        <h3 id="&#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;-&#x442;&#x443;&#x440;&#x431;&#x43E;-&#x440;&#x435;&#x436;&#x438;&#x43C;&#x430;-turbo">&#x418;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43D;&#x438;&#x435;
-        &#x422;&#x443;&#x440;&#x431;&#x43E;-&#x440;&#x435;&#x436;&#x438;&#x43C;&#x430; (<code>// turbo</code>)</h3>
-        <p>&#x415;&#x441;&#x43B;&#x438; &#x448;&#x430;&#x433; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x431;&#x435;&#x437;&#x43E;&#x43F;&#x430;&#x441;&#x435;&#x43D; (&#x43D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;, &#x437;&#x430;&#x43F;&#x443;&#x441;&#x43A; &#x442;&#x435;&#x441;&#x442;&#x43E;&#x432; &#x438;&#x43B;&#x438;
-        <code>git status</code>), &#x434;&#x43E;&#x431;&#x430;&#x432;&#x44C;&#x442;&#x435; &#x430;&#x43D;&#x43D;&#x43E;&#x442;&#x430;&#x446;&#x438;&#x44E;
-        <code>// turbo</code> &#x43D;&#x430;&#x434; &#x43D;&#x438;&#x43C;. &#x410;&#x433;&#x435;&#x43D;&#x442; &#x432;&#x44B;&#x43F;&#x43E;&#x43B;&#x43D;&#x438;&#x442; &#x435;&#x433;&#x43E; &#x430;&#x432;&#x442;&#x43E;&#x43C;&#x430;&#x442;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x438;
-        &#x431;&#x435;&#x437; &#x43E;&#x436;&#x438;&#x434;&#x430;&#x43D;&#x438;&#x44F; &#x432;&#x430;&#x448;&#x435;&#x433;&#x43E; &#x43F;&#x43E;&#x434;&#x442;&#x432;&#x435;&#x440;&#x436;&#x434;&#x435;&#x43D;&#x438;&#x44F;.</p>
-        <h3 id="&#x43E;&#x43F;&#x438;&#x441;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435;-&#x43D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x44F;">&#x41E;&#x43F;&#x438;&#x441;&#x430;&#x442;&#x435;&#x43B;&#x44C;&#x43D;&#x44B;&#x435; &#x43D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x44F;</h3>
-        <p>&#x41D;&#x430;&#x437;&#x44B;&#x432;&#x430;&#x439;&#x442;&#x435; &#x444;&#x430;&#x439;&#x43B;&#x44B; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x442;&#x430;&#x43A;, &#x447;&#x442;&#x43E;&#x431;&#x44B; &#x438;&#x445; &#x431;&#x44B;&#x43B;&#x43E; &#x43B;&#x435;&#x433;&#x43A;&#x43E; &#x43D;&#x430;&#x439;&#x442;&#x438; &#x447;&#x435;&#x440;&#x435;&#x437;
-        <code>/</code>. &#x41D;&#x430;&#x43F;&#x440;&#x438;&#x43C;&#x435;&#x440;, <code>deploy-staging.md</code>
-        &#x43F;&#x43E;&#x43D;&#x44F;&#x442;&#x43D;&#x435;&#x435;, &#x447;&#x435;&#x43C; <code>ds.md</code>.</p>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Запустить /new</span></code></pre></div>
+        <p>Теперь любой другой воркфлоу может просто "вызвать"
+        <code>/run-new</code> или прямо <code>/new</code>.</p>
+        <h3 id="использование-турбо-режима--turbo">Использование
+        Турбо-режима (<code>// turbo</code>)</h3>
+        <p>Если шаг воркфлоу безопасен (например, запуск тестов или
+        <code>git status</code>), добавьте аннотацию
+        <code>// turbo</code> над ним. Агент выполнит его автоматически
+        без ожидания вашего подтверждения.</p>
+        <h3 id="описательные-названия">Описательные названия</h3>
+        <p>Называйте файлы воркфлоу так, чтобы их было легко найти через
+        <code>/</code>. Например, <code>deploy-staging.md</code>
+        понятнее, чем <code>ds.md</code>.</p>
         <hr />
-        <h2 id="&#x43F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x438;&#x435;-&#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x44F;">&#x41F;&#x440;&#x430;&#x43A;&#x442;&#x438;&#x447;&#x435;&#x441;&#x43A;&#x438;&#x435; &#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x44F;</h2>
+        <h2 id="практические-задания">Практические задания</h2>
         <ol type="1">
-        <li><strong>&#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435; 1: @ Mentions</strong>. &#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x444;&#x430;&#x439;&#x43B; &#x432;
-        &#x43A;&#x43E;&#x440;&#x43D;&#x435; &#x43F;&#x440;&#x43E;&#x435;&#x43A;&#x442;&#x430; <code>hint.md</code> &#x441; &#x43B;&#x44E;&#x431;&#x44B;&#x43C; &#x442;&#x435;&#x43A;&#x441;&#x442;&#x43E;&#x43C;. &#x417;&#x430;&#x442;&#x435;&#x43C;
-        &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x437;&#x430;&#x434;&#x430;&#x447;&#x443; &#x438; &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x439;&#x442;&#x435; <code>@hint.md</code>, &#x447;&#x442;&#x43E;&#x431;&#x44B; &#x430;&#x433;&#x435;&#x43D;&#x442;
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x43E;&#x432;&#x430;&#x43B; &#x438;&#x43D;&#x444;&#x43E;&#x440;&#x43C;&#x430;&#x446;&#x438;&#x44E; &#x438;&#x437; &#x44D;&#x442;&#x43E;&#x433;&#x43E; &#x444;&#x430;&#x439;&#x43B;&#x430;.</li>
-        <li><strong>&#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435; 2: &#x421;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x438;&#x435; Workflow</strong>. &#x41E;&#x442;&#x43A;&#x440;&#x43E;&#x439;&#x442;&#x435;
-        &#x43F;&#x430;&#x43D;&#x435;&#x43B;&#x44C; Customizations &#x438; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E;&#x439; &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x441; &#x43D;&#x430;&#x437;&#x432;&#x430;&#x43D;&#x438;&#x435;&#x43C;
-        <code>hello</code>, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E; &#x43F;&#x438;&#x448;&#x435;&#x442; &#x201C;&#x41F;&#x440;&#x438;&#x432;&#x435;&#x442;, &#x44F; &#x433;&#x43E;&#x442;&#x43E;&#x432; &#x43A;
-        &#x440;&#x430;&#x431;&#x43E;&#x442;&#x435;!&#x201D;.</li>
-        <li><strong>&#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435; 3: &#x417;&#x430;&#x43F;&#x443;&#x441;&#x43A;</strong>. &#x412;&#x44B;&#x437;&#x43E;&#x432;&#x438;&#x442;&#x435; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x43D;&#x43D;&#x44B;&#x439;
-        &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443; &#x43A;&#x43E;&#x43C;&#x430;&#x43D;&#x434;&#x43E;&#x439; <code>/hello</code>.</li>
-        <li><strong>&#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435; 4: &#x412;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x43D;&#x43E;&#x441;&#x442;&#x44C;</strong>. &#x421;&#x43E;&#x437;&#x434;&#x430;&#x439;&#x442;&#x435; &#x432;&#x442;&#x43E;&#x440;&#x43E;&#x439;
-        &#x432;&#x43E;&#x440;&#x43A;&#x444;&#x43B;&#x43E;&#x443;, &#x43A;&#x43E;&#x442;&#x43E;&#x440;&#x44B;&#x439; &#x432;&#x44B;&#x437;&#x44B;&#x432;&#x430;&#x435;&#x442; &#x43F;&#x435;&#x440;&#x432;&#x44B;&#x439;.</li>
+        <li><strong>Задание 1: @ Mentions</strong>. Создайте файл в
+        корне проекта <code>hint.md</code> с любым текстом. Затем
+        создайте задачу и используйте <code>@hint.md</code>, чтобы агент
+        использовал информацию из этого файла.</li>
+        <li><strong>Задание 2: Создание Workflow</strong>. Откройте
+        панель Customizations и создайте простой воркфлоу с названием
+        <code>hello</code>, который просто пишет "Привет, я готов к
+        работе!".</li>
+        <li><strong>Задание 3: Запуск</strong>. Вызовите созданный
+        воркфлоу командой <code>/hello</code>.</li>
+        <li><strong>Задание 4: Вложенность</strong>. Создайте второй
+        воркфлоу, который вызывает первый.</li>
+        </ol>
+        <h2 id="глубокое-погружение-в-режимы">Глубокое погружение в
+        режимы</h2>
+        <h3 id="когда-использовать-режимы">Когда использовать
+        режимы</h3>
+        <p><strong>Planning Mode подходит для:</strong></p>
+        <ul>
+        <li>Архитектурные решения</li>
+        <li>Интеграция новых технологий</li>
+        <li>Критичный код</li>
+        <li>Сложные рефакторинги</li>
+        </ul>
+        <p><strong>Fast Mode подходит для:</strong></p>
+        <ul>
+        <li>Простые исправления</li>
+        <li>Добавление свойств</li>
+        <li>Быстрые тесты</li>
+        <li>Генерация шаблонов</li>
+        </ul>
+        <h2 id="рекомендуемые-источники">Рекомендуемые источники</h2>
+        <ol type="1">
+        <li>AI-Assisted Development Patterns</li>
+        <li>Software Architecture Patterns</li>
         </ol>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>

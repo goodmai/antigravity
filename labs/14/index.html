@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Лаба 14: Микросервисы и
+Docker-оркестрация | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <div class="container">
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
+      </header>
+      <main>
+        <h1 id="лаба-14-микросервисы-и-docker-оркестрация">Лаба 14:
+        Микросервисы и Docker-оркестрация</h1>
+        <blockquote>
+        <p>🔗 Практика к <a href="../../lessons/14/index.html">Уроку
+        14</a> — <em>Микросервисы и Docker</em></p>
+        </blockquote>
+        <p>Контейнеризация и оркестрация распределённой системы:
+        Dockerfile-оптимизация, compose-сеть, health-checks и
+        диагностика связности сервисов.</p>
+        <h2 id="dart-цель">🎯 Цель</h2>
+        <p>Закрепить материал Урока 14 через 9 практических задач в
+        облачной песочнице GitHub. Каждая задача имеет явный
+        <strong>критерий приёмки</strong> — лаба считается сданной,
+        когда выполнен финальный чек-лист.</p>
+        <h2 id="test_tube-песочница-мультиплатформа">🧪 Песочница
+        (мультиплатформа)</h2>
+        <p><strong>Рекомендуется для этой лабы:</strong> GitHub
+        Codespaces — полноценный Linux + Docker + GitHub PR-флоу,
+        универсальна для любой задачи.</p>
+        <p>Любую задачу можно выполнить в одной из песочниц (быстрый
+        запуск):</p>
+        <ul>
+        <li>GitHub Codespaces —
+        <code>https://github.com/goodmai/antigravity</code> →
+        <strong>Code ▾ → Codespaces → Create</strong></li>
+        <li>Gitpod —
+        <code>https://gitpod.io/#https://github.com/goodmai/antigravity</code></li>
+        <li>Google Cloud Shell —
+        <code>https://shell.cloud.google.com</code> →
+        <code>git clone</code></li>
+        <li>Replit — <em>Create Repl → Import from GitHub</em></li>
+        </ul>
+        <p>Полная шпаргалка (bootstrap-скрипт, devcontainer, секреты,
+        выбор платформы): <strong><a
+        href="../SANDBOX_SETUP.md">../SANDBOX_SETUP.md</a></strong>.</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># единый вход в любой песочнице</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> scripts/sandbox-bootstrap.sh</span></code></pre></div>
+        <h2 id="clipboard-задачи">📋 Задачи</h2>
+        <h3 id="задача-1--два-сервиса">Задача 1 — Два сервиса</h3>
+        <p><strong>Цель:</strong> Подготовить распределённую
+        заготовку.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Создай <code>api</code> (Express) и <code>worker</code>
+        (Node) — минимальный код.</li>
+        <li>Каждый отвечает на <code>/health</code>.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Оба сервиса запускаются
+        локально и отвечают 200.</p>
+        <h3 id="задача-2--dockerfile-с-кэшом">Задача 2 — Dockerfile с
+        кэшом</h3>
+        <p><strong>Цель:</strong> Оптимизировать сборку.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Попроси агента написать multi-stage Dockerfile.</li>
+        <li>Зависимости в отдельном слое до копирования кода.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Повторная сборка
+        использует кэш слоёв (быстрее).</p>
+        <h3 id="задача-3--docker-compose">Задача 3 — docker-compose</h3>
+        <p><strong>Цель:</strong> Связать сервисы сетью.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Создай <code>docker-compose.yml</code> с сетью, env,
+        volumes.</li>
+        <li><code>docker compose up</code>.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Сервисы поднимаются и
+        видят друг друга по имени.</p>
+        <h3 id="задача-4--health-checks">Задача 4 — Health-checks</h3>
+        <p><strong>Цель:</strong> Добавить контроль здоровья.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Пропиши <code>healthcheck</code> для обоих сервисов.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong>
+        <code>docker compose ps</code> показывает healthy.</p>
+        <h3 id="задача-5--диагностика-связности">Задача 5 — Диагностика
+        связности</h3>
+        <p><strong>Цель:</strong> Починить «не видит сервис».</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Закрой порт в compose, воспроизведи сбой.</li>
+        <li>Попроси агента прочитать логи и найти причину.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Агент указал закрытый
+        порт/сеть как причину.</p>
+        <h3 id="задача-6--переменные-и-секреты">Задача 6 — Переменные и
+        секреты</h3>
+        <p><strong>Цель:</strong> Вынести конфигурацию.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Перенеси конфиг в <code>.env</code>, добавь в
+        <code>.dockerignore</code>.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Секреты не попадают в
+        образ (проверено <code>history</code>).</p>
+        <h3 id="задача-7--размер-образа">Задача 7 — Размер образа</h3>
+        <p><strong>Цель:</strong> Уменьшить артефакт.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Перейди на slim/alpine, убери dev-зависимости.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Итоговый образ заметно
+        меньше исходного.</p>
+        <h3 id="задача-8--graceful-shutdown">Задача 8 — Graceful
+        shutdown</h3>
+        <p><strong>Цель:</strong> Корректное завершение.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li>Обработай SIGTERM в сервисах.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong>
+        <code>docker compose down</code> не рвёт активные операции.</p>
+        <h3 id="задача-9--compose-для-тестов">Задача 9 — Compose для
+        тестов</h3>
+        <p><strong>Цель:</strong> Изолированный тест-профиль.</p>
+        <p><strong>Шаги:</strong></p>
+        <ol type="1">
+        <li><code>docker-compose.test.yml</code> с tmpfs-БД и
+        моками.</li>
+        </ol>
+        <p><strong>Критерий приёмки:</strong> Тестовый профиль
+        поднимается без внешних зависимостей.</p>
+        <h2 id="white_check_mark-чек-лист-сдачи">✅ Чек-лист сдачи</h2>
+        <ul class="task-list">
+        <li><label><input type="checkbox" />Задача 1: Два
+        сервиса</label></li>
+        <li><label><input type="checkbox" />Задача 2: Dockerfile с
+        кэшом</label></li>
+        <li><label><input type="checkbox" />Задача 3:
+        docker-compose</label></li>
+        <li><label><input type="checkbox" />Задача 4:
+        Health-checks</label></li>
+        <li><label><input type="checkbox" />Задача 5: Диагностика
+        связности</label></li>
+        <li><label><input type="checkbox" />Задача 6: Переменные и
+        секреты</label></li>
+        <li><label><input type="checkbox" />Задача 7: Размер
+        образа</label></li>
+        <li><label><input type="checkbox" />Задача 8: Graceful
+        shutdown</label></li>
+        <li><label><input type="checkbox" />Задача 9: Compose для
+        тестов</label></li>
+        </ul>
+        <h2 id="compass-связь-с-курсом">🧭 Связь с курсом</h2>
+        <ul>
+        <li><strong>Теория:</strong> <a
+        href="../../lessons/14/index.html">Урок 14</a> — <em>Микросервисы
+        и Docker</em></li>
+        <li><strong>Песочницы:</strong> общая шпаргалка <a
+        href="../SANDBOX_SETUP.md">labs/SANDBOX_SETUP.md</a></li>
+        <li><strong>Капстоун курса:</strong> <a
+        href="../CAPSTONE.md">labs/CAPSTONE.md</a> — TeleDrive
+        Ecosystem</li>
+        <li><strong>Навигация:</strong> ← <a href="../13/index.html">Лаба
+        13</a> · <a href="../15/index.html">Лаба 15</a> →</li>
+        </ul>
+        <hr />
+        <p><em>Сгенерировано <code>scripts/generate_labs.py</code>.
+        Правьте генератор, а не выходные файлы.</em></p>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

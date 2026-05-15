@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 20: Промпт-инжиниринг для агентов Antigravity | Anti-Gravity Academy</title>
+    <title>Промпт-инжиниринг для агентов
+Antigravity | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -177,78 +178,123 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Промпт-инжиниринг для агентов Antigravity</h1>
-
-        <p>Качество результата агента напрямую зависит от того, насколько точно и структурированно сформулирована задача. В этом уроке разбираем техники, которые работают именно в контексте Antigravity: от фреймворков для одного запроса до шаблонов целых Workflows.</p>
-
-        <h2>CO-STAR: Структурированный промпт</h2>
-
-        <p>Фреймворк <strong>CO-STAR</strong> устраняет неоднозначность, разбивая запрос на шесть чётких компонентов:</p>
-
+        <h1
+        id="промпт-инжиниринг-для-агентов-antigravity">Промпт-инжиниринг
+        для агентов Antigravity</h1>
+        <p>Качество результата агента напрямую зависит от того,
+        насколько точно и структурированно сформулирована задача. В этом
+        уроке разбираем техники, которые работают именно в контексте
+        Antigravity: от фреймворков для одного запроса до шаблонов целых
+        Workflows.</p>
+        <h2 id="co-star-структурированный-промпт">CO-STAR:
+        Структурированный промпт</h2>
+        <p>Фреймворк <strong>CO-STAR</strong> устраняет неоднозначность,
+        разбивая запрос на шесть чётких компонентов:</p>
         <table>
-          <thead>
-            <tr>
-              <th>Компонент</th>
-              <th>Описание</th>
-              <th>Пример</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>C</strong>ontext</td>
-              <td>Фоновая информация</td>
-              <td>«FastAPI-сервис с JWT, PostgreSQL»</td>
-            </tr>
-            <tr>
-              <td><strong>O</strong>bjective</td>
-              <td>Точная задача</td>
-              <td>«Напиши unit-тест для <code>/auth/refresh</code>»</td>
-            </tr>
-            <tr>
-              <td><strong>S</strong>tyle</td>
-              <td>Стиль реализации</td>
-              <td>«pytest fixtures, без unittest.mock»</td>
-            </tr>
-            <tr>
-              <td><strong>T</strong>one</td>
-              <td>Тональность вывода</td>
-              <td>«Только код, без объяснений»</td>
-            </tr>
-            <tr>
-              <td><strong>A</strong>udience</td>
-              <td>Целевая аудитория</td>
-              <td>«Senior Python developer»</td>
-            </tr>
-            <tr>
-              <td><strong>R</strong>esponse</td>
-              <td>Формат ответа</td>
-              <td>«Один файл <code>test_auth.py</code>»</td>
-            </tr>
-          </tbody>
+        <thead>
+        <tr>
+        <th>Компонент</th>
+        <th>Описание</th>
+        <th>Пример</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td><strong>C</strong>ontext</td>
+        <td>Фоновая информация</td>
+        <td>«FastAPI-сервис с JWT, PostgreSQL»</td>
+        </tr>
+        <tr>
+        <td><strong>O</strong>bjective</td>
+        <td>Точная задача</td>
+        <td>«Напиши unit-тест для <code>/auth/refresh</code>»</td>
+        </tr>
+        <tr>
+        <td><strong>S</strong>tyle</td>
+        <td>Стиль реализации</td>
+        <td>«pytest fixtures, без unittest.mock»</td>
+        </tr>
+        <tr>
+        <td><strong>T</strong>one</td>
+        <td>Тональность вывода</td>
+        <td>«Только код, без объяснений»</td>
+        </tr>
+        <tr>
+        <td><strong>A</strong>udience</td>
+        <td>Целевая аудитория</td>
+        <td>«Senior Python developer»</td>
+        </tr>
+        <tr>
+        <td><strong>R</strong>esponse</td>
+        <td>Формат ответа</td>
+        <td>«Один файл <code>test_auth.py</code>»</td>
+        </tr>
+        </tbody>
         </table>
-
-        <h3>Применение в SKILL.md</h3>
-
-        <p>CO-STAR особенно эффективен в описании навыков — он становится постоянной инструкцией для каждого вызова:</p>
-
-        <pre><code>---
-name: api-test-generator
-description: &gt;
-  Контекст: проект на FastAPI, Pydantic V2, async/await, PostgreSQL.
-  Задача: генерировать pytest-тесты для указанных endpoints.
-  Стиль: fixtures в conftest.py, AAA-паттерн (Arrange/Act/Assert).
-  Формат: только код теста, без комментариев.
----</code></pre>
-
-        <h2>Chain-of-Thought: Пошаговое рассуждение</h2>
-
-        <p>Явная просьба «думать вслух» повышает качество на сложных задачах:</p>
-
+        <h3 id="применение-в-skillmd">Применение в SKILL.md</h3>
+        <p>CO-STAR особенно эффективен в описании навыков — он
+        становится постоянной инструкцией для каждого вызова:</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">name</span><span class="kw">:</span><span class="at"> api-test-generator</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">description</span><span class="kw">: </span><span class="ch">&gt;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  Контекст: проект на FastAPI, Pydantic V2, async/await, PostgreSQL.</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  Задача: генерировать pytest-тесты для указанных endpoints.</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  Стиль: fixtures в conftest.py, AAA-паттерн (Arrange/Act/Assert).</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  Формат: только код теста, без комментариев.</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="pp">---</span></span></code></pre></div>
+        <h2
+        id="chain-of-thought-пошаговое-рассуждение">Chain-of-Thought:
+        Пошаговое рассуждение</h2>
+        <p>Явная просьба «думать вслух» повышает качество на сложных
+        задачах:</p>
         <pre><code>Задача: спроектируй схему БД для мессенджера.
 
 Рассуждай пошагово:
@@ -257,132 +303,143 @@ description: &gt;
 3. Подумай об индексах для частых запросов
 4. Учти масштабирование до 1M пользователей
 5. Только после этого выдай SQL DDL</code></pre>
-
-        <p>В Antigravity это встраивается в Workflow через явные паузы с артефактом на ревью между шагами.</p>
-
-        <h2>Few-Shot: Пример как стандарт</h2>
-
-        <p>Один пример в начале инструкции задаёт точный формат вывода:</p>
-
-        <pre><code>## Пример входа:
-def get_user(id: int): ...
-
-## Пример выхода:
-async def test_get_user_success(client, db_session):
-    user = await create_test_user(db_session)
-    response = await client.get(f"/users/{user.id}")
-    assert response.status_code == 200
-    assert response.json()["id"] == user.id
-
-## Теперь сгенерируй тест для:
-def delete_order(order_id: int, user_id: int): ...</code></pre>
-
-        <p>Агент извлекает паттерн из примера: <code>async</code>, <code>create_test_*</code>, <code>assert status + body</code>.</p>
-
-        <h2>Role Prompting: Специализация агента</h2>
-
-        <p>Явная роль сужает пространство поведений модели и активирует нужный стиль мышления:</p>
-
+        <p>В Antigravity это встраивается в Workflow через явные паузы с
+        артефактом на ревью между шагами.</p>
+        <h2 id="few-shot-пример-как-стандарт">Few-Shot: Пример как
+        стандарт</h2>
+        <p>Один пример в начале инструкции задаёт точный формат
+        вывода:</p>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">## Пример входа:</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>def get_user(id: int): ...</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">## Пример выхода:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>async def test_get_user_success(client, db_session):</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    user = await create_test_user(db_session)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    response = await client.get(f&quot;/users/{user.id}&quot;)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    assert response.status_code == 200</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    assert response.json()<span class="co">[</span><span class="ot">&quot;id&quot;</span><span class="co">]</span> == user.id</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="fu">## Теперь сгенерируй тест для:</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>def delete_order(order_id: int, user_id: int): ...</span></code></pre></div>
+        <p>Агент извлекает паттерн из примера: <code>async</code>,
+        <code>create_test_*</code>,
+        <code>assert status + body</code>.</p>
+        <h2 id="role-prompting-специализация-агента">Role Prompting:
+        Специализация агента</h2>
+        <p>Явная роль сужает пространство поведений модели и активирует
+        нужный стиль мышления:</p>
         <pre><code>Ты — Senior Security Engineer с 10 годами опыта в pentesting.
 Проведи code review на предмет OWASP Top 10.
 Формат: таблица [Уязвимость | Строка | Severity | Рекомендация].</code></pre>
-
-        <p>В Antigravity роли прописываются в <code>.agent/rules/</code> для постоянной активации без повторного указания:</p>
-
-        <pre><code>&lt;!-- .agent/rules/security-reviewer.md --&gt;
----
-trigger: always
----
-При каждом code review проверяй: SQL-инъекции, XSS, IDOR, небезопасные зависимости (OWASP Top 10).</code></pre>
-
-        <h2>Мета-промптинг: Агент пишет промпты для себя</h2>
-
-        <p>Antigravity умеет генерировать собственные SKILL.md — используй это для создания новых навыков:</p>
-
+        <p>В Antigravity роли прописываются в <code>.agent/rules/</code>
+        для постоянной активации без повторного указания:</p>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- .agent/rules/security-reviewer.md --&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>trigger: always</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>При каждом code review проверяй: SQL-инъекции, XSS, IDOR, небезопасные зависимости (OWASP Top 10).</span></code></pre></div>
+        <h2
+        id="мета-промптинг-агент-пишет-промпты-для-себя">Мета-промптинг:
+        Агент пишет промпты для себя</h2>
+        <p>Antigravity умеет генерировать собственные SKILL.md —
+        используй это для создания новых навыков:</p>
         <pre><code>Создай SKILL.md для навыка, который:
 - Генерирует OpenAPI 3.0 спецификацию из FastAPI кода
 - Учитывает JWT security schemes и Pydantic V2 схемы
 - Выдаёт YAML без лишних объяснений
 
 Используй CO-STAR структуру в поле description.</code></pre>
-
-        <h2>Управление фокусом через промпт</h2>
-
-        <p>Явно ограничивай область внимания агента — это дешевле полного <code>.antigravityignore</code>:</p>
-
+        <h2 id="управление-фокусом-через-промпт">Управление фокусом
+        через промпт</h2>
+        <p>Явно ограничивай область внимания агента — это дешевле
+        полного <code>.antigravityignore</code>:</p>
         <pre><code>Работай только с файлами в src/api/.
 Игнорируй tests/, docs/, migrations/.
 При ссылках на модели используй только src/models/schemas.py.</code></pre>
-
-        <h2>Шаблон промпта для Workflow</h2>
-
-        <pre><code>// workflow: feature-implementation
-
-## Контекст
-@/src/api/routes.py
-@/.agent/rules/coding-standards.md
-
-## Задача
-Реализуй: {FEATURE_DESCRIPTION}
-
-## Критерии готовности
-- [ ] Unit-тесты: happy path + edge cases
-- [ ] Нет изменений в несвязанных файлах
-- [ ] Pydantic V2 для всех входных данных
-
-## Шаги
-1. Проанализируй @/src/api/ → артефакт с планом на ревью
-2. После апрува — реализуй
-3. Напиши тесты
-4. Проверь критерии</code></pre>
-
-        <h2>Типичные ошибки</h2>
-
+        <h2 id="шаблон-промпта-для-workflow">Шаблон промпта для
+        Workflow</h2>
+        <div class="sourceCode" id="cb8"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>// workflow: feature-implementation</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Контекст</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>@/src/api/routes.py</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>@/.agent/rules/coding-standards.md</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Задача</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>Реализуй: {FEATURE_DESCRIPTION}</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">## Критерии готовности</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Unit-тесты: happy path + edge cases</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Нет изменений в несвязанных файлах</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="va">[ ]</span> Pydantic V2 для всех входных данных</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## Шаги</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Проанализируй @/src/api/ → артефакт с планом на ревью</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>После апрува — реализуй</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Напиши тесты</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Проверь критерии</span></code></pre></div>
+        <h2 id="типичные-ошибки">Типичные ошибки</h2>
         <table>
-          <thead>
-            <tr>
-              <th>Ошибка</th>
-              <th>Плохо</th>
-              <th>Хорошо</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Размытая задача</td>
-              <td>«Улучши код»</td>
-              <td>«Перепиши <code>X</code> используя async/await»</td>
-            </tr>
-            <tr>
-              <td>Нет формата</td>
-              <td>«Объясни архитектуру»</td>
-              <td>«Нарисуй Mermaid C4-диаграмму»</td>
-            </tr>
-            <tr>
-              <td>Перегруженность</td>
-              <td>10 задач в одном промпте</td>
-              <td>1 задача → артефакт → следующая</td>
-            </tr>
-            <tr>
-              <td>Нет контекста</td>
-              <td>«Добавь кеширование»</td>
-              <td>«Добавь Redis кеш для GET /products, TTL 5 мин»</td>
-            </tr>
-            <tr>
-              <td>Нет критериев</td>
-              <td>«Сделай хорошо»</td>
-              <td>«Done when: тесты зелёные, coverage &gt; 80%»</td>
-            </tr>
-          </tbody>
+        <thead>
+        <tr>
+        <th>Ошибка</th>
+        <th>Плохо</th>
+        <th>Хорошо</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Размытая задача</td>
+        <td>«Улучши код»</td>
+        <td>«Перепиши <code>X</code> используя async/await»</td>
+        </tr>
+        <tr>
+        <td>Нет формата</td>
+        <td>«Объясни архитектуру»</td>
+        <td>«Нарисуй Mermaid C4-диаграмму»</td>
+        </tr>
+        <tr>
+        <td>Перегруженность</td>
+        <td>10 задач в одном промпте</td>
+        <td>1 задача → артефакт → следующая</td>
+        </tr>
+        <tr>
+        <td>Нет контекста</td>
+        <td>«Добавь кеширование»</td>
+        <td>«Добавь Redis кеш для GET /products, TTL 5 мин»</td>
+        </tr>
+        <tr>
+        <td>Нет критериев</td>
+        <td>«Сделай хорошо»</td>
+        <td>«Done when: тесты зелёные, coverage &gt; 80%»</td>
+        </tr>
+        </tbody>
         </table>
-
-        <h2>Практика</h2>
-
-        <p>Возьми любой Workflow из <code>.agent/workflows/</code> и улучши его:</p>
-        <ol>
-          <li>Добавь CO-STAR структуру в заголовок</li>
-          <li>Добавь few-shot пример ожидаемого результата</li>
-          <li>Пропиши явные критерии готовности</li>
-          <li>Назначь роль агенту через <code>trigger: always</code> правило</li>
+        <h2 id="практика">Практика</h2>
+        <p>Возьми любой Workflow из <code>.agent/workflows/</code> и
+        улучши его:</p>
+        <ol type="1">
+        <li>Добавь CO-STAR структуру в заголовок</li>
+        <li>Добавь few-shot пример ожидаемого результата</li>
+        <li>Пропиши явные критерии готовности</li>
+        <li>Назначь роль агенту через <code>trigger: always</code>
+        правило</li>
+        </ol>
+        <h2 id="практический-гайд">Практический гайд</h2>
+        <h3 id="миграция-существующего-кода">Миграция существующего
+        кода</h3>
+        <ol type="1">
+        <li>Подготовка (резервная копия)</li>
+        <li>Планирование (план миграции)</li>
+        <li>Выполнение (пошаговая миграция)</li>
+        <li>Тестирование (полная проверка)</li>
+        <li>Развертывание</li>
+        </ol>
+        <h2 id="рекомендуемые-источники">Рекомендуемые источники</h2>
+        <ol type="1">
+        <li>Migration Best Practices</li>
         </ol>
       </main>
       <footer class="footer">

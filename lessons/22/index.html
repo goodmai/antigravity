@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Кастомные MCP-серверы с нуля | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <div class="container">
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
+      </header>
+      <main>
+        <h1 id="кастомные-mcp-серверы-с-нуля">Кастомные MCP-серверы с
+        нуля</h1>
+        <p>Model Context Protocol (MCP) — открытый стандарт для
+        подключения внешних инструментов к агентам. В Уроке 10 мы
+        разобрали, как использовать готовые серверы. Теперь создадим
+        собственный: от пустого файла до работающего инструмента в
+        Antigravity.</p>
+        <h2 id="что-такое-mcp-сервер">Что такое MCP-сервер</h2>
+        <p>MCP-сервер — это процесс, который реализует JSON-RPC протокол
+        и предоставляет агенту:</p>
+        <pre><code>┌──────────────────────────────────────────┐
+│  MCP Server                              │
+│                                          │
+│  Tools     — функции агент может вызвать │
+│  Resources — данные агент может читать   │
+│  Prompts   — шаблоны взаимодействия      │
+└──────────────────────────────────────────┘</code></pre>
+        <p>Antigravity играет роль <strong>Host</strong> и общается с
+        сервером через <strong>stdio</strong> (по умолчанию) или
+        HTTP.</p>
+        <h2 id="вариант-1-python-сервер-с-fastmcp">Вариант 1:
+        Python-сервер с FastMCP</h2>
+        <p><code>fastmcp</code> — минималистичная обёртка над
+        официальным Python SDK:</p>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">pip</span> install fastmcp</span></code></pre></div>
+        <h3 id="простой-сервер-для-работы-с-задачами">Простой сервер для
+        работы с задачами</h3>
+        <div class="sourceCode" id="cb3"><pre
+        class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># mcp_tasks.py</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> fastmcp <span class="im">import</span> FastMCP</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>mcp <span class="op">=</span> FastMCP(<span class="st">&quot;task-manager&quot;</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># In-memory хранилище (замени на БД в production)</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>tasks: <span class="bu">list</span>[<span class="bu">dict</span>] <span class="op">=</span> []</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">@mcp.tool</span>()</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> add_task(title: <span class="bu">str</span>, priority: <span class="bu">str</span> <span class="op">=</span> <span class="st">&quot;medium&quot;</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Добавить задачу в список.&quot;&quot;&quot;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    task <span class="op">=</span> {<span class="st">&quot;id&quot;</span>: <span class="bu">len</span>(tasks) <span class="op">+</span> <span class="dv">1</span>, <span class="st">&quot;title&quot;</span>: title, <span class="st">&quot;priority&quot;</span>: priority, <span class="st">&quot;done&quot;</span>: <span class="va">False</span>}</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    tasks.append(task)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> task</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="at">@mcp.tool</span>()</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> list_tasks(only_pending: <span class="bu">bool</span> <span class="op">=</span> <span class="va">False</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">dict</span>]:</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Получить список задач.&quot;&quot;&quot;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> [t <span class="cf">for</span> t <span class="kw">in</span> tasks <span class="cf">if</span> <span class="kw">not</span> t[<span class="st">&quot;done&quot;</span>]] <span class="cf">if</span> only_pending <span class="cf">else</span> tasks</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="at">@mcp.tool</span>()</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> complete_task(task_id: <span class="bu">int</span>) <span class="op">-&gt;</span> <span class="bu">dict</span>:</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Отметить задачу выполненной.&quot;&quot;&quot;</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t <span class="kw">in</span> tasks:</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> t[<span class="st">&quot;id&quot;</span>] <span class="op">==</span> task_id:</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>            t[<span class="st">&quot;done&quot;</span>] <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> t</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {<span class="st">&quot;error&quot;</span>: <span class="ss">f&quot;Task </span><span class="sc">{</span>task_id<span class="sc">}</span><span class="ss"> not found&quot;</span>}</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="at">@mcp.resource</span>(<span class="st">&quot;tasks://all&quot;</span>)</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_all_tasks() <span class="op">-&gt;</span> <span class="bu">str</span>:</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    <span class="co">&quot;&quot;&quot;Текущий список задач в читаемом формате.&quot;&quot;&quot;</span></span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> tasks:</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="st">&quot;Список задач пуст.&quot;</span></span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    lines <span class="op">=</span> [<span class="ss">f&quot;</span><span class="sc">{</span><span class="st">&#39;✓&#39;</span> <span class="cf">if</span> t[<span class="st">&#39;done&#39;</span>] <span class="cf">else</span> <span class="st">&#39;○&#39;</span><span class="sc">}</span><span class="ss"> [</span><span class="sc">{</span>t[<span class="st">&#39;priority&#39;</span>]<span class="sc">}</span><span class="ss">] </span><span class="sc">{</span>t[<span class="st">&#39;title&#39;</span>]<span class="sc">}</span><span class="ss">&quot;</span> <span class="cf">for</span> t <span class="kw">in</span> tasks]</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> <span class="st">&quot;</span><span class="ch">\n</span><span class="st">&quot;</span>.join(lines)</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">&quot;__main__&quot;</span>:</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    mcp.run()</span></code></pre></div>
+        <h2 id="вариант-2-nodejs-сервер">Вариант 2: Node.js-сервер</h2>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install @modelcontextprotocol/sdk</span></code></pre></div>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode typescript"><code class="sourceCode typescript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// mcp-server.ts</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { <span class="bu">Server</span> } <span class="im">from</span> <span class="st">&quot;@modelcontextprotocol/sdk/server/index.js&quot;</span><span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> { StdioServerTransport } <span class="im">from</span> <span class="st">&quot;@modelcontextprotocol/sdk/server/stdio.js&quot;</span><span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> {</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  ListToolsRequestSchema<span class="op">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  CallToolRequestSchema<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>} <span class="im">from</span> <span class="st">&quot;@modelcontextprotocol/sdk/types.js&quot;</span><span class="op">;</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> server <span class="op">=</span> <span class="kw">new</span> <span class="bu">Server</span>(</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  { name<span class="op">:</span> <span class="st">&quot;my-tools&quot;</span><span class="op">,</span> version<span class="op">:</span> <span class="st">&quot;1.0.0&quot;</span> }<span class="op">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  { capabilities<span class="op">:</span> { tools<span class="op">:</span> {} } }</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>server<span class="op">.</span><span class="fu">setRequestHandler</span>(ListToolsRequestSchema<span class="op">,</span> <span class="kw">async</span> () <span class="kw">=&gt;</span> ({</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  tools<span class="op">:</span> [</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    {</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      name<span class="op">:</span> <span class="st">&quot;get_timestamp&quot;</span><span class="op">,</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>      description<span class="op">:</span> <span class="st">&quot;Возвращает текущее время в ISO формате&quot;</span><span class="op">,</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>      inputSchema<span class="op">:</span> { type<span class="op">:</span> <span class="st">&quot;object&quot;</span><span class="op">,</span> properties<span class="op">:</span> {}<span class="op">,</span> required<span class="op">:</span> [] }<span class="op">,</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    }<span class="op">,</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  ]<span class="op">,</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>}))<span class="op">;</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>server<span class="op">.</span><span class="fu">setRequestHandler</span>(CallToolRequestSchema<span class="op">,</span> <span class="kw">async</span> (request) <span class="kw">=&gt;</span> {</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (request<span class="op">.</span><span class="at">params</span><span class="op">.</span><span class="at">name</span> <span class="op">===</span> <span class="st">&quot;get_timestamp&quot;</span>) {</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> {</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>      content<span class="op">:</span> [{ type<span class="op">:</span> <span class="st">&quot;text&quot;</span><span class="op">,</span> text<span class="op">:</span> <span class="kw">new</span> <span class="bu">Date</span>()<span class="op">.</span><span class="fu">toISOString</span>() }]<span class="op">,</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    }<span class="op">;</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  <span class="cf">throw</span> <span class="kw">new</span> <span class="bu">Error</span>(<span class="vs">`Unknown tool: </span><span class="sc">${</span>request<span class="op">.</span><span class="at">params</span><span class="op">.</span><span class="at">name</span><span class="sc">}</span><span class="vs">`</span>)<span class="op">;</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a><span class="kw">const</span> transport <span class="op">=</span> <span class="kw">new</span> <span class="fu">StdioServerTransport</span>()<span class="op">;</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> server<span class="op">.</span><span class="fu">connect</span>(transport)<span class="op">;</span></span></code></pre></div>
+        <h2 id="регистрация-в-antigravity">Регистрация в
+        Antigravity</h2>
+        <p>Добавь сервер в <code>mcp_config.json</code> в корне
+        проекта:</p>
+        <div class="sourceCode" id="cb6"><pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mcpServers&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;task-manager&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;command&quot;</span><span class="fu">:</span> <span class="st">&quot;python&quot;</span><span class="fu">,</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;args&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;/absolute/path/to/mcp_tasks.py&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;env&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;DATABASE_URL&quot;</span><span class="fu">:</span> <span class="st">&quot;${DATABASE_URL}&quot;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">}</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">},</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;my-ts-tools&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;command&quot;</span><span class="fu">:</span> <span class="st">&quot;node&quot;</span><span class="fu">,</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;args&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;dist/mcp-server.js&quot;</span><span class="ot">]</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+        <p>После сохранения перейди в <strong>Settings → MCP
+        Servers</strong> — сервер должен появиться со статусом
+        <code>online</code>.</p>
+        <h2 id="docker-деплой">Docker-деплой</h2>
+        <p>Для изолированных серверов с зависимостями:</p>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode json"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;mcpServers&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;my-db-server&quot;</span><span class="fu">:</span> <span class="fu">{</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;command&quot;</span><span class="fu">:</span> <span class="st">&quot;docker&quot;</span><span class="fu">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      <span class="dt">&quot;args&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;run&quot;</span><span class="ot">,</span> <span class="st">&quot;--rm&quot;</span><span class="ot">,</span> <span class="st">&quot;-i&quot;</span><span class="ot">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;--network&quot;</span><span class="ot">,</span> <span class="st">&quot;host&quot;</span><span class="ot">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;-e&quot;</span><span class="ot">,</span> <span class="st">&quot;DATABASE_URL&quot;</span><span class="ot">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;my-mcp-server:latest&quot;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>      <span class="ot">]</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">}</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">}</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+        <div class="sourceCode" id="cb8"><pre
+        class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Dockerfile</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> python:3.12-slim</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> requirements.txt .</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">pip</span> install <span class="at">--no-cache-dir</span> <span class="at">-r</span> requirements.txt</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> mcp_tasks.py .</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">&quot;python&quot;</span>, <span class="st">&quot;mcp_tasks.py&quot;</span>]</span></code></pre></div>
+        <h2 id="типичные-кейсы-для-собственного-mcp-сервера">Типичные
+        кейсы для собственного MCP-сервера</h2>
+        <table>
+        <thead>
+        <tr>
+        <th>Кейс</th>
+        <th>Что реализует</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Внутренний API компании</td>
+        <td>Tools для CRUD операций</td>
+        </tr>
+        <tr>
+        <td>Корпоративная документация</td>
+        <td>Resources с поиском по базе знаний</td>
+        </tr>
+        <tr>
+        <td>Специфический CLI</td>
+        <td>Tools оборачивают shell-команды</td>
+        </tr>
+        <tr>
+        <td>Мониторинг</td>
+        <td>Resources читают метрики в реальном времени</td>
+        </tr>
+        <tr>
+        <td>Секреты и конфиги</td>
+        <td>Tools для безопасного чтения из Vault/AWS SM</td>
+        </tr>
+        </tbody>
+        </table>
+        <h2 id="отладка">Отладка</h2>
+        <div class="sourceCode" id="cb9"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Запусти сервер вручную и пошли тестовый JSON-RPC запрос</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&#39;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;,&quot;params&quot;:{}}&#39;</span> <span class="kw">|</span> <span class="ex">python</span> mcp_tasks.py</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Проверь, что сервер отвечает корректным JSON</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="ex">python</span> mcp_tasks.py <span class="op">&lt;&lt;&lt;</span> <span class="st">&#39;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:2,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{&quot;name&quot;:&quot;list_tasks&quot;,&quot;arguments&quot;:{}}}&#39;</span></span></code></pre></div>
+        <h2 id="практика">Практика</h2>
+        <ol type="1">
+        <li>Создай MCP-сервер, оборачивающий
+        <code>git log --oneline -20</code> как инструмент
+        <code>get_recent_commits</code></li>
+        <li>Добавь Resource, который читает содержимое
+        <code>CHANGELOG.md</code></li>
+        <li>Зарегистрируй в <code>mcp_config.json</code> и вызови из
+        чата Antigravity командой: «Покажи последние 10 коммитов»</li>
+        </ol>
+        <h2 id="дополнительные-паттерны">Дополнительные паттерны</h2>
+        <h3 id="распределенные-системы">Распределенные системы</h3>
+        <ul>
+        <li>Асинхронная обработка</li>
+        <li>Message queues</li>
+        <li>Event streaming</li>
+        <li>Распределенные транзакции</li>
+        </ul>
+        <h2 id="рекомендуемые-источники">Рекомендуемые источники</h2>
+        <ol type="1">
+        <li>Distributed Systems Design</li>
+        <li>Microservices Patterns</li>
+        </ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

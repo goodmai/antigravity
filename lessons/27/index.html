@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 3: Управление диалогом и логика промпт-инжиниринга | Anti-Gravity Academy</title>
+    <title>Урок 27: Управление диалогом и логика
+промпт-инжиниринга | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -86,11 +87,6 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-      }
-
-      h2 {
-        font-size: 1.5rem;
-        margin-top: 1.5rem;
       }
 
       p {
@@ -182,46 +178,130 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Урок 3: Управление диалогом и логика промпт-инжиниринга</h1>
-<p>Диалог с моделью — это изолированный "контекстный контейнер". Независимо от того, используете ли вы мобильное приложение или консоль ПК, логика работы с памятью одинакова.</p>
-<h2>Структура контекста в диалоге</h2>
-<p>Каждый раз, когда вы отправляете сообщение, система берет ВСЮ предыдущую переписку в текущем чате, приклеивает к ней ваш новый вопрос и отправляет этот текстовый массив (вектор) на сервера. Это означает, что чем дольше длится чат, тем больше вычислительных ресурсов (токенов) расходуется. Логический эквивалент команды `/clear` (на ПК) — это создание нового чата (на смартфоне). Это обнуляет матрицу внимания ИИ, предотвращая смешивание тем.</p>
-<h2>Структура эффективного промпта</h2>
-<p>Промпт-инжиниринг опирается на строгую структуру. Эффективный запрос должен содержать:</p>
-  <li>**Роль** — например, "Действуй как математик"</li>
-<p>2. **Задачу** — "Реши уравнение"</p>
-<p>3. **Контекст** — "Уравнение из области линейной алгебры"</p>
-<p>4. **Формат вывода** — "Ответ дай по шагам"</p>
-<p>Такая декомпозиция снижает энтропию ответов модели.</p>
-<h2>Пример структурированного промпта</h2>
-<pre><code>Роль: Выступай в роли опытного Python-разработчика
+        <h1
+        id="урок-27-управление-диалогом-и-логика-промпт-инжиниринга">Урок
+        27: Управление диалогом и логика промпт-инжиниринга</h1>
+        <p>Диалог с моделью — это изолированный "контекстный контейнер".
+        Независимо от того, используете ли вы мобильное приложение или
+        консоль ПК, логика работы с памятью одинакова.</p>
+        <h2 id="структура-контекста-в-диалоге">Структура контекста в
+        диалоге</h2>
+        <p>Каждый раз, когда вы отправляете сообщение, система берет ВСЮ
+        предыдущую переписку в текущем чате, приклеивает к ней ваш новый
+        вопрос и отправляет этот текстовый массив (вектор) на сервера.
+        Это означает, что чем дольше длится чат, тем больше
+        вычислительных ресурсов (токенов) расходуется. Логический
+        эквивалент команды <code>/clear</code> (на ПК) — это создание
+        нового чата (на смартфоне). Это обнуляет матрицу внимания ИИ,
+        предотвращая смешивание тем.</p>
+        <h2 id="структура-эффективного-промпта">Структура эффективного
+        промпта</h2>
+        <p>Промпт-инжиниринг опирается на строгую структуру. Эффективный
+        запрос должен содержать:</p>
+        <ol type="1">
+        <li><strong>Роль</strong> — например, "Действуй как
+        математик"</li>
+        <li><strong>Задачу</strong> — "Реши уравнение"</li>
+        <li><strong>Контекст</strong> — "Уравнение из области линейной
+        алгебры"</li>
+        <li><strong>Формат вывода</strong> — "Ответ дай по шагам"</li>
+        </ol>
+        <p>Такая декомпозиция снижает энтропию ответов модели.</p>
+        <h2 id="пример-структурированного-промпта">Пример
+        структурированного промпта</h2>
+        <pre><code>Роль: Выступай в роли опытного Python-разработчика
 Задача: Напиши функцию для сортировки списка
 Контекст: Функция должна работать с массивом целых чисел до 1000 элементов
 Формат: Дай код с объяснением построчно</code></pre>
-<h2>Источники для Урока 3</h2>
-  <li>Официальная документация (Prompt Engineering): https://docs.anthropic.com/en/docs/prompt-engineering</li>
-<p>2. Сторонние исследования (Learn Prompting): https://learnprompting.org/docs/intro</p>
-<h2>Практические задания</h2>
-  <li>**Очистка контекста**: Создайте новый чат (или введите `/clear` на ПК). Логически объясните, почему это действие аналогично очистке оперативной памяти.</li>
-<p>2. **Структурированный промпт**: Напишите промпт, состоящий из 4 элементов (Роль, Задача, Контекст, Формат вывода), и отправьте его Claude.</p>
-<p>3. **Эксперимент с контекстом**: Проведите эксперимент — задайте один вопрос в очень длинном чате и его же в совершенно новом. Сравните точность ответов.</p>
-<p>4. **Формат вывода**: Сформулируйте математическую задачу и попросите ИИ решить ее, указав формат вывода "только итоговая цифра, без пояснений".</p>
-<p>5. **Анализ роли**: Проанализируйте, почему добавление роли меняет структуру токенов в ответе.</p>
-<h2>Когда использовать `/clear`</h2>
-  <li>Переход к совершенно новой теме</li>
-  <li>Если диалог стал слишком долгим (>50 сообщений)</li>
-  <li>Когда нужно сбросить введенные ранее правила/роли</li>
-  <li>Для оптимизации стоимости и скорости обработки</li>
-<h2>Типичные ошибки в промпт-инжиниринге</h2>
-<p>❌ **Плохо**: "Напиши код"</p>
-<p>✅ **Хорошо**: "Напиши Python-функцию для фильтрации списка дубликатов. Входные данные: список строк. Выходные данные: JSON с чистыми значениями. Объясни логику."</p>
-<p>❌ **Плохо**: "Реши задачу по матану"</p>
-<p>✅ **Хорошо**: "Реши интеграл ∫(2x+3)dx с пояснением каждого шага. Формат: пошаговое решение."</p>
+        <h2 id="источники-для-урока-3">Источники для Урока 3</h2>
+        <ol type="1">
+        <li>Официальная документация (Prompt Engineering): <a
+        href="https://docs.anthropic.com/en/docs/prompt-engineering">https://docs.anthropic.com/en/docs/prompt-engineering</a></li>
+        <li>Сторонние исследования (Learn Prompting): <a
+        href="https://learnprompting.org/docs/intro">https://learnprompting.org/docs/intro</a></li>
+        </ol>
+        <h2 id="практические-задания">Практические задания</h2>
+        <ol type="1">
+        <li><p><strong>Очистка контекста</strong>: Создайте новый чат
+        (или введите <code>/clear</code> на ПК). Логически объясните,
+        почему это действие аналогично очистке оперативной
+        памяти.</p></li>
+        <li><p><strong>Структурированный промпт</strong>: Напишите
+        промпт, состоящий из 4 элементов (Роль, Задача, Контекст, Формат
+        вывода), и отправьте его Claude.</p></li>
+        <li><p><strong>Эксперимент с контекстом</strong>: Проведите
+        эксперимент — задайте один вопрос в очень длинном чате и его же
+        в совершенно новом. Сравните точность ответов.</p></li>
+        <li><p><strong>Формат вывода</strong>: Сформулируйте
+        математическую задачу и попросите ИИ решить ее, указав формат
+        вывода "только итоговая цифра, без пояснений".</p></li>
+        <li><p><strong>Анализ роли</strong>: Проанализируйте, почему
+        добавление роли меняет структуру токенов в ответе.</p></li>
+        </ol>
+        <h2 id="когда-использовать-clear">Когда использовать
+        <code>/clear</code></h2>
+        <ul>
+        <li>Переход к совершенно новой теме</li>
+        <li>Если диалог стал слишком долгим (&gt;50 сообщений)</li>
+        <li>Когда нужно сбросить введенные ранее правила/роли</li>
+        <li>Для оптимизации стоимости и скорости обработки</li>
+        </ul>
+        <h2 id="типичные-ошибки-в-промпт-инжиниринге">Типичные ошибки в
+        промпт-инжиниринге</h2>
+        <p>❌ <strong>Плохо</strong>: "Напиши код" ✅
+        <strong>Хорошо</strong>: "Напиши Python-функцию для фильтрации
+        списка дубликатов. Входные данные: список строк. Выходные
+        данные: JSON с чистыми значениями. Объясни логику."</p>
+        <p>❌ <strong>Плохо</strong>: "Реши задачу по матану" ✅
+        <strong>Хорошо</strong>: "Реши интеграл ∫(2x+3)dx с пояснением
+        каждого шага. Формат: пошаговое решение."</p>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

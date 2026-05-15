@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 2: Развертывание среды на ПК и мобильных устройствах | Anti-Gravity Academy</title>
+    <title>Урок 26: Развертывание среды на ПК и мобильных
+устройствах | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -86,11 +87,6 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-      }
-
-      h2 {
-        font-size: 1.5rem;
-        margin-top: 1.5rem;
       }
 
       p {
@@ -182,44 +178,153 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Урок 2: Развертывание среды на ПК и мобильных устройствах</h1>
-<p>Развертывание ИИ-ассистента возможно в двух независимых средах: полноценный интерфейс командной строки (CLI) для персональных компьютеров и изолированная песочница в виде официального приложения для мобильных устройств.</p>
-<h2>Инсталляция на ПК (macOS и Ubuntu)</h2>
-<p>Инсталляция на десктопные системы обеспечивает максимальный уровень контроля и интеграции в рабочие процессы. Процесс требует наличия среды выполнения Node.js. Установка выполняется с помощью защищенного детерминированного скрипта в терминале:</p>
-<pre><code>curl -fsSL https://claude.ai/install.sh | bash</code></pre>
-<h2>Верификационные команды на ПК</h2>
-<p>Для математически точной валидации успешной инсталляции в терминале необходимо выполнить проверочные команды:</p>
-<pre><code>claude --version     # Проверка версии установленной сборки
-which claude         # Подтверждение корректности системного пути ($PATH)
-claude /login        # Инициация защищенного OAuth-туннеля</code></pre>
-<h2>Инсталляция на мобильных устройствах (iOS и Android)</h2>
-<p>Мобильный клиент позволяет использовать мощности ИИ без сложных настроек терминального окружения (таких как Termux). Процесс установки сведен к базовому алгоритму взаимодействия с официальными маркетплейсами. Архитектура приложения обеспечивает нативный доступ к облачным API Anthropic, автоматически управляя шифрованием данных.</p>
-<h3>iOS</h3>
-<p>Перейдите в App Store, введите в поиск "Claude by Anthropic". Инициируйте загрузку. Требуется iOS 15.0+.</p>
-<h3>Android</h3>
-<p>Откройте Google Play Market. Найдите приложение "Claude". Для предотвращения фишинга убедитесь, что издатель — Anthropic PBC. Нажмите "Установить".</p>
-<h2>Источники для Урока 2</h2>
-  <li>Официальная документация (CLI Setup): https://code.claude.com/docs/setup</li>
-<p>2. Официальная документация (Mobile App): https://support.anthropic.com/en/articles/9450526-claude-for-ios-and-android</p>
-<p>3. Видеоинструкция на YouTube: https://www.youtube.com/watch?v=AJpK3YTTKZ4</p>
-<h2>Практические задания</h2>
-  <li>**Установка Node.js**: На ПК выполните команду установки Node.js, а затем установите CLI-версию Claude через предоставленный bash-скрипт.</li>
-<p>2. **Проверка инсталляции**: На ПК запустите проверочные команды (claude --version, which claude) и задокументируйте результаты вывода терминала.</p>
-<p>3. **Проверка издателя**: На смартфоне найдите официальное приложение Claude в маркетплейсе (App Store / Google Play) и сверьте имя издателя.</p>
-<p>4. **Авторизация**: Пройдите процедуру авторизации в выбранной среде (через команду claude /login на ПК или внутри мобильного приложения).</p>
-<p>5. **Тестовый запрос**: Отправьте первый тестовый запрос (например, "Рассчитай корень из 144") для верификации сетевого соединения с серверами.</p>
-<h2>Ключевые различия окружений</h2>
-| Аспект | CLI (ПК) | Мобильное приложение |
-|--------|----------|-------------------|
-| Контроль | Максимальный | Ограниченный |
-| Доступ к файлам | Полный (с подтверждением) | Только внутри песочницы |
-| Производительность | Высокая | Оптимизирована для мобильных |
-| Безопасность | Зависит от настроек ОС | Полная изоляция (Sandbox) |
+        <h1
+        id="урок-26-развертывание-среды-на-пк-и-мобильных-устройствах">Урок
+        26: Развертывание среды на ПК и мобильных устройствах</h1>
+        <p>Развертывание ИИ-ассистента возможно в двух независимых
+        средах: полноценный интерфейс командной строки (CLI) для
+        персональных компьютеров и изолированная песочница в виде
+        официального приложения для мобильных устройств.</p>
+        <h2 id="инсталляция-на-пк-macos-и-ubuntu">Инсталляция на ПК
+        (macOS и Ubuntu)</h2>
+        <p>Инсталляция на десктопные системы обеспечивает максимальный
+        уровень контроля и интеграции в рабочие процессы. Процесс
+        требует наличия среды выполнения Node.js. Установка выполняется
+        с помощью защищенного детерминированного скрипта в
+        терминале:</p>
+        <div class="sourceCode" id="cb1"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-fsSL</span> https://claude.ai/install.sh <span class="kw">|</span> <span class="fu">bash</span></span></code></pre></div>
+        <h2 id="верификационные-команды-на-пк">Верификационные команды
+        на ПК</h2>
+        <p>Для математически точной валидации успешной инсталляции в
+        терминале необходимо выполнить проверочные команды:</p>
+        <div class="sourceCode" id="cb2"><pre
+        class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span> <span class="at">--version</span>     <span class="co"># Проверка версии установленной сборки</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">which</span> claude         <span class="co"># Подтверждение корректности системного пути ($PATH)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">claude</span> /login        <span class="co"># Инициация защищенного OAuth-туннеля</span></span></code></pre></div>
+        <h2
+        id="инсталляция-на-мобильных-устройствах-ios-и-android">Инсталляция
+        на мобильных устройствах (iOS и Android)</h2>
+        <p>Мобильный клиент позволяет использовать мощности ИИ без
+        сложных настроек терминального окружения (таких как Termux).
+        Процесс установки сведен к базовому алгоритму взаимодействия с
+        официальными маркетплейсами. Архитектура приложения обеспечивает
+        нативный доступ к облачным API Anthropic, автоматически управляя
+        шифрованием данных.</p>
+        <h3 id="ios">iOS</h3>
+        <p>Перейдите в App Store, введите в поиск "Claude by Anthropic".
+        Инициируйте загрузку. Требуется iOS 15.0+.</p>
+        <h3 id="android">Android</h3>
+        <p>Откройте Google Play Market. Найдите приложение "Claude". Для
+        предотвращения фишинга убедитесь, что издатель — Anthropic PBC.
+        Нажмите "Установить".</p>
+        <h2 id="источники-для-урока-2">Источники для Урока 2</h2>
+        <ol type="1">
+        <li>Официальная документация (CLI Setup): <a
+        href="https://code.claude.com/docs/setup">https://code.claude.com/docs/setup</a></li>
+        <li>Официальная документация (Mobile App): <a
+        href="https://support.anthropic.com/en/articles/9450526-claude-for-ios-and-android">https://support.anthropic.com/en/articles/9450526-claude-for-ios-and-android</a></li>
+        <li>Видеоинструкция на YouTube: <a
+        href="https://www.youtube.com/watch?v=AJpK3YTTKZ4">https://www.youtube.com/watch?v=AJpK3YTTKZ4</a></li>
+        </ol>
+        <h2 id="практические-задания">Практические задания</h2>
+        <ol type="1">
+        <li><p><strong>Установка Node.js</strong>: На ПК выполните
+        команду установки Node.js, а затем установите CLI-версию Claude
+        через предоставленный bash-скрипт.</p></li>
+        <li><p><strong>Проверка инсталляции</strong>: На ПК запустите
+        проверочные команды (claude --version, which claude) и
+        задокументируйте результаты вывода терминала.</p></li>
+        <li><p><strong>Проверка издателя</strong>: На смартфоне найдите
+        официальное приложение Claude в маркетплейсе (App Store / Google
+        Play) и сверьте имя издателя.</p></li>
+        <li><p><strong>Авторизация</strong>: Пройдите процедуру
+        авторизации в выбранной среде (через команду claude /login на ПК
+        или внутри мобильного приложения).</p></li>
+        <li><p><strong>Тестовый запрос</strong>: Отправьте первый
+        тестовый запрос (например, "Рассчитай корень из 144") для
+        верификации сетевого соединения с серверами.</p></li>
+        </ol>
+        <h2 id="ключевые-различия-окружений">Ключевые различия
+        окружений</h2>
+        <table>
+        <thead>
+        <tr>
+        <th>Аспект</th>
+        <th>CLI (ПК)</th>
+        <th>Мобильное приложение</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>Контроль</td>
+        <td>Максимальный</td>
+        <td>Ограниченный</td>
+        </tr>
+        <tr>
+        <td>Доступ к файлам</td>
+        <td>Полный (с подтверждением)</td>
+        <td>Только внутри песочницы</td>
+        </tr>
+        <tr>
+        <td>Производительность</td>
+        <td>Высокая</td>
+        <td>Оптимизирована для мобильных</td>
+        </tr>
+        <tr>
+        <td>Безопасность</td>
+        <td>Зависит от настроек ОС</td>
+        <td>Полная изоляция (Sandbox)</td>
+        </tr>
+        </tbody>
+        </table>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026

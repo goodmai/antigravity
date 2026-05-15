@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>&#x423;&#x440;&#x43E;&#x43A; 16: &#x41C;&#x43E;&#x431;&#x438;&#x43B;&#x44C;&#x43D;&#x430;&#x44F; &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x430; | Anti-Gravity Academy</title>
+    <title>Урок 16: Мобильная разработка | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -84,6 +84,7 @@
         font-weight: 800;
         background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
       }
 
@@ -141,6 +142,30 @@
         border: 1px solid var(--glass-border);
       }
 
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
       .footer {
         margin-top: 60px;
         padding-top: 20px;
@@ -152,47 +177,141 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">&#x2190; &#x41D;&#x430;&#x437;&#x430;&#x434; &#x43A; &#x441;&#x43F;&#x438;&#x441;&#x43A;&#x443; &#x443;&#x440;&#x43E;&#x43A;&#x43E;&#x432;</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1 id="&#x443;&#x440;&#x43E;&#x43A;-16-&#x43C;&#x43E;&#x431;&#x438;&#x43B;&#x44C;&#x43D;&#x430;&#x44F;-&#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x430;">&#x423;&#x440;&#x43E;&#x43A; 16: &#x41C;&#x43E;&#x431;&#x438;&#x43B;&#x44C;&#x43D;&#x430;&#x44F;
-        &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x430;</h1>
-        <p>Antigravity &#x2014; &#x43E;&#x442;&#x43B;&#x438;&#x447;&#x43D;&#x44B;&#x439; &#x43D;&#x430;&#x43F;&#x430;&#x440;&#x43D;&#x438;&#x43A; &#x434;&#x43B;&#x44F; &#x43C;&#x43E;&#x431;&#x438;&#x43B;&#x44C;&#x43D;&#x43E;&#x439; &#x440;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x43A;&#x438;,
-        &#x43F;&#x43E;&#x434;&#x434;&#x435;&#x440;&#x436;&#x438;&#x432;&#x430;&#x44E;&#x449;&#x438;&#x439; &#x43A;&#x430;&#x43A; Flutter, &#x442;&#x430;&#x43A; &#x438; React Native.</p>
+        <h1 id="урок-16-мобильная-разработка">Урок 16: Мобильная
+        разработка</h1>
+        <p>Antigravity — отличный напарник для мобильной разработки,
+        поддерживающий как Flutter, так и React Native.</p>
         <hr />
-        <h2 id="flutter">&#x1F499; Flutter</h2>
-        <p>&#x411;&#x43B;&#x430;&#x433;&#x43E;&#x434;&#x430;&#x440;&#x44F; &#x201C;&#x440;&#x43E;&#x434;&#x441;&#x442;&#x432;&#x443;&#x201D; &#x441; Google, &#x43F;&#x43E;&#x434;&#x434;&#x435;&#x440;&#x436;&#x43A;&#x430; Dart &#x440;&#x430;&#x431;&#x43E;&#x442;&#x430;&#x435;&#x442;
-        &#x438;&#x434;&#x435;&#x430;&#x43B;&#x44C;&#x43D;&#x43E;.</p>
+        <h2 id="blue_heart-flutter">💙 Flutter</h2>
+        <p>Благодаря "родству" с Google, поддержка Dart работает
+        идеально.</p>
         <ul>
-        <li><strong>&#x413;&#x435;&#x43D;&#x435;&#x440;&#x430;&#x446;&#x438;&#x44F; UI</strong>: &#x410;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x438;&#x448;&#x435;&#x442; &#x432;&#x438;&#x434;&#x436;&#x435;&#x442;&#x44B; &#x43F;&#x43E;
-        &#x441;&#x43A;&#x440;&#x438;&#x43D;&#x448;&#x43E;&#x442;&#x430;&#x43C; &#x43C;&#x430;&#x43A;&#x435;&#x442;&#x43E;&#x432;.</li>
-        <li><strong>State Management</strong>: &#x420;&#x435;&#x430;&#x43B;&#x438;&#x437;&#x443;&#x435;&#x442; &#x43B;&#x43E;&#x433;&#x438;&#x43A;&#x443; &#x43D;&#x430;
-        Provider, Riverpod &#x438;&#x43B;&#x438; BLoC.</li>
-        <li><strong>Hot Reload Loop</strong>: &#x410;&#x433;&#x435;&#x43D;&#x442; &#x441;&#x43B;&#x435;&#x434;&#x438;&#x442; &#x437;&#x430; &#x43B;&#x43E;&#x433;&#x430;&#x43C;&#x438;
-        <code>flutter run</code> &#x438; &#x43F;&#x440;&#x430;&#x432;&#x438;&#x442; &#x43E;&#x448;&#x438;&#x431;&#x43A;&#x438; &#x201C;&#x43D;&#x430; &#x43B;&#x435;&#x442;&#x443;&#x201D;.</li>
+        <li><strong>Генерация UI</strong>: Агент пишет виджеты по
+        скриншотам макетов.</li>
+        <li><strong>State Management</strong>: Реализует логику на
+        Provider, Riverpod или BLoC.</li>
+        <li><strong>Hot Reload Loop</strong>: Агент следит за логами
+        <code>flutter run</code> и правит ошибки "на лету".</li>
         </ul>
         <hr />
-        <h2 id="react-native-expo">&#x269B;&#xFE0F; React Native &amp; Expo</h2>
-        <p>&#x414;&#x43B;&#x44F; React Native &#x430;&#x433;&#x435;&#x43D;&#x442; &#x43F;&#x440;&#x435;&#x434;&#x43F;&#x43E;&#x447;&#x438;&#x442;&#x430;&#x435;&#x442;
+        <h2 id="atom_symbol-react-native--expo">⚛️ React Native &amp;
+        Expo</h2>
+        <p>Для React Native агент предпочитает
         <strong>Expo</strong>.</p>
         <ul>
-        <li>&#x410;&#x433;&#x435;&#x43D;&#x442; &#x431;&#x435;&#x440;&#x435;&#x442; &#x43D;&#x430; &#x441;&#x435;&#x431;&#x44F; &#x441;&#x43B;&#x43E;&#x436;&#x43D;&#x443;&#x44E; &#x43D;&#x430;&#x441;&#x442;&#x440;&#x43E;&#x439;&#x43A;&#x443; &#x43E;&#x43A;&#x440;&#x443;&#x436;&#x435;&#x43D;&#x438;&#x44F;.</li>
-        <li>&#x41D;&#x430;&#x432;&#x438;&#x433;&#x430;&#x446;&#x438;&#x44F; &#x447;&#x435;&#x440;&#x435;&#x437; Expo Router.</li>
-        <li>&#x418;&#x43D;&#x442;&#x435;&#x433;&#x440;&#x430;&#x446;&#x438;&#x44F; &#x43D;&#x430;&#x442;&#x438;&#x432;&#x43D;&#x44B;&#x445; &#x43C;&#x43E;&#x434;&#x443;&#x43B;&#x435;&#x439;.</li>
+        <li>Агент берет на себя сложную настройку окружения.</li>
+        <li>Навигация через Expo Router.</li>
+        <li>Интеграция нативных модулей.</li>
         </ul>
-        <p>&#x41A;&#x435;&#x439;&#x441;: &#x420;&#x430;&#x437;&#x440;&#x430;&#x431;&#x43E;&#x442;&#x447;&#x438;&#x43A;&#x438; &#x441;&#x43E;&#x437;&#x434;&#x430;&#x44E;&#x442; MVP &#x43F;&#x440;&#x438;&#x43B;&#x43E;&#x436;&#x435;&#x43D;&#x438;&#x439; &#x437;&#x430; &#x43E;&#x434;&#x438;&#x43D; &#x432;&#x435;&#x447;&#x435;&#x440;,
-        &#x438;&#x441;&#x43F;&#x43E;&#x43B;&#x44C;&#x437;&#x443;&#x44F; Antigravity &#x434;&#x43B;&#x44F; &#x43A;&#x43E;&#x434;&#x430; &#x438; Expo Go &#x434;&#x43B;&#x44F; &#x442;&#x435;&#x441;&#x442;&#x430; &#x43D;&#x430;
-        &#x442;&#x435;&#x43B;&#x435;&#x444;&#x43E;&#x43D;&#x435;.</p>
+        <p>Кейс: Разработчики создают MVP приложений за один вечер,
+        используя Antigravity для кода и Expo Go для теста на
+        телефоне.</p>
         <hr />
-        <h2 id="&#x437;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;">&#x1F4DD; &#x417;&#x430;&#x434;&#x430;&#x43D;&#x438;&#x435;</h2>
-        <p>&#x41F;&#x43E;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x435; &#x430;&#x433;&#x435;&#x43D;&#x442;&#x430;: <em>&#x201C;&#x41D;&#x430;&#x43F;&#x438;&#x448;&#x438; &#x43F;&#x440;&#x43E;&#x441;&#x442;&#x43E;&#x439; &#x44D;&#x43A;&#x440;&#x430;&#x43D; &#x43B;&#x43E;&#x433;&#x438;&#x43D;&#x430; &#x43D;&#x430; Flutter
-        &#x441; &#x432;&#x430;&#x43B;&#x438;&#x434;&#x430;&#x446;&#x438;&#x435;&#x439; &#x43F;&#x43E;&#x43B;&#x435;&#x439;&#x201D;</em>.</p>
+        <h2 id="pencil-задание">📝 Задание</h2>
+        <p>Попросите агента: <em>"Напиши простой экран логина на Flutter
+        с валидацией полей"</em>.</p>
+        <h2 id="microscope-как-это-работает-глубже">🔬 Как это работает
+        глубже</h2>
+        <p>Сила агента в мобильной разработке — <strong>петля
+        hot-reload</strong>:</p>
+        <pre><code>правка кода → flutter run / expo подхватывает →
+агент читает лог рантайма → видит ошибку → правит → повтор</code></pre>
+        <p>Агент не пересобирает приложение с нуля, а реагирует на лог
+        <code>flutter run</code> / Metro в реальном времени — это резко
+        сокращает цикл «ошибка → фикс».</p>
+        <p>Выбор стека влияет на стратегию: Flutter (Dart) даёт единый
+        рендер и предсказуемый UI; React Native + <strong>Expo</strong>
+        снимает боль нативной настройки окружения (агент предпочитает
+        Expo именно поэтому).</p>
+        <h2 id="warning-типичные-ошибки">⚠️ Типичные ошибки</h2>
+        <ul>
+        <li><strong>State в виджете вместо state-management</strong> —
+        UI рассыпается при росте.</li>
+        <li><strong>Игнор адаптивности</strong> — вёрстка ломается на
+        других разрешениях.</li>
+        <li><strong>Bare React Native без Expo</strong> — лишняя боль с
+        нативным окружением для MVP.</li>
+        <li><strong>Нет валидации формы</strong> — «экран логина» без
+        обработки ошибок ввода.</li>
+        </ul>
+        <h2 id="brain-ключевые-концепции">🧠 Ключевые концепции</h2>
+        <ul>
+        <li><strong>Hot-reload loop</strong> — агент чинит по живому
+        логу рантайма.</li>
+        <li><strong>State management</strong> (Provider/Riverpod/BLoC,
+        hooks) — управляемое состояние.</li>
+        <li><strong>Expo</strong> — упрощённое окружение для React
+        Native.</li>
+        <li><strong>Адаптивность</strong> — корректная вёрстка на разных
+        экранах.</li>
+        </ul>
+        <h2 id="test_tube-практика">🧪 Практика</h2>
+        <p>Прототип экрана — в <strong><a
+        href="../../labs/16/index.html">Лабе 16 — Мобильная разработка с
+        агентом</a></strong> (7 задач): среда, экран логина с
+        валидацией, state management, hot-reload цикл, навигация,
+        адаптивность, сборка артефакта.</p>
+        <h2 id="books-источники">📚 Источники</h2>
+        <ol type="1">
+        <li>Flutter — <a
+        href="https://docs.flutter.dev/">https://docs.flutter.dev/</a></li>
+        <li>Expo (React Native) — <a
+        href="https://docs.expo.dev/">https://docs.expo.dev/</a></li>
+        <li>Material Design (мобильный UI/UX) — <a
+        href="https://m3.material.io/">https://m3.material.io/</a></li>
+        </ol>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
       </footer>
     </div>
+    <script src="../progress.js"></script>
   </body>
 </html>

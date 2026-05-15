@@ -122,6 +122,22 @@
       ar: 'منتج واحد مصمم بثلاث طرق على شبكة ثابتة من 9 لبنات: الكلاسيكي، Google Cloud والنظائر اللامركزية. مقايضات وADR ومخططات C4 ومصفوفة اختيار 9×3.',
       fr: "Un produit conçu de trois façons sur une grille fixe de 9 briques : classique, Google Cloud et analogues décentralisés. Trade-offs, ADR, diagrammes C4 et matrice de choix 9×3.",
     },
+    course_devsecops_title: {
+      en: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+      ru: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+      es: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+      zh: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+      ar: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+      fr: '<span style="white-space: nowrap;">CI/CD</span> DevSecOps Mastery',
+    },
+    course_devsecops_desc: {
+      en: 'From git push to signed multi-arch container in EKS & Akash. Packaging (Ubuntu/brew/iOS/Android), SonarQube + Trivy + cosign, Vault + OIDC + WebAuthn, Prometheus/Grafana/InfluxDB, Telegram/Slack/Discord alerts. Sandbox-first, no cloud bills required.',
+      ru: 'От git push до подписанного multi-arch контейнера в EKS и Akash. Сборка (Ubuntu/brew/iOS/Android), SonarQube + Trivy + cosign, Vault + OIDC + WebAuthn, Prometheus/Grafana/InfluxDB, Telegram/Slack/Discord. Sandbox-first, без облачных счетов.',
+      es: 'Desde git push hasta un contenedor multi-arch firmado en EKS y Akash. Empaquetado, SonarQube + Trivy + cosign, Vault + OIDC + WebAuthn, Prometheus/Grafana/InfluxDB, alertas. Sandbox-first, sin facturas en la nube.',
+      zh: '从 git push 到 EKS 和 Akash 中签名的 multi-arch 容器。打包、SonarQube + Trivy + cosign、Vault + OIDC + WebAuthn、Prometheus/Grafana/InfluxDB。Sandbox-first，无需云账单。',
+      ar: 'من git push إلى حاوية multi-arch موقعة في EKS و Akash. حزم، SonarQube + Trivy + cosign، Vault + OIDC + WebAuthn، Prometheus/Grafana/InfluxDB. بيئة اختبار أولاً، بدون فواتير سحابية.',
+      fr: 'De git push au conteneur multi-arch signé dans EKS & Akash. Packaging, SonarQube + Trivy + cosign, Vault + OIDC + WebAuthn, Prometheus/Grafana/InfluxDB. Sandbox-first, sans factures cloud.',
+    },
     /* ── Auth ────────────────────────────────────────── */
     auth_connect_metamask: {
       en: 'Connect MetaMask', ru: 'Подключить MetaMask', es: 'Conectar MetaMask',
@@ -214,7 +230,7 @@
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
         el.placeholder = val;
       } else {
-        el.textContent = val;
+        el.innerHTML = val;
       }
     });
 

@@ -34,17 +34,8 @@
     <!-- Centre: logo -->
     <a href="/antigravity/academy/index.html" class="nav-logo">Daskibo Academy</a>
 
-    <!-- Right: lang + theme + wallet / auth -->
+    <!-- Right: theme + wallet / auth -->
     <div class="nav-right">
-      <div class="lang-switcher" aria-label="Language">
-        <button class="lang-btn" data-lang="en" title="English">🇬🇧</button>
-        <button class="lang-btn" data-lang="ru" title="Русский">🇷🇺</button>
-        <button class="lang-btn" data-lang="es" title="Español">🇪🇸</button>
-        <button class="lang-btn" data-lang="zh" title="中文">🇨🇳</button>
-        <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
-        <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
-      </div>
-
       <!-- Theme toggle: icon only, no text label -->
       <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
         <span id="theme-icon">☀️</span>
@@ -64,6 +55,19 @@
     </div>
 
   </nav>
+
+  <!-- Second row: Flags -->
+  <div class="nav-bottom-bar" dir="ltr">
+    <div class="lang-switcher" aria-label="Language">
+      <button class="lang-btn" data-lang="en" title="English">🇬🇧</button>
+      <button class="lang-btn" data-lang="ru" title="Русский">🇷🇺</button>
+      <button class="lang-btn" data-lang="es" title="Español">🇪🇸</button>
+      <button class="lang-btn" data-lang="zh" title="中文">🇨🇳</button>
+      <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
+      <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
+      <button class="lang-btn" data-lang="it" title="Italiano">🇮🇹</button>
+    </div>
+  </div>
 </header>`;
 
   var footerHTML = `

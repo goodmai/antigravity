@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Работа с большими кодовыми
+базами | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(
+            circle at 20% 20%,
+            rgba(56, 189, 248, 0.05) 0%,
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 80% 80%,
+            rgba(129, 140, 248, 0.05) 0%,
+            transparent 25%
+          );
+        color: var(--text-main);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 60px 20px;
+      }
+
+      header {
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 20px;
+      }
+
+      .back-link {
+        color: var(--accent-primary);
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        transition: opacity 0.2s;
+      }
+
+      .back-link:hover {
+        opacity: 0.8;
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--text-main);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-dim);
+      }
+
+      code {
+        background: var(--card-bg);
+        padding: 0.2em 0.4em;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 0.9em;
+        border: 1px solid var(--glass-border);
+      }
+
+      pre {
+        background: var(--card-bg);
+        padding: 20px;
+        border-radius: 12px;
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        margin: 1.5rem 0;
+      }
+
+      pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: 0.9rem;
+      }
+
+      ul, ol {
+        margin-bottom: 1.25rem;
+        padding-left: 1.5rem;
+        color: var(--text-dim);
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      blockquote {
+        border-left: 4px solid var(--accent-primary);
+        padding-left: 20px;
+        margin: 1.5rem 0;
+        font-style: italic;
+      }
+
+      img {
+        max-width: 100%;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        border: 1px solid var(--glass-border);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 10px 14px;
+        text-align: left;
+        border: 1px solid var(--glass-border);
+        color: var(--text-dim);
+      }
+
+      th {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 600;
+      }
+
+      tr:nth-child(even) td {
+        background: rgba(30, 41, 59, 0.25);
+      }
+
+      .footer {
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--glass-border);
+        text-align: center;
+        font-size: 0.875rem;
+        color: var(--text-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <div class="container">
+      <header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
+      </header>
+      <main>
+        <h1 id="работа-с-большими-кодовыми-базами">Работа с большими
+        кодовыми базами</h1>
+        <p>Antigravity работает с контекстным окном до 2 миллионов
+        токенов. Но даже это имеет пределы — большой монорепозиторий,
+        полный логов и автогенеренных файлов, засоряет контекст и
+        снижает качество. В этом уроке — техники фокусировки, чанкинга и
+        постепенной работы с крупными проектами.</p>
+        <h2 id="проблема-большого-контекста">Проблема большого
+        контекста</h2>
+        <pre><code>Проект: 50 000 файлов, 3M строк кода
+Без управления: агент читает всё → медленно, дорого, качество падает
+
+С управлением:
+├── .antigravityignore → убрать лишнее из контекста
+├── @ Mentions → явно указать нужные файлы
+├── Chunking → разбить на независимые задачи
+└── Incremental → работать итеративно, не всё сразу</code></pre>
+        <h2 id="antigravityignore">.antigravityignore</h2>
+        <p>Файл <code>.antigravityignore</code> в корне проекта
+        исключает файлы и директории из контекста агента. Синтаксис —
+        как <code>.gitignore</code>:</p>
+        <pre class="gitignore"><code># Зависимости
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Сборка и артефакты
+dist/
+build/
+*.min.js
+*.min.css
+coverage/
+.nyc_output/
+
+# Базы данных и медиа
+*.sqlite
+*.db
+*.png
+*.jpg
+*.mp4
+*.zip
+
+# Автогенерированное
+migrations/versions/
+*.pb.go
+*_pb2.py
+openapi_generated/
+
+# Логи
+logs/
+*.log
+*.log.*
+
+# Секреты (на всякий случай)
+.env
+.env.*
+secrets/</code></pre>
+        <h3 id="контекстно-зависимое-игнорирование">Контекстно-зависимое
+        игнорирование</h3>
+        <p>Для разных задач используй разные игнор-файлы, переключая
+        через промпт:</p>
+        <pre><code>Работай только с src/api/ и tests/api/.
+Игнорируй всё остальное для этой задачи.</code></pre>
+        <h2 id="-mentions-как-точный-скоупинг">@ Mentions как точный
+        скоупинг</h2>
+        <p>Вместо «открой весь проект» — явно указывай только
+        нужное:</p>
+        <div class="sourceCode" id="cb4"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>Задача: добавь валидацию email в форму регистрации.</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>Контекст:</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>@/src/components/RegisterForm.tsx  ← только этот компонент</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>@/src/api/auth.ts                  ← API эндпоинт</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>@/src/types/user.ts                ← типы</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>Не трогай остальные файлы.</span></code></pre></div>
+        <h2 id="стратегии-чанкинга">Стратегии чанкинга</h2>
+        <h3 id="по-модулям">По модулям</h3>
+        <p>Разбивай монолитный рефакторинг на независимые модули:</p>
+        <div class="sourceCode" id="cb5"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>// workflow: modular-refactor</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Итерация 1: src/api/</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>Рефакторинг только src/api/ — async/await, типы Pydantic V2.</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>Сделай коммит: &quot;refactor(api): migrate to async/pydantic-v2&quot;</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="fu">## Итерация 2: src/services/</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>Рефакторинг только src/services/ — тот же стиль.</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>Запусти тесты для services: pytest tests/test_services.py</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>Сделай коммит.</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">## Итерация 3: src/models/</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>... и т.д.</span></code></pre></div>
+        <h3 id="по-слоям-вертикальный-чанкинг">По слоям (вертикальный
+        чанкинг)</h3>
+        <p>Для фич, которые пронизывают несколько слоёв:</p>
+        <pre><code>Фича: добавить поле phone_number в профиль пользователя
+
+Шаг 1: миграция БД (только migrations/)
+Шаг 2: модель данных (только src/models/user.py)
+Шаг 3: API schema (только src/schemas/user.py)
+Шаг 4: эндпоинты (только src/api/users.py)
+Шаг 5: тесты (только tests/test_users.py)</code></pre>
+        <p>Каждый шаг — отдельная задача с коммитом. Агент не теряет
+        фокус.</p>
+        <h2 id="управление-2m-токенным-окном">Управление 2M-токенным
+        окном</h2>
+        <h3 id="что-тяжёлое-по-токенам">Что «тяжёлое» по токенам</h3>
+        <table>
+        <thead>
+        <tr>
+        <th>Тип контента</th>
+        <th>Приблизительный вес</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <td>1000 строк Python</td>
+        <td>~2 000 токенов</td>
+        </tr>
+        <tr>
+        <td><code>package-lock.json</code> (типичный)</td>
+        <td>~50 000 токенов</td>
+        </tr>
+        <tr>
+        <td><code>node_modules/</code> (полный)</td>
+        <td>&gt;10M токенов</td>
+        </tr>
+        <tr>
+        <td>Картинка 1920×1080</td>
+        <td>~1 500 токенов</td>
+        </tr>
+        <tr>
+        <td>PDF на 100 страниц</td>
+        <td>~80 000 токенов</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="тактики-экономии">Тактики экономии</h3>
+        <div class="sourceCode" id="cb7"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Исключай lock-файлы из контекста:</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>   package-lock.json, yarn.lock, poetry.lock → добавь в .antigravityignore</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Для больших файлов — читай конкретные функции:</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>   «Прочитай только функцию calculate_discount в src/pricing.py»</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Разделяй документацию и код:</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>   docs/ → в .antigravityignore (агент не читает если не спросишь)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Используй Git как навигатор:</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>   «Смотри только на файлы из git diff HEAD~5..HEAD»</span></code></pre></div>
+        <h2 id="инкрементальный-рефакторинг">Инкрементальный
+        рефакторинг</h2>
+        <p>Подход «шаг за шагом» для legacy-кода:</p>
+        <div class="sourceCode" id="cb8"><pre
+        class="sourceCode markdown"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>// workflow: incremental-legacy-refactor</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">## Принципы</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>НЕ рефакторь весь проект за один раз</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Каждая итерация: один файл или один паттерн</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>После каждой итерации: тесты зелёные + коммит</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="fu">## Последовательность для Python legacy</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>Добавь type hints (без изменения логики)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>   → pytest → commit &quot;types: add type hints to module X&quot;</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>Мигрируй на Pydantic V2 (только модели)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>   → pytest → commit &quot;refactor: pydantic v2 migration&quot;</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>Добавь async/await (только IO-bound функции)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>   → pytest → commit &quot;perf: async io in db layer&quot;</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="ss">4. </span>Обнови зависимости (по одной библиотеке)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>   → pytest → commit &quot;deps: upgrade sqlalchemy 1.4 → 2.0&quot;</span></code></pre></div>
+        <h2 id="работа-с-монорепозиторием">Работа с
+        монорепозиторием</h2>
+        <p>Для больших monorepo с десятками сервисов:</p>
+        <pre><code>monorepo/
+├── services/
+│   ├── auth/          ← работаем здесь
+│   ├── payments/
+│   └── notifications/
+├── shared/
+│   └── types/         ← и здесь (зависимость)
+└── .antigravityignore</code></pre>
+        <pre class="gitignore"><code># .antigravityignore для работы с auth сервисом
+services/payments/
+services/notifications/
+services/*/node_modules/
+services/*/dist/</code></pre>
+        <p>Затем явно указывай:</p>
+        <pre><code>Работаю только с services/auth/ и shared/types/.
+Остальные сервисы проигнорированы.</code></pre>
+        <h2 id="метрики-эффективности">Метрики эффективности</h2>
+        <p>Как понять, что управление контекстом работает:</p>
+        <pre><code>До:   агент читает 500 файлов → 30 сек на ответ, неточный фокус
+После: агент читает 15 файлов → 3 сек на ответ, точные изменения
+
+Индикаторы плохого контекста:
+- Агент упоминает файлы, не связанные с задачей
+- Медленные ответы без сложной логики
+- «Я не нашёл файл» для существующего файла</code></pre>
+        <h2 id="практика">Практика</h2>
+        <ol type="1">
+        <li>Создай <code>.antigravityignore</code> для своего проекта,
+        исключи: <code>node_modules/</code>, <code>*.log</code>,
+        <code>dist/</code></li>
+        <li>Возьми задачу на рефакторинг и разбей её на 5 независимых
+        чанков с коммитом после каждого</li>
+        <li>Сравни время ответа и точность агента до и после настройки
+        <code>ignore</code>-файла</li>
+        </ol>
+        <h2 id="завершающие-материалы">Завершающие материалы</h2>
+        <h3 id="будущие-направления-обучения">Будущие направления
+        обучения</h3>
+        <ul>
+        <li>Advanced machine learning</li>
+        <li>Cloud architecture</li>
+        <li>Security and compliance</li>
+        <li>DevOps practices</li>
+        </ul>
+        <h2 id="рекомендуемые-источники">Рекомендуемые источники</h2>
+        <ol type="1">
+        <li>Continuous Learning Resources</li>
+        <li>Advanced Topics Documentation</li>
+        </ol>
+      </main>
+      <footer class="footer">
+        Anti-Gravity Academy &copy; 2026
+      </footer>
+    </div>
+    <script src="../progress.js"></script>
+  </body>
+</html>

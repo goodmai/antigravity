@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Урок 4: Архитектура памяти и лимиты контекстного окна | Anti-Gravity Academy</title>
+    <title>Урок 28: Архитектура памяти и лимиты контекстного
+окна | Anti-Gravity Academy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -86,11 +87,6 @@
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
-      }
-
-      h2 {
-        font-size: 1.5rem;
-        margin-top: 1.5rem;
       }
 
       p {
@@ -182,59 +178,153 @@
     </style>
   </head>
   <body>
+    <div id="google_translate_element" style="display:none;"></div>
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({pageLanguage: 'ru', autoDisplay: false}, 'google_translate_element');
+      }
+      function doGTranslate(lang) {
+        if (lang === 'ar') { document.documentElement.dir = 'rtl'; } else { document.documentElement.dir = 'ltr'; }
+        var teCombo;
+        var sel = document.getElementsByTagName('select');
+        for (var i = 0; i < sel.length; i++) {
+          if (sel[i].className.indexOf('goog-te-combo') != -1) {
+            teCombo = sel[i];
+            break;
+          }
+        }
+        if (document.getElementById('google_translate_element') == null || document.getElementById('google_translate_element').innerHTML.length == 0 || teCombo.length == 0 || teCombo.innerHTML.length == 0) {
+          setTimeout(function() { doGTranslate(lang) }, 500);
+        } else {
+          teCombo.value = lang;
+          if (typeof(document.createEvent) == 'function') {
+            var evt = document.createEvent('HTMLEvents');
+            evt.initEvent('change', true, true);
+            teCombo.dispatchEvent(evt);
+          } else {
+            teCombo.fireEvent('onchange');
+          }
+        }
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
     <div class="container">
       <header>
-        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="../index.html" class="back-link" style="text-decoration: none; color: var(--accent-primary);">← Назад к списку уроков</a>
+        </div>
+        <div dir="ltr" style="display: flex; justify-content: center; gap: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--glass-border);">
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('en')" title="English">🇬🇧</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ru')" title="Русский">🇷🇺</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('es')" title="Español">🇪🇸</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('zh-CN')" title="中文">🇨🇳</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('ar')" title="العربية">🇸🇦</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('fr')" title="Français">🇫🇷</button>
+          <button style="background:none; border:none; cursor:pointer; font-size:1.5rem; transition: transform 0.2s;" onclick="doGTranslate('it')" title="Italiano">🇮🇹</button>
+        </div>
       </header>
       <main>
-        <h1>Урок 4: Архитектура памяти и лимиты контекстного окна</h1>
-<p>Контекстное окно — это фундаментальное ограничение любой нейросети, определяющее максимальный объем данных, который она может "удержать в голове" за один раз. Модели Claude обладают огромным контекстным окном (до 200 000 токенов).</p>
-<h2>Феномен "Lost in the Middle"</h2>
-<p>Однако существует феномен "потери в середине" (Lost in the Middle). Исследования показывают, что ИИ лучше всего запоминает информацию, поданную в самом начале (эффект первичности) и в самом конце промпта (эффект недавности). Математическая вероятность извлечения факта из середины огромного текста статистически ниже.</p>
-<h2>Визуализация внимания</h2>
-<pre><code>Важность информации по позиции в контексте:
+        <h1
+        id="урок-28-архитектура-памяти-и-лимиты-контекстного-окна">Урок
+        28: Архитектура памяти и лимиты контекстного окна</h1>
+        <p>Контекстное окно — это фундаментальное ограничение любой
+        нейросети, определяющее максимальный объем данных, который она
+        может "удержать в голове" за один раз. Модели Claude обладают
+        огромным контекстным окном (до 200 000 токенов).</p>
+        <h2 id="феномен-lost-in-the-middle">Феномен "Lost in the
+        Middle"</h2>
+        <p>Однако существует феномен "потери в середине" (Lost in the
+        Middle). Исследования показывают, что ИИ лучше всего запоминает
+        информацию, поданную в самом начале (эффект первичности) и в
+        самом конце промпта (эффект недавности). Математическая
+        вероятность извлечения факта из середины огромного текста
+        статистически ниже.</p>
+        <h2 id="визуализация-внимания">Визуализация внимания</h2>
+        <pre><code>Важность информации по позиции в контексте:
 
 [ВЫСОКАЯ] ─────────────────────────────── [НИЗКАЯ] ─────────────────────── [ВЫСОКАЯ]
   ↑                                         ↑                                 ↑
 Начало                                    Середина                          Конец
 (Первичность)                             (Забывчивость)                    (Недавность)</code></pre>
-<h2>Стратегии использования контекстного окна</h2>
-<h3>Для закрепления правил на ПК</h3>
-<p>Используется файл конфигурации `CLAUDE.md`. На мобильном устройстве применяется "Инъекция системного промпта" — ручное закрепление правил в первом сообщении чата. Например: "В рамках диалога всегда применяй дедуктивный метод". Модель будет сохранять этот вектор внимания до переполнения окна.</p>
-<h3>Оптимальная структура длинного запроса</h3>
-  <li>**Система/правила** — в начале</li>
-<p>2. **Контекст** — сразу после правил</p>
-<p>3. **Основная задача** — в конце (где максимальное внимание)</p>
-<p>4. **Уточнения** — в самом конце</p>
-<h2>Расчет размера контекста</h2>
-<p>Если контекстное окно составляет 200 000 токенов:</p>
-  <li>Английский текст: ~266 000 слов (коэффициент 0.75)</li>
-  <li>Русский текст: ~500 000 слов (коэффициент 0.4)</li>
-<p>Это эквивалентно 1-2 небольшим романам на английском или 2-3 на русском.</p>
-<h2>Источники для Урока 4</h2>
-  <li>Исследования архитектуры памяти: https://milvus.io/fr/blog/claude-code-memory-memsearch.md</li>
-<p>2. Официальная документация (Context Window): https://docs.anthropic.com/en/docs/about-claude/models</p>
-<h2>Практические задания</h2>
-  <li>**Расчет памяти**: Рассчитайте приблизительный размер контекстного окна в словах, если предел модели составляет 200 000 токенов (коэффициент 0.75 для англ., 0.4 для русского).</li>
-<p>2. **Системное правило**: Запустите новый чат и первым сообщением установите строгое правило: "Каждое сообщение должно заканчиваться символом #".</p>
-<p>3. **Проверка прилипчивости**: Задайте 3 разных вопроса подряд в рамках этого чата и проверьте, сохраняется ли заданное математическое правило.</p>
-<p>4. **Анализ Lost in the Middle**: Изучите феномен "Lost in the Middle" и своими словами опишите, куда лучше помещать важную информацию в длинном запросе.</p>
-<p>5. **Сценарий переполнения**: Составьте сценарий, при котором переполнение контекстного окна приведет к логической ошибке (галлюцинации).</p>
-<h2>Когда контекст переполняется</h2>
-  <li>Модель начинает "забывать" информацию из начала диалога</li>
-  <li>Ответы становятся менее логичными и последовательными</li>
-  <li>Возникают противоречия с ранее установленными правилами</li>
-  <li>Может произойти "галлюцинация" — генерация несуществующей информации</li>
-<h2>Рекомендации по управлению контекстом</h2>
-<p>✅ **Делайте:**</p>
-  <li>Начинайте с самого важного</li>
-  <li>Заканчивайте основным вопросом</li>
-  <li>Используйте команду `/clear` при переходе между темами</li>
-  <li>Сохраняйте критические инструкции в начале</li>
-<p>❌ **Не делайте:**</p>
-  <li>Не помещайте ключевую информацию в середину</li>
-  <li>Не смешивайте несвязанные темы в одном диалоге</li>
-  <li>Не полагайтесь на очень старую информацию из начала длинного чата</li>
+        <h2 id="стратегии-использования-контекстного-окна">Стратегии
+        использования контекстного окна</h2>
+        <h3 id="для-закрепления-правил-на-пк">Для закрепления правил на
+        ПК</h3>
+        <p>Используется файл конфигурации <code>CLAUDE.md</code>. На
+        мобильном устройстве применяется "Инъекция системного промпта" —
+        ручное закрепление правил в первом сообщении чата. Например: "В
+        рамках диалога всегда применяй дедуктивный метод". Модель будет
+        сохранять этот вектор внимания до переполнения окна.</p>
+        <h3 id="оптимальная-структура-длинного-запроса">Оптимальная
+        структура длинного запроса</h3>
+        <ol type="1">
+        <li><strong>Система/правила</strong> — в начале</li>
+        <li><strong>Контекст</strong> — сразу после правил</li>
+        <li><strong>Основная задача</strong> — в конце (где максимальное
+        внимание)</li>
+        <li><strong>Уточнения</strong> — в самом конце</li>
+        </ol>
+        <h2 id="расчет-размера-контекста">Расчет размера контекста</h2>
+        <p>Если контекстное окно составляет 200 000 токенов:</p>
+        <ul>
+        <li>Английский текст: ~266 000 слов (коэффициент 0.75)</li>
+        <li>Русский текст: ~500 000 слов (коэффициент 0.4)</li>
+        </ul>
+        <p>Это эквивалентно 1-2 небольшим романам на английском или 2-3
+        на русском.</p>
+        <h2 id="источники-для-урока-4">Источники для Урока 4</h2>
+        <ol type="1">
+        <li>Исследования архитектуры памяти: <a
+        href="https://milvus.io/fr/blog/claude-code-memory-memsearch.md">https://milvus.io/fr/blog/claude-code-memory-memsearch.md</a></li>
+        <li>Официальная документация (Context Window): <a
+        href="https://docs.anthropic.com/en/docs/about-claude/models">https://docs.anthropic.com/en/docs/about-claude/models</a></li>
+        </ol>
+        <h2 id="практические-задания">Практические задания</h2>
+        <ol type="1">
+        <li><p><strong>Расчет памяти</strong>: Рассчитайте
+        приблизительный размер контекстного окна в словах, если предел
+        модели составляет 200 000 токенов (коэффициент 0.75 для англ.,
+        0.4 для русского).</p></li>
+        <li><p><strong>Системное правило</strong>: Запустите новый чат и
+        первым сообщением установите строгое правило: "Каждое сообщение
+        должно заканчиваться символом #".</p></li>
+        <li><p><strong>Проверка прилипчивости</strong>: Задайте 3 разных
+        вопроса подряд в рамках этого чата и проверьте, сохраняется ли
+        заданное математическое правило.</p></li>
+        <li><p><strong>Анализ Lost in the Middle</strong>: Изучите
+        феномен "Lost in the Middle" и своими словами опишите, куда
+        лучше помещать важную информацию в длинном запросе.</p></li>
+        <li><p><strong>Сценарий переполнения</strong>: Составьте
+        сценарий, при котором переполнение контекстного окна приведет к
+        логической ошибке (галлюцинации).</p></li>
+        </ol>
+        <h2 id="когда-контекст-переполняется">Когда контекст
+        переполняется</h2>
+        <ul>
+        <li>Модель начинает "забывать" информацию из начала диалога</li>
+        <li>Ответы становятся менее логичными и последовательными</li>
+        <li>Возникают противоречия с ранее установленными правилами</li>
+        <li>Может произойти "галлюцинация" — генерация несуществующей
+        информации</li>
+        </ul>
+        <h2 id="рекомендации-по-управлению-контекстом">Рекомендации по
+        управлению контекстом</h2>
+        <p>✅ <strong>Делайте:</strong></p>
+        <ul>
+        <li>Начинайте с самого важного</li>
+        <li>Заканчивайте основным вопросом</li>
+        <li>Используйте команду <code>/clear</code> при переходе между
+        темами</li>
+        <li>Сохраняйте критические инструкции в начале</li>
+        </ul>
+        <p>❌ <strong>Не делайте:</strong></p>
+        <ul>
+        <li>Не помещайте ключевую информацию в середину</li>
+        <li>Не смешивайте несвязанные темы в одном диалоге</li>
+        <li>Не полагайтесь на очень старую информацию из начала длинного
+        чата</li>
+        </ul>
       </main>
       <footer class="footer">
         Anti-Gravity Academy &copy; 2026
