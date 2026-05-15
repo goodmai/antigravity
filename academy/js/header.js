@@ -66,6 +66,7 @@
       <button class="lang-btn" data-lang="ar" title="العربية">🇸🇦</button>
       <button class="lang-btn" data-lang="fr" title="Français">🇫🇷</button>
       <button class="lang-btn" data-lang="it" title="Italiano">🇮🇹</button>
+      <button class="lang-btn" data-lang="id" title="Bahasa Indonesia">🇮🇩</button>
     </div>
   </div>
 </header>`;

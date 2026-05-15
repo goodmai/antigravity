@@ -22,12 +22,16 @@
 
 /* Light theme */
 [data-theme="light"] {
-  --bg:     #f1f5f9;
-  --bg2:    #ffffff;
-  --card:   rgba(255, 255, 255, 0.85);
-  --border: rgba(0, 0, 0, 0.08);
-  --text:   #0f172a;
-  --muted:  #475569;
+  --bg:           #f1f5f9;
+  --bg2:          #ffffff;
+  --card:         rgba(255, 255, 255, 0.85);
+  --border:       rgba(0, 0, 0, 0.08);
+  --text:         #0f172a;
+  --muted:        #475569;
+  --primary:      #0284c7;
+  --secondary:    #4f46e5;
+  --accent3:      #059669;
+  --danger:       #dc2626;
 }
 
 /* ── Reset ───────────────────────────────────────── */

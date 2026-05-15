@@ -14,6 +14,8 @@
     zh: { flag: '🇨🇳', label: '中文', dir: 'ltr' },
     ar: { flag: '🇸🇦', label: 'العربية', dir: 'rtl' },
     fr: { flag: '🇫🇷', label: 'Français', dir: 'ltr' },
+    it: { flag: '🇮🇹', label: 'Italiano', dir: 'ltr' },
+    id: { flag: '🇮🇩', label: 'Bahasa Indonesia', dir: 'ltr' },
   };
 
   var TRANSLATIONS = {
