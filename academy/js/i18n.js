@@ -204,7 +204,18 @@
   };
 
   function getSaved() {
-    try { return localStorage.getItem(STORAGE_KEY) || 'en'; } catch (e) { return 'en'; }
+    try {
+      var lang = localStorage.getItem(STORAGE_KEY);
+      if (!lang) {
+        // Migration from old key
+        lang = localStorage.getItem('antigravity_lang');
+        if (lang) {
+          localStorage.setItem(STORAGE_KEY, lang);
+          localStorage.removeItem('antigravity_lang');
+        }
+      }
+      return lang || 'en';
+    } catch (e) { return 'en'; }
   }
 
   function setSaved(lang) {

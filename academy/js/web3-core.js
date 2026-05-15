@@ -52,8 +52,8 @@ export function shortAddress(addr) {
 export function setSession(address, sig) {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
   if (typeof document !== 'undefined') {
-    document.cookie = `daskibo_wallet=${encodeURIComponent(address)}; expires=${expires}; path=/; SameSite=Lax`;
-    document.cookie = `daskibo_sig=${encodeURIComponent(sig)}; expires=${expires}; path=/; SameSite=Lax`;
+    document.cookie = `daskibo_wallet=${encodeURIComponent(address)}; expires=${expires}; path=/antigravity/; SameSite=Lax`;
+    document.cookie = `daskibo_sig=${encodeURIComponent(sig)}; expires=${expires}; path=/antigravity/; SameSite=Lax`;
   }
   try { localStorage.setItem('daskibo_wallet', address); } catch (_) {}
   try { localStorage.setItem('daskibo_sig', sig); } catch (_) {}
@@ -61,8 +61,27 @@ export function setSession(address, sig) {
 
 export function getSession() {
   try {
-    const address = localStorage.getItem('daskibo_wallet');
-    const sig     = localStorage.getItem('daskibo_sig');
+    let address = localStorage.getItem('daskibo_wallet');
+    let sig     = localStorage.getItem('daskibo_sig');
+
+    // Migration / Cookie fallback
+    if (!address || !sig) {
+      if (typeof document !== 'undefined') {
+        const cookies = document.cookie.split('; ');
+        const getCookie = (name) => {
+          const c = cookies.find(x => x.startsWith(name + '='));
+          return c ? decodeURIComponent(c.split('=')[1]) : null;
+        };
+        address = getCookie('daskibo_wallet') || localStorage.getItem('antigravity_wallet');
+        sig     = getCookie('daskibo_sig')    || localStorage.getItem('antigravity_sig');
+        
+        if (address && sig) {
+          localStorage.setItem('daskibo_wallet', address);
+          localStorage.setItem('daskibo_sig', sig);
+        }
+      }
+    }
+    
     if (address && sig) return { address, sig };
   } catch (_) {}
   return null;
@@ -71,8 +90,8 @@ export function getSession() {
 export function clearSession() {
   const past = 'Thu, 01 Jan 1970 00:00:00 GMT';
   if (typeof document !== 'undefined') {
-    document.cookie = `daskibo_wallet=; expires=${past}; path=/`;
-    document.cookie = `daskibo_sig=; expires=${past}; path=/`;
+    document.cookie = `daskibo_wallet=; expires=${past}; path=/antigravity/`;
+    document.cookie = `daskibo_sig=; expires=${past}; path=/antigravity/`;
   }
   try { localStorage.removeItem('daskibo_wallet'); } catch (_) {}
   try { localStorage.removeItem('daskibo_sig'); } catch (_) {}

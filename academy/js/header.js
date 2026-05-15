@@ -8,7 +8,18 @@
   var THEME_KEY = 'daskibo_theme';
 
   function getSavedTheme() {
-    try { return localStorage.getItem(THEME_KEY) || 'dark'; } catch (e) { return 'dark'; }
+    try {
+      var theme = localStorage.getItem(THEME_KEY);
+      if (!theme) {
+        // Migration from old key
+        theme = localStorage.getItem('antigravity_theme');
+        if (theme) {
+          localStorage.setItem(THEME_KEY, theme);
+          localStorage.removeItem('antigravity_theme');
+        }
+      }
+      return theme || 'dark';
+    } catch (e) { return 'dark'; }
   }
 
   function applyTheme(theme) {
