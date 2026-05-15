@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 1.6 · Environment promotion: PR → test → dev → prod — CI/CD DevSecOps Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">CI/CD DevSecOps Mastery</a>
+      <span class="sep">/</span>
+      <span>Lesson 1.6 · Environment promotion: PR → test → dev → prod</span>
+    </div>
+
+    <p class="lesson-meta">Module 1 — CI/CD Foundations · Lesson 1.6 · <span class="badge-mini">promotion</span></p>
+    <h1>Правильный деплой: PR → test → dev → prod</h1>
+
+    <p style="font-size:.9rem;color:var(--muted)">
+      → продолжение <a href="../1-5/index.html">Lesson 1.5 — Runners</a>.
+      Там вы научились <em>где</em> выполняется пайплайн; здесь — <em>куда</em>
+      и <em>в каком порядке</em> едет ваш артефакт, прежде чем его увидит
+      пользователь.
+    </p>
+
+    <p>
+      <strong>Канон:</strong>
+      <a href="https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment" target="_blank" rel="noopener">GitHub Environments</a>,
+      <a href="https://12factor.net/config" target="_blank" rel="noopener">The Twelve-Factor App · Config</a>,
+      <a href="https://martinfowler.com/bliki/BlueGreenDeployment.html" target="_blank" rel="noopener">Fowler · Blue-Green Deployment</a>,
+      <a href="https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions" target="_blank" rel="noopener">GitHub: secrets vs variables</a>.
+    </p>
+
+    <p>
+      Деплой «правильно» — это не «нажал кнопку и выкатил на прод». Это
+      <strong>конвейер сред (environment promotion)</strong>: один и тот же
+      неизменяемый артефакт последовательно проходит изолированные среды, и на
+      каждой границе стоит автоматический или ручной гейт. Код двигается только
+      вперёд и только через Pull Request — никаких прямых пушей в защищённые
+      ветки.
+    </p>
+
+    <div class="note">
+      <strong>Главный принцип — build once, promote many.</strong> Артефакт
+      (контейнер по digest <code>@sha256:…</code>, а не по тегу
+      <code>latest</code>) собирается <em>один раз</em> и затем продвигается
+      между средами <em>как есть</em>. Если для прода вы пересобираете образ —
+      вы тестировали не то, что выкатываете.
+    </div>
+
+    <h2>1. Карта сред и поток продвижения</h2>
+
+    <p>
+      Минимальная зрелая модель — четыре границы. Feature-ветка живёт меньше
+      дня (trunk-based, см. <a href="../1-2/index.html">Lesson 1.2</a>),
+      попадает в <code>main</code> только через PR, а дальше один и тот же
+      build «всплывает» по средам.
+    </p>
+
+<pre class="code-block"><code>feature/*  ──PR──►  main  ──►  test  ──►  dev  ──►  prod
+   │                  │          │         │          │
+ локально          merge      авто-       ручной    ручной
+ (act, k3d)        + CI зелёный деплой     approve   approve
+                              + e2e        + QA      + change
+                                                     window</code></pre>
+
+    <div class="table-wrap"><table>
+      <thead>
+        <tr><th>Среда</th><th>Откуда деплоится</th><th>Гейт на вход</th><th>Назначение</th><th>Данные</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>PR preview</strong></td><td>ветка PR</td><td>CI зелёный (lint, test, scan)</td><td>ревью фичи живьём, эфемерное окружение</td><td>синтетические / fixtures</td></tr>
+        <tr><td><strong>test</strong></td><td><code>main</code> после merge</td><td>авто, без человека</td><td>интеграционные и e2e-тесты, контрактные тесты</td><td>анонимизированный срез</td></tr>
+        <tr><td><strong>dev (staging)</strong></td><td>тот же артефакт из test</td><td>зелёные e2e + ручной approve</td><td>UAT, нагрузочное, демо стейкхолдерам</td><td>≈ prod-like, маскированные PII</td></tr>
+        <tr><td><strong>prod</strong></td><td>тот же артефакт из dev</td><td>ручной approve + change window + smoke</td><td>боевой трафик</td><td>реальные</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="note amber">
+      <strong>Почему именно так.</strong> <code>test</code> ловит регрессии
+      без участия человека (быстрая обратная связь). <code>dev/staging</code> —
+      последняя «человеческая» проверка на максимально prod-подобной среде.
+      <code>prod</code> получает <em>ровно тот же</em> цифровой отпечаток
+      артефакта, что прошёл dev — отсюда предсказуемость.
+    </div>
+
+    <h2>2. Pull Request как единственный вход</h2>
+
+    <p>
+      Ветка <code>main</code> защищена (см. <a href="../1-2/index.html">Lesson
+      1.2 — protected branches</a>): прямой <code>git push</code> запрещён,
+      форс-пуш заблокирован, нужен ≥1 ревьюер по CODEOWNERS, обязательны
+      зелёные статус-чеки и подписанные коммиты. Поток разработчика:
+    </p>
+
+    <ol>
+      <li>Создаёт <code>feature/JIRA-123-short-slug</code> от свежего <code>main</code>.</li>
+      <li>Пушит — открывается <strong>PR</strong>, поднимается эфемерное PR-preview окружение.</li>
+      <li>CI прогоняет <code>lint → unit → SAST → SCA → build → e2e</code> на preview.</li>
+      <li>Ревьюер аппрувит, ветка сливается <strong>squash-merge</strong> в <code>main</code>.</li>
+      <li>Merge в <code>main</code> автоматически запускает деплой в <code>test</code>.</li>
+    </ol>
+
+<pre class="code-block"><code class="language-yaml"># .github/workflows/promote.yml
+name: build-and-promote
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write          # OIDC, без long-lived ключей
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: push
+        run: |
+          IMAGE=ghcr.io/${{ github.repository }}
+          docker build -t "$IMAGE:${{ github.sha }}" .
+          docker push "$IMAGE:${{ github.sha }}"
+          echo "digest=$(docker inspect --format='{{index .RepoDigests 0}}' \
+            "$IMAGE:${{ github.sha }}")" >> "$GITHUB_OUTPUT"
+
+  deploy-test:
+    needs: build
+    environment: test            # без required reviewers — авто
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh "${{ needs.build.outputs.digest }}"
+
+  deploy-dev:
+    needs: [build, deploy-test]
+    environment: dev             # required reviewers → ручной approve
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh "${{ needs.build.outputs.digest }}"
+
+  deploy-prod:
+    needs: [build, deploy-dev]
+    environment: prod            # required reviewers + wait timer + branch rule
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh "${{ needs.build.outputs.digest }}"
+</code></pre>
+
+    <div class="note">
+      <strong>Обратите внимание:</strong> <code>deploy-prod</code> зависит от
+      <code>build</code> и переиспользует <code>needs.build.outputs.digest</code>.
+      Один digest проходит test → dev → prod. Гейты настраиваются <em>не в
+      YAML</em>, а в <strong>GitHub → Settings → Environments</strong>
+      (required reviewers, wait timer, deployment branches), чтобы правила
+      нельзя было обойти правкой workflow в PR.
+    </div>
+
+    <h2>3. Стратегия выката на prod</h2>
+
+    <p>
+      «Доехать до prod» — половина дела. Сам выкат не должен ронять трафик:
+    </p>
+
+    <ul>
+      <li><strong>Rolling update</strong> — дефолт в k8s: поды заменяются
+        пачками, <code>readinessProbe</code> держит трафик от неготовых.</li>
+      <li><strong>Blue-Green</strong> — две идентичные среды, переключение
+        роутера; мгновенный откат сменой указателя.</li>
+      <li><strong>Canary</strong> — 1% → 5% → 25% → 100% трафика с авто-rollback
+        по SLO/ошибкам (см. <a href="../6-5/index.html">Lesson 6.5 — error
+        budget</a>).</li>
+    </ul>
+
+    <p>
+      После переключения — <strong>smoke-тест</strong> (health, ключевой
+      бизнес-сценарий) и наблюдение за метриками в окне стабилизации. Не прошло
+      — автоматический откат на предыдущий digest.
+    </p>
+
+    <h2>4. Переменные окружения и конфигурация по средам</h2>
+
+    <p>
+      Артефакт неизменяем, а среды разные — значит, всё, что отличается между
+      <code>test</code>, <code>dev</code> и <code>prod</code>, выносится в
+      <strong>конфигурацию</strong>, а не в код и не в образ. Это III фактор
+      <a href="https://12factor.net/config" target="_blank" rel="noopener">12-factor</a>:
+      <em>strict separation of config from code</em>. Проверка: репозиторий
+      можно открыть в open-source хоть завтра — и ни один секрет не утечёт.
+    </p>
+
+    <h3>4.1. Два класса значений: variables vs secrets</h3>
+
+    <div class="table-wrap"><table>
+      <thead>
+        <tr><th></th><th>Variables (не-секрет)</th><th>Secrets</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Примеры</td><td><code>LOG_LEVEL</code>, <code>API_BASE_URL</code>, <code>FEATURE_X=true</code>, <code>REGION</code></td><td><code>DB_PASSWORD</code>, <code>JWT_SIGNING_KEY</code>, <code>STRIPE_SK</code>, токены</td></tr>
+        <tr><td>Хранилище</td><td>GitHub Environment variables, ConfigMap, <code>.env</code> (не секреты)</td><td>Vault / AWS SM / Sealed Secrets / GH Encrypted Secrets</td></tr>
+        <tr><td>В логах</td><td>можно печатать</td><td><strong>никогда</strong> (mask, <code>::add-mask::</code>)</td></tr>
+        <tr><td>Ротация</td><td>редко</td><td>регулярно + при инциденте</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="note amber">
+      <strong>Граница, которую нельзя стирать.</strong> Секрет в коде, в
+      Dockerfile (<code>ENV TOKEN=…</code>), в <code>git</code>-истории или в
+      логах CI — это инцидент, а не «потом почистим». Секреты приходят в
+      рантайме из секрет-стора (детально — <a href="../5-1/index.html">Lesson
+      5.1</a>), переменные — из конфигурации среды.
+    </div>
+
+    <h3>4.2. Одно имя — разные значения по средам</h3>
+
+    <p>
+      Ключевая идея: имя переменной <strong>одинаковое во всех средах</strong>,
+      значение — разное. Приложение читает <code>DATABASE_URL</code> и не знает,
+      где запущено. «Куда» определяет среда, а не <code>if env == 'prod'</code>
+      в коде.
+    </p>
+
+<pre class="code-block"><code># GitHub: Settings → Environments → <среда> → Variables / Secrets
+# одно имя, три значения:
+
+test  →  API_BASE_URL = https://api.test.internal
+dev   →  API_BASE_URL = https://api.staging.example.com
+prod  →  API_BASE_URL = https://api.example.com
+
+# в workflow значение подтягивается по environment job'а:
+#   env:
+#     API_BASE_URL: ${{ vars.API_BASE_URL }}
+#     DB_PASSWORD:  ${{ secrets.DB_PASSWORD }}</code></pre>
+
+    <p>В Kubernetes тот же принцип — overlay на среду:</p>
+
+<pre class="code-block"><code class="language-yaml"># base/deployment.yaml — общее, без значений
+envFrom:
+  - configMapRef: { name: app-config }   # не-секреты
+  - secretRef:    { name: app-secrets }  # из ESO/Sealed Secrets
+
+# overlays/prod/config.yaml — значения именно для prod
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: app-config }
+data:
+  LOG_LEVEL: "warn"
+  API_BASE_URL: "https://api.example.com"</code></pre>
+
+    <h3>4.3. Приоритет источников (precedence)</h3>
+
+    <p>
+      Когда переменная задана в нескольких местах, должен быть один
+      предсказуемый порядок. Типовой приоритет — от низшего к высшему:
+    </p>
+
+    <ol>
+      <li>дефолты в коде/образе (безопасные, dev-подобные);</li>
+      <li><code>.env</code>-файл (только локальная разработка, в <code>.gitignore</code>);</li>
+      <li>ConfigMap / GitHub Environment variables (per-env не-секреты);</li>
+      <li>Secret-store (Vault/SM) — секреты per-env;</li>
+      <li>явный <code>env:</code> в шаге/манифесте (узкий override, осознанно).</li>
+    </ol>
+
+    <div class="note">
+      <strong>Build-time vs run-time.</strong> Переменная, «вшитая» в образ на
+      сборке (build-arg, бандл фронтенда), <em>не</em> поддаётся promotion —
+      под каждую среду пришлось бы пересобирать. Конфигурация, влияющая на
+      поведение между средами, должна читаться <strong>в рантайме</strong>.
+      Build-time оставляем только для того, что одинаково везде.
+    </div>
+
+    <h3>4.4. Контракт переменных и фейл-фаст</h3>
+
+    <p>
+      Приложение должно <strong>падать на старте</strong>, если обязательная
+      переменная не задана или невалидна, — а не отдавать 500 под нагрузкой.
+      Документируйте контракт в <code>.env.example</code> (без значений) и
+      валидируйте при инициализации.
+    </p>
+
+<pre class="code-block"><code># .env.example — коммитится, описывает контракт, без секретов
+APP_ENV=                 # test | dev | prod
+LOG_LEVEL=info
+API_BASE_URL=
+DATABASE_URL=            # secret, приходит из стора, здесь пусто
+FEATURE_NEW_CHECKOUT=false</code></pre>
+
+    <hr>
+
+    <h2>Чек-лист урока</h2>
+
+    <ul class="checklist">
+      <li>Артефакт собирается один раз и продвигается по digest, не пересобирается под prod.</li>
+      <li>В <code>main</code> нельзя пушить напрямую — только squash-merge через PR с зелёным CI.</li>
+      <li>Среды test → dev → prod, гейты заданы в Settings → Environments, не в YAML.</li>
+      <li>На prod — rolling/blue-green/canary + smoke-тест + авто-rollback по SLO.</li>
+      <li>Одно имя переменной — разные значения по средам; конфиг отделён от кода.</li>
+      <li>Secrets ≠ variables: секреты только из стора, не в коде/образе/логах.</li>
+      <li>Приложение фейлит старт при отсутствии обязательной переменной; есть <code>.env.example</code>.</li>
+    </ul>
+
+    <div class="note cyan">
+      <strong>Дальше.</strong> Тонкая настройка GitHub Actions (reusable
+      workflows, matrix, OIDC, concurrency) — в
+      <a href="../1-4/index.html">Lesson 1.4</a>. Надёжное хранение секретов,
+      на которые здесь только ссылались, — в
+      <a href="../5-1/index.html">Lesson 5.1</a>.
+    </div>
+
+    <div class="lesson-nav">
+      <a href="../1-5/index.html">← Предыдущий урок</a>
+      <a href="../2-1/index.html" class="next">Следующий урок →</a>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../../../../js/header.js"></script>
+  <script src="../../../../js/i18n.js"></script>
+</body>
+</html>

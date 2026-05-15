@@ -1,6 +1,6 @@
 # CI/CD DevSecOps Mastery — План и структура курса
 
-> **Версия:** 1.0 · **Длительность:** 12 модулей · 60 уроков · 24 лабы · 10 sandbox-сред
+> **Версия:** 1.1 · **Длительность:** 12 модулей · 61 урок · 24 лабы · 10 sandbox-сред
 > **Уровень:** Intermediate → Senior · **Язык:** RU (с EN-терминологией)
 > **Подход:** «секьюрити с первой строки» (shift-left), всё проверяется в песочнице
 > прежде, чем уйдёт в продакшн.
@@ -81,7 +81,7 @@
 | 0.2 | Threat modeling за 30 минут | STRIDE, abuse cases, attack surface | Lab 00 · STRIDE-карта своего проекта |
 | 0.3 | Зрелость: OWASP SAMM/DSOMM | self-assessment, дорожная карта | — |
 
-### Module 1 · CI/CD Foundations (5 уроков)
+### Module 1 · CI/CD Foundations (6 уроков)
 
 | # | Урок | Что внутри | Лаба |
 |---|------|-----------|------|
@@ -90,6 +90,7 @@
 | 1.3 | Git hooks: client + server | pre-commit, commit-msg (Conventional Commits), pre-receive, husky, lefthook | Lab 02 · husky + commitlint + lint-staged |
 | 1.4 | GitHub Actions глубоко | reusable workflows, matrix, environments, OIDC, concurrency | — |
 | 1.5 | Runners: hosted vs self-hosted, ARC | autoscale на K8s через Actions Runner Controller, ephemeral runners | Lab 03 · ARC на k3d |
+| 1.6 | Правильный деплой: PR → test → dev → prod | environment promotion, build once/promote many, GitHub Environments, gates, переменные окружения и конфигурация по средам (variables vs secrets, precedence, 12-factor) | — |
 
 ### Module 2 · Multi-platform Packaging (6 уроков)
 
