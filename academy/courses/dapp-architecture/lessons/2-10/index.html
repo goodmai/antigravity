@@ -25,18 +25,137 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.10 · <span class="badge-mini">IaC</span></p>
     <h1>Доставка и IaC</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/deploy/docs" target="_blank" rel="noopener">Cloud Deploy</a>, <a href="https://cloud.google.com/config-connector/docs/overview" target="_blank" rel="noopener">Config Connector</a>.</p>
-<p>Кирпич Delivery: build once → promote many по средам, инфраструктура —
-декларативный код.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/build/docs" target="_blank" rel="noopener">Cloud Build</a>, <a href="https://cloud.google.com/deploy/docs" target="_blank" rel="noopener">Cloud Deploy</a>, <a href="https://developer.hashicorp.com/terraform/docs" target="_blank" rel="noopener">Terraform docs</a>.</p>
 
-<pre class="code-block"><code class="language-">Cloud Build → Artifact Registry (один образ + provenance)
-            → Cloud Deploy: dev → staging → prod (одобрение между)
-Terraform / Config Connector: инфраструктура из git, drift виден в PR</code></pre>
+<p>Кирпич Delivery/Governance отвечает на вопрос «как изменения попадают
+в прод?». Принцип модуля: <strong>build once, promote many</strong> —
+один неизменный образ продвигается по средам, а вся инфраструктура
+описана декларативным кодом. Для маркетплейса это убирает класс багов
+«works on staging» и делает откат предсказуемым.</p>
 
-<div class="note sky"><strong>Принцип.</strong> Образ собирается один раз
-и продвигается неизменным. Пересборка под прод — источник «works on
-staging» багов.</div>
-    <div class="note gold"><strong>Артефакт урока.</strong> Pipeline-диаграмма: Cloud Build → Deploy (dev→prod) + IaC.</div>
+<h2>1. Build once: Cloud Build и Artifact Registry</h2>
+<p>Cloud Build собирает образ один раз из коммита, фиксирует
+<strong>provenance</strong> (SLSA-аттестация: из какого коммита и
+пайплайна) и кладёт в Artifact Registry с неизменяемым digest. Дальше во
+все среды едет <em>тот же digest</em>, не пересобираемый под прод —
+пересборка вносит дрейф зависимостей.</p>
+<pre class="code-block"><code class="language-yaml"># cloudbuild.yaml
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build','-t','$_REPO/market-api:$SHORT_SHA','.']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push','$_REPO/market-api:$SHORT_SHA']
+options: { requestedVerifyOption: VERIFIED }   # provenance
+images: ['$_REPO/market-api:$SHORT_SHA']</code></pre>
+
+<h2>2. Promote many: Cloud Deploy и progressive delivery</h2>
+<p>Cloud Deploy описывает delivery pipeline: dev → staging → prod с
+ручным одобрением между средами и автоматическим verify. Catalog может
+ехать <strong>canary</strong> (10% → 50% → 100%) на ревизиях Cloud Run;
+Payments — после ручного approve и прогона SLO-проверки (связь с error
+budget урока 2.9).</p>
+<pre class="code-block"><code class="language-yaml">apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata: { name: market-api }
+serialPipeline:
+  stages:
+    - targetId: dev
+    - targetId: staging
+    - targetId: prod
+      strategy:
+        canary:
+          runtimeConfig: { cloudRun: {} }
+          canaryDeployment: { percentages: [10, 50] }</code></pre>
+
+<h2>3. Инфраструктура как код: Terraform vs Config Connector</h2>
+<p>Ресурсы (Cloud Run, Cloud SQL, IAM, Cloud Armor) описываются кодом и
+проходят ревью в PR; <code>plan</code> показывает дрейф до применения.
+<strong>Terraform</strong> — мультиоблачный, своё состояние.
+<strong>Config Connector</strong> — GCP-ресурсы как k8s-объекты,
+непрерывная реконсиляция, но привязка к GKE.</p>
+<div class="table-wrap"><table>
+<tr><th>Критерий</th><th>Terraform</th><th>Config Connector</th></tr>
+<tr><td>Модель</td><td>plan/apply, state-файл</td><td>k8s reconcile-loop</td></tr>
+<tr><td>Мультиоблако</td><td>Да</td><td>Нет (только GCP)</td></tr>
+<tr><td>Drift</td><td>Виден в plan/PR</td><td>Автоисправляется</td></tr>
+<tr><td>Lock-in</td><td>Низкий</td><td>Средний (нужен GKE)</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>Pipeline маркетплейса: коммит → один образ с provenance → промоут по
+средам, инфраструктура из git:</p>
+<pre class="code-block"><code class="language-">git push ──▶ Cloud Build ──▶ Artifact Registry
+                 (build once, SLSA provenance, digest)
+                       │ тот же digest
+                       ▼
+Cloud Deploy: dev ──auto verify──▶ staging ──approve──▶ prod (canary 10→50→100)
+                                                          │ SLO gate (урок 2.9)
+Terraform plan/apply (PR-ревью): Cloud Run, Cloud SQL, IAM, Cloud Armor</code></pre>
+<pre class="code-block"><code class="language-"># Terraform: ревизия привязана к неизменному digest, не к :latest
+resource "google_cloud_run_v2_service" "market_api" {
+  name     = "market-api"
+  location = "europe-west1"
+  template { containers { image = "REPO/market-api@sha256:DIGEST" } }
+}</code></pre>
+<p>Решение: образ собирается один раз с provenance; в prod Catalog едет
+canary, Payments — после approve и SLO-gate; вся инфраструктура (включая
+правила Cloud Armor урока 2.7 и SA урока 2.6) — Terraform с ревью в PR.
+CI аутентифицируется через WIF (урок 2.6), без ключей. Откат = промоут
+предыдущей ревизии, мгновенно. Lock-in: образ и Terraform переносимы,
+Cloud Deploy — средняя привязка.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong>
+Pipeline-диаграмма маркетплейса: Cloud Build (build once + provenance) →
+Artifact Registry → Cloud Deploy (dev→staging→prod, canary + SLO-gate) +
+слой Terraform/Config Connector с ревью инфраструктуры в PR.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему принцип «build once, promote
+many» устраняет класс багов «works on staging»?</li>
+<li><span class="tag">вопрос</span>Что такое provenance и зачем
+фиксировать digest вместо тега <code>:latest</code>?</li>
+<li><span class="tag">вопрос</span>Чем canary deployment отличается от
+прямого переключения 100%?</li>
+<li><span class="tag">вопрос</span>В чём разница между Terraform и Config
+Connector по обработке дрейфа и lock-in?</li>
+<li><span class="tag task">задача</span>Спроектируйте delivery pipeline
+для Payments с ручным approve и SLO-gate перед prod.</li>
+<li><span class="tag task">задача</span>Опишите, как откатить плохой
+релиз Catalog за секунды, не пересобирая образ.</li>
+<li><span class="tag task">задача</span>Объясните, почему правила Cloud
+Armor и service accounts тоже должны жить в Terraform, а не в консоли.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>В прод едет тот же артефакт, что прошёл staging; пересборки под прод
+нет, значит нет дрейфа зависимостей/окружения. Расхождение «на staging
+работало» исчезает, потому что среды получают идентичный образ.</li>
+<li>Provenance — аттестация, из какого коммита и пайплайна собран образ
+(SLSA). Digest неизменяем и однозначен, <code>:latest</code> может
+указывать на разные образы в разное время — источник невоспроизводимых
+деплоев.</li>
+<li>Canary выкатывает новую ревизию части трафика (10→50→100), наблюдая
+SLI; проблема ловится на малой доле пользователей. Прямые 100%
+переключают всех сразу — отказ затрагивает всю аудиторию.</li>
+<li>Terraform: plan/apply со state, дрейф виден в plan/PR, низкий
+lock-in, мультиоблако. Config Connector: k8s reconcile-loop
+автоисправляет дрейф, но требует GKE — средний lock-in, только GCP.</li>
+<li>Pipeline dev→staging→prod; между staging и prod — ручной approve;
+перед prod-стадией verify-проверка SLO (burn rate в норме, бюджет есть);
+прод-стратегия — осторожный canary или после approve полное.</li>
+<li>Cloud Run/Cloud Deploy промоутят предыдущую ревизию (старый digest)
+— переключение трафика на уже существующий образ за секунды, без
+пересборки и без билд-пайплайна.</li>
+<li>Иначе конфигурация периметра и доступы не воспроизводимы, не
+ревьюятся и расходятся между средами (drift). В Terraform они
+версионируются, проходят ревью в PR и применяются одинаково везде, как
+код приложения.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

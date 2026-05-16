@@ -25,21 +25,136 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.2 · <span class="badge-mini">compute</span></p>
     <h1>Compute на Google Cloud</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/run/docs" target="_blank" rel="noopener">Cloud Run docs</a>, <a href="https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview" target="_blank" rel="noopener">GKE Autopilot</a>.</p>
-<p>Кирпич Compute в Google — это спектр от «отдай контейнер» до «управляй
-кластером».</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/run/docs" target="_blank" rel="noopener">Cloud Run docs</a>, <a href="https://cloud.google.com/kubernetes-engine/docs/concepts/autopilot-overview" target="_blank" rel="noopener">GKE Autopilot</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Architecture Framework</a>.</p>
 
+<p>Кирпич Compute отвечает на вопрос «где исполняется код?». В классике
+это был наш кластер; на Google Cloud есть лестница абстракций от App
+Engine до Compute Engine. Выбор runtime для маркетплейса — не вкус, а
+функция от модели нагрузки, требований к latency и допустимого lock-in.</p>
+
+<h2>1. Четыре managed-runtime и их модель</h2>
+<p><strong>Cloud Run</strong> — контейнер по запросу: вы даёте образ,
+Google скейлит от нуля до тысяч инстансов по конкурентности. Платите за
+CPU/RAM во время обработки запроса. <strong>GKE Autopilot</strong> —
+Kubernetes, где Google управляет нодами и биллит по запрошенным
+pod-ресурсам; нужен, когда требуется полный k8s-API (DaemonSet,
+операторы, сложный networking). <strong>App Engine Standard</strong> —
+старейший PaaS, привязан к рантаймам и сильнее лочит. <strong>Cloud
+Functions (2nd gen)</strong> — функция на событие, под капотом тот же
+Cloud Run.</p>
 <div class="table-wrap"><table>
-<tr><th>Сервис</th><th>Когда</th><th>Цена контроля</th></tr>
-<tr><td>Cloud Functions</td><td>событие → короткая функция</td><td>минимум контроля</td></tr>
-<tr><td>Cloud Run</td><td>stateless-контейнер, scale-to-zero</td><td>баланс</td></tr>
-<tr><td>GKE Autopilot</td><td>нужен k8s API, но не ноды</td><td>больше контроля</td></tr>
-<tr><td>GKE Standard</td><td>тонкий тюнинг нод/GPU</td><td>максимум контроля</td></tr>
+<tr><th>Критерий</th><th>Cloud Run</th><th>GKE Autopilot</th><th>App Engine Std</th><th>Cloud Functions</th></tr>
+<tr><td>Единица</td><td>Контейнер</td><td>Pod</td><td>Приложение/рантайм</td><td>Функция</td></tr>
+<tr><td>Скейл до нуля</td><td>Да</td><td>Нет (min ноды)</td><td>Да</td><td>Да</td></tr>
+<tr><td>k8s-API</td><td>Нет</td><td>Полный</td><td>Нет</td><td>Нет</td></tr>
+<tr><td>Lock-in</td><td>Низкий (OCI-образ)</td><td>Низкий (k8s)</td><td>Высокий</td><td>Средний</td></tr>
+<tr><td>Когда брать</td><td>HTTP/события, скачки</td><td>Сложный orchestration</td><td>Legacy/быстрый старт</td><td>Glue-логика</td></tr>
 </table></div>
 
-<p>Для маркетплейса по умолчанию — <strong>Cloud Run</strong>:
-scale-to-zero экономит на низком трафике, а контейнер переносим.</p>
-    <div class="note gold"><strong>Артефакт урока.</strong> ADR-03 «runtime» — Cloud Run vs GKE с обоснованием.</div>
+<h2>2. Холодный старт, конкурентность и стоимость</h2>
+<p>Cloud Run обрабатывает несколько запросов на инстанс (concurrency, по
+умолчанию 80) — это резко снижает счёт против «инстанс на запрос».
+Холодный старт лечится <code>min-instances</code> (тёплый пул, платится
+постоянно) или CPU boost. Для платёжного пути с SLO 99.95% холодный старт
+в хвосте латентности недопустим — держим минимум 1–2 тёплых инстанса.</p>
+<pre class="code-block"><code class="language-">gcloud run deploy market-api \
+  --image=REGION-docker.pkg.dev/PROJECT/repo/market-api:1.4.2 \
+  --concurrency=80 --cpu=1 --memory=512Mi \
+  --min-instances=2 --max-instances=50 \
+  --no-allow-unauthenticated --region=europe-west1</code></pre>
+<p>Trade-off строкой: <strong>стоимость</strong> низкая при скейле-до-нуля,
+растёт с min-instances; <strong>lock-in</strong> низкий — это обычный
+OCI-контейнер; <strong>контроль</strong> низкий — нет доступа к ядру и
+sidecar-ам уровня k8s.</p>
+
+<h2>3. Матрица выбора для маркетплейса</h2>
+<div class="table-wrap"><table>
+<tr><th>Компонент</th><th>Нагрузка</th><th>Runtime</th><th>Почему</th></tr>
+<tr><td>Catalog/API</td><td>Скачки, ночью ~0</td><td>Cloud Run</td><td>Скейл-до-нуля, дешевле всего</td></tr>
+<tr><td>Payments API</td><td>Ровная, latency-критичная</td><td>Cloud Run + min-instances</td><td>Без холодного старта</td></tr>
+<tr><td>Feed worker</td><td>Событийная (Pub/Sub)</td><td>Cloud Run (push) / Functions</td><td>Триггер по сообщению</td></tr>
+<tr><td>Media transcode</td><td>Тяжёлая, GPU/долгая</td><td>GKE Autopilot / Cloud Run jobs</td><td>Долгие задачи, спец-ресурсы</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>Catalog и Payments — оба Cloud Run, но с разной политикой
+масштабирования. Манифест сервиса оплаты фиксирует SLO-обоснованные
+параметры:</p>
+<pre class="code-block"><code class="language-">apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: payments-api
+  annotations:
+    run.googleapis.com/ingress: internal-and-cloud-load-balancing
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "2"
+        autoscaling.knative.dev/maxScale: "30"
+    spec:
+      containerConcurrency: 40
+      containers:
+        - image: REGION-docker.pkg.dev/PROJECT/repo/payments:2.1.0
+          resources:
+            limits: { cpu: "1", memory: 512Mi }</code></pre>
+<p>Решение: каталог — <code>minScale: 0</code> (экономия ночью), оплата —
+<code>minScale: 2</code> (нет холодного старта в денежном пути),
+конкурентность ниже у оплаты (40 vs 80) ради изоляции тяжёлых запросов к
+PSP. Транскодинг медиа выносим в Cloud Run jobs / GKE Autopilot, чтобы
+длинные задачи не держали HTTP-инстансы.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> ADR-03
+«runtime» — Cloud Run для Catalog/Payments/Feed и GKE Autopilot для
+медиа, с секциями «Контекст / Решение / Альтернативы / Последствия» и
+строкой trade-off (стоимость·lock-in·контроль) на каждый компонент.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем модель биллинга Cloud Run
+отличается от GKE Autopilot и как это влияет на ночной нулевой трафик?</li>
+<li><span class="tag">вопрос</span>Когда GKE Autopilot оправдан, несмотря
+на то что Cloud Run проще?</li>
+<li><span class="tag">вопрос</span>Что такое concurrency в Cloud Run и
+почему она радикально снижает стоимость?</li>
+<li><span class="tag">вопрос</span>Почему App Engine Standard лочит
+сильнее, чем Cloud Run?</li>
+<li><span class="tag task">задача</span>Обоснуйте, почему платёжному API
+нужен <code>min-instances ≥ 1</code>, а каталогу — нет.</li>
+<li><span class="tag task">задача</span>Напишите команду
+<code>gcloud run deploy</code> для Feed-worker, принимающего push из
+Pub/Sub, с приватным ingress и max 20 инстансов.</li>
+<li><span class="tag task">задача</span>Заполните ADR-03: контекст,
+решение, отвергнутые альтернативы и последствия выбора runtime для
+маркетплейса.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Cloud Run биллит за CPU/RAM во время обработки запроса и скейлит до
+нуля — ночью счёт ~0. GKE Autopilot биллит за запрошенные ресурсы pod-ов
+и держит минимум нод, поэтому платится даже без трафика.</li>
+<li>Когда нужен полноценный k8s-API: DaemonSet, операторы, service mesh,
+StatefulSet, тонкий контроль networking/affinity или долгоживущие
+процессы, которые модель «запрос → ответ» Cloud Run не покрывает.</li>
+<li>Concurrency — число одновременных запросов на инстанс. При 80 один
+инстанс обслуживает 80 запросов вместо одного, во столько же раз меньше
+инстансов и счёт; цена — конкуренция за CPU внутри инстанса.</li>
+<li>App Engine Standard привязывает к поддерживаемым рантаймам и
+проприетарному окружению/API; миграция требует переписывания. Cloud Run
+запускает любой OCI-образ, переносимый в любой контейнерный рантайм.</li>
+<li>Платёжный путь latency-критичен, SLO 99.95%: холодный старт добавляет
+секунды в хвост и тратит error budget. Каталог терпит редкий холодный
+старт ночью ради экономии на нулевом трафике.</li>
+<li><code>gcloud run deploy feed-worker --image=REGION-docker.pkg.dev/PROJECT/repo/feed:1.0 --no-allow-unauthenticated --ingress=internal --max-instances=20 --region=europe-west1</code>; Pub/Sub push с OIDC service account, имеющим roles/run.invoker.</li>
+<li>Контекст: разные профили нагрузки компонентов. Решение: Cloud Run для
+Catalog/Payments/Feed, GKE Autopilot для транскодинга. Альтернативы:
+всё на GKE (дорого ночью), App Engine (lock-in). Последствия: низкий
+lock-in, экономия на скейле-до-нуля, ограниченный контроль рантайма.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

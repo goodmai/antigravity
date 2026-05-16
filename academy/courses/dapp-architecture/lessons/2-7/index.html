@@ -25,20 +25,123 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.7 · <span class="badge-mini">VPC</span></p>
     <h1>Сеть и периметр</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/load-balancing/docs" target="_blank" rel="noopener">Cloud Load Balancing</a>, <a href="https://cloud.google.com/armor/docs" target="_blank" rel="noopener">Cloud Armor</a>.</p>
-<p>Кирпич Networking: глобальный L7-балансировщик, WAF и API-шлюз как
-управляемые сервисы.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/load-balancing/docs" target="_blank" rel="noopener">Cloud Load Balancing</a>, <a href="https://cloud.google.com/armor/docs" target="_blank" rel="noopener">Cloud Armor</a>, <a href="https://cloud.google.com/vpc/docs" target="_blank" rel="noopener">VPC docs</a>.</p>
 
-<ul>
-<li><strong>Global HTTP(S) LB</strong> — единый anycast-вход, авто-TLS.</li>
-<li><strong>Cloud Armor</strong> — WAF, гео/IP-правила, защита от DDoS.</li>
-<li><strong>Serverless VPC Access</strong> — Cloud Run в приватную сеть.</li>
-<li><strong>Apigee / API Gateway</strong> — квоты, ключи, монетизация API.</li>
-</ul>
+<p>Кирпич Networking отвечает на вопрос «как трафик доходит до сервиса и
+что его фильтрует?». На Google Cloud периметр — это набор управляемых
+сервисов: глобальный L7-балансировщик, WAF, приватная связность и
+API-шлюз. Для маркетплейса задача — впустить покупателей, отфильтровать
+вредный трафик и держать БД недоступной из интернета.</p>
 
-<div class="note sky"><strong>Принцип.</strong> Периметр — это политика, а
-не файрвол: правила Cloud Armor версионируются как код вместе с IaC.</div>
-    
+<h2>1. VPC, Serverless VPC Access и Private Service Connect</h2>
+<p><strong>VPC</strong> — программно-определяемая сеть с подсетями и
+firewall-правилами. Serverless-сервисы (Cloud Run) живут вне VPC; чтобы
+ходить в приватные ресурсы (Cloud SQL по приватному IP), нужен
+<strong>Serverless VPC Access connector</strong> или Direct VPC egress.
+<strong>Private Service Connect</strong> даёт приватную точку входа к
+управляемым/сторонним сервисам без выхода в интернет.</p>
+<div class="table-wrap"><table>
+<tr><th>Сервис</th><th>Назначение</th><th>В маркетплейсе</th></tr>
+<tr><td>VPC + firewall</td><td>Изоляция и сегментация сети</td><td>Подсеть БД закрыта</td></tr>
+<tr><td>Serverless VPC Access</td><td>Cloud Run → приватный ресурс</td><td>API → Cloud SQL приватно</td></tr>
+<tr><td>Private Service Connect</td><td>Приватный доступ к сервисам</td><td>Доступ к API без public IP</td></tr>
+<tr><td>Cloud NAT</td><td>Исходящий трафик без public IP</td><td>Вызов внешнего PSP</td></tr>
+</table></div>
+
+<h2>2. Cloud Load Balancing и Cloud Armor</h2>
+<p><strong>Global external HTTP(S) LB</strong> — единый anycast-вход с
+автоматическим управляемым TLS, маршрутизацией по хостам/путям и
+backend-ами в Cloud Run. <strong>Cloud Armor</strong> — WAF/edge-защита
+на этом LB: пред-настроенные правила OWASP, гео/IP-листы, rate limiting
+и защита от DDoS на уровне периметра Google.</p>
+<pre class="code-block"><code class="language-">gcloud compute security-policies create market-waf
+gcloud compute security-policies rules create 1000 \
+  --security-policy=market-waf \
+  --expression="evaluatePreconfiguredExpr('xss-stable')" --action=deny-403
+gcloud compute security-policies rules create 1100 \
+  --security-policy=market-waf \
+  --action=rate-based-ban --rate-limit-threshold-count=100 \
+  --rate-limit-threshold-interval-sec=60 --ban-duration-sec=600</code></pre>
+
+<h2>3. Apigee / API Gateway</h2>
+<p>Когда нужны квоты, API-ключи партнёрам, версионирование контракта и
+монетизация — перед backend ставится <strong>API Gateway</strong>
+(лёгкий, на OpenAPI) или <strong>Apigee</strong> (полноценный API
+management). Это слой Published Language из урока 1.1, вынесенный в
+управляемый продукт.</p>
+<div class="note violet"><strong>Принцип периметра.</strong> Периметр —
+это политика, а не железка. Правила Cloud Armor и firewall версионируются
+как код (IaC, урок 2.10) и проходят ревью в PR, как обычный код.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Трафик покупателя проходит управляемый периметр; БД недостижима из
+интернета:</p>
+<pre class="code-block"><code class="language-">Интернет
+  │  HTTPS (managed TLS)
+  ▼
+Global HTTP(S) LB ──▶ Cloud Armor (OWASP + rate-limit + geo)
+  │ ok
+  ▼
+Cloud Run: market-api  ──Serverless VPC Access──▶ Cloud SQL (private IP)
+  │                                                 ▲ нет public IP
+  └──Cloud NAT──▶ внешний PSP (стабильный egress IP)</code></pre>
+<p>Решение: единственная публичная точка входа — LB; Cloud Armor режет
+XSS/боты/всплески до backend; Cloud SQL имеет только приватный IP и
+доступен Cloud Run через VPC connector; вызовы к внешнему PSP идут через
+Cloud NAT со стабильным IP (PSP вайтлистит его). Trade-off: периметр
+managed — меньше контроля над L3/L4, но снимается операционная нагрузка
+DDoS-защиты и TLS.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Диаграмма
+периметра маркетплейса: LB → Cloud Armor (правила OWASP + rate-limit) →
+Cloud Run → Serverless VPC Access → приватная Cloud SQL, с egress на PSP
+через Cloud NAT и пометкой «правила как код».</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Зачем Cloud Run нужен Serverless VPC
+Access для доступа к Cloud SQL?</li>
+<li><span class="tag">вопрос</span>Что делает Cloud Armor на уровне
+периметра и где он подключается?</li>
+<li><span class="tag">вопрос</span>Чем Private Service Connect отличается
+от выхода через публичный интернет?</li>
+<li><span class="tag">вопрос</span>Когда оправдан Apigee/API Gateway
+перед backend?</li>
+<li><span class="tag task">задача</span>Спроектируйте путь трафика
+покупателя так, чтобы Cloud SQL не имела публичного IP.</li>
+<li><span class="tag task">задача</span>Напишите правила Cloud Armor:
+блок XSS и rate-limit 100 req/min на IP с баном на 10 минут.</li>
+<li><span class="tag task">задача</span>Объясните, почему правила
+периметра должны жить в IaC, а не настраиваться вручную в консоли.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Cloud Run работает вне VPC. Чтобы достучаться до Cloud SQL по
+приватному IP (БД без публичного адреса), нужен Serverless VPC Access
+connector или Direct VPC egress, маршрутизирующий трафик в VPC.</li>
+<li>Cloud Armor — WAF/edge-защита на внешнем HTTP(S) LB: пред-настроенные
+OWASP-правила, гео/IP-листы, rate limiting, DDoS-защита. Срабатывает на
+периметре Google до того, как трафик дойдёт до backend.</li>
+<li>PSC даёт приватную точку доступа к сервису внутри сети Google без
+маршрута через публичный интернет: трафик не покидает периметр, меньше
+поверхность атаки и нет зависимости от публичного egress.</li>
+<li>Когда нужны квоты, API-ключи внешним партнёрам, версионирование
+контракта, аналитика и монетизация API. API Gateway — лёгкий случай на
+OpenAPI; Apigee — полноценный API management.</li>
+<li>Единственный публичный вход — Global HTTP(S) LB с managed TLS → Cloud
+Armor → Cloud Run → Serverless VPC Access → Cloud SQL только с приватным
+IP. Egress к PSP через Cloud NAT. БД из интернета недостижима.</li>
+<li>Политика с правилом <code>evaluatePreconfiguredExpr('xss-stable')</code>
+→ deny-403 и правилом rate-based-ban: threshold 100 за 60 сек, ban 600
+сек, привязанная к backend LB.</li>
+<li>Ручная настройка не воспроизводима, не проходит ревью и расходится
+между средами (config drift). В IaC правила версионируются, ревьюятся в
+PR и применяются одинаково в dev/staging/prod.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

@@ -25,21 +25,132 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.8 · <span class="badge-mini">KMS</span></p>
     <h1>Секреты и ключи</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/secret-manager/docs" target="_blank" rel="noopener">Secret Manager</a>, <a href="https://cloud.google.com/kms/docs" target="_blank" rel="noopener">Cloud KMS</a>.</p>
-<p>Кирпич Secrets/Keys в Google: разделяем <strong>секреты</strong>
-(Secret Manager) и <strong>ключи шифрования</strong> (Cloud KMS).</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/secret-manager/docs" target="_blank" rel="noopener">Secret Manager</a>, <a href="https://cloud.google.com/kms/docs" target="_blank" rel="noopener">Cloud KMS</a>, <a href="https://cloud.google.com/kms/docs/envelope-encryption" target="_blank" rel="noopener">Envelope encryption</a>.</p>
 
-<ul>
-<li>Версионирование секрета + автоматическая ротация.</li>
-<li><strong>CMEK</strong> — ваш ключ в KMS шифрует данные сервисов.</li>
-<li>Доступ — через IAM-роль ворклоада, не через скачанный файл.</li>
-<li>Аудит обращений к секрету — в Cloud Logging.</li>
-</ul>
+<p>Кирпич Secrets/Keys отвечает на вопрос «где хранятся ключи и как они
+ротируются?». На Google Cloud разделяются <strong>секреты</strong>
+(строки-учётки → Secret Manager) и <strong>ключи шифрования</strong>
+(криптоматериал → Cloud KMS). Для маркетплейса это API-ключ PSP, пароль
+БД и шифрование чувствительных полей.</p>
 
-<div class="note sky"><strong>Trade-off.</strong> KMS снимает заботу о
-HSM, но ключи всё ещё в периметре провайдера. Сравните это с
-самокастодиальной моделью из урока 3.10.</div>
-    
+<h2>1. Secret Manager: версии, ротация, доступ</h2>
+<p>Секрет — это именованный ресурс с версиями. Приложение читает
+<code>latest</code> или фиксированную версию; ротация = добавить новую
+версию и переключить трафик, старую отключить (не удалять сразу — нужен
+откат). Доступ — только через IAM-роль ворклоада
+(<code>secretmanager.secretAccessor</code>), никогда не через файл в
+образе или переменную в репозитории. Каждое обращение логируется в Cloud
+Logging — это аудит.</p>
+<pre class="code-block"><code class="language-">echo -n "$PSP_KEY" | gcloud secrets create psp-api-key --data-file=-
+# ротация: новая версия, приложение читает latest
+echo -n "$PSP_KEY_NEW" | gcloud secrets versions add psp-api-key --data-file=-
+gcloud secrets versions disable 1 --secret=psp-api-key   # откат возможен
+gcloud secrets add-iam-policy-binding psp-api-key \
+  --member="serviceAccount:payments-sa@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"</code></pre>
+
+<h2>2. Cloud KMS, CMEK и CSEK</h2>
+<p>KMS управляет ключами шифрования (key ring → key → version), на бэкенде
+HSM. <strong>CMEK</strong> (Customer-Managed Encryption Key) — данные
+сервиса (Cloud SQL, Storage, BigQuery) шифруются вашим ключом из KMS:
+отзыв ключа делает данные нечитаемыми. <strong>CSEK</strong>
+(Customer-Supplied) — ключ приносите вы и Google его не хранит:
+максимальный контроль, максимальная операционная ответственность.</p>
+<div class="table-wrap"><table>
+<tr><th>Модель</th><th>Кто владеет ключом</th><th>Контроль</th><th>Операционная цена</th></tr>
+<tr><td>Google-managed (default)</td><td>Google</td><td>Минимальный</td><td>Нулевая</td></tr>
+<tr><td>CMEK</td><td>Вы (ключ в KMS)</td><td>Средний — отзыв/ротация</td><td>Управление ротацией</td></tr>
+<tr><td>CSEK</td><td>Вы (вне Google)</td><td>Максимальный</td><td>Высокая — потеря = потеря данных</td></tr>
+</table></div>
+
+<h2>3. Envelope encryption и ротация</h2>
+<p>Шифровать большой объём данных мастер-ключом дорого и не масштабируется.
+<strong>Envelope encryption</strong>: данные шифруются локальным DEK
+(data encryption key), а сам DEK шифруется мастер-ключом KEK в KMS.
+Хранится зашифрованный DEK рядом с данными. Ротация KEK тогда дешёвая —
+перешифровывается только маленький DEK, а не весь датасет. KMS
+поддерживает автоматическую ротацию версии ключа по расписанию.</p>
+<pre class="code-block"><code class="language-">gcloud kms keyrings create market --location=europe-west1
+gcloud kms keys create data-kek --keyring=market \
+  --location=europe-west1 --purpose=encryption \
+  --rotation-period=90d --next-rotation-time=+P90D</code></pre>
+
+<h3>Пример использования элементов</h3>
+<p>Маркетплейс: ключ PSP — секрет; БД заказов — под CMEK; чувствительное
+поле payout-реквизитов — envelope encryption:</p>
+<pre class="code-block"><code class="language-">// 1. PSP-ключ: читается из Secret Manager в рантайме (не в образе)
+const pspKey = await sm.access('projects/PROJECT/secrets/psp-api-key/versions/latest');
+
+// 2. Cloud SQL заказов создаётся с CMEK → отзыв ключа = данные нечитаемы
+//    --disk-encryption-key=projects/.../cryptoKeys/data-kek
+
+// 3. payout-реквизиты: envelope encryption
+const dek = crypto.randomBytes(32);                 // DEK на запись
+const ct  = aesGcm(dek, payoutDetails);
+const wrappedDek = await kms.encrypt('data-kek', dek); // KEK оборачивает DEK
+store({ ct, wrappedDek });                            // мастер-ключ не покидает KMS</code></pre>
+<p>Решение: ни одного секрета в репозитории/образе — всё в Secret Manager
+с IAM-доступом payments-sa и аудитом в Cloud Logging. БД под CMEK с
+ротацией KEK раз в 90 дней. Trade-off: KMS снимает заботу об HSM, но
+ключи остаются в периметре провайдера — сравните с самокастодиальной
+моделью урока 3.10. Lock-in средний: данные перешифруемы при выходе.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Реестр секретов
+и ключей маркетплейса: какие секреты в Secret Manager (PSP-ключ, пароль
+БД), что под CMEK (Cloud SQL заказов), где envelope encryption
+(payout-реквизиты), политика ротации и кто (SA) имеет доступ.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем секрет в Secret Manager
+концептуально отличается от ключа в Cloud KMS?</li>
+<li><span class="tag">вопрос</span>Что такое CMEK и что происходит с
+данными при отзыве CMEK-ключа?</li>
+<li><span class="tag">вопрос</span>Зачем нужна envelope encryption и
+почему она удешевляет ротацию мастер-ключа?</li>
+<li><span class="tag">вопрос</span>Чем CSEK отличается от CMEK по
+контролю и операционному риску?</li>
+<li><span class="tag task">задача</span>Опишите процедуру ротации
+API-ключа PSP в Secret Manager без даунтайма и с возможностью отката.</li>
+<li><span class="tag task">задача</span>Спроектируйте шифрование
+payout-реквизитов через envelope encryption (DEK/KEK) с хранением только
+обёрнутого DEK.</li>
+<li><span class="tag task">задача</span>Составьте строку trade-off
+(контроль·операционная цена·lock-in) для Google-managed vs CMEK vs CSEK
+для БД заказов.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Secret Manager хранит произвольные строки-учётки (пароли, API-ключи)
+с версиями и аудитом. Cloud KMS управляет криптографическим материалом
+(ключами шифрования) на HSM и сам не отдаёт ключ наружу — он шифрует/
+дешифрует.</li>
+<li>CMEK — шифрование ресурсов вашим ключом из KMS. При отзыве/отключении
+ключа Google теряет возможность расшифровать данные — они становятся
+нечитаемыми; это рычаг экстренной блокировки доступа.</li>
+<li>Данные шифруются локальным DEK, DEK шифруется мастер-ключом KEK в
+KMS. При ротации KEK перешифровывается только маленький обёрнутый DEK, а
+не весь датасет, поэтому ротация дёшева и быстра.</li>
+<li>CSEK: ключ приносите вы, Google его не хранит — максимальный
+контроль, но потеря ключа = безвозвратная потеря данных и вся
+операционная ответственность на вас. CMEK: ключ живёт в KMS, баланс
+контроля и эксплуатации.</li>
+<li>Добавить новую версию секрета (<code>versions add</code>),
+приложение читает <code>latest</code> и подхватывает новый ключ; старую
+версию <code>disable</code> (не destroy) — при проблеме включить обратно;
+после стабилизации destroy.</li>
+<li>На запись генерировать случайный DEK, шифровать им данные
+(AES-GCM), затем KMS оборачивает DEK мастер-ключом; хранить рядом
+шифртекст и обёрнутый DEK. Мастер-ключ никогда не покидает KMS.</li>
+<li>Google-managed: контроль низкий, опер. цена нулевая, lock-in низкий.
+CMEK: контроль средний (отзыв/ротация), опер. цена — управление
+ротацией, lock-in средний. CSEK: контроль максимальный, опер. цена
+высокая (потеря ключа фатальна), lock-in низкий по ключу.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

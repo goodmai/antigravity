@@ -25,20 +25,141 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.1 · <span class="badge-mini">SRE</span></p>
     <h1>Философия Google Cloud</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Google Cloud Architecture Framework</a>, <a href="https://sre.google/sre-book/table-of-contents/" target="_blank" rel="noopener">Google SRE Book</a>.</p>
-<p>Облако Google переписывает те же девять кирпичей в логике
-<strong>managed-first</strong>: вы платите за то, чтобы не управлять
-инфраструктурой, и обмениваете контроль на скорость и SRE-практики.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Google Cloud Architecture Framework</a>, <a href="https://sre.google/books/" target="_blank" rel="noopener">Google SRE Book</a>.</p>
 
-<h3>Error budget</h3>
-<p>SLO 99.9% = бюджет ~43 мин/мес недоступности. Пока бюджет не исчерпан —
-катим фичи; исчерпан — замораживаем релизы и чиним надёжность. Это
-инженерный, а не политический рычаг.</p>
+<p>В модуле 1 мы спроектировали «маркетплейс цифровых работ + лента +
+платежи» на классическом стеке, где архитектор контролирует каждый слой.
+Модуль 2 переносит <strong>тот же продукт</strong> на Google Cloud по той
+же сетке из девяти кирпичей, но в другой философии: <strong>managed-first</strong>.
+Вы платите за то, чтобы не управлять инфраструктурой, и обмениваете
+контроль на скорость поставки и встроенные SRE-практики. Этот урок задаёт
+рамку принятия решений на весь модуль.</p>
 
+<h2>1. Managed-first и Google Cloud Architecture Framework</h2>
+<p>Architecture Framework — это пять опор, по которым Google предлагает
+оценивать любое решение: <strong>Operational Excellence</strong>,
+<strong>Security/Privacy/Compliance</strong>, <strong>Reliability</strong>,
+<strong>Cost Optimization</strong>, <strong>Performance Optimization</strong>.
+Managed-first означает, что по умолчанию мы выбираем сервис с наибольшей
+долей ответственности на стороне провайдера, и спускаемся «ниже» (контейнеры,
+ВМ) только когда конкретное требование этого требует.</p>
+<div class="table-wrap"><table>
+<tr><th>Модель</th><th>Кто патчит ОС</th><th>Кто масштабирует</th><th>Контроль</th><th>Пример GCP</th></tr>
+<tr><td>IaaS</td><td>Вы</td><td>Вы (MIG)</td><td>Максимальный</td><td>Compute Engine</td></tr>
+<tr><td>Контейнеры (managed)</td><td>Google</td><td>Google</td><td>Средний</td><td>GKE Autopilot</td></tr>
+<tr><td>Serverless</td><td>Google</td><td>Google (до нуля)</td><td>Минимальный</td><td>Cloud Run, Functions</td></tr>
+<tr><td>Fully managed data</td><td>Google</td><td>Google</td><td>Только схема/запросы</td><td>Firestore, BigQuery</td></tr>
+</table></div>
+<p>Принцип урока: <em>не доказано, что нужен контроль — берём managed</em>.
+Каждое архитектурное решение в модуле сопровождается строкой trade-off:
+<strong>стоимость · lock-in · контроль</strong>.</p>
+
+<h2>2. SRE: SLO, SLI и error budget как инженерный рычаг</h2>
+<p>SRE Book формализует надёжность через измеримые величины. <strong>SLI</strong> —
+показатель (доля успешных запросов, доля быстрых ответов). <strong>SLO</strong> —
+целевое значение SLI за окно. <strong>Error budget</strong> = 1 − SLO: это
+разрешённый объём «плохого» поведения, которым команда распоряжается как
+ресурсом.</p>
+<div class="table-wrap"><table>
+<tr><th>SLO доступности</th><th>Бюджет ошибок / 30 дней</th><th>Практический смысл</th></tr>
+<tr><td>99%</td><td>~7 ч 18 мин</td><td>Внутренние/некритичные сервисы</td></tr>
+<tr><td>99.9%</td><td>~43 мин</td><td>API маркетплейса (целевой)</td></tr>
+<tr><td>99.95%</td><td>~21 мин</td><td>Платёжный путь</td></tr>
+<tr><td>99.99%</td><td>~4.3 мин</td><td>Дорого; редко оправдано</td></tr>
+</table></div>
+<p>Пока бюджет не исчерпан — команда катит фичи и рискует. Бюджет
+исчерпан — релизы замораживаются, приоритет уходит на надёжность. Это
+<strong>инженерный, а не политический</strong> механизм: спор «катить или
+чинить» решается числом, а не должностью.</p>
+<pre class="code-block"><code class="language-">SLI  = good_events / valid_events
+SLO  = 99.9% за 28 дней (rolling)
+Бюджет = 0.1% от valid_events
+Burn-rate alert: тратим бюджет в 14.4x → страница дежурному</code></pre>
+
+<h2>3. TCO: цена владения, а не цена прайс-листа</h2>
+<p>Прямое сравнение «ВМ за $X против Cloud Run за $Y» обманчиво. TCO
+включает <strong>стоимость людей</strong> (patching, дежурства,
+capacity-планирование), стоимость инцидентов и стоимость упущенного
+time-to-market. Managed обычно дороже по counterfactual-цене железа, но
+дешевле суммарно, если учесть FTE на эксплуатацию.</p>
 <div class="note sky"><strong>Цена владения.</strong> Managed дешевле
 людей, но дороже железа и привязывает (lock-in). Каждый выбор в этом
 модуле сопровождается строкой trade-off: стоимость · lock-in · контроль.</div>
-    
+
+<h3>Пример использования элементов</h3>
+<p>Применим рамку к маркетплейсу. Определяем класс надёжности для каждого
+Bounded Context и фиксируем философию обработки до выбора конкретных
+сервисов в следующих уроках:</p>
+<pre class="code-block"><code class="language-">Catalog/API   SLO 99.9%   managed-first → Cloud Run        (трафик скачет)
+Payments      SLO 99.95%  managed + строгий контроль доступа
+Feed          SLO 99.5%   event-driven, при деградации — отложенно
+Media         SLO 99.9%   объектное хранилище + CDN, durability важнее latency
+Analytics     best effort error budget не блокирует продуктовые релизы</code></pre>
+<p>Решение: фронт каталога и оплата — на serverless с авто-масштабированием
+до нуля (нет трафика ночью — нет счёта), аналитика — на полностью
+управляемом хранилище. Контроль отдаём там, где регуляторика и деньги
+(Payments), скорость берём там, где её ценит продукт (Catalog, Feed).</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Таблица решений
+«кирпич → класс SLO → модель ответственности (IaaS/managed/serverless) →
+строка trade-off (стоимость·lock-in·контроль)» для всех 9 кирпичей
+маркетплейса в личном форке.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Что означает принцип managed-first и
+когда от него осознанно отступают?</li>
+<li><span class="tag">вопрос</span>Назовите пять опор Google Cloud
+Architecture Framework и объясните, зачем их рассматривать вместе.</li>
+<li><span class="tag">вопрос</span>Чем SLI отличается от SLO, и как из SLO
+вычисляется error budget?</li>
+<li><span class="tag">вопрос</span>Почему error budget называют
+инженерным, а не политическим рычагом?</li>
+<li><span class="tag task">задача</span>Посчитайте бюджет ошибок в минутах
+за 30 дней для SLO 99.9% и 99.95% и объясните, какой назначить
+платёжному пути.</li>
+<li><span class="tag task">задача</span>Сравните TCO ВМ и Cloud Run для
+ночного нулевого трафика каталога: перечислите статьи затрат, которые
+прайс-лист скрывает.</li>
+<li><span class="tag task">задача</span>Составьте строку trade-off
+(стоимость·lock-in·контроль) для трёх кирпичей маркетплейса и обоснуйте
+выбор модели ответственности.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>По умолчанию выбирается сервис с максимальной долей ответственности
+на стороне Google (serverless/fully managed). Отступают, когда конкретное
+требование — латентность, регуляторика, специфичное ПО, предсказуемая
+цена при стабильной нагрузке — оправдывает дополнительный контроль и
+эксплуатационные затраты.</li>
+<li>Operational Excellence, Security/Privacy/Compliance, Reliability,
+Cost Optimization, Performance Optimization. Вместе — потому что
+улучшение одной опоры обычно ухудшает другую (надёжность ↔ стоимость),
+и решение должно быть осознанным компромиссом, а не локальной
+оптимизацией.</li>
+<li>SLI — измеряемый показатель качества (доля успешных/быстрых
+запросов). SLO — целевое значение SLI за окно. Error budget = 1 − SLO,
+выраженный в абсолюте: для 99.9% это 0.1% валидных событий за окно.</li>
+<li>Спор «катить фичи или чинить надёжность» решается числом: бюджет не
+исчерпан — катим, исчерпан — фриз. Решение не зависит от иерархии или
+убедительности, что снимает политику с инженерного выбора.</li>
+<li>99.9% → ~43.2 мин; 99.95% → ~21.6 мин за 30 дней. Платёжному пути —
+99.95% (или строже): отказ оплаты прямо теряет деньги и доверие, более
+жёсткий бюджет оправдан несмотря на стоимость.</li>
+<li>Прайс-лист показывает только vCPU/RAM. Скрыты: FTE на патчинг и
+дежурства, capacity-планирование, простой при инцидентах, оплата
+24/7-инстансов при нулевом ночном трафике (ВМ платится всегда, Cloud Run
+масштабируется до нуля).</li>
+<li>Пример: Catalog API — стоимость низкая при скейле-до-нуля, lock-in
+средний (контейнер портируем), контроль низкий → serverless. Payments —
+стоимость средняя, lock-in средний, контроль высокий нужен → managed с
+жёстким IAM. Media — стоимость по объёму, lock-in низкий (S3-совместимо),
+контроль низкий → fully managed storage.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

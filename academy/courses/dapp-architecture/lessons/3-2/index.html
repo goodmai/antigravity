@@ -25,22 +25,126 @@
     <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.2 · <span class="badge-mini">Akash</span></p>
     <h1>Децентрализованный compute</h1>
 
-    <p><strong>Канон:</strong> <a href="https://akash.network/docs/getting-started/stack-definition-language/" target="_blank" rel="noopener">Akash SDL</a>, <a href="https://fluence.dev" target="_blank" rel="noopener">Fluence docs</a>.</p>
-<p>Аналог кирпича Compute (Cloud Run/GKE): рынок вычислений, где ноды —
-анонимные провайдеры.</p>
+    <p><strong>Канон:</strong> <a href="https://docs.akash.network" target="_blank" rel="noopener">Akash docs</a>, <a href="https://fluence.dev" target="_blank" rel="noopener">Fluence docs</a>.</p>
 
-<h3>Модель Akash</h3>
-<pre class="code-block"><code class="language-yaml"># deploy.yaml (SDL) — упрощённо
+<p>Это децентрализованный аналог кирпича Compute из модулей 1–2 (Cloud Run /
+GKE). Вместо одного провайдера — рынок вычислений, где ноды анонимные и
+недоверенные. Меняется не «где крутится контейнер», а <strong>модель
+оплаты и модель доверия</strong>.</p>
+
+<h2>1. Рынок вычислений вместо провайдера</h2>
+<p>Akash — обратный аукцион: вы публикуете манифест (SDL), провайдеры
+делают ставки, вы выбираете и фондируете escrow в токене. Golem и Flux —
+похожая модель для батч-задач; Fluence — peer-to-peer исполнение функций
+с верификацией. Общая идея: <em>нет SLA-контракта с юрлицом</em>, есть
+экономический стимул ноды отработать честно.</p>
+<ul>
+<li><strong>Оплата:</strong> escrow в токене (AKT), списание поблочно,
+закрытие lease возвращает остаток.</li>
+<li><strong>Доверие к ноде:</strong> провайдер видит ваш контейнер.
+Секреты внутрь не кладём; данные шифруем в покое.</li>
+<li><strong>Reproducible builds:</strong> образ должен быть детерминирован
+(pinned digest, а не <code>:latest</code>), иначе нечем проверить, что
+запущено именно то.</li>
+</ul>
+
+<h2>2. SDL: декларативный манифест деплоя</h2>
+<pre class="code-block"><code class="language-yaml">---
+version: "2.0"
 services:
-  web: { image: myorg/marketplace:1.0, expose: [{ port: 8080, to: [{global: true}] }] }
+  web:
+    image: myorg/marketplace-api@sha256:9f2b...   # pinned digest
+    expose:
+      - port: 8080
+        as: 80
+        to: [{ global: true }]
 profiles:
-  compute: { web: { resources: { cpu: 0.5, memory: 512Mi } } }
-# деплой → ставки провайдеров (reverse auction) → escrow оплата в AKT</code></pre>
+  compute:
+    web:
+      resources: { cpu: { units: 0.5 }, memory: { size: 512Mi }, storage: { size: 1Gi } }
+  placement:
+    dc:
+      pricing:
+        web: { denom: uakt, amount: 1000 }   # max ставка
+deployment:
+  web:
+    dc: { profile: web, count: 1 }</code></pre>
+<p>Деплой → провайдеры делают bid → выбор lease → escrow → запуск. Нет
+консоли облака с кнопкой «масштабировать»; масштаб — это новый bid.</p>
 
-<div class="note violet"><strong>Цена и доверие.</strong> Дешевле облака,
-но провайдер ноды недоверенный: нужны воспроизводимые образы, шифрование
-данных в покое и отсутствие секретов внутри контейнера.</div>
-    <div class="note gold"><strong>Артефакт урока.</strong> ADR-04 «compute»: Cloud Run vs Akash (цена/доверие/SLA).</div>
+<h2>3. Trade-off против Cloud Run / GKE</h2>
+<div class="table-wrap"><table>
+<tr><th>Свойство</th><th>Cloud Run / GKE (М1–2)</th><th>Akash / Golem / Flux (М3)</th></tr>
+<tr><td>Стоимость</td><td>Выше, прозрачный прайс</td><td>Ниже (аукцион), волатильность токена</td></tr>
+<tr><td>Латентность старта</td><td>Секунды, autoscale</td><td>Минуты на bid+lease</td></tr>
+<tr><td>Доверие</td><td>К Google (SLA, контракт)</td><td>К анонимной ноде + экономика</td></tr>
+<tr><td>Суверенитет данных</td><td>Низкий (у вендора)</td><td>Выше, но провайдер видит runtime</td></tr>
+<tr><td>Сложность эксплуатации</td><td>Низкая (managed)</td><td>Высокая (lease, мониторинг ноды)</td></tr>
+<tr><td>Lock-in</td><td>Вендор API</td><td>Низкий (контейнер портативен)</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>Для маркетплейса hot-path (API оплаты, лента) держим на облаке: нужен
+жёсткий SLA и низкая латентность. На Akash выносим <strong>stateless
+батч</strong>: генерация превью загруженных работ, перекодирование медиа,
+переиндексация. Эти задачи терпят минуты на lease и не содержат секретов.</p>
+<pre class="code-block"><code class="language-">flow: автор загрузил работу
+  → событие в очереди
+  → воркер на Akash берёт задачу (образ pinned digest)
+  → генерит превью, кладёт в IPFS (урок 3.5)
+  → пишет CID обратно; lease закрывается, escrow освобождён</code></pre>
+<p>Так мы получаем экономию на тяжёлом CPU без риска для денежного пути.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> ADR-04 «compute»:
+Cloud Run vs Akash с решением — что выносим на децентрализованный
+compute, что нет, и по каким критериям (SLA, латентность, секреты).</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем модель оплаты Akash принципиально
+отличается от биллинга Cloud Run?</li>
+<li><span class="tag">вопрос</span>Почему недопустимо класть секреты
+внутрь контейнера, запускаемого на анонимной ноде?</li>
+<li><span class="tag">вопрос</span>Зачем нужен pinned digest образа
+вместо тега <code>:latest</code> в SDL?</li>
+<li><span class="tag">вопрос</span>На чём держится доверие к
+провайдеру Akash, если SLA-контракта с юрлицом нет?</li>
+<li><span class="tag task">задача</span>Напишите SDL-профиль для
+stateless-воркера превью (cpu, memory, без публичного порта).</li>
+<li><span class="tag task">задача</span>Сформулируйте критерий, по
+которому задача маркетплейса подходит для Akash, и приведите две
+подходящие и одну неподходящую.</li>
+<li><span class="tag task">задача</span>Набросайте ADR-04: контекст,
+решение (hot-path в облаке, батч на Akash), последствия.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Cloud Run — постфактумный биллинг по юрлицу-провайдеру. Akash —
+предоплаченный escrow в токене, списываемый поблочно; нет счёта,
+есть фонд lease, и волатильность токена влияет на стоимость.</li>
+<li>Провайдер технически имеет доступ к runtime контейнера и может
+прочитать переменные окружения и файлы. Секрет нужно держать снаружи
+(внешний KMS/подпись) и передавать как короткоживущий токен.</li>
+<li>Digest фиксирует точный bytecode образа. С <code>:latest</code>
+нельзя доказать, что нода запустила именно проверенную сборку —
+ломается reproducible build и аудит.</li>
+<li>На экономическом стимуле: провайдер заработает только при честной
+отработке lease, а несоответствие манифесту приводит к разрыву lease и
+потере дохода. Это вероятностная гарантия, а не контрактная.</li>
+<li>Образец: профиль <code>compute</code> с cpu 0.25, memory 256Mi,
+storage 512Mi и <em>без</em> блока <code>expose</code> — воркер не
+принимает входящий трафик, только тянет задачи из очереди.</li>
+<li>Критерий: stateless, без секретов, терпит минуты задержки старта.
+Подходят: генерация превью, перекодирование медиа. Не подходит:
+API оплаты (нужен SLA и низкая латентность hot-path).</li>
+<li>Контекст: тяжёлый CPU на превью дорог в облаке. Решение: hot-path в
+Cloud Run, батч на Akash с pinned digest. Последствия: экономия CPU,
+ценой сложности мониторинга lease и волатильности токена.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">
