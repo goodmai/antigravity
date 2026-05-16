@@ -202,6 +202,55 @@ describe('6. listBuckets / searchBuckets', () => {
   });
 });
 
+describe('6b. listBuckets pagination (continuation token)', () => {
+  it('follows next_continuation_token across pages', async () => {
+    const transport = mockTransport(async ({ url }) => {
+      const u = new URL(url);
+      const tok = u.searchParams.get('continuation-token');
+      if (!tok) {
+        return {
+          status: 200,
+          headers: {},
+          body: JSON.stringify({
+            buckets: [{ bucket_name: 'a' }, { bucket_name: 'b' }],
+            next_continuation_token: 'PAGE2',
+          }),
+        };
+      }
+      if (tok === 'PAGE2') {
+        return {
+          status: 200,
+          headers: {},
+          body: JSON.stringify({
+            buckets: [{ bucket_name: 'c' }],
+            next_continuation_token: '',
+          }),
+        };
+      }
+      throw new Error(`unexpected token ${tok}`);
+    });
+    const client = createGreenfieldClient({ transport, owner: OWNER });
+    const out = await client.listBuckets();
+    expect(out.map((b) => b.name)).toEqual(['a', 'b', 'c']);
+    expect(transport).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after a bounded number of pages (no infinite loop)', async () => {
+    const transport = mockTransport(async () => ({
+      status: 200,
+      headers: {},
+      body: JSON.stringify({
+        buckets: [{ bucket_name: 'x' }],
+        next_continuation_token: 'ALWAYS', // server never ends
+      }),
+    }));
+    const client = createGreenfieldClient({ transport, owner: OWNER });
+    const out = await client.listBuckets();
+    expect(Array.isArray(out)).toBe(true);
+    expect(transport.mock.calls.length).toBeLessThanOrEqual(1000);
+  });
+});
+
 describe('7. saveObject / readObject', () => {
   let transport, client;
   beforeEach(() => {

@@ -17,6 +17,7 @@
     "smartcontracts/buckets/greenfield-core.js",
     "smartcontracts/buckets/lit-pricing.js",
     "smartcontracts/buckets/crypto-envelope.js",
-    "smartcontracts/buckets/course-template.js"
+    "smartcontracts/buckets/course-template.js",
+    "smartcontracts/buckets/course-publish.js"
   ]
 }

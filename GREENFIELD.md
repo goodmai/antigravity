@@ -250,4 +250,24 @@ Three placeholder courses are linked from the main page; replace the
   `COURSE_TEMPLATE`, `buildCourseBucket(spec)`,
   `sampleCourseBucket(slug?)`, and `encryptCourseBucket()` (envelope
   `.enc` + indexer-safe `.lit.json` sidecars via `crypto-envelope`).
-  TDD'd by `tests/course-template.test.js` (10 tests).
+  `encryptCourseBucket` **rewrites the manifest** so each entry points at
+  the stored `.enc` key + its `.lit.json` sidecar + `dataToEncryptHash`
+  (lit.md schema) — indexers resolve real objects, never plaintext keys.
+  TDD'd by `tests/course-template.test.js` (12 tests).
+
+### Growth points addressed (TDD)
+
+- **De-orphaned modules** — `smartcontracts/buckets/course-publish.js`
+  is the single tested seam wiring `course-template` + `crypto-envelope`
+  + `lit-pricing` + the `greenfield-core` client: `planCoursePublish`
+  (pure: build → encrypt → w3ext save settlement), `publishCourse`
+  (createBucket + saveObject every object, fail-fast), `quoteCourseSale`
+  (20% → treasury). `tests/course-publish.test.js` (4 tests).
+- **Manifest correctness** — see above; consistency asserted in tests.
+- **Pagination** — `listBuckets` now follows `next_continuation_token`
+  across pages (bounded to 1000 pages, no infinite loop);
+  `buildListBucketsRequest` takes an optional continuation token.
+- **Coded errors** — `lit-pricing` `toBps` now throws `INVALID_BPS`
+  (was a raw `BigInt` throw).
+- **Supply chain** — `greenfield-testnet` pins
+  `@bnb-chain/greenfield-js-sdk` to `2.2.2` (was floating `latest`).

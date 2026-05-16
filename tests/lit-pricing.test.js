@@ -60,6 +60,16 @@ describe('1. Constants & primitives', () => {
       expect.objectContaining({ code: 'INVALID_BPS' }),
     );
   });
+
+  it('rejects a non-numeric bps with a coded INVALID_BPS error', () => {
+    // Must use the module's coded-error convention, not a raw BigInt throw.
+    expect(() => applyBps(1000n, 'abc')).toThrowError(
+      expect.objectContaining({ code: 'INVALID_BPS' }),
+    );
+    expect(() => applyBps(1000n, 1.5)).toThrowError(
+      expect.objectContaining({ code: 'INVALID_BPS' }),
+    );
+  });
 });
 
 describe('2. computeSaveCharge — w3ext takes 20% of save cost', () => {

@@ -68,7 +68,12 @@ export function toAmount(x) {
  * @returns {bigint}
  */
 function toBps(x) {
-  const v = typeof x === 'bigint' ? x : BigInt(x);
+  let v;
+  try {
+    v = typeof x === 'bigint' ? x : toAmount(x);
+  } catch {
+    throw priceError(`bps must be an integer in [0,10000]: ${x}`, 'INVALID_BPS');
+  }
   if (v < 0n || v > BPS_DENOMINATOR) {
     throw priceError(`bps out of range [0,10000]: ${v}`, 'INVALID_BPS');
   }

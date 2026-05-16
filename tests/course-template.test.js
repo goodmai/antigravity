@@ -121,11 +121,53 @@ describe('4. encryptCourseBucket (envelope + public sidecar)', () => {
     expect(dec.text).toContain('#');
   });
 
-  it('keeps the manifest object intact and public', async () => {
+  it('keeps the manifest object first and public', async () => {
     const out = await encryptCourseBucket(sampleCourseBucket(), {
       crypto: webcrypto,
     });
     expect(out.objects[0].kind).toBe('manifest');
     expect(out.visibility).toBe('public');
+  });
+});
+
+describe('5. encrypted manifest is rewritten & self-consistent', () => {
+  it('manifest entries point at .enc + sidecar with dataToEncryptHash', async () => {
+    const out = await encryptCourseBucket(sampleCourseBucket(), {
+      crypto: webcrypto,
+    });
+    const manifest = JSON.parse(out.objects[0].body);
+
+    // in-memory manifest mirrors the stored manifest object exactly
+    expect(out.manifest).toEqual(manifest);
+
+    const keys = new Set(out.objects.map((o) => o.key));
+    for (const entry of manifest.objects) {
+      expect(entry.key.endsWith('.enc')).toBe(true);
+      expect(entry.sidecar.endsWith('.lit.json')).toBe(true);
+      expect(typeof entry.dataToEncryptHash).toBe('string');
+      expect(entry.dataToEncryptHash.length).toBeGreaterThan(0);
+      // every referenced object actually exists in the bucket
+      expect(keys.has(entry.key)).toBe(true);
+      expect(keys.has(entry.sidecar)).toBe(true);
+      // hash matches the sidecar's hash
+      const sc = JSON.parse(
+        out.objects.find((o) => o.key === entry.sidecar).body,
+      );
+      expect(sc.dataToEncryptHash).toBe(entry.dataToEncryptHash);
+    }
+  });
+
+  it('preserves plaintext size + title in the rewritten manifest', async () => {
+    const plain = sampleCourseBucket();
+    const plainManifest = JSON.parse(plain.objects[0].body);
+    const out = await encryptCourseBucket(plain, { crypto: webcrypto });
+    const encManifest = JSON.parse(out.objects[0].body);
+
+    expect(encManifest.objects).toHaveLength(plainManifest.objects.length);
+    encManifest.objects.forEach((e, i) => {
+      expect(e.title).toBe(plainManifest.objects[i].title);
+      expect(e.size).toBe(plainManifest.objects[i].size);
+      expect(e.key).toBe(`${plainManifest.objects[i].key}.enc`);
+    });
   });
 });

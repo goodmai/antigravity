@@ -7,6 +7,6 @@
     "write": "node write-testnet.mjs"
   },
   "dependencies": {
-    "@bnb-chain/greenfield-js-sdk": "latest"
+    "@bnb-chain/greenfield-js-sdk": "2.2.2"
   }
 }

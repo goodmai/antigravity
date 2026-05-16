@@ -10,6 +10,7 @@ files=(
   smartcontracts/buckets/lit-pricing.js
   smartcontracts/buckets/crypto-envelope.js
   smartcontracts/buckets/course-template.js
+  smartcontracts/buckets/course-publish.js
 )
 
 # `any` as a TS type token: @type {…any…}, ": any", "<any>", "any[]".

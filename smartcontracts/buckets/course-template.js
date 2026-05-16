@@ -27,10 +27,26 @@
  * @property {string} body
  * @property {'manifest'|'payload'|'sidecar'} kind
  *
+ * @typedef {Object} ManifestEntry
+ * @property {string}  key                Stored object key (`.enc` once encrypted).
+ * @property {string}  title
+ * @property {string}  contentType
+ * @property {number}  size               Plaintext byte size.
+ * @property {string} [sidecar]           `.lit.json` sidecar key (encrypted only).
+ * @property {string} [dataToEncryptHash] Hash binding the ciphertext (encrypted only).
+ *
+ * @typedef {Object} CourseManifest
+ * @property {string}          schema
+ * @property {string}          bucket
+ * @property {string}          title
+ * @property {string}          litNetwork
+ * @property {string}          updatedAt
+ * @property {ManifestEntry[]} objects
+ *
  * @typedef {Object} CourseBucket
  * @property {string}         bucketName
  * @property {'public'}       visibility
- * @property {object}         manifest
+ * @property {CourseManifest} manifest
  * @property {BucketObject[]} objects
  *
  * @typedef {CourseBucket & { masterKey: string }} EncryptedCourseBucket
@@ -175,8 +191,10 @@ async function sha256Hex(crypto, bytes) {
 
 /**
  * Encrypt every payload with one bucket master key; emit `.enc` envelopes
- * plus ciphertext-free `.lit.json` sidecars. The manifest stays plaintext
- * and public so indexers keep working.
+ * plus ciphertext-free `.lit.json` sidecars, and **rewrite the manifest**
+ * so each entry points at the stored `.enc` key + its `.lit.json` sidecar
+ * + `dataToEncryptHash` (lit.md schema). The manifest stays public so
+ * indexers resolve real objects, never plaintext keys.
  * @param {CourseBucket} bucket
  * @param {{ crypto?: import('./crypto-envelope.js').WebCryptoLike, masterKey?: string }} [opts]
  * @returns {Promise<EncryptedCourseBucket>}
@@ -188,13 +206,17 @@ export async function encryptCourseBucket(bucket, opts = {}) {
     );
   const masterKey = opts.masterKey || (await createBucketMasterKey(crypto));
 
+  /** @type {Map<string, ManifestEntry>} */
+  const metaByKey = new Map();
+  for (const e of bucket.manifest.objects) metaByKey.set(e.key, e);
+
   /** @type {BucketObject[]} */
-  const out = [];
+  const payloadObjects = [];
+  /** @type {ManifestEntry[]} */
+  const newEntries = [];
+
   for (const o of bucket.objects) {
-    if (o.kind !== 'payload') {
-      out.push(o);
-      continue;
-    }
+    if (o.kind !== 'payload') continue;
     const env = await encryptObject(
       masterKey,
       o.body,
@@ -208,25 +230,47 @@ export async function encryptCourseBucket(bucket, opts = {}) {
     const { ciphertext: _omit, ...sidecarBase } = env;
     const sidecar = { ...sidecarBase, dataToEncryptHash };
 
-    out.push({
-      key: `${o.key}.enc`,
+    const encKey = `${o.key}.enc`;
+    const sidecarKey = `${o.key}.lit.json`;
+    payloadObjects.push({
+      key: encKey,
       contentType: 'application/json',
       body: JSON.stringify(env),
       kind: 'payload',
     });
-    out.push({
-      key: `${o.key}.lit.json`,
+    payloadObjects.push({
+      key: sidecarKey,
       contentType: 'application/json',
       body: JSON.stringify(sidecar),
       kind: 'sidecar',
     });
+
+    const src = metaByKey.get(o.key);
+    newEntries.push({
+      key: encKey,
+      sidecar: sidecarKey,
+      title: src ? src.title : o.key,
+      contentType: o.contentType,
+      size: src ? src.size : byteLength(o.body),
+      dataToEncryptHash,
+    });
   }
+
+  /** @type {CourseManifest} */
+  const manifest = { ...bucket.manifest, objects: newEntries };
+  /** @type {BucketObject} */
+  const manifestObject = {
+    key: MANIFEST_KEY,
+    contentType: 'application/json',
+    body: JSON.stringify(manifest),
+    kind: 'manifest',
+  };
 
   return {
     bucketName: bucket.bucketName,
     visibility: bucket.visibility,
-    manifest: bucket.manifest,
-    objects: out,
+    manifest,
+    objects: [manifestObject, ...payloadObjects],
     masterKey,
   };
 }

@@ -71,23 +71,38 @@ function asStr(v) {
 }
 
 /**
- * Safely normalize an untrusted SP list-buckets JSON body into
- * BucketInfo[] — `unknown` in, validated out, no `any`.
+ * Safely normalize one untrusted SP list-buckets page — `unknown` in,
+ * validated out, no `any`. Returns the page's buckets plus the
+ * continuation token for the next page (empty/absent ⇒ last page).
  * @param {string} body
- * @returns {BucketInfo[]}
+ * @returns {{ buckets: BucketInfo[], next: string|undefined }}
  */
-function parseBucketList(body) {
+function parseBucketPage(body) {
   /** @type {unknown} */
   let parsed;
   try {
     parsed = JSON.parse(body);
   } catch {
-    return [];
+    return { buckets: [], next: undefined };
   }
-  if (!parsed || typeof parsed !== 'object') return [];
+  if (!parsed || typeof parsed !== 'object') {
+    return { buckets: [], next: undefined };
+  }
   const root = /** @type {Record<string, unknown>} */ (parsed);
   const list = root.buckets ?? root.Buckets;
-  if (!Array.isArray(list)) return [];
+
+  const pg = root.pagination;
+  const pgObj =
+    pg && typeof pg === 'object'
+      ? /** @type {Record<string, unknown>} */ (pg)
+      : undefined;
+  const rawNext =
+    asStr(root.next_continuation_token) ??
+    asStr(root.NextContinuationToken) ??
+    (pgObj ? asStr(pgObj.next_continuation_token) : undefined);
+  const next = rawNext ? rawNext : undefined;
+
+  if (!Array.isArray(list)) return { buckets: [], next };
 
   /** @type {BucketInfo[]} */
   const out = [];
@@ -107,7 +122,7 @@ function parseBucketList(body) {
       raw: b,
     });
   }
-  return out;
+  return { buckets: out, next };
 }
 
 // ── Validation ────────────────────────────────────────────────────────────
@@ -179,12 +194,15 @@ export function buildDownloadUrl(sp, bucket, key) {
 /**
  * @param {string} sp
  * @param {string} owner
+ * @param {string} [continuationToken]  Fetch the next page when present.
  * @returns {TransportRequest}
  */
-export function buildListBucketsRequest(sp, owner) {
+export function buildListBucketsRequest(sp, owner, continuationToken) {
   return {
     method: 'GET',
-    url: `${sp}/`,
+    url: continuationToken
+      ? `${sp}/?continuation-token=${encodeURIComponent(continuationToken)}`
+      : `${sp}/`,
     headers: { 'X-Gnfd-User-Address': owner },
   };
 }
@@ -272,8 +290,20 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
   /** @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */
   async function listBuckets(ownerOverride) {
     const o = requireOwner(ownerOverride);
-    const res = await send(buildListBucketsRequest(sp, o));
-    return parseBucketList(res.body);
+    const MAX_PAGES = 1000; // hard stop: never loop forever on a bad SP
+    /** @type {BucketInfo[]} */
+    const all = [];
+    /** @type {string|undefined} */
+    let token;
+    let pages = 0;
+    do {
+      const res = await send(buildListBucketsRequest(sp, o, token));
+      const page = parseBucketPage(res.body);
+      all.push(...page.buckets);
+      token = page.next;
+      pages += 1;
+    } while (token && pages < MAX_PAGES);
+    return all;
   }
 
   /** @param {string} [query] @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */
