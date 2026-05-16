@@ -318,6 +318,149 @@ Greenfield metadata. The two concerns are cleanly separated.
 
 ---
 
+## 11. Payments & fee routing (w3ext + treasury)
+
+Lit Protocol charges for **both** operations: encryption at **save**
+(provisioning the threshold key + access policy) and the key-share
+reassembly at **read** (decryption). w3ext is the platform broker that
+fronts those Lit costs and adds its margin; the course marketplace adds a
+protocol cut on sales.
+
+Implemented as pure, deterministic BigInt math (integer minor units,
+basis-points percentages, no float, every split re-sums exactly to its
+input) in **`smartcontracts/buckets/lit-pricing.js`**, fully TDD'd by
+**`tests/lit-pricing.test.js`** (15 tests).
+
+### Defaults
+
+| Event | Who is paid | Default |
+|-------|-------------|---------|
+| **Save** a course | Lit (encryption) + Greenfield storage | pass-through cost |
+| **Save** a course | **w3ext platform fee** | **20%** of the save cost (`DEFAULT_W3EXT_FEE_BPS = 2000`) |
+| **Read** a course | Lit (decryption) | pass-through cost |
+| **Read** a course | **w3ext platform fee** | **20%** of the read cost (`DEFAULT_W3EXT_READ_FEE_BPS = 2000`, override per-call) |
+| **Sale** of a course | **`treasury` smart contract** | **20%** of the sale price (`DEFAULT_TREASURY_BPS = 2000`) |
+| **Sale** of a course | Seller | the exact remainder (absorbs rounding) |
+
+All percentages are overridable per call; the constants above are only
+the defaults the user asked for.
+
+### Save charge
+
+```js
+import { computeSaveCharge } from './smartcontracts/buckets/lit-pricing.js';
+
+computeSaveCharge({ litSaveCost: 800n, storageCost: 200n,
+                    litPayee:'0xLit', storagePayee:'0xSP', w3extPayee:'0xW3' });
+// base = 1000  (Lit 800 + storage 200)
+// w3extFee = 200  (20% of base — the default w3ext cut on saving a course)
+// total = 1200
+// payouts: 0xLit→800 (lit-save), 0xSP→200 (storage), 0xW3→200 (w3ext-fee)
+//          Σ payouts === total   (invariant, asserted in tests)
+```
+
+### Read charge
+
+```js
+import { computeReadCharge } from './smartcontracts/buckets/lit-pricing.js';
+
+computeReadCharge({ litReadCost: 500n });
+// litReadCost 500 + w3extFee 100 (20%) = total 600
+```
+
+### Sale split → treasury
+
+```js
+import { computeSaleSplit } from './smartcontracts/buckets/lit-pricing.js';
+
+computeSaleSplit({ salePrice: 1000n, treasury:'0xTreasury', seller:'0xSeller' });
+// treasuryAmount = 200  (20% → treasury smart contract)
+// sellerAmount   = 800  (remainder; rounding never loses wei)
+// payouts re-sum to salePrice
+```
+
+### Where the money settles
+
+- **w3ext** is the off-/on-chain broker: it collects `total` from the
+  author/reader, forwards the Lit + storage pass-through to their payees,
+  and keeps `w3extFee`. It is the natural place to provision Lit
+  **Capacity Credits** (§7) and amortize them across users.
+- **treasury** is a smart contract address. The 20% sale cut is a
+  transfer/`call` to that contract inside the course-purchase
+  transaction; `computeSaleSplit` produces the exact `payouts` a contract
+  or payment router executes atomically with the sale.
+- The pricing module is **policy only** — it never moves funds. It feeds
+  a payment router / smart contract so the splits stay auditable and
+  unit-tested independently of any chain.
+
+---
+
+## 12. Efficient encryption when Lit is NOT used
+
+Lit gates *who* may decrypt, but a self-custodied or offline path still
+needs confidentiality without a network round-trip. For that, use the
+**envelope (hybrid) scheme** in
+**`smartcontracts/buckets/crypto-envelope.js`** — pure, DOM-free,
+injectable WebCrypto, TDD'd by **`tests/crypto-envelope.test.js`** (10
+tests).
+
+```
+plaintext ──AES-256-GCM(DEK)──▶ ciphertext        (fast bulk AEAD)
+DEK       ──AES-256-GCM(MASTER)──▶ wrappedDek      (32-byte key-wrap)
+MASTER    ──AES-GCM(PBKDF2-SHA256(passphrase))──▶ wrapped   (optional)
+```
+
+Why this is efficient (and not just "encrypt everything with RSA"):
+
+- **Bulk data is symmetric only.** AES-256-GCM is hardware-accelerated;
+  asymmetric/KDF work is confined to the 32-byte DEK, so cost is ~O(size)
+  with a tiny constant — independent of object count for the expensive
+  part.
+- **One master key per bucket.** Every object gets a fresh random DEK
+  (unique IV + ciphertext, verified in tests), but all DEKs are wrapped
+  by a single bucket master. **Rotating or destroying the master
+  crypto-shreds the entire bucket in O(1)** — the practical answer to the
+  "deletion" problem raised in §8, with no per-object rewrite.
+- **AEAD integrity for free.** GCM tags mean a tampered ciphertext or the
+  wrong key fails closed (`DECRYPT_FAILED`), never returns garbage.
+- **Portable custody.** The master can be wrapped by a PBKDF2-SHA256
+  passphrase KEK (≥210k iterations) for human-held backup, or — in a Lit
+  deployment — the *master itself* becomes the `dataToEncrypt`, so Lit
+  protects one 32-byte key instead of every object. This composes the two
+  schemes: Lit for policy, envelope for efficient bulk + instant
+  revocation.
+
+```js
+import {
+  createBucketMasterKey, encryptObject, decryptObject,
+  wrapMasterWithPassphrase, unwrapMasterWithPassphrase,
+} from './smartcontracts/buckets/crypto-envelope.js';
+
+const master = await createBucketMasterKey();              // 256-bit, base64
+const env = await encryptObject(master, '# secret lesson',
+              { contentType: 'text/markdown', originalKey: 'c01.md' });
+// → store `env` as the Greenfield object (public-read is fine: opaque)
+const { text } = await decryptObject(master, env);          // round-trips
+
+const wrap = await wrapMasterWithPassphrase(master, 'pass phrase');
+// store `wrap` as bucket-level key backup; or feed `master` to Lit's
+// encryptString so Lit guards the single master key.
+```
+
+Selection guide:
+
+| Need | Use |
+|------|-----|
+| Token/NFT/allowlist-gated, no shared secret | **Lit** (§5–§7) |
+| Self-custody / offline / max throughput | **envelope** (§12) |
+| Gated **and** cheap bulk + instant revoke | **both**: Lit-wrap the envelope master |
+
+Both modules follow the repo's pure/injectable/TDD conventions and plug
+into the same `greenfield-core` `saveObject`/`readObject` calls — the
+stored bytes are opaque either way.
+
+---
+
 ### Sources
 
 - [Lit — Encryption & Access Control](https://developer.litprotocol.com/sdk/access-control/intro)
