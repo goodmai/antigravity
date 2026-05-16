@@ -25,22 +25,139 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.3 · <span class="badge-mini">data</span></p>
     <h1>Данные на Google Cloud</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/spanner/docs" target="_blank" rel="noopener">Spanner docs</a>, <a href="https://cloud.google.com/firestore/docs" target="_blank" rel="noopener">Firestore docs</a>.</p>
-<p>Тот же кирпич State/Data, но выбор — между управляемыми движками с
-разной моделью согласованности и масштаба.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/spanner/docs" target="_blank" rel="noopener">Spanner docs</a>, <a href="https://cloud.google.com/firestore/docs" target="_blank" rel="noopener">Firestore docs</a>, <a href="https://research.google/pubs/pub39966/" target="_blank" rel="noopener">Spanner paper</a>, <a href="https://www.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/" target="_blank" rel="noopener">DDIA</a>.</p>
 
+<p>Кирпич State/Data отвечает на вопрос «где живёт истина о данных?». На
+Google Cloud это спектр от Cloud SQL (знакомый Postgres) до Spanner
+(глобальная strong-consistency) и Firestore (документная, realtime). Для
+маркетплейса разные Bounded Contexts требуют разных гарантий, и выбор
+определяется согласованностью, масштабом и операционной ценой.</p>
+
+<h2>1. Карта управляемых хранилищ</h2>
 <div class="table-wrap"><table>
-<tr><th>Сервис</th><th>Модель</th><th>Сильная сторона</th></tr>
-<tr><td>Cloud SQL</td><td>managed Postgres/MySQL</td><td>миграция «как есть»</td></tr>
-<tr><td>AlloyDB</td><td>Postgres-совместимый, HTAP</td><td>аналитика+OLTP</td></tr>
-<tr><td>Spanner</td><td>глобальный, strong consistency</td><td>горизонтальный масштаб + ACID</td></tr>
-<tr><td>Firestore</td><td>документный, real-time</td><td>мобильный/web sync</td></tr>
+<tr><th>Сервис</th><th>Модель</th><th>Согласованность</th><th>Масштаб записи</th><th>Когда брать</th></tr>
+<tr><td>Cloud SQL</td><td>Реляционная (PG/MySQL)</td><td>Strong (1 primary)</td><td>Вертикальный + реплики</td><td>Транзакции, знакомый SQL</td></tr>
+<tr><td>AlloyDB</td><td>PG-совместимая</td><td>Strong</td><td>Лучше PG, HTAP</td><td>Тяжёлый PG + аналитика</td></tr>
+<tr><td>Spanner</td><td>Реляционная распределённая</td><td>External (TrueTime)</td><td>Горизонтальный</td><td>Глобально, strong + scale</td></tr>
+<tr><td>Firestore</td><td>Документная</td><td>Strong на документ</td><td>Авто-горизонтальный</td><td>Realtime, профили, лента</td></tr>
+<tr><td>Bigtable</td><td>Wide-column</td><td>Eventual/строка</td><td>Огромный, низкая latency</td><td>Time-series, события</td></tr>
 </table></div>
 
-<div class="note sky"><strong>Trade-off.</strong> Spanner снимает потолок
-масштаба, но это сильнейший lock-in модуля. Cloud SQL — почти без
-lock-in, но потолок обычного Postgres.</div>
-    <div class="note gold"><strong>Артефакт урока.</strong> Схема данных маркетплейса на GCP (выбор движка обоснован).</div>
+<h2>2. Согласованность и TrueTime</h2>
+<p>DDIA различает уровни согласованности; Spanner добавляет
+<strong>external consistency</strong> — транзакции упорядочены так, будто
+выполнялись по глобальным часам. Это возможно благодаря
+<strong>TrueTime</strong>: API, возвращающий не точку, а интервал
+<code>[earliest, latest]</code> с гарантированной границей погрешности
+(атомные часы + GPS). Spanner делает commit-wait — ждёт, пока
+неопределённость интервала пройдёт, — и получает линеаризуемость на
+глобальном масштабе. Цена: латентность записи выше и стоимость
+существенно больше Cloud SQL.</p>
+<div class="note violet"><strong>Правило выбора.</strong> Не нужен
+глобальный масштаб со strong-консистентностью — не платите за Spanner.
+Для одного региона Cloud SQL/AlloyDB дают те же транзакционные гарантии
+дешевле и с меньшим lock-in.</div>
+
+<h2>3. Критерии выбора для маркетплейса</h2>
+<p>Деньги требуют сериализуемых транзакций → реляционка. Профили и лента
+требуют realtime и гибкой схемы → Firestore. Аналитические события
+(урок 2.4) не место в OLTP-базе.</p>
+<div class="table-wrap"><table>
+<tr><th>Контекст</th><th>Хранилище</th><th>Обоснование</th><th>Trade-off</th></tr>
+<tr><td>Catalog</td><td>Cloud SQL (PG)</td><td>Реляционные связи, поиск, транзакции</td><td>$ средний · lock-in низкий · контроль средний</td></tr>
+<tr><td>Order/Payments</td><td>Cloud SQL (PG)</td><td>ACID, идемпотентность, аудит</td><td>$ средний · lock-in низкий · контроль средний</td></tr>
+<tr><td>Identity profile</td><td>Firestore</td><td>Realtime, гибкая схема</td><td>$ по операциям · lock-in высокий · контроль низкий</td></tr>
+<tr><td>Feed</td><td>Firestore</td><td>Подписки, live-обновления</td><td>$ по операциям · lock-in высокий · контроль низкий</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>Схема Catalog/Payments в Cloud SQL (Postgres) с идемпотентностью
+платежа:</p>
+<pre class="code-block"><code class="language-">CREATE TABLE works (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_id     UUID NOT NULL,
+  title         TEXT NOT NULL,
+  price_cents   INTEGER NOT NULL CHECK (price_cents &gt;= 0),
+  status        TEXT NOT NULL DEFAULT 'draft',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE orders (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  buyer_id        UUID NOT NULL,
+  work_id         UUID NOT NULL REFERENCES works(id),
+  amount_cents    INTEGER NOT NULL,
+  state           TEXT NOT NULL DEFAULT 'pending',
+  idempotency_key TEXT NOT NULL UNIQUE,   -- защита от двойной оплаты
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);</code></pre>
+<p>Профиль и лента — в Firestore, где документ обновляется атомарно и
+клиенты получают live-снимки:</p>
+<pre class="code-block"><code class="language-">// коллекция users/{uid}
+{ "displayName": "ann", "rating": 4.8, "followers": 312 }
+
+// feed/{uid}/items/{itemId} — realtime подписка клиента
+db.collection(`feed/${uid}/items`).orderBy('ts','desc').limit(50)
+  .onSnapshot(s =&gt; render(s.docs));</code></pre>
+<p>Решение: связь по идентификатору пользователя соединяет Cloud SQL и
+Firestore без общей таблицы (граница Bounded Context из урока 1.1
+сохранена). Spanner не берём — продукт регионален, глобальная external
+consistency не нужна, а её цена не оправдана.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Схема данных на
+GCP: DDL Cloud SQL для Catalog/Payments + структура коллекций Firestore
+для Identity/Feed, с пометкой выбранного уровня согласованности и строкой
+trade-off на каждое хранилище.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Что такое external consistency в
+Spanner и чем она сильнее обычной strong-consistency?</li>
+<li><span class="tag">вопрос</span>Как TrueTime и commit-wait
+обеспечивают глобальную упорядоченность транзакций?</li>
+<li><span class="tag">вопрос</span>Почему для регионального маркетплейса
+Spanner — обычно переплата?</li>
+<li><span class="tag">вопрос</span>Почему профиль и лента ложатся на
+Firestore, а оплата — нет?</li>
+<li><span class="tag task">задача</span>Спроектируйте таблицу
+<code>orders</code> с защитой от двойного списания и объясните роль
+idempotency_key.</li>
+<li><span class="tag task">задача</span>Опишите, как связать запись в
+Cloud SQL и документ Firestore, не нарушая границу Bounded Context.</li>
+<li><span class="tag task">задача</span>Постройте таблицу «контекст →
+хранилище → согласованность → trade-off» для всех данных маркетплейса.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>External consistency: если транзакция T1 закоммитилась до старта T2 в
+реальном времени, то и в глобальном порядке T1 раньше T2. Это сильнее
+линеаризуемости одного узла — гарантия держится между регионами.</li>
+<li>TrueTime возвращает интервал времени с ограниченной погрешностью
+(атомные часы + GPS). Spanner делает commit-wait — ждёт прохождения
+неопределённости интервала перед публикацией коммита, поэтому метки
+транзакций монотонны и сопоставимы глобально.</li>
+<li>Spanner оплачивается за глобальную распределённость и strong-scale,
+которые региональному продукту не нужны. Cloud SQL/AlloyDB дают те же
+ACID-гарантии в одном регионе значительно дешевле и проще.</li>
+<li>Профиль/лента — гибкая схема, realtime-подписки, обновление по
+документу: сильные стороны Firestore. Оплата требует многострочных
+сериализуемых транзакций и аудита — это реляционная Cloud SQL.</li>
+<li>Поля buyer_id, work_id, amount_cents, state и
+<code>idempotency_key TEXT UNIQUE</code>. Клиент передаёт ключ; повтор
+запроса с тем же ключом нарушает UNIQUE и возвращает прежний результат
+вместо второго списания.</li>
+<li>Хранить в обоих только общий идентификатор пользователя; никакой
+общей таблицы или внешнего ключа между системами. Синхронизация — через
+событие/контракт, а не shared DB; модели остаются независимыми.</li>
+<li>Catalog→Cloud SQL (strong, $ средний/lock-in низкий);
+Payments→Cloud SQL (strong ACID); Identity profile→Firestore (strong на
+документ, lock-in высокий); Feed→Firestore (realtime, lock-in высокий);
+аналитика — не в OLTP (см. урок 2.4).</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

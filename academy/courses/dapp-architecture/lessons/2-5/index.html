@@ -25,20 +25,125 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.5 · <span class="badge-mini">CDN</span></p>
     <h1>Хранилище и доставка</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/storage/docs/storage-classes" target="_blank" rel="noopener">Cloud Storage classes</a>, <a href="https://cloud.google.com/cdn/docs" target="_blank" rel="noopener">Cloud CDN docs</a>.</p>
-<p>Тот же паттерн, что в классике (объектное хранилище + presigned + CDN),
-но управляемый и интегрированный с IAM.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/storage/docs/storage-classes" target="_blank" rel="noopener">Cloud Storage classes</a>, <a href="https://cloud.google.com/cdn/docs" target="_blank" rel="noopener">Cloud CDN docs</a>, <a href="https://cloud.google.com/media-cdn/docs" target="_blank" rel="noopener">Media CDN docs</a>.</p>
 
+<p>Кирпич Storage/Media отвечает на вопрос «где лежат файлы и как они
+доставляются?». Паттерн тот же, что в классике (объектное хранилище +
+подписанный доступ + CDN), но управляемый и интегрированный с IAM. Для
+маркетплейса это файлы работ: их нужно дёшево хранить, безопасно отдавать
+только покупателю и быстро раздавать через периметр.</p>
+
+<h2>1. Классы хранения и lifecycle</h2>
+<p>Cloud Storage — один API, четыре класса с разной ценой
+хранения/извлечения и минимальным сроком. Стоимость оптимизируется
+автоматически через <strong>lifecycle policy</strong> или
+<strong>Autoclass</strong>, который сам переводит редко используемые
+объекты в холодные классы.</p>
 <div class="table-wrap"><table>
-<tr><th>Класс</th><th>Когда</th></tr>
-<tr><td>Standard</td><td>горячие ассеты, частый доступ</td></tr>
-<tr><td>Nearline / Coldline</td><td>бэкапы, редкий доступ</td></tr>
-<tr><td>Archive</td><td>долгое хранение, дешёвое</td></tr>
+<tr><th>Класс</th><th>Доступ</th><th>Мин. срок</th><th>Цена хранения</th><th>Цена извлечения</th></tr>
+<tr><td>Standard</td><td>Частый, горячий</td><td>—</td><td>Высокая</td><td>Нет</td></tr>
+<tr><td>Nearline</td><td>~раз в месяц</td><td>30 дней</td><td>Ниже</td><td>Есть</td></tr>
+<tr><td>Coldline</td><td>~раз в квартал</td><td>90 дней</td><td>Ещё ниже</td><td>Выше</td></tr>
+<tr><td>Archive</td><td>Раз в год / комплаенс</td><td>365 дней</td><td>Минимальная</td><td>Высокая</td></tr>
 </table></div>
+<p>Trade-off: холодные классы дешевле в хранении, но дороже и медленнее в
+извлечении плюс штраф за раннее удаление. Ошибка — класть туда часто
+читаемые файлы.</p>
 
-<p>Signed URL / Signed Cookie дают приватную доставку; Cloud CDN кэширует
-на периметре. Media CDN — для видео-стриминга работ.</p>
-    
+<h2>2. Приватная доставка: signed URL и signed cookies</h2>
+<p>Бакет с файлами работ закрыт от публичного доступа. Доступ выдаётся
+точечно: <strong>signed URL</strong> — одна подписанная ссылка с TTL на
+один объект (скачивание купленной работы); <strong>signed cookies</strong> —
+подписанная кука, открывающая доступ к группе ресурсов на время (галерея
+превью, HLS-сегменты видео). Подпись делается ключом сервис-аккаунта или
+через ключи Cloud CDN.</p>
+<div class="note violet"><strong>Правило периметра.</strong> Объект
+никогда не публичный. Право на скачивание = бизнес-проверка «оплачено»
+→ выдача краткоживущего signed URL, а не постоянная ссылка.</div>
+
+<h2>3. Cloud CDN и Media CDN</h2>
+<p><strong>Cloud CDN</strong> кэширует ответы origin (бакет или backend)
+на периметре Google — статика, изображения, документы. <strong>Media
+CDN</strong> — отдельный продукт под крупномасштабный видео-стриминг
+(HLS/DASH) с большей пропускной способностью. Для маркетплейса:
+картинки/архивы работ — Cloud CDN; видеопревью и видеоработы — Media
+CDN с подписанными запросами.</p>
+
+<h3>Пример использования элементов</h3>
+<p>Покупатель оплатил работу. Backend проверяет факт оплаты в Cloud SQL и
+выдаёт signed URL c TTL 10 минут — ссылку нельзя переслать «навсегда»:</p>
+<pre class="code-block"><code class="language-"># bucket приватный, доступ только сервис-аккаунту
+gsutil iam ch serviceAccount:api@PROJECT.iam.gserviceaccount.com:roles/storage.objectViewer \
+  gs://market-works
+# lifecycle: горячее → Nearline через 30д, Archive через 365д
+gsutil lifecycle set lifecycle.json gs://market-works</code></pre>
+<pre class="code-block"><code class="language-">// выдача ссылки только после проверки оплаты
+if (!(await order.isPaid(userId, workId))) throw forbidden();
+const [url] = await storage.bucket('market-works')
+  .file(`works/${workId}.zip`)
+  .getSignedUrl({ action: 'read', expires: Date.now() + 10*60*1000 });
+return { downloadUrl: url };  // TTL 10 мин, одноразово по смыслу</code></pre>
+<p>Решение: оригиналы работ — Standard с lifecycle в Nearline/Archive
+(старые непопулярные работы дешевеют автоматически); превью раздаются
+через Cloud CDN; видеоработы — Media CDN с signed cookies на сессию
+просмотра. Lock-in низкий: API S3-совместимо концептуально, миграция
+данных стандартна.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Спецификация
+хранилища маркетплейса: бакеты и их классы, lifecycle-правила
+(Standard→Nearline→Archive), схема приватной доставки (signed URL для
+скачивания, signed cookies для видео) и выбор Cloud CDN vs Media CDN.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем отличаются классы Standard,
+Nearline, Coldline, Archive и какой главный риск неверного выбора?</li>
+<li><span class="tag">вопрос</span>В чём разница между signed URL и
+signed cookies и когда применять каждый?</li>
+<li><span class="tag">вопрос</span>Зачем нужна lifecycle policy и что
+делает Autoclass?</li>
+<li><span class="tag">вопрос</span>Когда брать Media CDN вместо Cloud
+CDN?</li>
+<li><span class="tag task">задача</span>Спроектируйте доставку купленной
+работы так, чтобы ссылка не работала «навсегда» и не утекала.</li>
+<li><span class="tag task">задача</span>Опишите lifecycle-правила для
+файлов работ маркетплейса с обоснованием сроков переходов.</li>
+<li><span class="tag task">задача</span>Объясните строкой trade-off
+(стоимость·lock-in·контроль) выбор Cloud Storage + Cloud CDN для медиа
+маркетплейса.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Чем холоднее класс, тем дешевле хранение, но дороже/медленнее
+извлечение и больше минимальный срок (штраф за раннее удаление). Главный
+риск — положить часто читаемые файлы в Coldline/Archive: суммарно дороже
+из-за платы за извлечение.</li>
+<li>Signed URL — подписанная ссылка с TTL на один объект (скачивание
+одной работы). Signed cookies — подписанная кука на доступ к набору
+ресурсов на время (галерея превью, сегменты видео). URL — точечно,
+cookies — для множества связанных запросов.</li>
+<li>Lifecycle автоматически переводит объекты между классами или удаляет
+их по возрасту/условиям, оптимизируя стоимость. Autoclass делает это
+адаптивно по фактическому паттерну доступа без ручных правил.</li>
+<li>При крупномасштабном видео-стриминге (HLS/DASH) с высокой пропускной
+способностью и требованиями к доставке медиа: Media CDN специализирован
+под это, Cloud CDN — под общую веб-статику и API-ответы.</li>
+<li>Бакет приватный; backend проверяет факт оплаты в Cloud SQL и только
+тогда выдаёт signed URL с коротким TTL (например, 10 мин). По истечении
+ссылка мертва; постоянных публичных URL нет.</li>
+<li>Standard для свежих/популярных работ; переход в Nearline после ~30
+дней низкой активности; Archive после ~365 дней для комплаенс-хранения.
+Сроки кратны минимальным срокам классов, чтобы не платить штраф за
+раннее удаление.</li>
+<li>Стоимость: оплата по объёму + lifecycle снижает её автоматически.
+Lock-in: низкий — объектная модель и миграция данных стандартны.
+Контроль: низкий, но durability и периметр обеспечивает Google;
+для медиа этот размен выгоден.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

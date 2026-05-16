@@ -25,28 +25,176 @@
     <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.13 · <span class="badge-mini">Capstone</span></p>
     <h1>Эталонная гибридная архитектура · Capstone</h1>
 
-    <p><strong>Канон:</strong> <a href="https://github.com/joelparkerhenderson/architecture-decision-record" target="_blank" rel="noopener">ADR (Nygard)</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Well-Architected</a>.</p>
-<p>Финал: три проекции сводятся в одну осознанную гибридную архитектуру.
-Цель — не «всё на блокчейне», а обоснованный микс.</p>
+    <p><strong>Канон:</strong> <a href="https://github.com/joelparkerhenderson/architecture-decision-record" target="_blank" rel="noopener">ADR (Nygard)</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Google Cloud Architecture Framework</a>, <a href="https://c4model.com" target="_blank" rel="noopener">C4 model</a>, <a href="https://owasp.org/www-community/Threat_Modeling_Process" target="_blank" rel="noopener">OWASP Threat Modeling (STRIDE)</a>.</p>
+<p>Финал курса сводит три проекции одного домена в одну
+<strong>осознанную гибридную архитектуру</strong>. Цель — не «всё на
+блокчейне» и не «всё в облаке», а защищаемый микс, где каждый из девяти
+кирпичей размещён там, где его trade-off оптимален для конкретного
+продукта — маркетплейса цифровых работ.</p>
 
-<h3>Матрица выбора 9×3 (фрагмент с рекомендацией)</h3>
+<h2>1. Метод принятия решения по кирпичу</h2>
+<p>Для каждого кирпича применяем один и тот же протокол вместо
+вкусовщины:</p>
+<ol>
+<li><strong>Свойство, которое продукт реально требует</strong> (не «модно»,
+а нужно): сильная согласованность? цензуроустойчивость? минимальная
+латентность? суверенитет данных?</li>
+<li><strong>Шесть осей trade-off</strong> для каждого кандидата: стоимость,
+латентность, доверие (кому приходится доверять), суверенитет данных,
+операционная сложность, vendor lock-in.</li>
+<li><strong>Граница применимости</strong>: при каком объёме/SLA/бюджете
+выбор перестаёт работать.</li>
+<li><strong>ADR</strong>: решение фиксируется как Architecture Decision
+Record (контекст → варианты → решение → последствия).</li>
+</ol>
+<div class="note violet"><strong>Принцип.</strong> Децентрализуем то, где
+ценность — <em>отсутствие посредника и доверия</em> (право
+собственности, деньги, неизменяемость). Централизуем то, где ценность —
+<em>латентность, цена и UX</em> (поиск, лента, медиа hot-path).</div>
+
+<h2>2. Матрица выбора 9×3 с рекомендацией</h2>
+<p>Полная матрица сквозного продукта. Колонки «Класс./Google/Децентр.» —
+оценка пригодности (✅ хорошо · ◻ компромисс · ⚠ дорого/рискованно);
+последняя колонка — итоговое гибридное решение.</p>
 <div class="table-wrap"><table>
-<tr><th>Кирпич</th><th>Рекомендация</th><th>Обоснование</th></tr>
-<tr><td>Compute</td><td>Облако + Akash на батч</td><td>SLA важнее цены на hot-path</td></tr>
-<tr><td>Деньги/права</td><td>on-chain</td><td>истина прав без посредника</td></tr>
-<tr><td>Каталог/лента</td><td>классика + The Graph</td><td>латентность чтения</td></tr>
-<tr><td>Медиа</td><td>IPFS + CDN-кэш</td><td>иммутабельно, дёшево</td></tr>
-<tr><td>Identity</td><td>кошелёк + опц. OIDC</td><td>суверенитет + UX</td></tr>
-<tr><td>Ключи</td><td>AA (ERC-4337)</td><td>восстановление без кастодиана</td></tr>
+<tr><th>Кирпич</th><th>Класс.</th><th>Google</th><th>Децентр.</th><th>Гибрид (рекомендация)</th><th>Ведущий trade-off</th></tr>
+<tr><td>Compute</td><td>◻</td><td>✅</td><td>⚠</td><td>Cloud Run hot-path + Akash на батч-рендер</td><td>SLA и латентность важнее цены на hot-path</td></tr>
+<tr><td>State / Data</td><td>✅</td><td>✅</td><td>◻</td><td>PostgreSQL/Spanner как истина каталога; on-chain — только право собственности</td><td>цена on-chain storage; согласованность чтения</td></tr>
+<tr><td>Storage / Media</td><td>◻</td><td>✅</td><td>✅</td><td>IPFS/Arweave (CID в контракте) + CDN-кэш через шлюз</td><td>иммутабельность + дешёвая доставка</td></tr>
+<tr><td>Messaging</td><td>✅</td><td>✅</td><td>◻</td><td>Pub/Sub внутри; on-chain events → The Graph для ленты</td><td>латентность p2p против индексации</td></tr>
+<tr><td>Identity / Auth</td><td>◻</td><td>✅</td><td>✅</td><td>SIWE (кошелёк) как корень + опц. OIDC для web2-UX</td><td>суверенитет против onboarding-трения</td></tr>
+<tr><td>Networking</td><td>✅</td><td>✅</td><td>◻</td><td>Cloud LB + Armor; RPC/шлюзы для chain-доступа</td><td>защита периметра и DDoS</td></tr>
+<tr><td>Secrets / Keys</td><td>◻</td><td>✅</td><td>✅</td><td>KMS для серверных секретов; AA (ERC-4337) + MPC для пользовательских ключей</td><td>восстановление без кастодиана</td></tr>
+<tr><td>Observability</td><td>✅</td><td>✅</td><td>◻</td><td>Cloud Monitoring/SLO + The Graph/Dune для on-chain</td><td>финализация и реорги не видны классике</td></tr>
+<tr><td>Delivery / Govern.</td><td>✅</td><td>✅</td><td>◻</td><td>Cloud Build/Deploy; контракты — аудит + детерминированная сборка + multisig/timelock</td><td>необратимость on-chain деплоя</td></tr>
 </table></div>
+
+<h2>3. Эталонная гибридная архитектура (C4 Container)</h2>
+<p>Сведение в одну Container-диаграмму (Structurizr DSL — артефакт
+capstone):</p>
+<pre class="code-block"><code class="language-">workspace {
+  model {
+    user   = person "Пользователь (кошелёк)"
+    market = softwareSystem "Маркетплейс цифровых работ" {
+      spa    = container "SPA"            "React"        "web"
+      api    = container "API/BFF"        "Cloud Run"    "hot-path: каталог, лента"
+      db     = container "PostgreSQL"     "Cloud SQL"    "истина каталога (off-chain)"
+      graph  = container "Indexer"        "The Graph"    "проекция on-chain событий"
+      chain  = container "Контракты"      "EVM L2"       "право собственности, оплата"
+      ipfs   = container "Хранилище"      "IPFS/Arweave" "файлы работ (CID)"
+    }
+    user -> spa  "SIWE-вход, покупка"
+    spa  -> api  "чтение каталога/ленты"
+    api  -> db   "запросы (низкая латентность)"
+    api  -> graph "история владения"
+    spa  -> chain "purchase() — подпись кошельком"
+    chain -> graph "events → индекс"
+    spa  -> ipfs "получение файла по CID"
+  }
+  views { container market { include * autolayout lr } }
+}</code></pre>
+<p>Ключевая идея: <strong>деньги и право собственности</strong> идут
+on-chain (нет посредника), а <strong>чтение каталога и ленты</strong> —
+через классический API + индексатор (низкая латентность, нулевой газ).
+Файлы — контент-адресуемы (CID в контракте), доставка — через CDN-кэш
+поверх IPFS-шлюза.</p>
+
+<h2>4. Threat-model гибрида (STRIDE, фрагмент)</h2>
+<div class="table-wrap"><table>
+<tr><th>Угроза</th><th>Где</th><th>Контрмера</th></tr>
+<tr><td>Spoofing</td><td>SIWE-вход</td><td>nonce + домен + срок в EIP-4361, привязка к chainId</td></tr>
+<tr><td>Tampering</td><td>файл работы</td><td>CID = хэш контента; контракт хранит CID, подмена невозможна</td></tr>
+<tr><td>Repudiation</td><td>покупка</td><td>on-chain транзакция — неотрекаемое доказательство</td></tr>
+<tr><td>Info disclosure</td><td>индексатор/RPC</td><td>приватные данные не on-chain; PII только в Cloud SQL под IAM</td></tr>
+<tr><td>DoS</td><td>API hot-path</td><td>Cloud Armor + rate-limit; чтение не зависит от RPC-ноды</td></tr>
+<tr><td>Elevation</td><td>апгрейд контракта</td><td>multisig + timelock; детерминированная сборка + аудит</td></tr>
+</table></div>
+
+<h3>Пример использования элементов: защита capstone</h3>
+<p>Сценарий «покупатель приобретает работу» проходит сквозь гибрид так:</p>
+<ol>
+<li>Вход — <strong>SIWE</strong> (кирпич Identity, урок 3.7): подпись
+кошельком, без пароля и кастодиана.</li>
+<li>Просмотр каталога — <strong>классический API + PostgreSQL</strong>
+(уроки 1.4–1.5, 2.3): десятки мс, нулевой газ.</li>
+<li>Покупка — транзакция <code>purchase()</code> в <strong>EVM-контракте</strong>
+(уроки 3.3–3.4): право собственности фиксируется без посредника.</li>
+<li>Событие <code>Purchased</code> индексируется <strong>The Graph</strong>
+(урок 3.11) → лента обновляется через обычный GraphQL-запрос.</li>
+<li>Файл выдаётся по <strong>CID из IPFS</strong> через CDN-кэш
+(уроки 3.5–3.6): иммутабельно и дёшево.</li>
+</ol>
+<p>Каждый шаг — это один кирпич, размещённый по матрице §2, с
+зафиксированным ADR и обоснованием через шесть осей trade-off.</p>
 
 <h3>Критерий защиты capstone</h3>
 <ol>
-<li>Матрица 9×3 с trade-off (цена · латентность · доверие · суверенитет · lock-in).</li>
-<li>C4 Context+Container гибрида.</li>
-<li>Threat-model гибрида и обоснование «что централизовать / отдать Google / децентрализовать» — с цифрами.</li>
+<li>Матрица 9×3 с trade-off по шести осям (цена · латентность · доверие ·
+суверенитет · опер. сложность · lock-in) и колонкой «граница
+применимости».</li>
+<li>C4 Context + Container гибрида (Structurizr/PlantUML).</li>
+<li>Threat-model (STRIDE) гибрида и письменное обоснование «что
+централизовать / отдать Google / децентрализовать» — с цифрами по
+стоимости, латентности и суверенитету.</li>
+<li>Набор ADR-01…05 по спорным решениям (декомпозиция, consistency,
+runtime, compute, ключи).</li>
 </ol>
-    <div class="note gold"><strong>Артефакт урока.</strong> Capstone: матрица 9×3 + C4 гибрида + ADR-набор + threat-model.</div>
+    <div class="note gold"><strong>Артефакт урока.</strong> Capstone: матрица 9×3 + C4 гибрида (Context+Container) + ADR-набор (01–05) + threat-model STRIDE.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Сформулируйте принцип, по которому
+кирпич идёт on-chain, а не в классику/облако. Приведите два примера из
+матрицы.</li>
+<li><span class="tag">вопрос</span>Почему каталог и лента в гибриде
+читаются через классический API + индексатор, а не напрямую с цепочки?</li>
+<li><span class="tag">вопрос</span>Какие шесть осей trade-off обязательны
+в матрице 9×3 и почему «граница применимости» — отдельная важная
+колонка?</li>
+<li><span class="tag">вопрос</span>В threat-model: почему подмена файла
+работы невозможна, если в контракте хранится только CID?</li>
+<li><span class="tag task">задача</span>Заполните полную матрицу 9×3 для
+маркетплейса: по каждому кирпичу — оценка трёх парадигм, гибридное
+решение и ведущий trade-off.</li>
+<li><span class="tag task">задача</span>Нарисуйте C4 Container-диаграмму
+гибрида (Structurizr DSL) и отметьте, какой путь идёт on-chain, а какой
+— классикой; обоснуйте каждую стрелку одной осью trade-off.</li>
+<li><span class="tag task">задача</span>Составьте threat-model STRIDE
+гибрида (≥6 угроз) и оформите ADR на самое спорное решение (например,
+SIWE как корень идентичности vs OIDC) по шаблону Nygard.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Децентрализуем, когда ценность — отсутствие посредника и доверия:
+право собственности на работу и оплата идут on-chain (никто не может
+переписать владельца или отменить платёж). Централизуем, когда ценность
+— латентность/цена/UX: каталог и лента в PostgreSQL + Cloud Run.</li>
+<li>Чтение напрямую с цепочки дорогое и медленное (RPC-латентность,
+отсутствие сложных запросов, нет полнотекстового поиска). Истина прав
+остаётся on-chain, а проекция для чтения строится индексатором
+(The Graph) и классической БД — нулевой газ, десятки мс, богатые
+запросы.</li>
+<li>Стоимость, латентность, доверие, суверенитет данных, операционная
+сложность, vendor lock-in. «Граница применимости» отвечает на вопрос
+«при каком объёме/SLA/бюджете выбор ломается» — без неё рекомендация
+выглядит абсолютной, хотя любая верна лишь в диапазоне.</li>
+<li>CID — это криптографический хэш содержимого: любое изменение файла
+меняет CID. Контракт хранит CID, поэтому подменить файл, не сломав
+ссылку, невозможно — клиент проверяет, что полученный контент хэшируется
+в записанный в контракте CID.</li>
+<li>Критерий приёмки: 9 строк × (классика/Google/децентр. оценка +
+гибрид + ведущий trade-off + граница применимости); решения совпадают с
+логикой §1–§2 и подкреплены цифрами.</li>
+<li>Критерий: диаграмма уровня Container, видно разделение on-chain
+(purchase, events) и off-chain (каталог, лента, медиа hot-path); каждая
+связь подписана и обоснована одной осью trade-off.</li>
+<li>Критерий: ≥6 угроз STRIDE с контрмерами, привязанными к конкретным
+кирпичам; ADR содержит контекст, рассмотренные варианты, решение и
+последствия (в т.ч. негативные) — а не только итог.</li>
+</ol>
+</details>
     <hr>
 
     <div class="lesson-nav">

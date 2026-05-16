@@ -25,28 +25,134 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.8 · <span class="badge-mini">OIDC</span></p>
     <h1>Идентичность и доступ</h1>
 
-    <p><strong>Канон:</strong> <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1" target="_blank" rel="noopener">OAuth 2.1 draft</a>, <a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank" rel="noopener">OIDC Core</a>.</p>
-<p>Аутентификация отвечает «кто ты», авторизация — «что тебе можно». Их
-нельзя смешивать.</p>
+    <p><strong>Канон:</strong> <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1" target="_blank" rel="noopener">OAuth 2.1 draft</a>, <a href="https://openid.net/specs/openid-connect-core-1_0.html" target="_blank" rel="noopener">OIDC Core</a>, <a href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a>.</p>
 
-<h3>Сессия vs JWT</h3>
+<p>Аутентификация отвечает «кто ты» (OIDC), авторизация — «что тебе
+можно» (OAuth scopes + RBAC/ABAC). Их нельзя смешивать: валидный токен
+не равен «можно делать что угодно». Этот урок — про сессии vs JWT,
+Authorization Code + PKCE, ротацию refresh-токенов и модели доступа.</p>
+
+<h2>1. Сессия vs JWT</h2>
 <div class="table-wrap"><table>
 <tr><th></th><th>Серверная сессия</th><th>JWT</th></tr>
-<tr><td>Отзыв</td><td>мгновенный</td><td>сложный (нужен denylist)</td></tr>
-<tr><td>Состояние</td><td>в сторе</td><td>stateless</td></tr>
-<tr><td>Размер</td><td>cookie-id</td><td>токен растёт</td></tr>
+<tr><td>Отзыв</td><td>мгновенный (удалить из стора)</td><td>сложный (нужен denylist / короткий TTL)</td></tr>
+<tr><td>Состояние</td><td>в сторе (Redis/БД)</td><td>stateless, проверяется подписью</td></tr>
+<tr><td>Размер</td><td>cookie-id (мало)</td><td>токен растёт с claims</td></tr>
+<tr><td>Масштаб проверки</td><td>чтение стора на запрос</td><td>локальная проверка подписи</td></tr>
 </table></div>
+<p>Практичный гибрид: короткоживущий access-JWT (минуты, без обращения к
+стору) + серверная запись о refresh-токене (мгновенный отзыв сессии).
+Так берём масштаб JWT и управляемость сессии.</p>
 
-<h3>OAuth 2.1: Authorization Code + PKCE</h3>
-<pre class="code-block"><code class="language-">app → /authorize?code_challenge=... → IdP
-IdP → redirect code → app
-app → /token (code + code_verifier) → access + refresh
-refresh rotation: каждый refresh выдаёт новый refresh, старый аннулируется</code></pre>
+<h2>2. OAuth 2.1: Authorization Code + PKCE</h2>
+<p>OAuth 2.1 убирает небезопасные потоки (implicit, password grant).
+Единственный рекомендуемый для приложений — Authorization Code, и
+PKCE обязателен <em>для всех</em> клиентов, не только публичных. PKCE
+защищает от перехвата authorization code: атакующий без
+<code>code_verifier</code> не обменяет код на токен.</p>
+<pre class="code-block"><code class="language-">app → /authorize?code_challenge=S256(verifier)&amp;... → IdP
+IdP → (логин/согласие) → redirect ?code=... → app
+app → POST /token (code + code_verifier) → access(JWT, мин) + refresh
+refresh rotation: каждый /token по refresh выдаёт НОВЫЙ refresh,
+                  старый немедленно аннулируется (reuse → отзыв всей цепочки)</code></pre>
+<div class="note violet"><strong>Refresh-token rotation.</strong>
+Повторное предъявление уже использованного refresh — признак кражи.
+Реакция: аннулировать всю цепочку токенов пользователя. Без ротации
+утёкший refresh живёт месяцами незаметно.</div>
 
+<h2>3. RBAC и ABAC</h2>
+<p>RBAC — доступ по роли (просто, грубо, легко аудировать). ABAC —
+по атрибутам субъекта/ресурса/контекста (гибко, сложнее аудит).
+Распространённая ошибка — клиентская авторизация: скрыли кнопку в UI,
+но эндпоинт открыт. Авторизация всегда серверная, по идентичности из
+токена, а не из тела запроса.</p>
 <div class="note gold"><strong>RBAC vs ABAC.</strong> RBAC — роли (просто,
 грубо). ABAC — атрибуты (гибко, сложнее аудит). Для маркетплейса:
 RBAC на админку, ABAC на «автор видит только свои выплаты».</div>
-    <div class="note gold"><strong>Артефакт урока.</strong> Диаграмма auth-потока (Authorization Code + PKCE + refresh rotation).</div>
+
+<h3>Пример использования элементов</h3>
+<p>Маркетплейс: SPA-клиент, IdP (OIDC), API ядра. Поток входа и
+авторизация выдачи payout-отчёта автора.</p>
+<pre class="code-block"><code class="language-">@startuml
+actor User
+participant SPA
+participant IdP
+participant API
+
+== Аутентификация (Authorization Code + PKCE) ==
+SPA -> SPA : verifier=rnd; challenge=S256(verifier)
+SPA -> IdP : /authorize?code_challenge=challenge&response_type=code
+IdP -> User : логин + согласие
+IdP --> SPA : redirect ?code
+SPA -> IdP : POST /token (code + verifier)
+IdP --> SPA : access(JWT,5m, sub, roles) + refresh
+== Авторизация запроса ==
+SPA -> API : GET /authors/{id}/payouts  (Bearer access)
+API -> API : verify JWT (подпись, exp, aud)
+API -> API : ABAC: token.sub == {id} ? allow : 403
+API --> SPA : payout-отчёт ТОЛЬКО своего автора
+== Ротация ==
+SPA -> IdP : POST /token (refresh)
+IdP --> SPA : НОВЫЙ access + НОВЫЙ refresh (старый refresh аннулирован)
+@enduml</code></pre>
+<p>Разбор: пароль вводится только на IdP, API его не видит (OIDC). API
+доверяет лишь подписанному JWT и проверяет <code>exp</code>/<code>aud</code>.
+Доступ к payout — ABAC-правило «сам себе»: даже валидный токен другого
+автора получит 403, потому что решение принимается по
+<code>token.sub</code>, а не по <code>{id}</code> из URL (клиенту не
+верим). Refresh-ротация обнуляет украденный токен при первом же reuse.
+Админка маркетплейса — отдельно, через RBAC-роль <code>admin</code>.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Диаграмма auth-потока (Authorization Code + PKCE + refresh rotation).</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем отличаются аутентификация и
+авторизация и почему валидный токен ≠ «можно всё»?</li>
+<li><span class="tag">вопрос</span>Сравните серверную сессию и JWT по
+отзыву, состоянию и масштабу; что даёт гибрид?</li>
+<li><span class="tag">вопрос</span>Зачем нужен PKCE и от какой атаки он
+защищает в Authorization Code flow?</li>
+<li><span class="tag">вопрос</span>Что такое refresh-token rotation и
+как система реагирует на reuse уже использованного refresh?</li>
+<li><span class="tag task">задача</span>Постройте диаграмму auth-потока
+SPA↔IdP↔API: Authorization Code + PKCE + ротация refresh.</li>
+<li><span class="tag task">задача</span>Спроектируйте правило доступа к
+<code>GET /authors/{id}/payouts</code>: RBAC или ABAC и почему.</li>
+<li><span class="tag task">задача</span>Найдите ошибку: кнопка payout
+скрыта в UI, но эндпоинт открыт — как должно быть и где проверка.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Аутентификация устанавливает личность (кто ты, OIDC), авторизация —
+права (что можно, scopes/RBAC/ABAC). Токен лишь доказывает личность;
+доступ к конкретному ресурсу — отдельное решение по политике.</li>
+<li>Сессия: мгновенный отзыв, состояние в сторе, чтение на запрос. JWT:
+stateless, локальная проверка подписи, отзыв труден. Гибрид —
+короткий access-JWT + серверная запись refresh — даёт и масштаб, и
+управляемый отзыв.</li>
+<li>PKCE связывает запрос /authorize с обменом /token через
+verifier/challenge. Защищает от перехвата authorization code: без
+<code>code_verifier</code> украденный код не обменять на токен. В
+OAuth 2.1 обязателен для всех клиентов.</li>
+<li>Каждый обмен по refresh выдаёт новый refresh, старый сразу
+аннулируется. Повторное использование старого = признак кражи →
+аннулировать всю цепочку токенов пользователя.</li>
+<li>Критерий: SPA генерирует verifier/challenge, /authorize → code,
+/token с verifier → access(JWT,короткий)+refresh, API проверяет подпись,
+ротация выдаёт новую пару и гасит старый refresh.</li>
+<li>ABAC: правило «<code>token.sub</code> == <code>{id}</code>», т.к.
+доступ зависит от атрибута связи субъект↔ресурс, а не от роли. RBAC
+здесь дал бы слишком грубо («любой автор»).</li>
+<li>Ошибка: авторизация на клиенте. Эндпоинт должен сам проверять
+<code>token.sub</code> против запрашиваемого автора и роль; скрытие
+кнопки — лишь UX. Проверка — на сервере, до выдачи данных, по
+идентичности из токена.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

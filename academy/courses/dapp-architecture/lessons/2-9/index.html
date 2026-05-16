@@ -25,20 +25,131 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.9 · <span class="badge-mini">SLO</span></p>
     <h1>Observability на Google Cloud</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/monitoring/docs" target="_blank" rel="noopener">Cloud Monitoring</a>, <a href="https://sre.google/workbook/implementing-slos/" target="_blank" rel="noopener">SRE Workbook: SLO</a>.</p>
-<p>Те же три столпа, но управляемые, и сверху — <strong>SLO как
-объект</strong> с error budget и burn-rate алертами.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/monitoring/docs" target="_blank" rel="noopener">Cloud Monitoring</a>, <a href="https://sre.google/workbook/implementing-slos/" target="_blank" rel="noopener">SRE Workbook: Implementing SLOs</a>.</p>
 
-<h3>SLO-спецификация</h3>
+<p>Кирпич Observability отвечает на вопрос «как мы узнаём, что система
+жива?». На Google Cloud это управляемая Operations Suite (Logging,
+Monitoring, Trace, Profiler), а сверху — <strong>SLO как объект</strong>
+с error budget и burn-rate алертами по SRE Workbook. Для маркетплейса
+цель — алертить на симптом, важный пользователю, а не на каждый дёрг
+метрики.</p>
+
+<h2>1. Четыре столпа Operations Suite</h2>
+<div class="table-wrap"><table>
+<tr><th>Сервис</th><th>Отвечает на вопрос</th><th>В маркетплейсе</th></tr>
+<tr><td>Cloud Logging</td><td>Что именно произошло?</td><td>Структурные логи с trace-id</td></tr>
+<tr><td>Cloud Monitoring</td><td>Каков тренд показателя?</td><td>SLI, дашборды, алерты</td></tr>
+<tr><td>Cloud Trace</td><td>Где время в распределённом запросе?</td><td>Покупка через N сервисов</td></tr>
+<tr><td>Cloud Profiler</td><td>Где CPU/память внутри сервиса?</td><td>Профиль Catalog API</td></tr>
+</table></div>
+<p>Логи коррелируются с трейсами по <code>trace</code>-полю — из лога
+оплаты переходим в полный путь запроса через Payments → Pub/Sub →
+Payout.</p>
+
+<h2>2. SLI, SLO и error budget на практике</h2>
+<p>SRE Workbook предписывает: SLI измеряет опыт пользователя в долях
+(good/valid), SLO — целевой порог за окно, error budget — допустимый
+остаток «плохого». Для маркетплейса критичный SLI checkout —
+availability+latency: запрос «хороший», если <code>status &lt; 500</code>
+И <code>latency &lt; 300ms</code>.</p>
 <pre class="code-block"><code class="language-yaml">slo:
   service: checkout
-  sli: good = (status&lt;500 AND latency&lt;300ms)
-  objective: 99.9%      # за 28-дневное окно
-  alerting: multi-window multi-burn-rate</code></pre>
+  sli:
+    good:  request.status &lt; 500 AND request.latency &lt; 300ms
+    valid: все запросы POST /checkout
+  objective: 99.9%          # rolling 28-дневное окно
+  error_budget: 0.1%        # ~40 мин «плохого» за окно
+  alerting: multi-window, multi-burn-rate</code></pre>
 
-<p>Multi-burn-rate ловит и быстрый отказ (2% бюджета за час), и медленную
-деградацию — без алерт-шума.</p>
-    <div class="note gold"><strong>Артефакт урока.</strong> SLO-спецификация для checkout (SLI, цель, burn-rate алерты).</div>
+<h2>3. Burn-rate alerts: multi-window multi-burn-rate</h2>
+<p>Алерт на «error budget исчерпан» приходит слишком поздно. SRE Workbook
+предлагает алертить на <strong>скорость сжигания</strong> (burn rate):
+во сколько раз быстрее нормы тратится бюджет. Multi-window отсекает шум:
+быстрый burn подтверждается коротким и длинным окном, иначе ложная
+тревога.</p>
+<div class="table-wrap"><table>
+<tr><th>Burn rate</th><th>Окна</th><th>Смысл</th><th>Действие</th></tr>
+<tr><td>14.4x</td><td>1ч и 5мин</td><td>2% бюджета за час</td><td>Page дежурному</td></tr>
+<tr><td>6x</td><td>6ч и 30мин</td><td>5% бюджета за 6ч</td><td>Page дежурному</td></tr>
+<tr><td>1x</td><td>3д и 6ч</td><td>Медленная деградация</td><td>Ticket, без пейджа</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>SLO-спецификация checkout-пути маркетплейса с двумя burn-rate
+политиками, привязанная к Cloud Monitoring service-level objective:</p>
+<pre class="code-block"><code class="language-yaml">displayName: "checkout availability+latency"
+serviceLevelIndicator:
+  requestBased:
+    distributionCut:
+      distributionFilter: 'metric.type="run.googleapis.com/request_latencies" resource.service_name="payments-api"'
+      range: { max: 300 }            # latency &lt; 300ms = good
+goal: 0.999
+rollingPeriod: 2419200s              # 28 дней
+---
+alertPolicy:
+  - condition: burn_rate &gt; 14.4 over [5m, 1h]   # быстрый ожог → page
+  - condition: burn_rate &gt; 6   over [30m, 6h]   # средний ожог → page
+  - condition: budget_remaining &lt; 10%           # фриз релизов</code></pre>
+<p>Решение: пейджим только на быстрый ожог бюджета checkout (симптом,
+который чувствует покупатель), не на каждый всплеск CPU. При остатке
+бюджета &lt;10% — автоматический сигнал на freeze релизов (связь с error
+budget из урока 2.1). Trace показывает, какой из сервисов
+(Payments/Pub/Sub/Payout) даёт латентность. Lock-in: SLI-определения
+переносимы, привязка к метрикам Cloud Monitoring — средняя.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> SLO-спецификация
+checkout: определение SLI (status&lt;500 AND latency&lt;300ms), цель
+99.9% за 28 дней, расчёт error budget и две multi-window multi-burn-rate
+политики (14.4x и 6x) + правило фриза при остатке &lt;10%.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем SLI отличается от обычной метрики
+вроде CPU и почему алертить надо на SLI?</li>
+<li><span class="tag">вопрос</span>Что такое burn rate и почему он лучше
+алерта «бюджет исчерпан»?</li>
+<li><span class="tag">вопрос</span>Зачем burn-rate алерту два окна
+(multi-window)?</li>
+<li><span class="tag">вопрос</span>Как Cloud Trace и Cloud Logging
+связаны и зачем коррелировать их по trace-id?</li>
+<li><span class="tag task">задача</span>Сформулируйте SLI для checkout
+маркетплейса (good/valid) и обоснуйте порог 300ms.</li>
+<li><span class="tag task">задача</span>Посчитайте error budget для SLO
+99.9% за 28 дней и опишите политику фриза релизов.</li>
+<li><span class="tag task">задача</span>Спроектируйте две burn-rate
+политики (быстрый и средний ожог) с окнами и действиями.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>SLI измеряет опыт пользователя (доля успешных/быстрых запросов), а
+CPU — внутренний показатель, который может скакать без вреда для
+пользователя. Алерт на SLI бьёт по симптому, важному клиенту, а не по
+шуму ресурсов.</li>
+<li>Burn rate — во сколько раз быстрее нормы тратится error budget. Он
+предупреждает заранее, пока бюджет ещё есть; алерт «исчерпан» приходит,
+когда инцидент уже состоялся.</li>
+<li>Короткое окно реагирует быстро, но шумит; длинное подтверждает, что
+ожог устойчивый. Срабатывание только при совпадении обоих окон убирает
+ложные тревоги от кратких всплесков.</li>
+<li>Логи содержат trace-id того же запроса; по нему из конкретной ошибки
+переходим в полный распределённый путь (Payments→Pub/Sub→Payout) и видим,
+где именно деградация — без этого корреляция ручная и медленная.</li>
+<li>good = ответ POST /checkout с <code>status &lt; 500</code> и
+<code>latency &lt; 300ms</code>; valid = все POST /checkout. 300ms — порог
+ощутимости задержки оплаты пользователем; выше — UX страдает и теряются
+конверсии.</li>
+<li>0.1% от валидных запросов за 28 дней (~40 мин эквивалента
+недоступности). Политика: при остатке &lt;10% бюджета — freeze
+продуктовых релизов, приоритет на надёжность, пока бюджет не
+восстановится.</li>
+<li>Быстрый ожог: burn_rate &gt; 14.4 на окнах [5м, 1ч] → page дежурному.
+Средний: burn_rate &gt; 6 на [30м, 6ч] → page. Медленная деградация: 1x на
+[6ч, 3д] → тикет без пейджа.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

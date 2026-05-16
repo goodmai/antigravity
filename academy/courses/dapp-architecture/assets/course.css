@@ -169,6 +169,76 @@ hr {
   font-weight: 600;
 }
 
+/* ── Reinforcement (Закрепление) ────────────────────────────────────── */
+
+.drill {
+  counter-reset: drill;
+  list-style: none;
+  padding-left: 0;
+  margin: 1.2rem 0;
+}
+.drill > li {
+  counter-increment: drill;
+  position: relative;
+  padding: 12px 16px 12px 52px;
+  margin-bottom: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-2);
+  border-radius: 10px;
+}
+.drill > li::before {
+  content: counter(drill);
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(167, 139, 250, 0.16);
+  color: var(--accent-2);
+  border-radius: 50%;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.drill .tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(212, 175, 55, 0.14);
+  color: var(--accent);
+  vertical-align: middle;
+}
+.drill .tag.task { background: rgba(52, 211, 153, 0.14); color: var(--ok); }
+
+details.answer-key {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px 18px;
+  margin: 1.2rem 0;
+}
+details.answer-key summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--accent);
+  padding: 12px 0;
+  list-style: none;
+}
+details.answer-key summary::-webkit-details-marker { display: none; }
+details.answer-key summary::before { content: '▸ '; color: var(--accent-2); }
+details.answer-key[open] summary::before { content: '▾ '; }
+details.answer-key ol { padding-left: 1.4rem; margin: 0 0 1rem; }
+details.answer-key li { margin-bottom: 0.7rem; }
+
 /* ── Lesson / course landing cards ──────────────────────────────────── */
 
 .module-h {

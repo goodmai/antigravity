@@ -25,20 +25,117 @@
     <p class="lesson-meta">Модуль 3 — Децентрализованные аналоги и альтернативы · Урок 3.4 · <span class="badge-mini">on/off-chain</span></p>
     <h1>Состояние: on-chain vs off-chain</h1>
 
-    <p><strong>Канон:</strong> <a href="https://thegraph.com/docs/" target="_blank" rel="noopener">The Graph docs</a>, <a href="https://docs.soliditylang.org/en/latest/contracts.html#events" target="_blank" rel="noopener">Solidity events</a>.</p>
-<p>Аналог кирпича State/Data. Главное правило: <strong>on-chain — только
-истина прав и денег</strong>, всё остальное — off-chain.</p>
+    <p><strong>Канон:</strong> <a href="https://thegraph.com/docs/" target="_blank" rel="noopener">The Graph docs</a>, <a href="https://ethereum.org/developers/docs/" target="_blank" rel="noopener">Ethereum dev docs</a>.</p>
 
+<p>Это децентрализованный аналог кирпича State/Data. Главный
+архитектурный вопрос: что положить в дорогое on-chain storage, а что
+вынести. Правило: <strong>on-chain — только истина прав и денег</strong>,
+всё остальное — off-chain, читается через индекс событий.</p>
+
+<h2>1. Цена storage в газе</h2>
+<p>Запись нового слота storage (<code>SSTORE</code> с нуля) стоит порядка
+20 000 газа за 32 байта. Хранение строки описания работы — десятки тысяч
+газа на каждую запись. Для каталога из тысяч карточек это экономически
+невозможно. Поэтому on-chain держим минимум: <code>owner</code>,
+<code>price</code>, факт оплаты — то, чему нужна неоспоримость.</p>
 <div class="table-wrap"><table>
 <tr><th>Данные</th><th>Где</th><th>Почему</th></tr>
-<tr><td>владелец работы, баланс</td><td>on-chain</td><td>истина прав</td></tr>
-<tr><td>описание, превью</td><td>IPFS/Arweave</td><td>дорого on-chain</td></tr>
-<tr><td>лента, поиск</td><td>The Graph (индекс)</td><td>чтение из событий</td></tr>
+<tr><td>владелец работы, баланс автора</td><td>on-chain storage</td><td>истина прав, неоспоримость</td></tr>
+<tr><td>описание, теги, превью</td><td>IPFS/Arweave + CID on-chain</td><td>storage дорог; контент иммутабелен</td></tr>
+<tr><td>лента, поиск, агрегаты</td><td>The Graph (индекс событий)</td><td>чтение дёшево, латентность важна</td></tr>
 </table></div>
 
-<p>Контракт пишет событие → The Graph индексирует → фронт читает GraphQL.
-Это децентрализованный аналог «БД + индекс» из модуля 1.</p>
-    <div class="note gold"><strong>Артефакт урока.</strong> Data-схема on-chain/off-chain + subgraph-схема для ленты.</div>
+<h2>2. Events/logs как дешёвый индекс</h2>
+<p>Записать <code>event</code> на порядок дешевле, чем storage, и события
+не входят в state-trie (их нельзя прочитать из контракта, только
+индексировать снаружи). Это и есть децентрализованный аналог пары
+«write-ahead log + read-replica»: контракт эмитит событие, индексатор
+строит проекцию для чтения.</p>
+
+<h2>3. Trade-off против БД из модулей 1–2</h2>
+<div class="table-wrap"><table>
+<tr><th>Свойство</th><th>PostgreSQL + индекс (М1–2)</th><th>On-chain + The Graph (М3)</th></tr>
+<tr><td>Стоимость записи</td><td>Амортизирована</td><td>Газ за каждый SSTORE</td></tr>
+<tr><td>Латентность чтения</td><td>мс</td><td>мс (из subgraph, не из цепи)</td></tr>
+<tr><td>Свежесть индекса</td><td>Синхронно/тригер</td><td>Лаг индексатора + финальность</td></tr>
+<tr><td>Доверие</td><td>К оператору БД</td><td>Цепь неоспорима; индекс — к Indexer</td></tr>
+<tr><td>Суверенитет</td><td>У оператора</td><td>Истина публична</td></tr>
+<tr><td>Lock-in</td><td>СУБД/схема</td><td>Сеть + субграф</td></tr>
+</table></div>
+
+<h3>Пример использования элементов</h3>
+<p>Контракт при покупке эмитит <code>Purchased(workId, buyer)</code>.
+Субграф индексирует это событие и отдаёт ленту по GraphQL за миллисекунды
+— фронт никогда не читает storage напрямую для списков.</p>
+<pre class="code-block"><code class="language-graphql"># schema.graphql субграфа
+type Purchase @entity {
+  id: ID!            # txHash-logIndex
+  workId: BigInt!
+  buyer: Bytes!
+  blockTime: BigInt!
+}
+type Work @entity {
+  id: ID!            # workId
+  owner: Bytes!
+  cid: String!       # указатель на метаданные в IPFS
+  sales: [Purchase!]! @derivedFrom(field: "workId")
+}</code></pre>
+<pre class="code-block"><code class="language-">query Лента {
+  purchases(first: 20, orderBy: blockTime, orderDirection: desc) {
+    workId  buyer  blockTime
+  }
+}</code></pre>
+<p>Истина о владении — в контракте; читаемая лента — в субграфе; контент —
+в IPFS по CID. Три слоя, каждый по своей цене.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Data-схема
+on-chain/off-chain маркетплейса + subgraph schema.graphql для ленты с
+обоснованием границы по газу и латентности.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему описание работы нельзя хранить
+в storage контракта?</li>
+<li><span class="tag">вопрос</span>Чем event отличается от storage по
+цене и по доступности из контракта?</li>
+<li><span class="tag">вопрос</span>Что индексирует The Graph и почему
+фронт не читает списки прямо из цепи?</li>
+<li><span class="tag">вопрос</span>Где в схеме «on-chain + субграф»
+остаётся точка доверия помимо самой цепи?</li>
+<li><span class="tag task">задача</span>Разнесите 6 полей карточки работы
+по on-chain / IPFS / субграф и обоснуйте.</li>
+<li><span class="tag task">задача</span>Напишите schema.graphql для
+ленты подписок (кто на кого подписан + последние покупки).</li>
+<li><span class="tag task">задача</span>Опишите, как обработать лаг
+индексатора, чтобы UI не показывал устаревшую ленту как актуальную.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Строка переменной длины занимает несколько слотов SSTORE по ~20k
+газа; для каталога это экономически невозможно. Описание выносим в IPFS,
+в storage кладём только CID-указатель.</li>
+<li>Event на порядок дешевле SSTORE и не входит в state-trie — его нельзя
+прочитать из контракта, только индексировать снаружи. Storage дорог, но
+читаем on-chain.</li>
+<li>The Graph индексирует события контракта в проекцию и отдаёт её по
+GraphQL за миллисекунды. Чтение списков из цепи было бы медленным и не
+поддерживало бы фильтры/сортировки.</li>
+<li>Доверие к Indexer/субграфу: он может отстать или отдать
+неактуальные данные. Сама цепь неоспорима, но индекс — производная,
+требующая мониторинга свежести.</li>
+<li>Образец: owner и price — on-chain; title, description, tags,
+previewImage — IPFS (CID on-chain); агрегат «продаж за неделю» — субграф.</li>
+<li>Образец: сущности <code>Follow{follower, followee}</code> и
+<code>Purchase</code>, плюс производное поле ленты через
+<code>@derivedFrom</code> по адресу подписки.</li>
+<li>Хранить номер последнего индексированного блока субграфа, сравнивать
+с головой цепи; при отставании показывать индикатор «лента
+обновляется», а финансовые статусы подтверждать только из цепи.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

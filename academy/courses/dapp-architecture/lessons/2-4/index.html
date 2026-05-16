@@ -25,21 +25,134 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.4 · <span class="badge-mini">Pub/Sub</span></p>
     <h1>Аналитика и события</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/pubsub/docs" target="_blank" rel="noopener">Pub/Sub docs</a>, <a href="https://cloud.google.com/bigquery/docs" target="_blank" rel="noopener">BigQuery docs</a>.</p>
-<p>Кирпич Messaging в Google — это управляемый Pub/Sub + аналитический
-сток в BigQuery.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/pubsub/docs" target="_blank" rel="noopener">Pub/Sub docs</a>, <a href="https://cloud.google.com/bigquery/docs" target="_blank" rel="noopener">BigQuery docs</a>, <a href="https://cloud.google.com/eventarc/docs" target="_blank" rel="noopener">Eventarc docs</a>.</p>
 
-<h3>Event-driven serverless</h3>
-<pre class="code-block"><code class="language-">Cloud Run ──publish──▶ Pub/Sub topic
-                         ├─ push → Cloud Run (обработчик)
-                         └─ BigQuery subscription → аналитика SQL</code></pre>
+<p>Кирпич Messaging отвечает на вопрос «как части системы общаются
+асинхронно?». На Google Cloud это управляемый Pub/Sub для событий и
+BigQuery как аналитический сток. Для маркетплейса событийная развязка
+позволяет ленте, аналитике и выплатам реагировать на оплату, не блокируя
+синхронный путь покупки.</p>
 
-<ul>
-<li>Pub/Sub — at-least-once; обработчик так же обязан быть идемпотентным.</li>
-<li>Eventarc маршрутизирует события сервисов (например, объект в Storage).</li>
-<li>BigQuery — сток для продуктовой аналитики, не операционная БД.</li>
-</ul>
-    <div class="note gold"><strong>Артефакт урока.</strong> Event-flow «оплата → выплата» на Pub/Sub + BigQuery sink.</div>
+<h2>1. Pub/Sub: доставка, at-least-once и идемпотентность</h2>
+<p>Pub/Sub — это topic (издатель пишет) и subscription (подписчик
+читает: pull или push). Гарантия — <strong>at-least-once</strong>:
+сообщение может прийти повторно при ретрае или отсутствии ack в дедлайн.
+Следствие архитектурное, а не опциональное: <strong>обработчик обязан
+быть идемпотентным</strong> (дедупликация по бизнес-ключу). Exactly-once
+доступен на pull в одном регионе, но дороже и не отменяет необходимость
+идемпотентного дизайна.</p>
+<div class="table-wrap"><table>
+<tr><th>Механизм</th><th>Назначение</th><th>Замечание</th></tr>
+<tr><td>ack deadline</td><td>Время на обработку до redelivery</td><td>Мало — дубли; много — задержка ретрая</td></tr>
+<tr><td>Dead-letter topic</td><td>Куда уходит «ядовитое» сообщение</td><td>После N неудачных попыток</td></tr>
+<tr><td>Ordering key</td><td>Порядок в рамках ключа</td><td>Снижает параллелизм</td></tr>
+<tr><td>BigQuery subscription</td><td>Сток прямо в таблицу</td><td>Без своего ETL-кода</td></tr>
+</table></div>
+
+<h2>2. Eventarc и event-driven serverless</h2>
+<p>Eventarc маршрутизирует события источников (объект появился в Cloud
+Storage, запись в Audit Log, сообщение Pub/Sub) в Cloud Run/Functions по
+CloudEvents-контракту. Это превращает инфраструктурные факты в триггеры
+без своего поллинга. Связка «Cloud Run публикует → Pub/Sub → Cloud Run
+обрабатывает» — стандартный event-driven serverless паттерн модуля.</p>
+<pre class="code-block"><code class="language-">Cloud Run (Payments) ──publish──▶ topic: payment.succeeded
+                                    ├─ push subscription → Feed worker
+                                    ├─ push subscription → Payout worker
+                                    └─ BigQuery subscription → analytics.payments</code></pre>
+
+<h2>3. BigQuery: аналитический сток, не OLTP</h2>
+<p>BigQuery — serverless колоночный склад: оплата за просканированные
+байты (или слоты). Это <strong>не операционная БД</strong> — никаких
+точечных update в горячем пути. Истина транзакций живёт в Cloud SQL
+(урок 2.3); в BigQuery течёт <em>копия событий</em> для продуктовой
+аналитики. Error budget аналитики — best effort, её сбои не блокируют
+покупку.</p>
+
+<h3>Пример использования элементов</h3>
+<p>Event-flow «оплата → выплата автору» развязан через Pub/Sub. Payments
+публикует факт, два независимых подписчика реагируют, аналитика течёт
+параллельно:</p>
+<pre class="code-block"><code class="language-">gcloud pubsub topics create payment-succeeded
+gcloud pubsub subscriptions create feed-sub \
+  --topic=payment-succeeded --push-endpoint=https://feed-xxx.run.app/ \
+  --dead-letter-topic=payment-dlq --max-delivery-attempts=5
+gcloud pubsub subscriptions create payout-sub \
+  --topic=payment-succeeded --push-endpoint=https://payout-xxx.run.app/ \
+  --ack-deadline=30
+# BigQuery sink без ETL-кода
+gcloud pubsub subscriptions create bq-payments \
+  --topic=payment-succeeded \
+  --bigquery-table=PROJECT:analytics.payments</code></pre>
+<pre class="code-block"><code class="language-">// payout worker: at-least-once → дедуп по payment_id
+async function handle(msg) {
+  const e = JSON.parse(msg.data);
+  if (await alreadyPaidOut(e.payment_id)) return ack(msg); // идемпотентность
+  await transferToAuthor(e.author_id, e.author_amount_cents);
+  await markPaidOut(e.payment_id);
+  ack(msg);
+}</code></pre>
+<p>Решение: покупка завершается, как только Payments записал транзакцию в
+Cloud SQL и опубликовал событие; лента и выплата догоняют асинхронно.
+Дубль выплаты невозможен благодаря проверке <code>alreadyPaidOut</code>;
+«ядовитое» сообщение уходит в DLQ после 5 попыток.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Event-flow
+«оплата → выплата» на Pub/Sub: topic, две push-подписки (Feed, Payout) с
+DLQ и BigQuery-subscription для аналитики, с пометкой точек
+идемпотентности.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Что означает гарантия at-least-once в
+Pub/Sub и какое требование она накладывает на обработчик?</li>
+<li><span class="tag">вопрос</span>Зачем нужен dead-letter topic и что
+определяет попадание сообщения в него?</li>
+<li><span class="tag">вопрос</span>Чем Eventarc отличается от прямой
+публикации в Pub/Sub?</li>
+<li><span class="tag">вопрос</span>Почему BigQuery нельзя использовать
+как операционную БД маркетплейса?</li>
+<li><span class="tag task">задача</span>Спроектируйте event-flow
+«оплата → лента + выплата + аналитика» с одним topic и тремя
+подписчиками.</li>
+<li><span class="tag task">задача</span>Покажите, как сделать
+payout-обработчик идемпотентным при at-least-once доставке.</li>
+<li><span class="tag task">задача</span>Объясните, как настроить ack
+deadline и max-delivery-attempts, и какие риски у слишком малых/больших
+значений.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Сообщение доставляется минимум один раз и может прийти повторно
+(ретрай, пропущенный ack). Обработчик обязан быть идемпотентным:
+повторная обработка того же события не должна давать побочного эффекта
+дважды.</li>
+<li>DLQ принимает сообщения, которые подписчик не смог обработать после
+заданного числа попыток (max-delivery-attempts). Это изолирует
+«ядовитые» сообщения, не блокируя нормальный поток.</li>
+<li>Eventarc маршрутизирует события многих источников (Storage, Audit
+Logs, Pub/Sub) в Cloud Run/Functions по стандарту CloudEvents без своего
+поллинга; прямой Pub/Sub требует, чтобы издатель сам публиковал в
+topic.</li>
+<li>BigQuery оптимизирован под колоночное сканирование и аналитику с
+оплатой за байты; точечные update/чтения в горячем пути медленны и
+дороги. Истина транзакций — в Cloud SQL, в BigQuery течёт копия для
+аналитики.</li>
+<li>Topic <code>payment-succeeded</code>; push-подписки feed-sub и
+payout-sub на свои Cloud Run, BigQuery-subscription на
+<code>analytics.payments</code>. Подписчики независимы, отказ одного не
+влияет на других.</li>
+<li>Перед эффектом проверять по бизнес-ключу (payment_id), не выполнена
+ли выплата уже; если да — сразу ack без повторного перевода; пометку о
+выплате ставить атомарно с переводом.</li>
+<li>Ack deadline — время на обработку до redelivery: слишком мало →
+лишние дубли при медленной обработке; слишком много → долгая задержка
+ретрая при падении воркера. max-delivery-attempts балансирует упорство
+ретрая против быстрого вывода «ядовитых» сообщений в DLQ.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

@@ -25,18 +25,121 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.6 · <span class="badge-mini">IAM</span></p>
     <h1>Identity на Google Cloud</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/iam/docs/overview" target="_blank" rel="noopener">Cloud IAM overview</a>, <a href="https://cloud.google.com/iam/docs/workload-identity-federation" target="_blank" rel="noopener">Workload Identity Federation</a>.</p>
-<p>Два разных IAM: <strong>пользователи</strong> продукта (Identity
-Platform / Firebase Auth) и <strong>сервисы</strong> (Cloud IAM роли).</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/iam/docs/overview" target="_blank" rel="noopener">Cloud IAM overview</a>, <a href="https://cloud.google.com/iam/docs/workload-identity-federation" target="_blank" rel="noopener">Workload Identity Federation</a>, <a href="https://cloud.google.com/identity-platform/docs" target="_blank" rel="noopener">Identity Platform</a>.</p>
 
-<h3>Workload Identity Federation</h3>
-<p>Главная идея безопасности модуля: <em>никаких долгоживущих
-service-account ключей</em>. CI/CD и внешние ворклоады получают
-короткоживущий токен по федерации (OIDC), а не JSON-файл.</p>
+<p>Кирпич Identity отвечает на вопросы «кто пользователь?» и «что
+сервису можно?». На Google Cloud это два разных IAM, которые нельзя
+путать: <strong>аутентификация конечных пользователей</strong> продукта
+(Identity Platform / Firebase Auth) и <strong>авторизация
+ворклоадов</strong> между сервисами (Cloud IAM роли + service accounts).</p>
 
-<pre class="code-block"><code class="language-">GitHub Actions (OIDC) ─▶ STS обмен ─▶ временный GCP-токен ─▶ деплой
-                          (нет хранимого секрета)</code></pre>
-    <div class="note gold"><strong>Артефакт урока.</strong> Auth-поток на GCP: Firebase Auth (юзеры) + WIF (CI).</div>
+<h2>1. Два разных IAM</h2>
+<div class="table-wrap"><table>
+<tr><th>Аспект</th><th>Пользователи продукта</th><th>Сервисы/ворклоады</th></tr>
+<tr><td>Сервис</td><td>Identity Platform / Firebase Auth</td><td>Cloud IAM</td></tr>
+<tr><td>Субъект</td><td>Покупатель, автор</td><td>Service account, ворклоад</td></tr>
+<tr><td>Токен</td><td>Firebase ID token (JWT)</td><td>Google OAuth/OIDC, IAM</td></tr>
+<tr><td>Вопрос</td><td>Кто залогинен и его роль в продукте</td><td>Имеет ли сервис право на ресурс</td></tr>
+</table></div>
+<p>Покупатель аутентифицируется в Firebase Auth и получает ID token;
+backend верифицирует его и применяет продуктовые роли (buyer/author).
+Право Cloud Run читать Cloud SQL — это уже Cloud IAM, не Firebase.</p>
+
+<h2>2. Принцип наименьших привилегий в Cloud IAM</h2>
+<p>IAM-политика = (member → role → resource). Антипаттерн —
+<code>roles/editor</code> на проект «чтобы работало». Правильно:
+<strong>отдельный service account на сервис</strong> с
+предопределёнными узкими ролями только на нужные ресурсы.</p>
+<pre class="code-block"><code class="language-"># SA для payments-сервиса: только нужное
+gcloud iam service-accounts create payments-sa
+gcloud projects add-iam-policy-binding PROJECT \
+  --member="serviceAccount:payments-sa@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+gcloud secrets add-iam-policy-binding psp-api-key \
+  --member="serviceAccount:payments-sa@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"</code></pre>
+<p>Trade-off: больше SA и биндингов — больше операционной работы, но
+радиус поражения при компрометации одного сервиса минимален.</p>
+
+<h2>3. Workload Identity Federation</h2>
+<p>Главный принцип безопасности модуля: <strong>никаких долгоживущих
+JSON-ключей service account</strong>. WIF позволяет внешнему ворклоаду
+(GitHub Actions, другое облако) обменять свой OIDC-токен на
+краткоживущий GCP-токен через STS — без хранимого секрета. Скомпрометировать
+нечего: секрета не существует.</p>
+<pre class="code-block"><code class="language-">GitHub Actions (OIDC id-token) ─▶ STS token exchange
+   ─▶ временный access token GCP (минуты) ─▶ deploy
+   (нет JSON-ключа в репозитории/секретах)</code></pre>
+
+<h3>Пример использования элементов</h3>
+<p>Auth-поток маркетплейса разделён на пользовательский и сервисный
+контуры:</p>
+<pre class="code-block"><code class="language-">// 1. Пользователь: Firebase Auth → ID token → backend верифицирует
+const decoded = await admin.auth().verifyIdToken(idToken);
+const uid = decoded.uid;                 // кто
+const role = await profile.roleOf(uid);  // buyer | author (продуктовая роль)
+if (action === 'publishWork' &amp;&amp; role !== 'author') throw forbidden();</code></pre>
+<pre class="code-block"><code class="language-">// 2. Сервис: Cloud Run → Cloud SQL через привязанный SA, без ключа
+//    payments-sa имеет только roles/cloudsql.client + secretAccessor
+// 3. CI: GitHub → WIF → деплой, без service-account JSON</code></pre>
+<p>Решение: конечные пользователи живут в Firebase Auth (Identity Bounded
+Context из урока 1.1 сохранён — связь по uid). Каждый сервис маркетплейса
+получает свой SA с минимальными ролями. CI деплоит через WIF. Lock-in
+Firebase Auth средний (стандартные OIDC-провайдеры, экспортируемые
+пользователи), но устраняет долгоживущие секреты.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Auth-поток на
+GCP: диаграмма «пользователь → Firebase Auth → backend (продуктовые
+роли)» + «сервис → SA с минимальными ролями» + «CI → WIF без ключа», с
+таблицей service account → роли → ресурсы.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем Identity Platform/Firebase Auth
+отличается от Cloud IAM по назначению?</li>
+<li><span class="tag">вопрос</span>Что такое принцип наименьших
+привилегий и почему <code>roles/editor</code> на проект — антипаттерн?</li>
+<li><span class="tag">вопрос</span>Как Workload Identity Federation
+устраняет долгоживущие service-account ключи?</li>
+<li><span class="tag">вопрос</span>Почему продуктовая роль (author/buyer)
+не должна быть Cloud IAM-ролью?</li>
+<li><span class="tag task">задача</span>Опишите политики IAM для
+payments-сервиса по принципу least privilege.</li>
+<li><span class="tag task">задача</span>Спроектируйте auth-поток
+публикации работы автором: от Firebase ID token до проверки роли в
+backend.</li>
+<li><span class="tag task">задача</span>Настройте CI деплой через WIF и
+объясните, почему в репозитории нет ни одного секрета GCP.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Firebase Auth/Identity Platform аутентифицирует конечных
+пользователей продукта и выдаёт ID token. Cloud IAM авторизует
+ворклоады/принципалов на ресурсы Google Cloud. Разные субъекты, токены и
+вопросы.</li>
+<li>Least privilege — давать ровно те права, что нужны, и не больше.
+<code>roles/editor</code> на проект даёт почти всё: компрометация одного
+сервиса = компрометация всего проекта; радиус поражения максимален.</li>
+<li>Внешний ворклоад предъявляет свой OIDC-токен, STS обменивает его на
+краткоживущий GCP-токен. Постоянного JSON-ключа не существует, поэтому
+его нельзя украсть или забыть ротировать.</li>
+<li>Author/buyer — состояние предметной области (Bounded Context
+Identity), а не право на облачный ресурс. Смешивание привязало бы
+продуктовую логику к Cloud IAM и нарушило границу контекста.</li>
+<li>Отдельный SA payments-sa; роли только <code>roles/cloudsql.client</code>
+на нужный инстанс и <code>roles/secretmanager.secretAccessor</code> на
+конкретный секрет PSP. Ни проектного editor, ни лишних ресурсов.</li>
+<li>Клиент логинится в Firebase → ID token; backend
+<code>verifyIdToken</code> → uid; по uid читается продуктовая роль; если
+роль не author — 403; иначе публикация. Cloud IAM здесь не участвует.</li>
+<li>В GitHub настраивается OIDC-провайдер и WIF-пул; workflow получает
+id-token, STS меняет его на временный GCP-токен. JSON-ключа SA нет —
+красть/ротировать нечего, утечка секрета невозможна.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

@@ -25,26 +25,159 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.11 · <span class="badge-mini">security</span></p>
     <h1>Безопасность и поставка</h1>
 
-    <p><strong>Канон:</strong> <a href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a>, <a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener">OWASP Top 10</a>.</p>
-<p>Безопасность — не финальный этап, а свойство архитектуры. Завершаем
-модуль threat-моделью и Container-диаграммой «классики».</p>
+    <p><strong>Канон:</strong> <a href="https://owasp.org/www-project-application-security-verification-standard/" target="_blank" rel="noopener">OWASP ASVS</a>, <a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener">OWASP Top 10</a>, <a href="https://slsa.dev/" target="_blank" rel="noopener">SLSA</a>, <a href="https://owasp.org/www-community/Threat_Modeling_Process" target="_blank" rel="noopener">OWASP: Threat Modeling (STRIDE)</a>.</p>
 
-<h3>Базовые требования (ASVS-минимум)</h3>
+<p>Безопасность — не финальный этап, а свойство архитектуры: её
+проектируют вместе с системой, а не «навешивают» перед релизом. Этот
+урок замыкает модуль: базовые требования ASVS, управление секретами,
+безопасный pipeline (CI/CD + IaC + SLSA) и threat-модель классической
+схемы по STRIDE. Артефакт — C4 Container-диаграмма «классики».</p>
+
+<h2>1. Базовые требования (ASVS-минимум)</h2>
 <ul>
-<li>Секреты — в секрет-менеджере, не в env-файле в репозитории.</li>
-<li>Весь трафик — TLS; внутренний — mTLS, где возможно.</li>
-<li>Валидация ввода на границе, параметризованные запросы (нет SQLi).</li>
-<li>CI/CD: SAST + SCA + image-scan как гейт мерджа.</li>
+<li>Секреты — в секрет-менеджере (Vault/KMS/SM), не в env-файле в
+репозитории и не в образе. Ротация по расписанию.</li>
+<li>Весь внешний трафик — TLS; внутренний — mTLS, где возможно.</li>
+<li>Валидация ввода на границе; параметризованные запросы (нет SQLi);
+authz на сервере по идентичности из токена (урок 1.8).</li>
+<li>Принцип наименьших привилегий: узкие IAM-роли на каждый сервис.</li>
+<li>CI/CD: SAST + SCA (зависимости) + image-scan + secret-scan — как
+обязательный гейт мерджа, не «по желанию».</li>
 </ul>
 
-<h3>Threat-model (STRIDE, кратко)</h3>
+<h2>2. Управление секретами и цепочка поставки</h2>
+<p>Главная ошибка — секрет в git. Он остаётся в истории навсегда, даже
+после удаления файла. Правильно: приложение получает секрет в рантайме
+из менеджера по своей IAM-идентичности; в репозитории — только ссылка на
+имя секрета. Поставка защищается SLSA: воспроизводимая сборка,
+provenance (откуда артефакт), подпись образа, запрет деплоя
+неподписанного.</p>
+<div class="table-wrap"><table>
+<tr><th>Этап pipeline</th><th>Контроль</th><th>Что ловит</th></tr>
+<tr><td>commit</td><td>secret-scan, pre-commit</td><td>ключи/токены в коде</td></tr>
+<tr><td>build</td><td>SAST, SCA</td><td>уязвимый код и зависимости</td></tr>
+<tr><td>artifact</td><td>image-scan, подпись (SLSA provenance)</td><td>CVE в образе, подмена артефакта</td></tr>
+<tr><td>deploy</td><td>policy-gate, IaC-review</td><td>неподписанный образ, дрейф инфры</td></tr>
+</table></div>
+<pre class="code-block"><code class="language-yaml"># GitHub Actions: безопасность как гейт мерджа
+jobs:
+  security-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2     # ключи в истории/диффе
+      - name: SCA (dependencies)
+        run: npm audit --audit-level=high      # уязвимые пакеты
+      - name: SAST
+        uses: github/codeql-action/analyze@v3  # инъекции, небезопасный код
+      - name: Image scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL app:${{ github.sha }}
+    # ветка main защищена: merge запрещён без зелёного security-gate</code></pre>
+
+<h2>3. Threat-model по STRIDE</h2>
+<p>STRIDE — систематический разбор угроз по шести категориям. Моделируют
+по потокам данных C4-диаграммы: каждая стрелка через границу доверия —
+кандидат на угрозу.</p>
 <div class="table-wrap"><table>
 <tr><th>Угроза</th><th>Пример в маркетплейсе</th><th>Контрмера</th></tr>
-<tr><td>Spoofing</td><td>подделка автора работы</td><td>OIDC + подпись сессии</td></tr>
-<tr><td>Tampering</td><td>правка суммы платежа</td><td>серверная цена, не клиентская</td></tr>
-<tr><td>Repudiation</td><td>«я не покупал»</td><td>аудит-лог с trace_id</td></tr>
+<tr><td>Spoofing</td><td>подделка автора работы</td><td>OIDC + подпись сессии (урок 1.8)</td></tr>
+<tr><td>Tampering</td><td>правка суммы платежа в запросе</td><td>серверная цена из каталога (урок 1.2)</td></tr>
+<tr><td>Repudiation</td><td>«я не покупал»</td><td>аудит-лог с trace_id (урок 1.9)</td></tr>
+<tr><td>Information disclosure</td><td>чужой приватный файл работы</td><td>presigned URL + authz (уроки 1.7–1.8)</td></tr>
+<tr><td>Denial of service</td><td>флуд на оплату</td><td>rate-limit, backpressure (урок 1.10)</td></tr>
+<tr><td>Elevation of privilege</td><td>покупатель → admin</td><td>RBAC на сервере, least privilege</td></tr>
 </table></div>
-    <div class="note gold"><strong>Артефакт урока.</strong> C4 Container-диаграмма «классика» + STRIDE-таблица.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Сводим весь модуль в одну C4 Container-диаграмму «классики» и
+накладываем границы доверия для STRIDE.</p>
+<pre class="code-block"><code class="language-">workspace {
+  model {
+    buyer  = person "Покупатель"
+    author = person "Автор"
+    market = softwareSystem "Маркетплейс" {
+      spa     = container "SPA"            "React"     "недоверенная зона"
+      api     = container "Core API"       "Node"      "граница доверия"
+      db      = container "PostgreSQL"     "истина"
+      cache   = container "Redis"          "ускоритель"
+      bus     = container "Kafka"          "события + outbox"
+      media   = container "Object Storage" "S3, presigned"
+      cdn     = container "CDN"            "доставка медиа"
+    }
+    idp = softwareSystem "IdP (OIDC)" "Внешняя система"
+    psp = softwareSystem "PSP"        "Внешняя система"
+
+    buyer  -> spa "HTTPS"
+    author -> spa "HTTPS"
+    spa    -> api "HTTPS + Bearer JWT"      # граница доверия #1
+    spa    -> idp "Auth Code + PKCE"
+    api    -> db    "SQL (params, TLS)"
+    api    -> cache "read-through, TLS"
+    api    -> bus   "outbox → publish"
+    api    -> media "presigned URL"          # граница доверия #2
+    api    -> psp   "charge (mTLS, secret из SM)"  # граница доверия #3
+    spa    -> cdn   "медиа"
+  }
+  views { container market { include * autolayout lr } }
+}</code></pre>
+<p>Разбор: три помеченные границы доверия — это точки приложения STRIDE.
+Граница #1 (SPA→API): Spoofing/Tampering → JWT-проверка + серверная
+цена. #2 (API→Storage): Information disclosure → короткоживущие
+presigned URL и серверная authz. #3 (API→PSP): секрет PSP только из
+секрет-менеджера, mTLS, идемпотентный ключ против повторной charge.
+Диаграмма — это и есть карта, по которой строилась STRIDE-таблица:
+безопасность выведена из архитектуры, а не добавлена сверху.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> C4 Container-диаграмма «классика» + STRIDE-таблица.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему секрет в git опасен даже после
+удаления файла и как приложение должно получать секреты?</li>
+<li><span class="tag">вопрос</span>Что даёт SLSA и зачем подписывать
+артефакт и запрещать деплой неподписанного образа?</li>
+<li><span class="tag">вопрос</span>Что такое граница доверия и почему
+STRIDE применяют именно к потокам через неё?</li>
+<li><span class="tag">вопрос</span>Почему security-проверки делают
+обязательным гейтом мерджа, а не отдельным ночным прогоном?</li>
+<li><span class="tag task">задача</span>Постройте C4 Container-диаграмму
+маркетплейса с явными границами доверия.</li>
+<li><span class="tag task">задача</span>Составьте STRIDE-таблицу: по
+одной угрозе каждой категории с контрмерой из изученных уроков.</li>
+<li><span class="tag task">задача</span>Опишите CI-гейт: какие шаги
+(secret-scan/SAST/SCA/image-scan) на каком этапе и что каждый ловит.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Git хранит историю: секрет остаётся в прошлых коммитах и форках
+навсегда, удаление файла не помогает (нужна ротация ключа). Приложение
+должно брать секрет в рантайме из секрет-менеджера по своей IAM-роли; в
+репозитории — только имя секрета.</li>
+<li>SLSA даёт воспроизводимую сборку и provenance — доказательство,
+откуда и из чего собран артефакт. Подпись + запрет неподписанного
+деплоя защищают цепочку поставки от подмены артефакта между сборкой и
+продом.</li>
+<li>Граница доверия — место, где данные переходят между зонами с разным
+уровнем доверия (клиент↔API, API↔внешний сервис). Угрозы возникают
+именно на пересечении, поэтому STRIDE разбирают каждый такой поток.</li>
+<li>Ночной прогон обнаруживает проблему уже в main, после мержа. Гейт
+мерджа не пускает уязвимый код/секрет в основную ветку вовсе — дешевле
+и раньше, по принципу «безопасность как свойство, а не этап».</li>
+<li>Критерий: containers SPA/API/DB/Redis/Kafka/Storage/CDN, внешние
+IdP и PSP, подписанные связи с протоколами и ≥3 помеченные границы
+доверия.</li>
+<li>Критерий: 6 строк (S/T/R/I/D/E), у каждой конкретный пример в
+маркетплейсе и контрмера, ссылающаяся на изученный механизм (OIDC,
+серверная цена, аудит-лог, presigned+authz, rate-limit, RBAC).</li>
+<li>Образец: commit — secret-scan (ключи в диффе/истории); build — SAST
+(инъекции) + SCA (уязвимые зависимости); artifact — image-scan (CVE) +
+подпись; deploy — policy-gate (неподписанный образ/дрейф IaC).</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

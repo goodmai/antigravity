@@ -25,21 +25,148 @@
     <p class="lesson-meta">Модуль 2 — Облачный Google подход · Урок 2.11 · <span class="badge-mini">reference</span></p>
     <h1>Эталонная архитектура на Google</h1>
 
-    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework/cost-optimization" target="_blank" rel="noopener">Architecture Framework: cost</a>, <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Well-Architected trade-offs</a>.</p>
-<p>Сводим девять кирпичей в одну Google-проекцию и честно считаем цену.</p>
+    <p><strong>Канон:</strong> <a href="https://cloud.google.com/architecture/framework" target="_blank" rel="noopener">Google Cloud Architecture Framework</a>, <a href="https://cloud.google.com/architecture/framework/cost-optimization" target="_blank" rel="noopener">Cost Optimization pillar</a>.</p>
 
+<p>Этот урок сводит девять кирпичей маркетплейса в одну Google-проекцию,
+честно считает её цену по пяти опорам Architecture Framework и
+анализирует vendor lock-in. Тот же продукт из урока 1.1, тот же циркуль —
+другая парадигма ответственности.</p>
+
+<h2>1. Девять кирпичей в Google-проекции</h2>
 <div class="table-wrap"><table>
-<tr><th>Кирпич</th><th>Решение</th><th>Lock-in</th></tr>
-<tr><td>Compute</td><td>Cloud Run</td><td>низкий (контейнер)</td></tr>
-<tr><td>Data</td><td>Cloud SQL / Spanner</td><td>низкий / высокий</td></tr>
-<tr><td>Messaging</td><td>Pub/Sub</td><td>средний</td></tr>
-<tr><td>Identity</td><td>Firebase Auth + WIF</td><td>средний</td></tr>
-<tr><td>Delivery</td><td>Cloud Build/Deploy</td><td>средний</td></tr>
+<tr><th>Кирпич</th><th>Решение GCP</th><th>Урок</th><th>Lock-in</th></tr>
+<tr><td>Compute</td><td>Cloud Run (+GKE Autopilot для медиа)</td><td>2.2</td><td>Низкий (OCI)</td></tr>
+<tr><td>State/Data</td><td>Cloud SQL (PG) + Firestore</td><td>2.3</td><td>Низкий / высокий</td></tr>
+<tr><td>Storage/Media</td><td>Cloud Storage + Cloud/Media CDN</td><td>2.5</td><td>Низкий</td></tr>
+<tr><td>Messaging</td><td>Pub/Sub + BigQuery sink</td><td>2.4</td><td>Средний</td></tr>
+<tr><td>Identity</td><td>Firebase Auth + Cloud IAM + WIF</td><td>2.6</td><td>Средний</td></tr>
+<tr><td>Networking</td><td>Global LB + Cloud Armor + VPC</td><td>2.7</td><td>Средний</td></tr>
+<tr><td>Secrets/Keys</td><td>Secret Manager + Cloud KMS (CMEK)</td><td>2.8</td><td>Средний</td></tr>
+<tr><td>Observability</td><td>Operations Suite + SLO/burn-rate</td><td>2.9</td><td>Средний</td></tr>
+<tr><td>Delivery/Govern.</td><td>Cloud Build/Deploy + Terraform</td><td>2.10</td><td>Низкий / средний</td></tr>
 </table></div>
 
-<p>Чек-лист: scale-to-zero включён? error budget определён? есть exit-план
-от Spanner? CMEK на чувствительных данных?</p>
-    <div class="note gold"><strong>Артефакт урока.</strong> C4 Container-диаграмма «Google» + lock-in/cost чек-лист.</div>
+<h2>2. Чек-лист стоимости и SRE по Architecture Framework</h2>
+<div class="table-wrap"><table>
+<tr><th>Опора</th><th>Контрольный вопрос</th><th>Ответ для маркетплейса</th></tr>
+<tr><td>Cost</td><td>Scale-to-zero включён где можно?</td><td>Catalog/Feed minScale=0; Payments=2</td></tr>
+<tr><td>Reliability</td><td>Error budget определён и алертится?</td><td>checkout 99.9%, burn-rate (2.9)</td></tr>
+<tr><td>Security</td><td>Нет долгоживущих ключей? CMEK?</td><td>WIF + Secret Manager + CMEK заказов</td></tr>
+<tr><td>Operational</td><td>Build once, IaC, откат за секунды?</td><td>Cloud Deploy + Terraform (2.10)</td></tr>
+<tr><td>Performance</td><td>CDN на медиа? холодный старт в деньгах убран?</td><td>Cloud/Media CDN; Payments тёплый</td></tr>
+</table></div>
+
+<h2>3. Vendor lock-in: где привязка и какова цена выхода</h2>
+<p>Lock-in — не «да/нет», а градиент: насколько дорог переход. Низкий —
+переносимый стандарт (контейнер, SQL, объектное хранилище). Высокий —
+проприетарная модель данных/API без аналога. Архитектор обязан знать
+exit-стоимость каждого кирпича <em>до</em> внедрения.</p>
+<div class="table-wrap"><table>
+<tr><th>Сервис</th><th>Привязка</th><th>Exit-стратегия</th></tr>
+<tr><td>Cloud Run</td><td>Низкая — OCI-образ</td><td>Любой контейнерный рантайм</td></tr>
+<tr><td>Cloud SQL (PG)</td><td>Низкая — стандартный PG</td><td>pg_dump → любой Postgres</td></tr>
+<tr><td>Firestore</td><td>Высокая — проприетарная модель</td><td>Anticorruption Layer + экспорт</td></tr>
+<tr><td>Pub/Sub</td><td>Средняя — клиентский API</td><td>Абстракция publisher/consumer</td></tr>
+<tr><td>BigQuery</td><td>Средняя — SQL-диалект/sink</td><td>Экспорт в Parquet, рекаст SQL</td></tr>
+</table></div>
+<div class="note violet"><strong>Правило.</strong> Lock-in допустим
+осознанно, если выигрыш в TCO/скорости перевешивает exit-стоимость, и
+для высокой привязки заложен Anticorruption Layer (урок 1.1) и план
+выхода.</div>
+
+<h3>Пример использования элементов</h3>
+<p>C4 Container-диаграмма «Google» — тот же продукт урока 1.1, но
+контейнеры названы сервисами GCP:</p>
+<pre class="code-block"><code class="language-">workspace {
+  model {
+    buyer  = person "Покупатель"
+    author = person "Автор работ"
+    market = softwareSystem "Маркетплейс (Google Cloud)" {
+      lb     = container "Global LB + Cloud Armor"   "периметр"
+      api    = container "market-api"  "Cloud Run"   "Catalog/Payments"
+      feed   = container "feed-worker" "Cloud Run"   "лента (Pub/Sub push)"
+      bus    = container "Pub/Sub"     "topic payment-succeeded"
+      sql    = container "Cloud SQL"   "Postgres"    "заказы, CMEK"
+      fs     = container "Firestore"                 "профили, лента"
+      obj    = container "Cloud Storage + CDN"       "файлы работ"
+      bq     = container "BigQuery"                  "аналитика (sink)"
+    }
+    psp = softwareSystem "Платёжный провайдер" "Внешняя система"
+
+    buyer  -> lb "HTTPS";  author -> lb "HTTPS"
+    lb -> api "маршрут"
+    api -> sql "заказы (private IP)"
+    api -> fs  "профиль/лента"
+    api -> obj "signed URL после оплаты"
+    api -> bus "publish payment.succeeded"
+    bus -> feed "push";  bus -> bq "BigQuery subscription"
+    api -> psp "платёж через Cloud NAT"
+  }
+  views { container market { include * autolayout lr } }
+}</code></pre>
+<p>Решение: managed-first снижает операционный TCO ценой среднего lock-in;
+самый дорогой выход — Firestore (закрыт Anticorruption Layer и экспортом),
+остальное переносимо. Все девять кирпичей закрыты, error budget и план
+выхода зафиксированы — архитектура завершена и готова к сравнению с
+децентрализацией в модуле 3.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> C4
+Container-диаграмма «Google» (Structurizr/PlantUML) + чек-лист по пяти
+опорам Architecture Framework + lock-in таблица с exit-стратегией на
+каждый кирпич в личном форке.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему lock-in — это градиент
+exit-стоимости, а не бинарный признак?</li>
+<li><span class="tag">вопрос</span>Какой кирпич Google-проекции
+маркетплейса самый «лип кий» и почему?</li>
+<li><span class="tag">вопрос</span>Как пять опор Architecture Framework
+помогают честно посчитать TCO?</li>
+<li><span class="tag">вопрос</span>Почему C4 Container-диаграмма
+«Google» имеет ту же топологию, что классическая из модуля 1?</li>
+<li><span class="tag task">задача</span>Заполните чек-лист по пяти опорам
+для маркетплейса с конкретным ответом на каждый вопрос.</li>
+<li><span class="tag task">задача</span>Постройте lock-in таблицу с
+exit-стратегией для Cloud Run, Cloud SQL, Firestore, Pub/Sub,
+BigQuery.</li>
+<li><span class="tag task">задача</span>Нарисуйте C4 Container-диаграмму
+«Google» продукта и отметьте, где проходит Anticorruption Layer к
+самому привязывающему сервису.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Уйти можно почти всегда — вопрос в цене: переписать код, мигрировать
+данные, изменить процессы. Контейнер/Postgres дёшевы в переносе;
+проприетарная модель данных — дорого. Решение принимается по
+exit-стоимости, а не по факту «привязаны/нет».</li>
+<li>Firestore: проприетарная документная модель и API без прямого
+аналога, миграция требует пересборки слоя доступа и экспорта. Cloud
+Run/Cloud SQL переносимы почти без затрат.</li>
+<li>Они заставляют оценить решение по Cost, Reliability, Security,
+Operational, Performance вместе; TCO = не только цена ресурсов, но и
+надёжность, безопасность, эксплуатация — опоры делают скрытые статьи
+явными.</li>
+<li>Топология — это Bounded Contexts и потоки уровня Container (урок
+1.1), которые не зависят от провайдера. Меняются только реализации
+контейнеров (Cloud Run вместо своего сервиса), а не связи между ними.</li>
+<li>Cost: scale-to-zero для Catalog/Feed. Reliability: checkout SLO 99.9%
++ burn-rate. Security: WIF, Secret Manager, CMEK на заказах. Operational:
+build once + Terraform, откат секундами. Performance: CDN на медиа,
+Payments без холодного старта.</li>
+<li>Cloud Run — низкая, любой OCI-рантайм; Cloud SQL — низкая, pg_dump в
+любой Postgres; Firestore — высокая, ACL + экспорт; Pub/Sub — средняя,
+абстракция publisher/consumer; BigQuery — средняя, экспорт в Parquet и
+рекаст SQL.</li>
+<li>Диаграмма: акторы buyer/author → LB+Cloud Armor → market-api (Cloud
+Run) → Cloud SQL/Firestore/Storage, Pub/Sub → feed/BigQuery, внешний PSP.
+Anticorruption Layer — на границе доступа к Firestore (и к PSP), чтобы
+проприетарная модель не протекала в домен.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">
