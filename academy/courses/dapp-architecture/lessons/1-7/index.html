@@ -25,24 +25,129 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.7 · <span class="badge-mini">media</span></p>
     <h1>Файлы и медиа</h1>
 
-    <p><strong>Канон:</strong> <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html" target="_blank" rel="noopener">AWS S3 presigned URLs</a>, <a href="https://developer.mozilla.org/docs/Web/HTTP/Caching" target="_blank" rel="noopener">MDN: HTTP caching</a>.</p>
-<p>Файлы не хранят в БД и не гоняют через бэкенд. Объектное хранилище +
-<strong>presigned URL</strong> + CDN — индустриальный паттерн.</p>
+    <p><strong>Канон:</strong> <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html" target="_blank" rel="noopener">AWS S3 presigned URLs</a>, <a href="https://developer.mozilla.org/docs/Web/HTTP/Caching" target="_blank" rel="noopener">MDN: HTTP caching</a>, <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html" target="_blank" rel="noopener">Amazon S3 docs</a>.</p>
 
-<h3>Прямая загрузка через presigned URL</h3>
+<p>Файлы не хранят в БД и не гоняют через бэкенд. Индустриальный
+паттерн: объектное хранилище (S3) как стор + <strong>presigned URL</strong>
+для прямой загрузки/скачивания + CDN для доставки. БД хранит только
+метаданные и ссылку, бэкенд — только авторизует.</p>
+
+<h2>1. Почему объектное хранилище, а не БД и не диск</h2>
+<p>BLOB в реляционной БД раздувает её, ломает резервное копирование и
+кэш страниц. Локальный диск пода не переживёт рестарт и не масштабируется
+горизонтально. Объектное хранилище решает обе проблемы: бесконечно
+масштабируемое, дешёвое, с собственной durability. БД хранит
+<code>media(id, s3_key, content_type, size, checksum, owner_id)</code> —
+указатель и факты, не байты.</p>
+
+<h2>2. Прямая загрузка через presigned URL</h2>
+<p>Гонять гигабайты через бэкенд — это утроенный трафик и упёртый в
+память процесс. Presigned URL — это временно подписанная ссылка: бэкенд
+с правами IAM генерирует её, клиент кладёт файл напрямую в S3, бэкенд в
+потоке не участвует.</p>
 <pre class="code-block"><code class="language-">client → POST /uploads        (бэкенд выдаёт presigned PUT URL)
 client → PUT  s3://bucket/... (грузит напрямую, минуя бэкенд)
 client → POST /uploads/confirm (бэкенд валидирует, пишет метаданные)</code></pre>
-<p>Бэкенд не пропускает через себя гигабайты — он только авторизует и
-фиксирует метаданные.</p>
+<pre class="code-block"><code class="language-js">// бэкенд: выдать presigned PUT с жёсткими ограничениями
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-<h3>Доставка через CDN</h3>
+const key = `works/${ownerId}/${crypto.randomUUID()}`;
+const url = await getSignedUrl(s3,
+  new PutObjectCommand({
+    Bucket: 'mkt-private',
+    Key: key,
+    ContentType: 'application/zip',
+    ContentLength: size,            // ограничиваем размер
+  }),
+  { expiresIn: 300 });              // ссылка живёт 5 минут
+// клиент делает PUT по url; затем POST /uploads/confirm с key</code></pre>
+<div class="note violet"><strong>Доверять только confirm.</strong> Факт
+выдачи presigned URL не значит, что файл загружен. Метаданные пишутся
+только в <code>/confirm</code> после <code>HeadObject</code> (размер,
+content-type, checksum совпали) — иначе в каталоге появятся «пустые»
+работы.</div>
+
+<h2>3. Доставка через CDN и приватность</h2>
 <ul>
 <li>Иммутабельные ассеты — <code>Cache-Control: max-age=31536000, immutable</code>.</li>
-<li>Версионирование через хэш в имени файла, а не query-параметр.</li>
-<li>Приватный контент — короткоживущие подписанные ссылки.</li>
+<li>Версионирование через хэш в имени файла, а не query-параметр
+(query ломает кэш некоторых CDN).</li>
+<li>Публичные превью — кэшируемы на CDN; приватный контент
+(купленная работа) — короткоживущие подписанные ссылки на каждую
+выдачу.</li>
+<li>Bucket приватный по умолчанию; публичность даёт только CDN-origin.</li>
 </ul>
-    
+
+<h3>Пример использования элементов</h3>
+<p>Автор загружает архив работы; покупатель после оплаты скачивает его.
+Поток для маркетплейса:</p>
+<pre class="code-block"><code class="language-">1. POST /works/{id}/upload-url
+   бэкенд: проверяет, что вызывающий = автор работы;
+   выдаёт presigned PUT (key=works/{authorId}/{uuid}, TTL 5 мин, лимит размера)
+2. client PUT → S3 (напрямую, бэкенд не в потоке)
+3. POST /works/{id}/upload/confirm { key }
+   бэкенд: HeadObject → проверяет size/content-type/etag,
+   пишет media(...) и связывает с работой; до этого работа = draft
+4. покупатель оплатил (урок 1.6) → GET /works/{id}/download
+   бэкенд: проверяет наличие оплаченного order(buyer, work);
+   выдаёт presigned GET с TTL 60 сек
+5. CDN раздаёт публичные превью (immutable, хэш в имени);
+   приватный архив — только по свежей подписанной ссылке, не кэшируется</code></pre>
+<p>Разбор: бэкенд нигде не пропускает файл через себя — только
+авторизует и фиксирует метаданные. Авторизация на каждом шаге серверная
+(автор для upload, оплативший buyer для download — клиенту не верим,
+урок 1.2). Приватный архив не кэшируется CDN и доступен только по
+ссылке, живущей 60 секунд, поэтому утёкшая ссылка быстро мертва.</p>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему файлы не хранят в реляционной
+БД и не на локальном диске пода?</li>
+<li><span class="tag">вопрос</span>Что такое presigned URL и зачем
+ограничивать его TTL, размер и content-type?</li>
+<li><span class="tag">вопрос</span>Почему метаданные пишут только в шаге
+<code>/confirm</code>, а не при выдаче URL?</li>
+<li><span class="tag">вопрос</span>Чем доставка публичного превью через
+CDN отличается от выдачи приватного купленного файла?</li>
+<li><span class="tag task">задача</span>Напишите серверную функцию,
+выдающую presigned PUT с лимитом размера и TTL 5 минут.</li>
+<li><span class="tag task">задача</span>Опишите полный поток
+upload→confirm→download для купленной работы с серверной авторизацией
+на каждом шаге.</li>
+<li><span class="tag task">задача</span>Предложите кэш-политику: какие
+ассеты делать immutable на CDN, а какие — некэшируемыми, и почему.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>BLOB раздувает БД, ломает бэкап и кэш; локальный диск не переживает
+рестарт пода и не масштабируется. Объектное хранилище дёшево, durable и
+горизонтально масштабируемо; в БД — только метаданные и ключ.</li>
+<li>Это временно подписанная ссылка, дающая клиенту право на одну
+операцию с объектом без раздачи ключей. TTL ограничивает окно
+злоупотребления, лимит размера/типа — защита от загрузки мусора и
+DoS.</li>
+<li>Выдача URL не доказывает успешную загрузку. Только
+<code>/confirm</code> + <code>HeadObject</code> подтверждает, что объект
+есть и его size/type/checksum валидны; иначе появятся «пустые» работы.</li>
+<li>Публичное превью — иммутабельно, кэшируется CDN надолго (хэш в
+имени). Приватный файл — индивидуальная короткоживущая подписанная
+ссылка на каждую выдачу, без кэширования, после проверки оплаты.</li>
+<li>Критерий: <code>getSignedUrl(PutObjectCommand{Bucket,Key,
+ContentType,ContentLength})</code> с <code>expiresIn: 300</code>; key
+включает owner; размер передан в команду.</li>
+<li>Критерий: (1) upload-url с проверкой «вызывающий=автор»; (2) прямой
+PUT в S3; (3) confirm с HeadObject-валидацией и записью media; (4)
+download с проверкой оплаченного заказа и presigned GET TTL ~60с.</li>
+<li>Образец: статика/превью с хэшем в имени — <code>max-age=31536000,
+immutable</code>; приватный купленный архив — без кэша CDN, только
+свежая подписанная ссылка; HTML/метаданные — короткий TTL или
+no-cache.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

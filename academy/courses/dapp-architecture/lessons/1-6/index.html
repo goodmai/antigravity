@@ -25,24 +25,138 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.6 · <span class="badge-mini">events</span></p>
     <h1>Кэш, очереди, событийность</h1>
 
-    <p><strong>Канон:</strong> <a href="https://microservices.io/patterns/data/transactional-outbox.html" target="_blank" rel="noopener">Transactional Outbox</a>, <a href="https://kafka.apache.org/documentation/#design" target="_blank" rel="noopener">Kafka design</a>.</p>
-<p>Асинхронность развязывает компоненты по времени, но вводит
-<strong>eventual consistency</strong> и дубли сообщений.</p>
+    <p><strong>Канон:</strong> <a href="https://microservices.io/patterns/data/transactional-outbox.html" target="_blank" rel="noopener">Transactional Outbox</a>, <a href="https://kafka.apache.org/documentation/#design" target="_blank" rel="noopener">Kafka design</a>, <a href="https://dataintensive.net" target="_blank" rel="noopener">DDIA (Kleppmann), гл. 11</a>.</p>
 
-<h3>Идемпотентность — обязательна</h3>
-<p>Брокеры дают «at-least-once»: одно и то же событие может прийти дважды.
-Потребитель обязан быть идемпотентным — через ключ дедупликации.</p>
+<p>Асинхронность развязывает компоненты по времени: отправитель не ждёт
+получателя. Цена — <strong>eventual consistency</strong> и дубли
+сообщений. Этот урок: почему «exactly-once» — миф, как делать
+потребителей идемпотентными и зачем нужен outbox.</p>
 
-<h3>Паттерн Outbox</h3>
+<h2>1. Гарантии доставки и миф exactly-once</h2>
+<div class="table-wrap"><table>
+<tr><th>Гарантия</th><th>Смысл</th><th>Цена</th></tr>
+<tr><td>at-most-once</td><td>0 или 1 доставка</td><td>теряет сообщения</td></tr>
+<tr><td>at-least-once</td><td>≥1 доставка</td><td>дубли — норма</td></tr>
+<tr><td>exactly-once</td><td>ровно 1 эффект</td><td>только end-to-end, через идемпотентность</td></tr>
+</table></div>
+<p>На уровне сети exactly-once недостижим (проблема двух генералов):
+после отправки нельзя отличить «потерян ответ» от «потеряно сообщение»,
+поэтому отправитель ретраит → дубль. Практический «exactly-once» — это
+at-least-once доставка + идемпотентный приём, где повтор не меняет
+итоговый эффект. Kafka transactions дают это только внутри Kafka, не до
+внешнего PSP.</p>
+
+<h2>2. Идемпотентность потребителя</h2>
+<p>Раз дубли неизбежны, потребитель обязан быть идемпотентным: повторная
+обработка того же события не должна повторять побочный эффект. Механизм
+— ключ дедупликации, зафиксированный в той же транзакции, что и эффект.</p>
+<pre class="code-block"><code class="language-sql">-- обработка события «оплата прошла» — идемпотентно
+BEGIN;
+  -- вставка-страж: повтор словит конфликт и НЕ продолжит
+  INSERT INTO processed_events(event_id) VALUES ($1)
+    ON CONFLICT (event_id) DO NOTHING;
+  -- если строка не вставилась — дубль, выходим без эффекта
+  -- иначе: применяем эффект в той же транзакции
+  UPDATE author_balance SET amount_cents = amount_cents + $2
+    WHERE author_id = $3;
+COMMIT;</code></pre>
+
+<h2>3. Outbox: проблема двойной записи</h2>
+<p>Нельзя атомарно записать в БД <em>и</em> опубликовать в брокер: между
+коммитом и публикацией процесс может упасть → событие потеряно или, при
+обратном порядке, опубликовано без коммита. Outbox решает это: событие
+пишется в ту же транзакцию, что и бизнес-данные, а доставляется
+отдельным relay.</p>
 <pre class="code-block"><code class="language-">[tx] INSERT order ; INSERT outbox(event)   ← один коммит, атомарно
  relay → читает outbox → публикует в Kafka → помечает отправленным</code></pre>
-<p>Outbox решает «двойную запись»: нельзя атомарно записать в БД и брокер,
-поэтому пишем событие в ту же транзакцию, а доставляем отдельно.</p>
-
 <div class="note violet"><strong>Кэш.</strong> Redis — это ускоритель, не
 источник истины. Стратегия инвалидации (TTL / write-through) должна быть
-явной, иначе вы кэшируете баги.</div>
-    <div class="note gold"><strong>Артефакт урока.</strong> Sequence-диаграмма event-flow «оплата → выплата автору».</div>
+явной, иначе вы кэшируете баги. Cache-aside: промах → читаем БД →
+кладём в кэш с TTL; запись → инвалидируем ключ.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Сценарий «оплата → выплата автору». Платёж проходит в Payments,
+баланс автора должен пополниться, лента — узнать о продаже. Связываем
+это через outbox + идемпотентный consumer.</p>
+<pre class="code-block"><code class="language-">@startuml
+actor Buyer
+participant API
+database OrdersDB
+participant Relay
+queue Kafka
+participant PayoutSvc
+participant FeedSvc
+
+Buyer -> API : POST /orders/{id}/pay
+API -> OrdersDB : BEGIN\nUPDATE orders SET status=paid\nINSERT outbox(OrderPaid)\nCOMMIT
+API --> Buyer : 200 OK (eventual: payout позже)
+Relay -> OrdersDB : SELECT unsent FROM outbox
+Relay -> Kafka : publish OrderPaid (key=order_id)
+Relay -> OrdersDB : mark sent
+Kafka -> PayoutSvc : OrderPaid (возможен дубль)
+PayoutSvc -> PayoutSvc : INSERT processed_events ON CONFLICT DO NOTHING
+PayoutSvc -> PayoutSvc : credit author_balance (если не дубль)
+Kafka -> FeedSvc : OrderPaid
+FeedSvc -> FeedSvc : append «продажа работы» в ленту
+@enduml</code></pre>
+<p>Разбор: ответ покупателю — синхронный («оплата принята»), а выплата и
+лента — eventual. Outbox гарантирует, что событие <code>OrderPaid</code>
+не потеряется (одна транзакция с заказом). Kafka даёт at-least-once,
+поэтому <code>PayoutSvc</code> дедуплицирует по <code>order_id</code>
+через <code>processed_events</code> — повтор не начислит баланс дважды.
+<code>FeedSvc</code> терпит дубль естественно (append идемпотентен по
+event_id). Никакого «exactly-once» в сети — только at-least-once +
+идемпотентность.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> Sequence-диаграмма event-flow «оплата → выплата автору».</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему «exactly-once» на уровне сети —
+миф и что под этим понимают на практике?</li>
+<li><span class="tag">вопрос</span>Что такое проблема двойной записи и
+как outbox её решает?</li>
+<li><span class="tag">вопрос</span>Почему ключ дедупликации нужно
+фиксировать в той же транзакции, что и эффект?</li>
+<li><span class="tag">вопрос</span>Почему Redis нельзя считать
+источником истины и что значит явная инвалидация?</li>
+<li><span class="tag task">задача</span>Напишите идемпотентный обработчик
+события «оплата прошла» с защитой от дубля на уровне БД.</li>
+<li><span class="tag task">задача</span>Постройте sequence-диаграмму
+event-flow «оплата → выплата автору» с outbox, relay и дедупликацией.</li>
+<li><span class="tag task">задача</span>Объясните, какие части потока
+синхронны, а какие eventual, и почему такое разделение допустимо.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>После отправки нельзя отличить потерю сообщения от потери ответа
+(проблема двух генералов), отправитель ретраит → дубль. «Exactly-once»
+на практике = at-least-once доставка + идемпотентный приём, дающий ровно
+один эффект.</li>
+<li>Двойная запись — невозможность атомарно записать в БД и брокер: сбой
+между ними теряет или фантомит событие. Outbox пишет событие в ту же
+транзакцию, что и данные; отдельный relay доставляет его в брокер.</li>
+<li>Иначе возможна гонка: эффект применён, а ключ ещё не записан (или
+наоборот) — сбой между ними сломает идемпотентность. Один коммит на
+ключ + эффект делает повтор безопасным.</li>
+<li>Redis — ускоритель: данные с TTL, узел может потерять кэш. Истина в
+БД. Явная инвалидация — заранее определённая стратегия (TTL или
+write-through/удаление ключа при записи), иначе кэшируются устаревшие/
+ошибочные данные.</li>
+<li>Критерий: транзакция с <code>INSERT processed_events(event_id)
+ON CONFLICT DO NOTHING</code>; эффект применяется только если строка
+вставилась; всё в одном COMMIT.</li>
+<li>Критерий: на диаграмме есть транзакция order+outbox одним коммитом,
+relay → Kafka, consumer с дедупликацией по order_id, отдельная ветка
+Feed; ответ покупателю — до выплаты.</li>
+<li>Синхронно: приём оплаты и ответ «принято». Eventual: начисление
+баланса автора и запись в ленту. Допустимо, потому что эти эффекты не
+обязаны быть видимы покупателю мгновенно и защищены идемпотентностью.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

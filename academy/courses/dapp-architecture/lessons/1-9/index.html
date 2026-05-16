@@ -25,24 +25,130 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.9 · <span class="badge-mini">o11y</span></p>
     <h1>Наблюдаемость</h1>
 
-    <p><strong>Канон:</strong> <a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE: Monitoring</a>, <a href="https://opentelemetry.io/docs/" target="_blank" rel="noopener">OpenTelemetry</a>.</p>
+    <p><strong>Канон:</strong> <a href="https://sre.google/sre-book/monitoring-distributed-systems/" target="_blank" rel="noopener">Google SRE: Monitoring</a>, <a href="https://opentelemetry.io/docs/" target="_blank" rel="noopener">OpenTelemetry</a>, <a href="https://12factor.net/logs" target="_blank" rel="noopener">12-Factor: Logs</a>.</p>
+
 <p>Наблюдаемость — способность ответить на вопрос о системе, который вы
-<em>не</em> предвидели. Три столпа: логи, метрики, трейсы.</p>
+<em>не</em> предвидели заранее. Это свойство, а не дашборд. Три столпа:
+структурные логи (что случилось), метрики (сколько и как часто), трейсы
+(где именно в цепочке). Связывает их сквозной <code>trace_id</code>.</p>
 
-<h3>Golden signals</h3>
-<ul>
-<li><strong>Latency</strong> — время ответа (отдельно для ошибок).</li>
-<li><strong>Traffic</strong> — запросов в секунду.</li>
-<li><strong>Errors</strong> — доля неуспеха.</li>
-<li><strong>Saturation</strong> — насколько ресурс «забит».</li>
-</ul>
+<h2>1. Метрики: golden signals, RED и USE</h2>
+<p>Google SRE определяет четыре «золотых сигнала», достаточных для
+мониторинга пользовательского сервиса. RED — их прикладная проекция на
+сервис, USE — на ресурс.</p>
+<div class="table-wrap"><table>
+<tr><th>Сигнал</th><th>Что</th><th>RED / USE</th><th>Пример в маркетплейсе</th></tr>
+<tr><td>Latency</td><td>время ответа (отдельно для ошибок)</td><td>RED: Duration</td><td>p99 POST /orders</td></tr>
+<tr><td>Traffic</td><td>запросов в секунду</td><td>RED: Rate</td><td>rps /works</td></tr>
+<tr><td>Errors</td><td>доля неуспеха</td><td>RED: Errors</td><td>% 5xx на оплате</td></tr>
+<tr><td>Saturation</td><td>насколько ресурс «забит»</td><td>USE: Utilization</td><td>pool БД, лаг Kafka</td></tr>
+</table></div>
+<p>Считайте latency по перцентилям (p95/p99), не по среднему: среднее
+прячет хвост, на котором страдают реальные пользователи. Ошибочную
+latency меряйте отдельно — быстрый 500 не должен «улучшать» график.</p>
 
-<h3>Структурные логи</h3>
-<pre class="code-block"><code class="language-json">{"ts":"...","level":"error","trace_id":"abc","msg":"payment failed","order_id":42}</code></pre>
-<p>JSON, а не строка: <code>trace_id</code> связывает лог с трейсом,
-поля — фильтруемы. 12-factor: лог пишется в stdout, маршрутизацию делает
-платформа.</p>
-    
+<h2>2. Структурные логи и 12-factor</h2>
+<p>Лог — это событие с полями, а не строка для глаз. JSON делает логи
+фильтруемыми и связываемыми с трейсом. По 12-factor приложение пишет в
+<code>stdout</code> как в поток событий; ротацию, агрегацию и хранение
+делает платформа, не код.</p>
+<pre class="code-block"><code class="language-json">{"ts":"2026-05-16T10:00:00Z","level":"error","trace_id":"abc123",
+ "service":"payments","msg":"payment failed","order_id":42,
+ "psp_code":"card_declined","user_id":"u-7"}</code></pre>
+<p>Уровни осмысленно: <code>error</code> — нужен человек;
+<code>warn</code> — деградация, пока терпит; <code>info</code> — бизнес-
+событие; <code>debug</code> — выключено в проде. Не логируйте PII и
+секреты.</p>
+
+<h2>3. Трейсы и контекст-propagation</h2>
+<p>Распределённый запрос проходит через API, БД, Kafka, PayoutSvc. Трейс
+сшивает это в одно дерево спанов по <code>trace_id</code>, который
+пробрасывается через HTTP-заголовки и заголовки сообщений Kafka.
+OpenTelemetry — вендоронезависимый стандарт инструментирования и
+W3C <code>traceparent</code> для propagation.</p>
+<div class="note violet"><strong>Один trace_id — три столпа.</strong>
+Если <code>trace_id</code> есть и в логе, и в спане, и в exemplar
+метрики, расследование инцидента идёт от «p99 вырос» к конкретной
+строке лога за секунды, а не часы.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Инцидент: выросла доля ошибок оплаты. Наблюдаемость должна довести от
+сигнала до причины. Инструментируем поток оплаты (урок 1.6).</p>
+<pre class="code-block"><code class="language-js">// OpenTelemetry: спан + структурный лог с тем же trace_id
+const tracer = otel.trace.getTracer('payments');
+await tracer.startActiveSpan('pay_order', async (span) => {
+  span.setAttribute('order.id', orderId);
+  try {
+    await psp.charge(order);                       // вложенный спан HTTP к PSP
+    log.info({ trace_id: span.spanContext().traceId, order_id: orderId,
+               msg: 'payment ok' });
+    metrics.payments_total.inc({ result: 'ok' });
+  } catch (e) {
+    span.recordException(e);
+    span.setStatus({ code: SpanStatusCode.ERROR });
+    log.error({ trace_id: span.spanContext().traceId, order_id: orderId,
+                psp_code: e.code, msg: 'payment failed' });
+    metrics.payments_total.inc({ result: 'error', psp_code: e.code });
+    throw e;
+  } finally { span.end(); }
+});</code></pre>
+<p>Разбор расследования: (1) алерт по RED — <code>rate(payments_total
+{result="error"})</code> превысил SLO; (2) разрез по метке
+<code>psp_code</code> показывает всплеск <code>card_declined</code> у
+одного провайдера; (3) по exemplar берём <code>trace_id</code> и в логах
+видим, что 500-е идут только из региона X; (4) трейс показывает, что
+вырос спан HTTP-вызова PSP — деградация на стороне провайдера, не у нас.
+Решение — circuit breaker на PSP (урок 1.10). Все три столпа сшиты одним
+<code>trace_id</code>.</p>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Чем наблюдаемость отличается от
+мониторинга и почему «дашборд» — не ответ?</li>
+<li><span class="tag">вопрос</span>Назовите golden signals и объясните,
+как RED и USE с ними соотносятся.</li>
+<li><span class="tag">вопрос</span>Почему latency меряют по p95/p99, а
+не по среднему, и зачем отделять ошибочную latency?</li>
+<li><span class="tag">вопрос</span>Что даёт сквозной
+<code>trace_id</code> и как он связывает три столпа?</li>
+<li><span class="tag task">задача</span>Спроектируйте JSON-схему
+структурного лога для события оплаты (поля и уровни).</li>
+<li><span class="tag task">задача</span>Опишите набор RED-метрик и
+алертов для эндпоинта <code>POST /orders/{id}/pay</code>.</li>
+<li><span class="tag task">задача</span>Распишите шаги расследования
+«выросли ошибки оплаты» от сигнала до корневой причины через 3 столпа.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Мониторинг отвечает на заранее заданные вопросы (алерты по известным
+метрикам). Наблюдаемость позволяет задать новый вопрос постфактум по
+сырым данным (логи/трейсы/метрики). Дашборд показывает ожидаемое, но не
+объясняет неожиданное.</li>
+<li>Latency, Traffic, Errors, Saturation. RED (Rate, Errors, Duration) —
+проекция на сервис, USE (Utilization, Saturation, Errors) — на ресурс;
+вместе покрывают и пользовательскую, и ресурсную сторону.</li>
+<li>Среднее маскирует хвост: при p99=5с среднее может быть 200мс, а
+страдает 1% запросов. Ошибочную latency отделяют, чтобы быстрый 500 не
+«улучшал» график успешных ответов.</li>
+<li><code>trace_id</code> один на весь распределённый запрос,
+пробрасывается через HTTP и Kafka. Он есть в спане, в логе и в exemplar
+метрики, поэтому от «p99 вырос» переходят к конкретной строке лога за
+секунды.</li>
+<li>Критерий: JSON с ts, level, trace_id, service, msg, order_id,
+psp_code; уровни error (нужен человек) / warn (деградация) / info
+(бизнес-событие); без PII и секретов.</li>
+<li>Образец: <code>rate</code> запросов, доля 5xx (Errors),
+<code>histogram</code> длительности → p95/p99 (Duration); алерт при
+доле ошибок &gt; SLO за окно и при росте p99 выше порога.</li>
+<li>(1) алерт RED по error-rate; (2) разрез по <code>psp_code</code>
+ищет домен ошибки; (3) по exemplar trace_id в логах локализуем (регион/
+пользователь); (4) трейс показывает медленный/падающий спан → корневая
+причина (например, деградация PSP).</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

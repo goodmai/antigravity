@@ -25,33 +25,176 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.2 · <span class="badge-mini">layers</span></p>
     <h1>Клиент–сервер и слоистая архитектура</h1>
 
-    <p><strong>Канон:</strong> <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html" target="_blank" rel="noopener">Clean Architecture (Martin)</a>, <a href="https://12factor.net" target="_blank" rel="noopener">12-Factor App</a>.</p>
-<p>Слоистая («чистая») архитектура задаёт <strong>правило зависимостей</strong>:
-исходный код может зависеть только внутрь — к домену. Инфраструктура (БД, HTTP,
-очереди) зависит от домена, а не наоборот.</p>
+    <p><strong>Канон:</strong> <a href="https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html" target="_blank" rel="noopener">Clean Architecture (Martin)</a>, <a href="https://alistair.cockburn.us/hexagonal-architecture/" target="_blank" rel="noopener">Hexagonal Architecture (Cockburn)</a>, <a href="https://www.oreilly.com/library/view/fundamentals-of-software/9781492043447/" target="_blank" rel="noopener">Fundamentals of Software Architecture</a>, <a href="https://12factor.net" target="_blank" rel="noopener">12-Factor App</a>.</p>
 
-<h3>Четыре слоя</h3>
+<p>Клиент–сервер — это базовое разделение ответственности: клиент
+инициирует запрос и отображает результат, сервер хранит истину и
+применяет правила. Но «сервер» внутри себя — не монолитный комок: его
+структурируют <strong>слоями</strong>. Слоистая (она же «чистая»,
+гексагональная, ports&amp;adapters) архитектура задаёт одно жёсткое
+правило — <strong>правило зависимостей</strong>: исходный код может
+зависеть только внутрь, к домену. Инфраструктура (БД, HTTP, брокеры)
+зависит от домена, никогда наоборот. Этот словарь мы пронесём через все
+три парадигмы курса.</p>
+
+<h2>1. Клиент–сервер: где проходит граница доверия</h2>
+<p>Клиент–сервер — это не «фронт и бэк», а распределение
+<strong>ответственности и доверия</strong>. Сервер — авторитетный
+держатель истины: он применяет инварианты, принимает финальное решение,
+не доверяет ни одному биту, пришедшему от клиента. Клиент — это
+ненадёжная зона: его код виден, его запросы подделываемы. Отсюда
+архитектурное правило: любая проверка, влияющая на деньги или права,
+дублируется на сервере, даже если она уже есть в UI.</p>
 <div class="table-wrap"><table>
-<tr><th>Слой</th><th>Содержит</th><th>Не знает про</th></tr>
-<tr><td>Presentation</td><td>HTTP-хендлеры, DTO, сериализация</td><td>SQL, брокеры</td></tr>
-<tr><td>Application</td><td>use-cases, оркестрация транзакций</td><td>фреймворк HTTP</td></tr>
-<tr><td>Domain</td><td>сущности, value-objects, правила</td><td>вообще ничего внешнего</td></tr>
-<tr><td>Infrastructure</td><td>репозитории, клиенты, адаптеры</td><td>—</td></tr>
+<tr><th>Решение</th><th>Чьё (классика)</th><th>Почему</th></tr>
+<tr><td>Цена работы при оплате</td><td>сервер</td><td>клиент подделает тело запроса</td></tr>
+<tr><td>Подсветка «дорого» в UI</td><td>клиент</td><td>косметика, не инвариант</td></tr>
+<tr><td>Право видеть чужой payout</td><td>сервер</td><td>авторизация — никогда на клиенте</td></tr>
+<tr><td>Маска ввода телефона</td><td>клиент</td><td>UX, сервер всё равно валидирует</td></tr>
 </table></div>
 
-<h3>Порты и адаптеры</h3>
+<h2>2. Правило зависимостей и почему оно главное</h2>
+<p>Роберт Мартин формулирует его так: зависимости в исходном коде
+указывают только в сторону более стабильных и более абстрактных
+политик. Домен — самое стабильное ядро: он не должен знать, что данные
+лежат в PostgreSQL, а запрос пришёл по HTTP. Это даёт три практических
+свойства: домен тестируется без базы и сети; инфраструктуру можно
+заменить (Postgres → другой стор) без переписывания правил; срок жизни
+бизнес-логики не привязан к сроку жизни фреймворка.</p>
+
+<div class="table-wrap"><table>
+<tr><th>Слой</th><th>Содержит</th><th>Не знает про</th></tr>
+<tr><td>Presentation</td><td>HTTP-хендлеры, DTO, сериализация, валидация формата</td><td>SQL, брокеры, бизнес-инварианты</td></tr>
+<tr><td>Application</td><td>use-cases, оркестрация транзакций, порты</td><td>конкретный фреймворк HTTP/ORM</td></tr>
+<tr><td>Domain</td><td>сущности, value-objects, инварианты, доменные события</td><td>вообще ничего внешнего</td></tr>
+<tr><td>Infrastructure</td><td>репозитории, клиенты PSP, адаптеры брокера</td><td>—</td></tr>
+</table></div>
+
+<h2>3. Порты и адаптеры (Hexagonal)</h2>
+<p>Кокбёрн переворачивает картинку: вместо «верх–низ» — «внутри–снаружи».
+Домен и приложение в центре объявляют <strong>порты</strong> (интерфейсы:
+что им нужно от мира). Инфраструктура снаружи поставляет
+<strong>адаптеры</strong> (реализации). Driving-адаптеры (HTTP, CLI)
+вызывают приложение; driven-адаптеры (БД, PSP) вызываются приложением
+через порт. Замена БД или протокола — это замена адаптера, домен не
+трогается.</p>
+
 <pre class="code-block"><code class="language-">// domain объявляет ПОРТ (интерфейс)
-interface OrderRepository { save(o: Order): Promise&lt;void&gt; }
+interface OrderRepository { save(o: Order): Promise&lt;void&gt;; byId(id: string): Promise&lt;Order&gt; }
 
 // infrastructure поставляет АДАПТЕР
-class PgOrderRepository implements OrderRepository { /* SQL */ }
+class PgOrderRepository implements OrderRepository { /* SQL, pg-pool */ }
 
-// application получает порт через DI — БД заменяема в тестах</code></pre>
+// application получает порт через DI — БД заменяема в тестах
+class PlaceOrder {
+  constructor(private orders: OrderRepository) {}
+  async exec(cmd: PlaceOrderCmd) { /* доменные правила, без import 'pg' */ }
+}</code></pre>
+
+<h2>4. Где обычно ломается правило</h2>
+<p>Самые частые нарушения: ORM-аннотации прямо на доменной сущности
+(домен начинает зависеть от инфраструктуры); use-case возвращает наружу
+ORM-модель вместо DTO (Presentation увидел SQL-структуру); «утечка»
+HTTP-объекта <code>req/res</code> внутрь application. Каждое такое
+нарушение делает домен непригодным к юнит-тесту без поднятой базы и
+размывает границы при будущей декомпозиции (урок 1.3).</p>
+
+<div class="note violet"><strong>Правило стабильности.</strong> Чем
+стабильнее код, тем абстрактнее он должен быть. Конкретный класс
+<code>PgOrderRepository</code> нестабилен (БД меняется) — поэтому
+зависят от абстракции <code>OrderRepository</code>, а не от него.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Сценарий маркетплейса: покупатель оформляет заказ на цифровую работу.
+Раскладываем по слоям use-case «оформить заказ».</p>
+<pre class="code-block"><code class="language-">presentation/  OrderController.ts   // парсит JSON, валидирует формат, маппит в PlaceOrderCmd
+application/    PlaceOrder.ts        // транзакция: резерв, проверка цены, создание заказа
+domain/         Order.ts, Money.ts   // инвариант: total = sum(items), статус-машина заказа
+                ports/OrderRepository.ts, ports/PriceCatalog.ts, ports/PaymentGateway.ts
+infrastructure/ PgOrderRepository.ts, HttpCatalogClient.ts, PspPaymentGateway.ts</code></pre>
+<pre class="code-block"><code class="language-">// domain/ports/PriceCatalog.ts — порт
+interface PriceCatalog { priceOf(workId: string): Promise&lt;Money&gt; }
+
+// infrastructure: боевой адаптер
+class HttpPriceCatalog implements PriceCatalog {
+  async priceOf(id: string) { /* GET /catalog/works/:id */ }
+}
+// тестовый адаптер — без сети
+class InMemoryPriceCatalog implements PriceCatalog {
+  constructor(private map: Record&lt;string, Money&gt;) {}
+  async priceOf(id: string) { return this.map[id]; }
+}
+
+// application получает порт через конструктор (DI)
+new PlaceOrder(new PgOrderRepository(pool), new HttpPriceCatalog(cfg));
+// в тесте:
+new PlaceOrder(new InMemoryOrderRepo(), new InMemoryPriceCatalog({ w1: usd(900) }));</code></pre>
+<p>Поток: <code>POST /orders</code> → контроллер собирает команду →
+<code>PlaceOrder.exec</code> читает цену через порт <code>PriceCatalog</code>
+(а не делает HTTP сам), создаёт <code>Order</code>, домен проверяет
+инвариант суммы, репозиторий сохраняет в одной транзакции. Цена берётся
+<strong>сервером</strong> через каталог, не из тела запроса — клиенту
+доверять нельзя. Тест <code>PlaceOrder</code> подставляет
+in-memory-адаптеры портов: ни Postgres, ни HTTP не нужны.</p>
 
 <div class="note gold"><strong>Маркер ошибки.</strong> Если в доменной
-сущности появился <code>import pg</code> или аннотация ORM — правило
+сущности появился <code>import pg</code> или ORM-аннотация — правило
 зависимостей нарушено, и домен больше не тестируется без базы.</div>
-    
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Сформулируйте правило зависимостей и
+объясните, почему домен не должен знать про PostgreSQL.</li>
+<li><span class="tag">вопрос</span>Чем порт отличается от адаптера и кто
+из слоёв объявляет порт, а кто поставляет адаптер?</li>
+<li><span class="tag">вопрос</span>Почему ORM-аннотация на доменной
+сущности — нарушение, а не «удобная оптимизация»?</li>
+<li><span class="tag">вопрос</span>Почему цену заказа нельзя брать из
+тела запроса клиента, даже если UI её уже показал?</li>
+<li><span class="tag task">задача</span>Распишите use-case «оформить
+заказ» по 4 слоям: что лежит в каждом и какие порты объявляет домен.</li>
+<li><span class="tag task">задача</span>Напишите интерфейс порта
+<code>PriceCatalog</code> и два адаптера: HTTP-клиент и in-memory для
+теста; покажите, как application получает их через DI.</li>
+<li><span class="tag task">задача</span>Найдите в чужом коде 3 типичных
+нарушения правила зависимостей и опишите, как каждое мешает юнит-тесту
+домена.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Зависимости в коде направлены только внутрь — к более стабильным и
+абстрактным политикам (домену). Домен — самое стабильное ядро; знание о
+PostgreSQL привязало бы бизнес-правила к сроку жизни и API конкретной
+БД и сделало бы их непроверяемыми без поднятого стора.</li>
+<li>Порт — интерфейс, объявленный доменом/приложением («что мне нужно от
+мира»). Адаптер — реализация порта в инфраструктуре. Порт объявляет
+внутренний слой, адаптер поставляет инфраструктура; связь — через DI.</li>
+<li>Аннотация делает доменный класс зависимым от библиотеки
+инфраструктуры: домен перестаёт быть «чистым», его нельзя
+инстанцировать и протестировать без ORM/драйвера, а смена ORM
+становится сменой домена.</li>
+<li>Клиент — недоверенная зона: тело запроса подделывается. Цена —
+инвариант, влияющий на деньги, поэтому её авторитетный источник —
+сервер (каталог). UI-значение допустимо только как косметика, финальное
+решение принимает сервер.</li>
+<li>Presentation: контроллер, DTO, валидация формата. Application:
+PlaceOrder — транзакция и оркестрация. Domain: Order, Money, инвариант
+суммы и статус-машина; порты OrderRepository, PriceCatalog,
+PaymentGateway. Infrastructure: SQL-репозиторий, HTTP-клиент каталога,
+адаптер PSP.</li>
+<li>Критерий: <code>interface PriceCatalog { priceOf(workId): Promise&lt;Money&gt; }</code>;
+<code>HttpPriceCatalog</code> и <code>InMemoryPriceCatalog</code>
+реализуют его; <code>PlaceOrder</code> принимает <code>PriceCatalog</code>
+в конструкторе, в тесте подставляется in-memory — без сети.</li>
+<li>Образец: (1) ORM-аннотация на сущности — нужен драйвер для теста;
+(2) use-case возвращает ORM-модель — Presentation видит SQL-структуру,
+тест проверяет схему БД, а не правила; (3) <code>req/res</code> внутри
+application — нужен HTTP-мок для проверки бизнес-логики.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">

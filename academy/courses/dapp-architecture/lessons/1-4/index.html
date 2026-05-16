@@ -25,31 +25,160 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.4 · <span class="badge-mini">API</span></p>
     <h1>API-стили и контракты</h1>
 
-    <p><strong>Канон:</strong> <a href="https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm" target="_blank" rel="noopener">REST (Fielding, гл. 5)</a>, <a href="https://spec.openapis.org/oas/latest.html" target="_blank" rel="noopener">OpenAPI Specification</a>.</p>
-<p>Контракт — это <strong>обещание</strong> между командами. Стиль API
-выбирается по характеру взаимодействия, а не по моде.</p>
+    <p><strong>Канон:</strong> <a href="https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm" target="_blank" rel="noopener">REST (Fielding, гл. 5)</a>, <a href="https://spec.openapis.org/oas/latest.html" target="_blank" rel="noopener">OpenAPI Specification</a>, <a href="https://grpc.io/docs/" target="_blank" rel="noopener">gRPC docs</a>, <a href="https://spec.graphql.org/" target="_blank" rel="noopener">GraphQL spec</a>.</p>
 
+<p>Контракт — это <strong>обещание</strong> между командами, которое
+переживёт обе. Стиль API выбирается по характеру взаимодействия, а не по
+моде: ресурсный CRUD, гибкая агрегация для клиента и низколатентный
+вызов сервис↔сервис — три разные задачи.</p>
+
+<h2>1. Три стиля и их компромиссы</h2>
 <div class="table-wrap"><table>
-<tr><th>Стиль</th><th>Когда</th><th>Слабое место</th></tr>
-<tr><td>REST</td><td>ресурсный CRUD, кэш на HTTP</td><td>over/under-fetching</td></tr>
-<tr><td>GraphQL</td><td>гибкие клиенты, агрегация</td><td>сложность кэша, N+1</td></tr>
-<tr><td>gRPC</td><td>сервис↔сервис, низкая латентность</td><td>браузер без прокси</td></tr>
+<tr><th>Стиль</th><th>Когда</th><th>Сильная сторона</th><th>Слабое место</th></tr>
+<tr><td>REST</td><td>ресурсный CRUD, публичный API</td><td>HTTP-кэш, простота, evolvability</td><td>over/under-fetching</td></tr>
+<tr><td>GraphQL</td><td>гибкие клиенты, агрегация</td><td>клиент берёт ровно нужное</td><td>сложность кэша, N+1</td></tr>
+<tr><td>gRPC</td><td>сервис↔сервис, низкая латентность</td><td>бинарный protobuf, стримы</td><td>браузер только через прокси</td></tr>
 </table></div>
+<p>Филдинг описывает REST как набор ограничений (stateless,
+uniform interface, cacheable), а не как «JSON по HTTP». Ключевое свойство
+REST — <strong>эволюционируемость</strong>: уровень абстракции
+ресурса позволяет менять сервер, не ломая клиента, если соблюдён
+контракт.</p>
 
-<h3>Обратная совместимость</h3>
-<ul>
-<li>Добавлять поля — можно; удалять/менять смысл — ломающее изменение.</li>
-<li>Версионируйте контракт (<code>/v1</code>, media-type), а не URL «на глаз».</li>
-<li>Контракт-тесты в CI ловят нарушение раньше прода.</li>
-</ul>
-
-<pre class="code-block"><code class="language-yaml">paths:
+<h2>2. Контракт-first и OpenAPI</h2>
+<p>Контракт пишется <em>до</em> кода и является источником истины: из
+него генерируются серверные стабы, клиенты и моки, по нему гоняются
+contract-тесты в CI. Это переносит обнаружение ломающего изменения с
+прода в pull request.</p>
+<pre class="code-block"><code class="language-yaml">openapi: 3.1.0
+info: { title: Marketplace Core API, version: 1.0.0 }
+paths:
   /works/{id}:
     get:
+      operationId: getWork
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
       responses:
-        '200': { content: { application/json: { schema: { $ref: '#/components/schemas/Work' } } } }
-        '404': { description: not found }</code></pre>
-    <div class="note gold"><strong>Артефакт урока.</strong> OpenAPI-контракт ядра маркетплейса (Catalog + Orders).</div>
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Work' }
+        '404': { description: not found }
+  /orders:
+    post:
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlaceOrder' }
+      responses:
+        '201': { content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+        '409': { description: цена изменилась }
+components:
+  schemas:
+    Work:
+      type: object
+      required: [id, title, priceCents, authorId]
+      properties:
+        id:        { type: string }
+        title:     { type: string }
+        priceCents:{ type: integer, format: int64 }
+        authorId:  { type: string }
+    PlaceOrder:
+      type: object
+      required: [workId]
+      properties:
+        workId: { type: string }</code></pre>
+<p>Заметьте: тело <code>PlaceOrder</code> содержит только
+<code>workId</code> — цену сервер берёт из каталога (урок 1.2), не из
+запроса. Контракт кодирует это правило явно.</p>
+
+<h2>3. Версионирование и обратная совместимость</h2>
+<ul>
+<li><strong>Совместимо:</strong> добавить опциональное поле, новый
+эндпоинт, новый enum-вариант, который клиент игнорирует.</li>
+<li><strong>Ломающе:</strong> удалить/переименовать поле, сделать
+опциональное обязательным, сменить тип или семантику.</li>
+<li>Версионируйте контракт явно (<code>/v1</code> или media-type), не
+«меняйте смысл по-тихому».</li>
+<li>Contract-тест в CI ловит нарушение раньше прода.</li>
+</ul>
+<div class="note violet"><strong>Правило Постела наоборот.</strong>
+Будьте строги к тому, что <em>гарантируете</em>, и снисходительны к
+тому, что <em>принимаете</em>. Удаление поля ломает молчаливых
+потребителей, о которых вы не знаете.</div>
+
+<h3>Пример использования элементов</h3>
+<p>Маркетплейс добавляет скидки. Наивно — переименовать
+<code>priceCents</code> в <code>basePriceCents</code> и добавить
+<code>finalPriceCents</code>. Это ломающее изменение: старые клиенты
+читают <code>priceCents</code>. Правильно — expand/contract на уровне
+контракта:</p>
+<pre class="code-block"><code class="language-yaml"># v1.1.0 — НЕ ломает: priceCents остаётся, добавлены опциональные поля
+Work:
+  properties:
+    priceCents:      { type: integer, format: int64 }   # = финальная цена, как раньше
+    listPriceCents:  { type: integer, format: int64 }    # новое, опциональное
+    discountPercent: { type: integer, minimum: 0, maximum: 100 }  # новое, опциональное</code></pre>
+<p>Старый клиент продолжает читать <code>priceCents</code> и видит уже
+дисконтированную цену — поведение не изменилось. Новый клиент использует
+<code>listPriceCents</code> + <code>discountPercent</code> для отрисовки
+«было/стало». Поле <code>priceCents</code> удаляется только в
+<code>/v2</code>, после миграции всех потребителей. Contract-тест
+проверяет, что <code>v1</code>-ответ всё ещё валиден против старой
+схемы.</p>
+
+<div class="note gold"><strong>Артефакт урока.</strong> OpenAPI-контракт ядра маркетплейса (Catalog + Orders).</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему REST по Филдингу — это набор
+ограничений, а не «JSON по HTTP», и что даёт эволюционируемость?</li>
+<li><span class="tag">вопрос</span>Когда GraphQL предпочтительнее REST и
+какую новую проблему он привносит?</li>
+<li><span class="tag">вопрос</span>Почему gRPC хорош для сервис↔сервис,
+но неудобен для браузера напрямую?</li>
+<li><span class="tag">вопрос</span>Какие изменения контракта обратно
+совместимы, а какие ломающие? Дайте по два примера.</li>
+<li><span class="tag task">задача</span>Напишите фрагмент OpenAPI 3.1 для
+<code>GET /works/{id}</code> и <code>POST /orders</code> со схемами Work
+и PlaceOrder.</li>
+<li><span class="tag task">задача</span>Введите скидки в схему Work без
+ломающего изменения; объясните, что увидит старый клиент.</li>
+<li><span class="tag task">задача</span>Опишите contract-тест в CI,
+который поймал бы удаление поля <code>priceCents</code> до прода.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>REST — ограничения (stateless, uniform interface, cacheable,
+client-server). Они дают эволюционируемость: сервер можно менять, не
+ломая клиента, пока соблюдён единообразный контракт ресурса; «JSON по
+HTTP» этого не гарантирует.</li>
+<li>GraphQL уместен при разнородных клиентах и агрегации из многих
+источников: клиент запрашивает ровно нужные поля, нет over/under-fetch.
+Цена — сложность HTTP-кэширования и риск N+1 на резолверах.</li>
+<li>gRPC использует HTTP/2 + бинарный protobuf и стримы — это быстро и
+типизировано для внутренних вызовов. Браузер не управляет HTTP/2-кадрами
+напрямую, поэтому нужен gRPC-Web прокси.</li>
+<li>Совместимо: добавить опциональное поле, добавить эндпоинт. Ломающе:
+удалить/переименовать поле, сделать опциональное обязательным или
+сменить семантику существующего поля.</li>
+<li>Критерий: валидный OpenAPI 3.1 с <code>paths</code> для обоих
+эндпоинтов, <code>components.schemas</code> Work и PlaceOrder, корректные
+коды ответов (200/404, 201/409).</li>
+<li>Сохранить <code>priceCents</code> как финальную цену, добавить
+опциональные <code>listPriceCents</code> и <code>discountPercent</code>.
+Старый клиент читает <code>priceCents</code> и видит уже
+дисконтированную цену — поведение не изменилось.</li>
+<li>В CI хранится «золотая» схема v1; тест валидирует реальный ответ
+сервиса против неё (или diff двух OpenAPI). Удаление required-поля
+делает ответ невалидным → сборка падает в PR, не в проде.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">
