@@ -1,0 +1,29 @@
+# Real PUBLIC BNB Greenfield testnet writer (chain-id 5600).
+#
+# Uses the official @bnb-chain/greenfield-js-sdk to create a bucket and
+# upload + read back an object on the REAL Greenfield testnet. This spends
+# real testnet gas and needs a FUNDED account, so it is opt-in only.
+#
+# Fund a testnet account first:
+#   https://docs.bnbchain.org/bnb-greenfield/getting-started/get-test-bnb/
+#
+#   export GREENFIELD_TESTNET_PRIVATE_KEY=0x...
+#   export GREENFIELD_TESTNET_ADDRESS=0x...
+#   docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml \
+#     run --rm testnet-writer
+#
+# Never invoked by the default `npm test`.
+
+services:
+  testnet-writer:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+    # Pin the SDK in package.json for reproducible runs; `npm ci` if a
+    # lockfile is committed alongside.
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet.mjs"]

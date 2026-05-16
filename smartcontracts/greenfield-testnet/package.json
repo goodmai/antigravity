@@ -1,0 +1,12 @@
+{
+  "name": "greenfield-testnet-writer",
+  "private": true,
+  "type": "module",
+  "description": "Writes a bucket + object to the REAL BNB Greenfield public testnet.",
+  "scripts": {
+    "write": "node write-testnet.mjs"
+  },
+  "dependencies": {
+    "@bnb-chain/greenfield-js-sdk": "latest"
+  }
+}
