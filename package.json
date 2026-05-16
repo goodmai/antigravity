@@ -6,7 +6,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "lint:noany": "bash scripts/check-no-any.sh"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",

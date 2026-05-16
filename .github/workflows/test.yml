@@ -27,6 +27,9 @@ jobs:
       - name: Strict typecheck (pure domain modules)
         run: npm run typecheck
 
+      - name: Ban explicit `any`
+        run: npm run lint:noany
+
       - name: Unit / integration tests
         run: npm test
         # Docker-gated suites (Flow A/B/C) auto-skip on the runner unless

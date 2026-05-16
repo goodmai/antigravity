@@ -227,13 +227,23 @@ Three placeholder courses are linked from the main page; replace the
 
 ## 7. Strict typing & the course bucket fixture
 
-- **Strict typing** — `tsconfig.json` runs `tsc --strict --checkJs`
-  (incl. `noImplicitAny`, `strictNullChecks`) over the pure domain
-  modules (`greenfield-core`, `lit-pricing`, `crypto-envelope`,
-  `course-template`); they are fully JSDoc-typed. The thin DOM adapter
-  `greenfield-ui.js` needs `lib.dom` and is verified by the jsdom suite
-  instead. Run `npm run typecheck`. CI (`.github/workflows/test.yml`)
-  runs typecheck + the full vitest suite on every push/PR.
+- **Strict typing, zero `any`** — `tsconfig.json` runs
+  `tsc --strict --checkJs` (incl. `noImplicitAny`, `strictNullChecks`)
+  over the pure domain modules (`greenfield-core`, `lit-pricing`,
+  `crypto-envelope`, `course-template`); they are fully JSDoc-typed with
+  **no `any`** (untrusted SP JSON is `unknown` + validated; WebCrypto has
+  a precise structural interface; `catch` is narrowed). `npm run
+  lint:noany` enforces it stays that way; CI runs typecheck + no-any +
+  the full vitest suite on every push/PR. The thin DOM adapter
+  `greenfield-ui.js` needs `lib.dom` and is verified by the jsdom suite.
+
+  > **TS migration investigated, deliberately not done.** Renaming
+  > sources to `.ts` would break the zero-build static site
+  > (`index.html` imports raw `.js`; `static.yml` publishes the repo
+  > as-is with no bundler) and force a compile/deploy pipeline — strictly
+  > riskier for **zero** added type safety over `checkJs --strict` with
+  > no `any`. The safe outcome (full TS-grade strictness, no `.ts`) is
+  > what's implemented.
 - **Course bucket fixture** — `smartcontracts/buckets/course-template.js`
   builds a deterministic course bucket (manifest + per-lesson payloads,
   lit.md schema-aligned) reused by the app and as a stable test fixture:

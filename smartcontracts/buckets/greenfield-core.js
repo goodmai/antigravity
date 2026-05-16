@@ -65,6 +65,51 @@ function gfError(message, code) {
   return /** @type {CodedError} */ (Object.assign(new Error(message), { code }));
 }
 
+/** @param {unknown} v @returns {string|undefined} */
+function asStr(v) {
+  return typeof v === 'string' ? v : undefined;
+}
+
+/**
+ * Safely normalize an untrusted SP list-buckets JSON body into
+ * BucketInfo[] — `unknown` in, validated out, no `any`.
+ * @param {string} body
+ * @returns {BucketInfo[]}
+ */
+function parseBucketList(body) {
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object') return [];
+  const root = /** @type {Record<string, unknown>} */ (parsed);
+  const list = root.buckets ?? root.Buckets;
+  if (!Array.isArray(list)) return [];
+
+  /** @type {BucketInfo[]} */
+  const out = [];
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue;
+    const b = /** @type {Record<string, unknown>} */ (item);
+    const name = asStr(b.bucket_name) ?? asStr(b.BucketName) ?? asStr(b.name);
+    if (!name) continue;
+    const created = b.create_at ?? b.createAt;
+    out.push({
+      name,
+      visibility: asStr(b.visibility) ?? asStr(b.Visibility) ?? 'private',
+      createdAt:
+        typeof created === 'string' || typeof created === 'number'
+          ? created
+          : null,
+      raw: b,
+    });
+  }
+  return out;
+}
+
 // ── Validation ────────────────────────────────────────────────────────────
 // Greenfield bucket names follow the S3-style DNS rules:
 //   - 3..63 characters
@@ -190,7 +235,9 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
       res = await tx(req);
     } catch (err) {
       throw gfError(
-        `Greenfield network error: ${/** @type {any} */ (err)?.message ?? err}`,
+        `Greenfield network error: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
         'NETWORK_ERROR',
       );
     }
@@ -226,21 +273,7 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
   async function listBuckets(ownerOverride) {
     const o = requireOwner(ownerOverride);
     const res = await send(buildListBucketsRequest(sp, o));
-    /** @type {any} */
-    let parsed = {};
-    try {
-      parsed = typeof res.body === 'string' ? JSON.parse(res.body) : res.body || {};
-    } catch (_) {
-      parsed = {};
-    }
-    /** @type {any[]} */
-    const raw = parsed.buckets || parsed.Buckets || [];
-    return raw.map((b) => ({
-      name: b.bucket_name || b.BucketName || b.name,
-      visibility: b.visibility || b.Visibility || 'private',
-      createdAt: b.create_at || b.createAt || null,
-      raw: b,
-    }));
+    return parseBucketList(res.body);
   }
 
   /** @param {string} [query] @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */

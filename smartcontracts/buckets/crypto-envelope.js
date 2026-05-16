@@ -25,7 +25,22 @@ const WRAP_SCHEMA = 'daskibo.cryptobox.wrap/1';
 const DEFAULT_PBKDF2_ITERATIONS = 210000;
 
 /**
- * @typedef {{ subtle: any, getRandomValues: (a: Uint8Array) => Uint8Array }} WebCryptoLike
+ * Precise structural WebCrypto surface (exactly what we use) — keeps the
+ * module zero-`any` without depending on lib.dom's BufferSource strictness.
+ * Node's `crypto.webcrypto` and the browser `crypto` both satisfy it.
+ *
+ * @typedef {object} CryptoKeyLike
+ * @typedef {object} SubtleCryptoLike
+ * @property {(format: string, keyData: Uint8Array, algorithm: { name: string }, extractable: boolean, keyUsages: string[]) => Promise<CryptoKeyLike>} importKey
+ * @property {(algorithm: { name: string, iv: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} encrypt
+ * @property {(algorithm: { name: string, iv: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} decrypt
+ * @property {(algorithm: { name: string, salt: Uint8Array, iterations: number, hash: string }, baseKey: CryptoKeyLike, derivedKeyType: { name: string, length: number }, extractable: boolean, keyUsages: string[]) => Promise<CryptoKeyLike>} deriveKey
+ * @property {(algorithm: string, data: Uint8Array) => Promise<ArrayBuffer>} digest
+ *
+ * @typedef {object} WebCryptoLike
+ * @property {SubtleCryptoLike} subtle
+ * @property {(array: Uint8Array) => Uint8Array} getRandomValues
+ *
  * @typedef {Error & { code: string }} CodedError
  * @typedef {Object} Envelope
  * @property {string} schema
@@ -60,7 +75,15 @@ function cryptoError(message, code) {
  * @returns {WebCryptoLike}
  */
 function getCrypto(cryptoImpl) {
-  const c = cryptoImpl || (typeof globalThis !== 'undefined' ? globalThis.crypto : undefined);
+  // Adapt the stdlib `Crypto` (wider, overloaded) to our exact structural
+  // surface at this single boundary — a precise type assertion, never `any`.
+  const c =
+    cryptoImpl ||
+    /** @type {WebCryptoLike} */ (
+      /** @type {unknown} */ (
+        typeof globalThis !== 'undefined' ? globalThis.crypto : undefined
+      )
+    );
   if (!c || !c.subtle) {
     throw cryptoError('WebCrypto (crypto.subtle) is unavailable', 'NO_CRYPTO');
   }
@@ -115,7 +138,7 @@ export async function createBucketMasterKey(cryptoImpl) {
  * @param {WebCryptoLike} c
  * @param {Uint8Array} rawBytes
  * @param {string[]} usages
- * @returns {Promise<any>}
+ * @returns {Promise<CryptoKeyLike>}
  */
 async function importAesKey(c, rawBytes, usages) {
   if (!(rawBytes instanceof Uint8Array) || rawBytes.length !== 32) {
@@ -225,7 +248,14 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
       ),
     );
   } catch (err) {
-    if (/** @type {any} */ (err)?.code === 'INVALID_KEY') throw err;
+    if (
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      err.code === 'INVALID_KEY'
+    ) {
+      throw err;
+    }
     throw cryptoError(
       'Decryption failed (wrong key or tampered data)',
       'DECRYPT_FAILED',
@@ -246,7 +276,7 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
  * @param {string} passphrase
  * @param {Uint8Array} salt
  * @param {number} iterations
- * @returns {Promise<any>}
+ * @returns {Promise<CryptoKeyLike>}
  */
 async function deriveKek(c, passphrase, salt, iterations) {
   const base = await c.subtle.importKey(
