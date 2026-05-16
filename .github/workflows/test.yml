@@ -1,0 +1,33 @@
+# Runs the vitest suite + strict typecheck on every push / PR.
+# (Deploy is handled separately by static.yml.)
+name: Test & Typecheck
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # package-lock.json is gitignored in this repo, so use install (not ci).
+      - run: npm install --no-audit --no-fund
+
+      - name: Strict typecheck (pure domain modules)
+        run: npm run typecheck
+
+      - name: Unit / integration tests
+        run: npm test
+        # Docker-gated suites (Flow A/B/C) auto-skip on the runner unless
+        # explicitly enabled; the hermetic suite always runs here.

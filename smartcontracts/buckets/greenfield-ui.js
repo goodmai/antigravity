@@ -34,17 +34,10 @@ export function initBucketConsole({ doc, client } = {}) {
   };
 
   const ownerInput = $('gf-owner');
-  const gfClient =
-    client ||
-    createGreenfieldClient({
-      transport: fetchTransport,
-      get owner() {
-        return ownerInput ? ownerInput.value.trim() : undefined;
-      },
-    });
+  // The factory captures `owner` once, so the live address from the input
+  // is passed per-call via ownerOpt()/ownerArgs() instead.
+  const gfClient = client || createGreenfieldClient({ transport: fetchTransport });
 
-  // When the default client is used we cannot pass a live getter through the
-  // factory, so re-resolve the owner per call by rebuilding lightweight opts.
   const ownerOpt = () =>
     ownerInput && ownerInput.value.trim()
       ? { owner: ownerInput.value.trim() }

@@ -20,11 +20,29 @@ export const DEFAULT_W3EXT_FEE_BPS = 2000n; // 20% platform fee on save
 export const DEFAULT_W3EXT_READ_FEE_BPS = 2000n; // 20% platform fee on read
 export const DEFAULT_TREASURY_BPS = 2000n; // 20% of a sale → treasury
 
+/**
+ * @typedef {bigint | number | string} Amount  Integer minor units.
+ * @typedef {bigint | number | string} Bps      Basis points [0,10000].
+ * @typedef {Error & { code: string }} CodedError
+ * @typedef {{ to: string, amount: bigint, kind: string }} Payout
+ */
+
+/**
+ * @param {string} message
+ * @param {string} code
+ * @returns {CodedError}
+ */
 function priceError(message, code) {
-  return Object.assign(new Error(message), { code });
+  return /** @type {CodedError} */ (
+    Object.assign(new Error(message), { code })
+  );
 }
 
-/** Coerce bigint | integer Number | integer string → non-negative BigInt. */
+/**
+ * Coerce bigint | integer Number | integer string → non-negative BigInt.
+ * @param {Amount} x
+ * @returns {bigint}
+ */
 export function toAmount(x) {
   let v;
   if (typeof x === 'bigint') {
@@ -45,6 +63,10 @@ export function toAmount(x) {
   return v;
 }
 
+/**
+ * @param {Bps} x
+ * @returns {bigint}
+ */
 function toBps(x) {
   const v = typeof x === 'bigint' ? x : BigInt(x);
   if (v < 0n || v > BPS_DENOMINATOR) {
@@ -53,7 +75,12 @@ function toBps(x) {
   return v;
 }
 
-/** floor(amount * bps / 10000) — deterministic, no float. */
+/**
+ * floor(amount * bps / 10000) — deterministic, no float.
+ * @param {Amount} amount
+ * @param {Bps} bps
+ * @returns {bigint}
+ */
 export function applyBps(amount, bps) {
   const a = toAmount(amount);
   const b = toBps(bps);
@@ -63,6 +90,8 @@ export function applyBps(amount, bps) {
 /**
  * Cost of saving a course = Lit encryption cost + Greenfield storage
  * cost, with w3ext taking `w3extFeeBps` (default 20%) of that base on top.
+ * @param {{ litSaveCost: Amount, storageCost?: Amount, w3extFeeBps?: Bps,
+ *           litPayee?: string, storagePayee?: string, w3extPayee?: string }} args
  */
 export function computeSaveCharge({
   litSaveCost,
@@ -71,7 +100,7 @@ export function computeSaveCharge({
   litPayee = 'lit',
   storagePayee = 'storage',
   w3extPayee = 'w3ext',
-} = {}) {
+}) {
   const lit = toAmount(litSaveCost);
   const storage = toAmount(storageCost);
   const bps = toBps(w3extFeeBps);
@@ -96,13 +125,17 @@ export function computeSaveCharge({
   };
 }
 
-/** Cost of reading (decrypting) a course: Lit read cost + w3ext fee. */
+/**
+ * Cost of reading (decrypting) a course: Lit read cost + w3ext fee.
+ * @param {{ litReadCost: Amount, w3extFeeBps?: Bps,
+ *           litPayee?: string, w3extPayee?: string }} args
+ */
 export function computeReadCharge({
   litReadCost,
   w3extFeeBps = DEFAULT_W3EXT_READ_FEE_BPS,
   litPayee = 'lit',
   w3extPayee = 'w3ext',
-} = {}) {
+}) {
   const lit = toAmount(litReadCost);
   const bps = toBps(w3extFeeBps);
   const w3extFee = applyBps(lit, bps);
@@ -120,13 +153,15 @@ export function computeReadCharge({
  * Course sale settlement: `treasuryBps` (default 20%) of the price goes
  * to the treasury smart contract, the rest to the seller. The seller
  * absorbs the rounding remainder so payouts re-sum to `salePrice`.
+ * @param {{ salePrice: Amount, treasuryBps?: Bps,
+ *           treasury?: string, seller?: string }} args
  */
 export function computeSaleSplit({
   salePrice,
   treasuryBps = DEFAULT_TREASURY_BPS,
   treasury,
   seller,
-} = {}) {
+}) {
   if (!treasury || !seller) {
     throw priceError(
       'Both `treasury` and `seller` addresses are required',

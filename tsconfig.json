@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "//": "Strict typing covers the pure domain logic. greenfield-ui.js is a thin DOM adapter (needs lib.dom) and is verified by the jsdom test suite instead.",
+  "include": [
+    "smartcontracts/buckets/greenfield-core.js",
+    "smartcontracts/buckets/lit-pricing.js",
+    "smartcontracts/buckets/crypto-envelope.js",
+    "smartcontracts/buckets/course-template.js"
+  ]
+}

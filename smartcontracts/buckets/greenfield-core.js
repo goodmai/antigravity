@@ -31,10 +31,38 @@ export const GREENFIELD_TESTNET = {
   faucet: 'https://gnfd-testnet-faucet.bnbchain.org',
 };
 
+/**
+ * @typedef {Object} TransportRequest
+ * @property {string} method
+ * @property {string} url
+ * @property {Record<string,string>} headers
+ * @property {string | Uint8Array} [body]
+ *
+ * @typedef {Object} TransportResponse
+ * @property {number} status
+ * @property {Record<string,string>} headers
+ * @property {string} body
+ *
+ * @typedef {(req: TransportRequest) => Promise<TransportResponse>} Transport
+ *
+ * @typedef {Object} BucketInfo
+ * @property {string} name
+ * @property {string} visibility
+ * @property {string|number|null} createdAt
+ * @property {Record<string,unknown>} raw
+ *
+ * @typedef {Error & { code: string }} CodedError
+ */
+
 // ── Error helper ──────────────────────────────────────────────────────────
 
+/**
+ * @param {string} message
+ * @param {string} code
+ * @returns {CodedError}
+ */
 function gfError(message, code) {
-  return Object.assign(new Error(message), { code });
+  return /** @type {CodedError} */ (Object.assign(new Error(message), { code }));
 }
 
 // ── Validation ────────────────────────────────────────────────────────────
@@ -47,6 +75,7 @@ function gfError(message, code) {
 const IPV4_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 const BUCKET_RE = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/;
 
+/** @param {unknown} name @returns {boolean} */
 export function isValidBucketName(name) {
   if (typeof name !== 'string') return false;
   if (name.length < 3 || name.length > 63) return false;
@@ -56,6 +85,7 @@ export function isValidBucketName(name) {
   return true;
 }
 
+/** @param {unknown} name @returns {void} */
 export function assertBucketName(name) {
   if (!isValidBucketName(name)) {
     throw gfError(
@@ -66,10 +96,12 @@ export function assertBucketName(name) {
   }
 }
 
+/** @param {unknown} key @returns {boolean} */
 export function isValidObjectKey(key) {
   return typeof key === 'string' && key.length >= 1 && key.length <= 1024;
 }
 
+/** @param {unknown} key @returns {void} */
 export function assertObjectKey(key) {
   if (!isValidObjectKey(key)) {
     throw gfError(
@@ -81,6 +113,7 @@ export function assertObjectKey(key) {
 
 // ── URL builders ──────────────────────────────────────────────────────────
 
+/** @param {string} key @returns {string} */
 function encodeKey(key) {
   return String(key)
     .split('/')
@@ -88,14 +121,21 @@ function encodeKey(key) {
     .join('/');
 }
 
+/** @param {string} sp @param {string} bucket @param {string} key @returns {string} */
 export function buildViewUrl(sp, bucket, key) {
   return `${sp}/view/${bucket}/${encodeKey(key)}`;
 }
 
+/** @param {string} sp @param {string} bucket @param {string} key @returns {string} */
 export function buildDownloadUrl(sp, bucket, key) {
   return `${sp}/download/${bucket}/${encodeKey(key)}`;
 }
 
+/**
+ * @param {string} sp
+ * @param {string} owner
+ * @returns {TransportRequest}
+ */
 export function buildListBucketsRequest(sp, owner) {
   return {
     method: 'GET',
@@ -106,6 +146,7 @@ export function buildListBucketsRequest(sp, owner) {
 
 // ── Status → error mapping ────────────────────────────────────────────────
 
+/** @param {number} status @param {string} [body] @returns {CodedError|null} */
 function mapStatus(status, body) {
   if (status >= 200 && status < 300) return null;
   if (status === 404) return gfError('Resource not found', 'NOT_FOUND');
@@ -125,30 +166,31 @@ function mapStatus(status, body) {
 // ── Client ────────────────────────────────────────────────────────────────
 
 /**
- * @param {object}   cfg
- * @param {Function} cfg.transport  async ({method,url,headers,body}) => {status,headers,body}
- * @param {string}  [cfg.owner]     EVM address of the bucket owner
- * @param {string}  [cfg.endpoint]  SP gateway (defaults to testnet SP1)
+ * @param {{ transport?: Transport, owner?: string, endpoint?: string }} [cfg]
  */
 export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
   if (typeof transport !== 'function') {
     throw gfError('A transport function is required', 'NO_TRANSPORT');
   }
+  /** @type {Transport} */
+  const tx = transport;
   const sp = (endpoint || GREENFIELD_TESTNET.spEndpoint).replace(/\/+$/, '');
 
+  /** @param {string} [override] @returns {string} */
   function requireOwner(override) {
     const o = override || owner;
     if (!o) throw gfError('An owner address is required', 'NO_OWNER');
     return o;
   }
 
+  /** @param {TransportRequest} req @returns {Promise<TransportResponse>} */
   async function send(req) {
     let res;
     try {
-      res = await transport(req);
+      res = await tx(req);
     } catch (err) {
       throw gfError(
-        `Greenfield network error: ${err?.message ?? err}`,
+        `Greenfield network error: ${/** @type {any} */ (err)?.message ?? err}`,
         'NETWORK_ERROR',
       );
     }
@@ -157,6 +199,10 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     return res;
   }
 
+  /**
+   * @param {string} name
+   * @param {{ owner?: string, visibility?: string }} [opts]
+   */
   async function createBucket(name, opts = {}) {
     assertBucketName(name);
     const o = requireOwner(opts.owner);
@@ -176,15 +222,18 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     };
   }
 
+  /** @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */
   async function listBuckets(ownerOverride) {
     const o = requireOwner(ownerOverride);
     const res = await send(buildListBucketsRequest(sp, o));
+    /** @type {any} */
     let parsed = {};
     try {
       parsed = typeof res.body === 'string' ? JSON.parse(res.body) : res.body || {};
     } catch (_) {
       parsed = {};
     }
+    /** @type {any[]} */
     const raw = parsed.buckets || parsed.Buckets || [];
     return raw.map((b) => ({
       name: b.bucket_name || b.BucketName || b.name,
@@ -194,6 +243,7 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     }));
   }
 
+  /** @param {string} [query] @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */
   async function searchBuckets(query, ownerOverride) {
     const all = await listBuckets(ownerOverride);
     const q = String(query || '').trim().toLowerCase();
@@ -201,11 +251,18 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     return all.filter((b) => (b.name || '').toLowerCase().includes(q));
   }
 
+  /** @param {string} name @param {string} [ownerOverride] @returns {Promise<boolean>} */
   async function bucketExists(name, ownerOverride) {
     const all = await listBuckets(ownerOverride);
     return all.some((b) => b.name === name);
   }
 
+  /**
+   * @param {string} bucket
+   * @param {string} key
+   * @param {string|Uint8Array} data
+   * @param {{ owner?: string, contentType?: string, visibility?: string }} [opts]
+   */
   async function saveObject(bucket, key, data, opts = {}) {
     assertBucketName(bucket);
     assertObjectKey(key);
@@ -227,6 +284,7 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     };
   }
 
+  /** @param {string} bucket @param {string} key @returns {Promise<string>} */
   async function readObject(bucket, key) {
     assertBucketName(bucket);
     assertObjectKey(key);

@@ -24,10 +24,41 @@ const ENVELOPE_SCHEMA = 'daskibo.cryptobox.envelope/1';
 const WRAP_SCHEMA = 'daskibo.cryptobox.wrap/1';
 const DEFAULT_PBKDF2_ITERATIONS = 210000;
 
+/**
+ * @typedef {{ subtle: any, getRandomValues: (a: Uint8Array) => Uint8Array }} WebCryptoLike
+ * @typedef {Error & { code: string }} CodedError
+ * @typedef {Object} Envelope
+ * @property {string} schema
+ * @property {string} alg
+ * @property {string} iv
+ * @property {string} ciphertext
+ * @property {string} dekIv
+ * @property {string} wrappedDek
+ * @property {{contentType:string, originalKey?:string, encoding:string}} meta
+ * @typedef {Object} WrappedKey
+ * @property {string} schema
+ * @property {string} kdf
+ * @property {number} iterations
+ * @property {string} salt
+ * @property {string} iv
+ * @property {string} wrapped
+ */
+
+/**
+ * @param {string} message
+ * @param {string} code
+ * @returns {CodedError}
+ */
 function cryptoError(message, code) {
-  return Object.assign(new Error(message), { code });
+  return /** @type {CodedError} */ (
+    Object.assign(new Error(message), { code })
+  );
 }
 
+/**
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {WebCryptoLike}
+ */
 function getCrypto(cryptoImpl) {
   const c = cryptoImpl || (typeof globalThis !== 'undefined' ? globalThis.crypto : undefined);
   if (!c || !c.subtle) {
@@ -38,6 +69,10 @@ function getCrypto(cryptoImpl) {
 
 // ── base64 <-> bytes (no Buffer dependency in the browser) ────────────────
 
+/**
+ * @param {Uint8Array | ArrayBuffer} bytes
+ * @returns {string}
+ */
 function b64encode(bytes) {
   let bin = '';
   const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -46,6 +81,10 @@ function b64encode(bytes) {
   return Buffer.from(u8).toString('base64');
 }
 
+/**
+ * @param {string} str
+ * @returns {Uint8Array}
+ */
 function b64decode(str) {
   if (typeof atob === 'function') {
     const bin = atob(str);
@@ -61,13 +100,23 @@ const dec = new TextDecoder();
 
 // ── Keys ──────────────────────────────────────────────────────────────────
 
-/** Random 256-bit bucket master key, returned base64. */
+/**
+ * Random 256-bit bucket master key, returned base64.
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {Promise<string>}
+ */
 export async function createBucketMasterKey(cryptoImpl) {
   const c = getCrypto(cryptoImpl);
   const raw = c.getRandomValues(new Uint8Array(32));
   return b64encode(raw);
 }
 
+/**
+ * @param {WebCryptoLike} c
+ * @param {Uint8Array} rawBytes
+ * @param {string[]} usages
+ * @returns {Promise<any>}
+ */
 async function importAesKey(c, rawBytes, usages) {
   if (!(rawBytes instanceof Uint8Array) || rawBytes.length !== 32) {
     throw cryptoError('Key must be 32 raw bytes', 'INVALID_KEY');
@@ -75,6 +124,10 @@ async function importAesKey(c, rawBytes, usages) {
   return c.subtle.importKey('raw', rawBytes, { name: 'AES-GCM' }, false, usages);
 }
 
+/**
+ * @param {string} masterKeyB64
+ * @returns {Uint8Array}
+ */
 function masterBytes(masterKeyB64) {
   let raw;
   try {
@@ -95,7 +148,9 @@ function masterBytes(masterKeyB64) {
  * master key.
  * @param {string} masterKeyB64
  * @param {string|Uint8Array} data
- * @param {{contentType?:string, originalKey?:string}} meta
+ * @param {{contentType?:string, originalKey?:string}} [meta]
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {Promise<Envelope>}
  */
 export async function encryptObject(masterKeyB64, data, meta = {}, cryptoImpl) {
   const c = getCrypto(cryptoImpl);
@@ -135,7 +190,13 @@ export async function encryptObject(masterKeyB64, data, meta = {}, cryptoImpl) {
   };
 }
 
-/** Decrypt an envelope produced by {@link encryptObject}. */
+/**
+ * Decrypt an envelope produced by {@link encryptObject}.
+ * @param {string} masterKeyB64
+ * @param {Envelope} env
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {Promise<{ bytes: Uint8Array, text: string|undefined, meta: object }>}
+ */
 export async function decryptObject(masterKeyB64, env, cryptoImpl) {
   const c = getCrypto(cryptoImpl);
   if (!env || env.schema !== ENVELOPE_SCHEMA) {
@@ -164,7 +225,7 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
       ),
     );
   } catch (err) {
-    if (err?.code === 'INVALID_KEY') throw err;
+    if (/** @type {any} */ (err)?.code === 'INVALID_KEY') throw err;
     throw cryptoError(
       'Decryption failed (wrong key or tampered data)',
       'DECRYPT_FAILED',
@@ -180,6 +241,13 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
 
 // ── Optional passphrase wrapping of the master key ────────────────────────
 
+/**
+ * @param {WebCryptoLike} c
+ * @param {string} passphrase
+ * @param {Uint8Array} salt
+ * @param {number} iterations
+ * @returns {Promise<any>}
+ */
 async function deriveKek(c, passphrase, salt, iterations) {
   const base = await c.subtle.importKey(
     'raw',
@@ -197,6 +265,13 @@ async function deriveKek(c, passphrase, salt, iterations) {
   );
 }
 
+/**
+ * @param {string} masterKeyB64
+ * @param {string} passphrase
+ * @param {{ iterations?: number }} [opts]
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {Promise<WrappedKey>}
+ */
 export async function wrapMasterWithPassphrase(
   masterKeyB64,
   passphrase,
@@ -222,6 +297,12 @@ export async function wrapMasterWithPassphrase(
   };
 }
 
+/**
+ * @param {WrappedKey} wrap
+ * @param {string} passphrase
+ * @param {WebCryptoLike} [cryptoImpl]
+ * @returns {Promise<string>}
+ */
 export async function unwrapMasterWithPassphrase(wrap, passphrase, cryptoImpl) {
   const c = getCrypto(cryptoImpl);
   if (!wrap || wrap.schema !== WRAP_SCHEMA) {
