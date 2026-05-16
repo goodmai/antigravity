@@ -25,45 +25,176 @@
     <p class="lesson-meta">Модуль 1 — Современный классический подход · Урок 1.1 · <span class="badge-mini">C4 · DDD</span></p>
     <h1>Приложение как система</h1>
 
-    <p><strong>Канон:</strong> <a href="https://c4model.com" target="_blank" rel="noopener">C4 model</a>, <a href="https://www.domainlanguage.com/ddd/reference/" target="_blank" rel="noopener">DDD Reference (Evans)</a>.</p>
+    <p><strong>Канон:</strong> <a href="https://c4model.com" target="_blank" rel="noopener">C4 model (Simon Brown)</a>, <a href="https://www.domainlanguage.com/ddd/reference/" target="_blank" rel="noopener">DDD Reference (Eric Evans)</a>, <a href="https://martinfowler.com/bliki/BoundedContext.html" target="_blank" rel="noopener">Bounded Context (Fowler)</a>, <a href="https://www.oreilly.com/library/view/fundamentals-of-software/9781492043447/" target="_blank" rel="noopener">Fundamentals of Software Architecture (Richards/Ford)</a>.</p>
+
 <p>Архитектура начинается не со стека, а с <strong>домена</strong>. Прежде чем
 выбирать базу или язык, мы описываем, <em>что</em> система делает и где
 проходят её границы. Сквозной продукт курса — «маркетплейс цифровых работ +
 лента + платежи» — мы трижды спроектируем по одной и той же сетке из девяти
-кирпичей.</p>
+кирпичей. Этот урок задаёт <strong>словарь</strong>, на котором мы будем
+сравнивать классику, Google Cloud и децентрализацию.</p>
 
-<h3>Девять кирпичей (сетка циркуля)</h3>
+<h2>1. Зачем сначала домен, а не технология</h2>
+<p>Эрик Эванс в DDD формулирует это так: сложность приложения живёт в
+<em>предметной области</em>, а не в фреймворке. Если границы домена
+проведены неверно, никакой стек это не исправит — ошибка просто
+«размажется» по микросервисам, облаку или контрактам. Поэтому
+первый артефакт архитектора — не диаграмма развёртывания, а
+<strong>карта контекстов</strong> и единый язык (Ubiquitous Language),
+на котором бизнес и инженеры называют вещи одинаково.</p>
+
+<h3>Ubiquitous Language на практике</h3>
+<p>Если продакт говорит «работа», бекенд — <code>Item</code>, а база —
+<code>products</code>, вы платите «налог на перевод» в каждом обсуждении и
+багрепорте. Договоритесь о терминах <em>один раз</em> и проведите их
+сквозь код, API и схему БД: сущность называется <code>Work</code>
+везде — в Solidity-контракте модуля 3 тоже.</p>
+
+<h2>2. Девять кирпичей (сетка циркуля)</h2>
+<p>Любое приложение, независимо от парадигмы, отвечает на одни и те же
+девять вопросов. Это и есть «циркуль», которым мы трижды обведём один
+центр. Каждый последующий урок углубляет один кирпич.</p>
 <div class="table-wrap"><table>
-<tr><th>#</th><th>Кирпич</th><th>Вопрос, на который он отвечает</th></tr>
-<tr><td>1</td><td>Compute</td><td>Где выполняется код?</td></tr>
-<tr><td>2</td><td>State / Data</td><td>Где живёт истина о данных?</td></tr>
-<tr><td>3</td><td>Storage / Media</td><td>Где лежат файлы и как они доставляются?</td></tr>
-<tr><td>4</td><td>Messaging</td><td>Как части системы общаются асинхронно?</td></tr>
-<tr><td>5</td><td>Identity / Auth</td><td>Кто пользователь и что ему можно?</td></tr>
-<tr><td>6</td><td>Networking</td><td>Как трафик доходит до сервиса?</td></tr>
-<tr><td>7</td><td>Secrets / Keys</td><td>Где хранятся ключи и как ротуются?</td></tr>
-<tr><td>8</td><td>Observability</td><td>Как мы узнаём, что система жива?</td></tr>
-<tr><td>9</td><td>Delivery / Govern.</td><td>Как изменения попадают в прод?</td></tr>
+<tr><th>#</th><th>Кирпич</th><th>Вопрос, на который он отвечает</th><th>Урок-якорь</th></tr>
+<tr><td>1</td><td>Compute</td><td>Где выполняется код?</td><td>1.2–1.3</td></tr>
+<tr><td>2</td><td>State / Data</td><td>Где живёт истина о данных?</td><td>1.5</td></tr>
+<tr><td>3</td><td>Storage / Media</td><td>Где лежат файлы и как доставляются?</td><td>1.7</td></tr>
+<tr><td>4</td><td>Messaging</td><td>Как части системы общаются асинхронно?</td><td>1.6</td></tr>
+<tr><td>5</td><td>Identity / Auth</td><td>Кто пользователь и что ему можно?</td><td>1.8</td></tr>
+<tr><td>6</td><td>Networking</td><td>Как трафик доходит до сервиса?</td><td>1.10</td></tr>
+<tr><td>7</td><td>Secrets / Keys</td><td>Где хранятся ключи и как ротуются?</td><td>1.11</td></tr>
+<tr><td>8</td><td>Observability</td><td>Как мы узнаём, что система жива?</td><td>1.9</td></tr>
+<tr><td>9</td><td>Delivery / Govern.</td><td>Как изменения попадают в прод?</td><td>1.11</td></tr>
 </table></div>
 
-<h3>C4: четыре уровня масштаба</h3>
-<p>Мы используем модель C4 как общий язык диаграмм:</p>
+<h2>3. C4: четыре уровня масштаба</h2>
+<p>Модель C4 (Simon Brown) — это «карта с разным зумом». Один уровень —
+один масштаб, одна аудитория. Не смешивайте их на одной диаграмме.</p>
 <ol>
-<li><strong>Context</strong> — система как чёрный ящик и её акторы.</li>
-<li><strong>Container</strong> — приложения/хранилища и потоки между ними.</li>
-<li><strong>Component</strong> — внутренние блоки контейнера.</li>
-<li><strong>Code</strong> — по необходимости (UML/классы).</li>
+<li><strong>Context</strong> — система как чёрный ящик и её акторы/внешние
+системы. Аудитория: все, включая бизнес.</li>
+<li><strong>Container</strong> — развёртываемые единицы (SPA, API, БД,
+очередь) и потоки между ними. Аудитория: инженеры, devops.</li>
+<li><strong>Component</strong> — внутренние блоки одного контейнера.</li>
+<li><strong>Code</strong> — по необходимости (UML/классы); обычно
+генерируется из кода, а не рисуется руками.</li>
 </ol>
+<div class="note violet"><strong>Правило аудитории.</strong> Если на
+Context-диаграмме появилось слово «Redis» — вы спустились на уровень
+Container и запутаете бизнес. Каждый уровень отвечает только на свой
+вопрос.</div>
 
-<h3>Bounded Context для маркетплейса</h3>
+<h2>4. Bounded Context: где резать систему</h2>
+<p>Bounded Context — это явная граница, внутри которой термин имеет ровно
+одно значение. «Пользователь» в <em>Identity</em> (профиль, пароль) и
+«Пользователь» в <em>Payments</em> (плательщик, payout-аккаунт) — это
+<strong>разные модели</strong>, связанные только идентификатором.
+Объединять их в одну таблицу — классическая ошибка, которая позже
+заставляет распиливать монолит по живому.</p>
+
+<h3>Пример использования элементов</h3>
+<p>Применим словарь к сквозному продукту. Сначала — Bounded Contexts
+маркетплейса:</p>
 <pre class="code-block"><code class="language-">Catalog        — карточки работ, поиск, теги
 Identity        — профили, аутентификация
 Order/Payments  — корзина, оплата, выплаты автору
 Feed            — лента активности и подписки
 Media           — загрузка и доставка файлов работ</code></pre>
-<p>Каждый контекст имеет собственную модель и контракт. Пересечения —
-через явные интеграции, а не общую БД.</p>
-    <div class="note gold"><strong>Артефакт урока.</strong> C4 Context-диаграмма продукта (PlantUML/Structurizr) в личном форке.</div>
+<p>Теперь — <strong>Context-диаграмма</strong> в нотации, которую мы
+держим как артефакт (C4-PlantUML / Structurizr DSL):</p>
+<pre class="code-block"><code class="language-">workspace {
+  model {
+    buyer  = person "Покупатель"
+    author = person "Автор работ"
+    market = softwareSystem "Маркетплейс цифровых работ" {
+      description "Каталог + лента + платежи"
+    }
+    psp = softwareSystem "Платёжный провайдер" "Внешняя система"
+
+    buyer  -> market "Ищет и покупает работы"
+    author -> market "Публикует работы, получает выплаты"
+    market -> psp    "Проводит платёж / payout"
+  }
+  views { systemContext market { include * autolayout lr } }
+}</code></pre>
+<p>Заметьте: <em>ни одного</em> упоминания PostgreSQL, Kafka или контракта.
+Это уровень Context — он переживёт смену всех трёх парадигм курса.
+Каждый Bounded Context имеет собственную модель и контракт; пересечения
+идут через <strong>явные интеграции</strong>, а не общую БД.</p>
+
+<h3>Связь контекстов: Context Map</h3>
+<p>Эванс описывает паттерны связей между контекстами. Для нас важны три:</p>
+<div class="table-wrap"><table>
+<tr><th>Паттерн</th><th>Смысл</th><th>Где у нас</th></tr>
+<tr><td>Customer–Supplier</td><td>Вышестоящий контекст обязан учитывать нужды нижестоящего</td><td>Catalog → Feed</td></tr>
+<tr><td>Anticorruption Layer</td><td>Адаптер, защищающий нашу модель от чужой</td><td>Payments ↔ внешний PSP</td></tr>
+<tr><td>Published Language</td><td>Стабильный публичный контракт обмена</td><td>OpenAPI ядра (урок 1.4)</td></tr>
+</table></div>
+
+<div class="note gold"><strong>Артефакт урока.</strong> C4
+Context-диаграмма продукта (PlantUML/Structurizr) + список Bounded
+Contexts с Ubiquitous Language в личном форке.</div>
+
+<h2>Закрепление — 7 вопросов и задач</h2>
+<p>Ответьте сами, затем раскройте разбор.</p>
+<ol class="drill">
+<li><span class="tag">вопрос</span>Почему DDD утверждает, что начинать
+проектирование нужно с домена, а не с выбора БД или фреймворка?</li>
+<li><span class="tag">вопрос</span>Чем уровень <em>Context</em> в C4
+отличается от <em>Container</em> и какая аудитория у каждого?</li>
+<li><span class="tag">вопрос</span>Что такое Ubiquitous Language и какой
+конкретный «налог» вы платите, если его нет?</li>
+<li><span class="tag">вопрос</span>Почему «Пользователь» в Identity и
+«Пользователь» в Payments — это разные модели? Что их связывает?</li>
+<li><span class="tag task">задача</span>Выпишите 9 кирпичей и для каждого
+сформулируйте вопрос применительно к маркетплейсу (одно предложение на
+кирпич).</li>
+<li><span class="tag task">задача</span>Нарисуйте Context-диаграмму
+продукта в Structurizr DSL или PlantUML с акторами «покупатель»,
+«автор» и внешним PSP. Проверьте: нет ни одной технологии.</li>
+<li><span class="tag task">задача</span>Постройте Context Map: для каждой
+пары контекстов (Catalog, Identity, Payments, Feed, Media) укажите тип
+связи (Customer–Supplier / ACL / Published Language) и направление
+зависимости.</li>
+</ol>
+<details class="answer-key">
+<summary>Разбор ответов</summary>
+<ol>
+<li>Сложность продукта живёт в предметной области, а не в технологии.
+Неверно проведённые границы домена нельзя «починить» стеком — ошибка
+размажется по сервисам/облаку/контрактам. Технология — это <em>как</em>,
+домен — <em>что</em>; выбор «как» без ответа «что» преждевременен.</li>
+<li><strong>Context</strong> — система как чёрный ящик + акторы и внешние
+системы, аудитория — все, включая бизнес. <strong>Container</strong> —
+развёртываемые единицы (SPA, API, БД, очередь) и протоколы между ними,
+аудитория — инженеры/devops. Технологии (Redis, Postgres) допустимы
+только с уровня Container.</li>
+<li>Единый язык, на котором бизнес и инженеры называют сущности
+одинаково и который проходит сквозь код, API и схему БД. Без него
+платится «налог на перевод»: каждое обсуждение, багрепорт и ревью
+требует мысленного маппинга «работа ↔ Item ↔ products», где и рождаются
+ошибки.</li>
+<li>Это разные Bounded Contexts: в Identity модель — профиль,
+аутентификация; в Payments — плательщик, payout-аккаунт, KYC. У них
+разные инварианты и жизненный цикл. Связывает их только стабильный
+идентификатор (user id), а не общая таблица.</li>
+<li>Образец: Compute — «где исполняется код карточек и оплаты?»;
+State — «где истина о владельце работы?»; Storage — «где лежат файлы
+работ?»; Messaging — «как лента узнаёт о новой работе?»; Identity —
+«как доказать, что это автор?»; Networking — «как запрос доходит до
+API?»; Secrets — «где ключ к PSP?»; Observability — «как понять, что
+оплаты проходят?»; Delivery — «как выкатить новую цену без даунтайма?».</li>
+<li>Критерий приёмки: на диаграмме есть <code>person</code>
+покупатель/автор, <code>softwareSystem</code> маркетплейс и внешний PSP,
+связи подписаны бизнес-действиями. Ошибка, если появились БД, очередь
+или язык — это уже Container.</li>
+<li>Образец: Catalog → Feed — Customer–Supplier (Feed зависит от событий
+Catalog); Payments ↔ PSP — Anticorruption Layer; ядро ↔ внешние
+потребители — Published Language (OpenAPI); Identity — Supplier для всех
+(выдаёт user id), но без общей БД.</li>
+</ol>
+</details>
+
     <hr>
 
     <div class="lesson-nav">
