@@ -35,11 +35,92 @@ async function getVerifyFn() {
   return _verifyFn;
 }
 
+// ── Provider resolution ───────────────────────────────────────────────────
+// MetaMask must work in three environments:
+//   1. MetaMask mobile in-app browser  → provider injected as window.ethereum
+//   2. Desktop Chrome + extension      → may be behind EIP-6963 or
+//                                        window.ethereum.providers[] when
+//                                        several wallet extensions coexist
+//   3. Mobile Chrome (Android/iOS)     → no provider at all; must deep-link
+//                                        into the MetaMask app
+//
+// A naive `window.ethereum.isMetaMask` check fails (2) and (3).
+
+// EIP-6963 announced providers. Populated by web3.js via the
+// `eip6963:announceProvider` event; injectable so tests stay pure.
+const _eip6963Providers = [];
+
+export function __registerEip6963Provider(detail) {
+  if (detail && detail.provider) _eip6963Providers.push(detail);
+}
+
+export function __clearEip6963Providers() {
+  _eip6963Providers.length = 0;
+}
+
+function _isMetaMaskish(p) {
+  // Brave and others set isMetaMask for compat — exclude the obvious impostors.
+  return Boolean(p && p.isMetaMask && !p.isBraveWallet && !p.isCoinbaseWallet);
+}
+
+/**
+ * Resolves the MetaMask EIP-1193 provider across all environments.
+ * Resolution order: EIP-6963 → window.ethereum.providers[] → window.ethereum.
+ * Returns the provider object, or null when MetaMask is not reachable.
+ */
+export function getMetaMaskProvider(ethereum) {
+  // 1. EIP-6963 (modern multi-wallet discovery)
+  for (const entry of _eip6963Providers) {
+    const rdns = entry?.info?.rdns ?? '';
+    const name = entry?.info?.name ?? '';
+    if (_isMetaMaskish(entry?.provider) || rdns === 'io.metamask' || /metamask/i.test(name)) {
+      return entry.provider;
+    }
+  }
+
+  const eth = ethereum ?? (typeof window !== 'undefined' ? window.ethereum : undefined);
+  if (!eth) return null;
+
+  // 2. Legacy multi-provider array (window.ethereum.providers)
+  if (Array.isArray(eth.providers) && eth.providers.length) {
+    const mm = eth.providers.find(_isMetaMaskish);
+    if (mm) return mm;
+  }
+
+  // 3. Single injected provider (in-app browser / single extension)
+  if (_isMetaMaskish(eth)) return eth;
+
+  return null;
+}
+
+// ── Mobile / deep-link helpers ────────────────────────────────────────────
+
+export function isMobileUserAgent(ua) {
+  const s = ua ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(s);
+}
+
+/** True when running inside the MetaMask mobile in-app browser. */
+export function isInAppMetaMaskBrowser(ua) {
+  const s = ua ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  return /MetaMaskMobile/i.test(s);
+}
+
+/**
+ * Builds a MetaMask deep link that reopens the current page inside the
+ * MetaMask in-app browser, where window.ethereum IS available.
+ */
+export function buildMetaMaskDeepLink(loc) {
+  const l = loc ?? (typeof window !== 'undefined' ? window.location : null);
+  const host = l?.host ?? '';
+  const path = (l?.pathname ?? '') + (l?.search ?? '');
+  return `https://metamask.app.link/dapp/${host}${path}`;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 export function hasMetaMask(ethereum) {
-  const eth = ethereum ?? (typeof window !== 'undefined' ? window.ethereum : undefined);
-  return Boolean(eth?.isMetaMask);
+  return Boolean(getMetaMaskProvider(ethereum));
 }
 
 export function shortAddress(addr) {
@@ -140,10 +221,20 @@ export async function verifyWalletSignature(address, sig) {
  * Returns { address, sig } on success.
  * Throws typed errors with a .code property (see ERROR_CODES below).
  */
-export async function connectAndSign(ethereum) {
-  const eth = ethereum ?? (typeof window !== 'undefined' ? window.ethereum : null);
+export async function connectAndSign(ethereum, opts = {}) {
+  const eth = getMetaMaskProvider(ethereum);
 
-  if (!eth?.isMetaMask) {
+  if (!eth) {
+    const ua = opts.userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '');
+    // Mobile browser with no injected provider (e.g. Chrome on Android):
+    // bounce the user into the MetaMask app's in-app browser via deep link.
+    if (isMobileUserAgent(ua) && !isInAppMetaMaskBrowser(ua)) {
+      const deepLink = buildMetaMaskDeepLink(opts.location);
+      throw Object.assign(
+        _err('Open this page in the MetaMask app to continue', 'METAMASK_MOBILE_REDIRECT'),
+        { deepLink },
+      );
+    }
     throw _err('MetaMask is not installed', 'METAMASK_NOT_FOUND');
   }
 

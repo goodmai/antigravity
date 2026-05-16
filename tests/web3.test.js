@@ -15,6 +15,10 @@ import {
   connectAndSign,
   switchToUnit0,
   hasMetaMask,
+  getMetaMaskProvider,
+  isMobileUserAgent,
+  isInAppMetaMaskBrowser,
+  buildMetaMaskDeepLink,
   shortAddress,
   getSession,
   setSession,
@@ -24,7 +28,16 @@ import {
   UNIT0_CHAIN_ID_HEX,
   UNIT0_CHAIN,
   __injectVerifyMessage,
+  __registerEip6963Provider,
+  __clearEip6963Providers,
 } from '../academy/js/web3-core.js';
+
+const UA_ANDROID_CHROME =
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+const UA_METAMASK_INAPP =
+  'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 MetaMaskMobile';
+const UA_DESKTOP =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // ── Mock ethereum provider factory ───────────────────────────────────────
 
@@ -338,24 +351,112 @@ describe('Disconnect and wallet change', () => {
 // ── 7. Mobile browser detection ──────────────────────────────────────────
 
 describe('Mobile browser detection', () => {
-  it('hasMetaMask returns false on mobile Chrome (no extension support)', () => {
-    // Chrome on mobile does not support extensions — window.ethereum is never injected
+  it('hasMetaMask returns false without a provider', () => {
     expect(hasMetaMask(undefined)).toBe(false);
   });
 
-  it('connectAndSign throws METAMASK_NOT_FOUND on mobile Chrome', async () => {
-    // No ethereum provider on mobile Chrome → must reject, not hang
-    await expect(connectAndSign(undefined)).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
-  });
-
   it('hasMetaMask returns false when provider lacks isMetaMask flag', () => {
-    // Some mobile wallets inject window.ethereum without marking themselves as MetaMask
     expect(hasMetaMask({ request: vi.fn() })).toBe(false);
     expect(hasMetaMask({ isMetaMask: false })).toBe(false);
   });
 
-  it('connectAndSign throws METAMASK_NOT_FOUND when isMetaMask flag is absent', async () => {
+  it('connectAndSign throws METAMASK_NOT_FOUND when isMetaMask flag is absent (desktop, no UA)', async () => {
     const eth = { isMetaMask: false, request: vi.fn() };
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
+  });
+});
+
+// ── 8. Three-environment MetaMask support ────────────────────────────────
+
+describe('Mode 1 — MetaMask mobile in-app browser', () => {
+  beforeEach(() => { clearSession(); __clearEip6963Providers(); });
+
+  it('resolves the injected provider inside the MetaMask app', () => {
+    const eth = mockEthereum();
+    expect(getMetaMaskProvider(eth)).toBe(eth);
+    expect(hasMetaMask(eth)).toBe(true);
+  });
+
+  it('isInAppMetaMaskBrowser detects the MetaMask in-app UA', () => {
+    expect(isInAppMetaMaskBrowser(UA_METAMASK_INAPP)).toBe(true);
+    expect(isInAppMetaMaskBrowser(UA_ANDROID_CHROME)).toBe(false);
+  });
+
+  it('connectAndSign completes the full flow with the injected provider', async () => {
+    __injectVerifyMessage(vi.fn().mockResolvedValue(true));
+    const addr = '0xAbCd1234567890abcdef1234567890AbCd123456';
+    const result = await connectAndSign(successEthereum(addr), { userAgent: UA_METAMASK_INAPP });
+    expect(result.address).toBe(addr);
+  });
+});
+
+describe('Mode 2 — Desktop Chrome with extension(s)', () => {
+  beforeEach(() => { clearSession(); __clearEip6963Providers(); });
+
+  it('resolves MetaMask from window.ethereum.providers[] when multiple wallets coexist', () => {
+    const coinbase = { isMetaMask: false, isCoinbaseWallet: true, request: vi.fn() };
+    const metamask = mockEthereum();
+    const root = { isMetaMask: false, providers: [coinbase, metamask], request: vi.fn() };
+    expect(getMetaMaskProvider(root)).toBe(metamask);
+    expect(hasMetaMask(root)).toBe(true);
+  });
+
+  it('does NOT mistake Brave/Coinbase shims for MetaMask', () => {
+    const brave = { isMetaMask: true, isBraveWallet: true, request: vi.fn() };
+    expect(getMetaMaskProvider(brave)).toBeNull();
+    expect(hasMetaMask(brave)).toBe(false);
+  });
+
+  it('resolves MetaMask via EIP-6963 announcement even when window.ethereum is another wallet', () => {
+    const mmProvider = mockEthereum();
+    __registerEip6963Provider({ info: { rdns: 'io.metamask', name: 'MetaMask' }, provider: mmProvider });
+    const phantom = { isMetaMask: false, isPhantom: true, request: vi.fn() };
+    expect(getMetaMaskProvider(phantom)).toBe(mmProvider);
+  });
+
+  it('connectAndSign uses the EIP-6963-resolved MetaMask provider', async () => {
+    __injectVerifyMessage(vi.fn().mockResolvedValue(true));
+    const addr = '0x9999000000000000000000000000000000000001';
+    const mm = successEthereum(addr);
+    __registerEip6963Provider({ info: { rdns: 'io.metamask', name: 'MetaMask' }, provider: mm });
+    const result = await connectAndSign({ isMetaMask: false, isPhantom: true, request: vi.fn() });
+    expect(result.address).toBe(addr);
+    expect(mm.request).toHaveBeenCalledWith({ method: 'eth_requestAccounts' });
+  });
+});
+
+describe('Mode 3 — Mobile Chrome (Android), no injected provider', () => {
+  beforeEach(() => { clearSession(); __clearEip6963Providers(); });
+
+  it('isMobileUserAgent detects Android Chrome', () => {
+    expect(isMobileUserAgent(UA_ANDROID_CHROME)).toBe(true);
+    expect(isMobileUserAgent(UA_DESKTOP)).toBe(false);
+  });
+
+  it('buildMetaMaskDeepLink targets metamask.app.link/dapp/<host><path>', () => {
+    const link = buildMetaMaskDeepLink({ host: 'goodmai.github.io', pathname: '/antigravity/academy/login.html', search: '' });
+    expect(link).toBe('https://metamask.app.link/dapp/goodmai.github.io/antigravity/academy/login.html');
+  });
+
+  it('connectAndSign throws METAMASK_MOBILE_REDIRECT with a deep link on mobile Chrome', async () => {
+    const err = await connectAndSign(undefined, {
+      userAgent: UA_ANDROID_CHROME,
+      location: { host: 'example.com', pathname: '/p', search: '?x=1' },
+    }).catch(e => e);
+    expect(err.code).toBe('METAMASK_MOBILE_REDIRECT');
+    expect(err.deepLink).toBe('https://metamask.app.link/dapp/example.com/p?x=1');
+  });
+
+  it('does NOT redirect when already inside the MetaMask in-app browser', async () => {
+    // In-app browser without a resolvable provider yet → plain not-found, no loop
+    await expect(
+      connectAndSign(undefined, { userAgent: UA_METAMASK_INAPP }),
+    ).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
+  });
+
+  it('desktop without MetaMask still gets METAMASK_NOT_FOUND (no false redirect)', async () => {
+    await expect(
+      connectAndSign(undefined, { userAgent: UA_DESKTOP }),
+    ).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
   });
 });

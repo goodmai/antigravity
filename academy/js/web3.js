@@ -10,6 +10,8 @@ import {
   getSession,
   shortAddress,
   hasMetaMask,
+  getMetaMaskProvider,
+  __registerEip6963Provider,
   UNIT0_CHAIN_ID_HEX,
 } from './web3-core.js';
 
@@ -52,6 +54,7 @@ const ERROR_MESSAGES = {
   NETWORK_UNAVAILABLE:   'Unit Zero network is currently unavailable. Please try again later.',
   INVALID_SIGNATURE:     'Signature verification failed. Please reconnect.',
   NO_ACCOUNTS:           'No accounts found — please unlock your MetaMask wallet.',
+  METAMASK_MOBILE_REDIRECT: 'Opening the MetaMask app…',
 };
 
 function _errMsg(err) {
@@ -128,6 +131,18 @@ function _onDisconnect() {
   document.dispatchEvent(new CustomEvent('walletDisconnected'));
 }
 
+// Idempotent listener binding — EIP-6963 may resolve the same provider
+// the legacy fallback already wired up.
+const _wiredProviders = new WeakSet();
+function _attachProviderEvents(provider) {
+  if (!provider || typeof provider.on !== 'function') return;
+  if (_wiredProviders.has(provider)) return;
+  _wiredProviders.add(provider);
+  provider.on('accountsChanged', _onAccountsChanged);
+  provider.on('chainChanged',    _onChainChanged);
+  provider.on('disconnect',      _onDisconnect);
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 
 function _init() {
@@ -135,24 +150,22 @@ function _init() {
   const session = getSession();
   if (session) updateNavWallet(session.address);
 
-  // Attach MetaMask provider event listeners
-  const eth = window.ethereum;
-  if (eth) {
-    eth.on('accountsChanged', _onAccountsChanged);
-    eth.on('chainChanged',    _onChainChanged);
-    eth.on('disconnect',      _onDisconnect);
-  }
+  // EIP-6963: collect announced providers so MetaMask is discoverable even
+  // when several wallet extensions coexist on desktop Chrome.
+  window.addEventListener('eip6963:announceProvider', (e) => {
+    __registerEip6963Provider(e.detail);
+    const mm = getMetaMaskProvider();
+    if (mm) _attachProviderEvents(mm);
+  });
+  window.dispatchEvent(new Event('eip6963:requestProvider'));
+
+  // Attach MetaMask provider event listeners (resolved across environments)
+  const eth = getMetaMaskProvider();
+  if (eth) _attachProviderEvents(eth);
 
   // Wire connect buttons (data-action="connect")
   document.querySelectorAll('[data-action="connect"]').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!hasMetaMask()) {
-        const msg = ERROR_MESSAGES.METAMASK_NOT_FOUND;
-        showToast(msg, 'error', 7000);
-        _showAuthError('MetaMask not installed. Visit metamask.io to install.');
-        return;
-      }
-
       _hideAuthError();
       btn.disabled = true;
       btn.classList.add('loading');
@@ -174,9 +187,18 @@ function _init() {
 
         document.dispatchEvent(new CustomEvent('walletConnected', { detail: result }));
       } catch (err) {
+        if (err?.code === 'METAMASK_MOBILE_REDIRECT' && err.deepLink) {
+          showToast(ERROR_MESSAGES.METAMASK_MOBILE_REDIRECT, 'info', 6000);
+          window.location.href = err.deepLink;
+          return;
+        }
         const msg = _errMsg(err);
         showToast(msg, 'error', 6000);
-        _showAuthError(msg);
+        if (err?.code === 'METAMASK_NOT_FOUND') {
+          _showAuthError('MetaMask not installed. Visit metamask.io to install.');
+        } else {
+          _showAuthError(msg);
+        }
       } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
@@ -203,6 +225,7 @@ if (document.readyState === 'loading') {
 // Expose minimal API for any inline page scripts that need it
 window.Web3Auth = {
   hasMetaMask,
+  getMetaMaskProvider,
   connectAndSign,
   getSession,
   clearSession,
