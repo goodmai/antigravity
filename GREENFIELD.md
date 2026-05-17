@@ -305,3 +305,32 @@ Three placeholder courses are linked from the main page; replace the
   - TDD: `tests/greenfield-wallet-backend.test.js`,
     `tests/sp-emulation-backend.test.js` + rewritten write-path suites in
     `tests/greenfield-buckets.test.js`.
+
+### Audit follow-ups addressed (TDD)
+
+- **Browser broadcast fixed** — `greenfield-wallet-sdk.js` previously
+  passed a non-existent `provider` field to `tx.broadcast`; it now uses
+  the documented `signTypedDataCallback` (wallet `eth_signTypedData_v4`).
+  The callback is a pure, unit-tested helper
+  `makeSignTypedDataCallback(provider)` (`USER_REJECTED` on 4001,
+  `NO_WALLET` without a provider) so the signing wiring is covered even
+  though the surrounding SDK call graph stays integration-only.
+- **Owner derived from the signer** — `greenfield-core` no longer forces
+  a separate owner field for signer backends: `resolveOwner` uses the
+  optional `backend.resolveOwner()` (the wallet's connected account); an
+  explicit owner that disagrees with the signer now throws
+  `OWNER_MISMATCH` instead of being silently ignored. `NO_OWNER` still
+  applies when nothing can resolve one (e.g. SP-emulation).
+- **Coupling removed** — `smartcontracts/buckets/wallet-provider.js`
+  (`resolveInjectedProvider`, EIP-6963 → `window.ethereum`, pure,
+  strict-typed, TDD'd) replaces the cross-package import of
+  `academy/js/web3-core.js`; provider is now resolved once in the UI.
+
+> **Verification status (honest).** Tested: the pure wallet
+> orchestration, owner resolution, sign-typed-data wiring, provider
+> resolution. **Integration-only / not unit-verified**: the exact
+> `genOffChainAuthKeyPairAndUpload` / `delegateUploadObject` SDK call
+> shapes in `greenfield-wallet-sdk.js`, and the runtime CDN import of
+> `@bnb-chain/greenfield-js-sdk@2.2.2` from esm.sh (pinned by version
+> only — a wallet-context supply-chain dependency). Self-hosting that
+> bundle is the recommended hardening before production.

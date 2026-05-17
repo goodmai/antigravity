@@ -121,5 +121,51 @@ export function createWalletBackend({ provider, makeClient } = {}) {
       });
       return { bucketName, objectKey, txHash: res.txHash };
     },
+
+    /** The signer account — lets greenfield-core derive `owner`. */
+    async resolveOwner() {
+      return connect();
+    },
+  };
+}
+
+/**
+ * Build the `signTypedDataCallback` the Greenfield SDK uses to broadcast
+ * a tx in the browser: it signs the EIP-712 payload via the wallet's
+ * `eth_signTypedData_v4`. Pure + injectable so the signing wiring is
+ * unit-tested (the SDK call graph around it stays integration-only).
+ * @param {Eip1193Provider|undefined} provider
+ * @returns {(address: string, message: string) => Promise<string>}
+ */
+export function makeSignTypedDataCallback(provider) {
+  if (!provider || typeof provider.request !== 'function') {
+    throw walletError(
+      'No browser wallet to sign the Greenfield transaction',
+      'NO_WALLET',
+    );
+  }
+  return async (address, message) => {
+    try {
+      const sig = await provider.request({
+        method: 'eth_signTypedData_v4',
+        params: [address, message],
+      });
+      return typeof sig === 'string' ? sig : String(sig);
+    } catch (err) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 4001
+      ) {
+        throw walletError('Transaction signature rejected', 'USER_REJECTED');
+      }
+      throw walletError(
+        `Wallet signing failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        'WALLET_ERROR',
+      );
+    }
   };
 }

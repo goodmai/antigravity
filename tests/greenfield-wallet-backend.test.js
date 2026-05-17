@@ -9,7 +9,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createWalletBackend } from '../smartcontracts/buckets/greenfield-wallet-backend.js';
+import {
+  createWalletBackend,
+  makeSignTypedDataCallback,
+} from '../smartcontracts/buckets/greenfield-wallet-backend.js';
 
 const ADDR = '0xAbCd1234567890abcdef1234567890abCd123456';
 
@@ -128,5 +131,53 @@ describe('createWalletBackend', () => {
     await expect(
       be.createBucket({ bucketName: 'b', owner: ADDR }),
     ).rejects.toMatchObject({ code: 'NO_WALLET_CLIENT' });
+  });
+
+  it('resolveOwner returns the connected account (cached)', async () => {
+    const provider = fakeProvider();
+    const be = createWalletBackend({
+      provider,
+      makeClient: async () => fakeClient(),
+    });
+    expect(await be.resolveOwner()).toBe(ADDR);
+    await be.resolveOwner();
+    expect(
+      provider.request.mock.calls.filter(
+        (c) => c[0].method === 'eth_requestAccounts',
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+describe('makeSignTypedDataCallback', () => {
+  it('signs via eth_signTypedData_v4 with [address, message]', async () => {
+    const provider = {
+      request: vi.fn(async () => '0xsig'),
+    };
+    const cb = makeSignTypedDataCallback(provider);
+    const sig = await cb('0xAddr', '{"typed":"data"}');
+    expect(sig).toBe('0xsig');
+    expect(provider.request).toHaveBeenCalledWith({
+      method: 'eth_signTypedData_v4',
+      params: ['0xAddr', '{"typed":"data"}'],
+    });
+  });
+
+  it('maps wallet rejection 4001 to USER_REJECTED', async () => {
+    const provider = {
+      request: vi.fn(async () => {
+        throw { code: 4001, message: 'denied' };
+      }),
+    };
+    const cb = makeSignTypedDataCallback(provider);
+    await expect(cb('0xA', 'm')).rejects.toMatchObject({
+      code: 'USER_REJECTED',
+    });
+  });
+
+  it('throws NO_WALLET without a provider', () => {
+    expect(() => makeSignTypedDataCallback(undefined)).toThrowError(
+      expect.objectContaining({ code: 'NO_WALLET' }),
+    );
   });
 });

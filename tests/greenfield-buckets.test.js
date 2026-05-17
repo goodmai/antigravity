@@ -337,6 +337,63 @@ describe('7. saveObject / readObject', () => {
   });
 });
 
+describe('7b. owner derived from the signer backend', () => {
+  const transport = () =>
+    mockTransport(async () => ({ status: 200, headers: {}, body: '' }));
+
+  function signerBackend() {
+    return {
+      resolveOwner: vi.fn(async () => OWNER),
+      createBucket: vi.fn(async () => ({ bucketName: 'b', txHash: '0xb' })),
+      putObject: vi.fn(async () => ({
+        bucketName: 'b',
+        objectKey: 'k',
+        txHash: '0xo',
+      })),
+    };
+  }
+
+  it('uses the backend account when no owner is provided', async () => {
+    const backend = signerBackend();
+    const client = createGreenfieldClient({ transport: transport(), backend });
+    await client.createBucket('my-bucket', { visibility: 'public' });
+    expect(backend.resolveOwner).toHaveBeenCalled();
+    expect(backend.createBucket).toHaveBeenCalledWith({
+      bucketName: 'my-bucket',
+      owner: OWNER,
+      visibility: 'public',
+    });
+  });
+
+  it('accepts an explicit owner that matches the signer account', async () => {
+    const backend = signerBackend();
+    const client = createGreenfieldClient({ transport: transport(), backend });
+    await client.saveObject('my-bucket', 'a.md', 'x', { owner: OWNER });
+    expect(backend.putObject).toHaveBeenCalled();
+  });
+
+  it('rejects an explicit owner that mismatches the signer (OWNER_MISMATCH)', async () => {
+    const backend = signerBackend();
+    const client = createGreenfieldClient({ transport: transport(), backend });
+    await expect(
+      client.createBucket('my-bucket', { owner: '0xDEADbeef' }),
+    ).rejects.toMatchObject({ code: 'OWNER_MISMATCH' });
+    expect(backend.createBucket).not.toHaveBeenCalled();
+  });
+
+  it('still requires an owner when the backend cannot resolve one', async () => {
+    const backend = {
+      createBucket: vi.fn(async () => ({ bucketName: 'b', txHash: '0xb' })),
+      putObject: vi.fn(async () => ({ bucketName: 'b', objectKey: 'k', txHash: null })),
+    };
+    const client = createGreenfieldClient({ transport: transport(), backend });
+    await expect(client.createBucket('my-bucket')).rejects.toMatchObject({
+      code: 'NO_OWNER',
+    });
+    expect(backend.createBucket).not.toHaveBeenCalled();
+  });
+});
+
 describe('8. Transport / network error mapping', () => {
   it('maps a thrown transport error to NETWORK_ERROR', async () => {
     const transport = mockTransport(async () => {

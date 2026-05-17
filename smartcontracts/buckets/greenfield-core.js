@@ -62,6 +62,7 @@ export const GREENFIELD_TESTNET = {
  * @typedef {Object} GreenfieldBackend
  * @property {(args: { bucketName: string, owner: string, visibility: string }) => Promise<{ bucketName: string, txHash: string|null }>} createBucket
  * @property {(args: { bucketName: string, objectKey: string, data: string|Uint8Array, contentType: string, owner: string, visibility: string }) => Promise<{ bucketName: string, objectKey: string, txHash: string|null }>} putObject
+ * @property {(() => Promise<string>)} [resolveOwner]  Signer account, when the backend has one (e.g. a wallet).
  */
 
 // ── Error helper ──────────────────────────────────────────────────────────
@@ -274,6 +275,37 @@ export function createGreenfieldClient({
     return backend;
   }
 
+  /**
+   * Resolve the write `owner`: an explicit value (param/client config) or,
+   * failing that, the signer account the backend exposes. An explicit
+   * value that disagrees with the signer is rejected rather than silently
+   * ignored.
+   * @param {GreenfieldBackend} be
+   * @param {string} [explicit]
+   * @returns {Promise<string>}
+   */
+  async function resolveOwner(be, explicit) {
+    const chosen = explicit || owner;
+    /** @type {string|undefined} */
+    let signer;
+    if (typeof be.resolveOwner === 'function') {
+      signer = await be.resolveOwner();
+    }
+    if (
+      chosen &&
+      signer &&
+      chosen.toLowerCase() !== signer.toLowerCase()
+    ) {
+      throw gfError(
+        `Provided owner ${chosen} does not match the signer ${signer}`,
+        'OWNER_MISMATCH',
+      );
+    }
+    const resolved = chosen || signer;
+    if (!resolved) throw gfError('An owner address is required', 'NO_OWNER');
+    return resolved;
+  }
+
   /** @param {TransportRequest} req @returns {Promise<TransportResponse>} */
   async function send(req) {
     let res;
@@ -299,7 +331,7 @@ export function createGreenfieldClient({
   async function createBucket(name, opts = {}) {
     assertBucketName(name);
     const be = requireBackend();
-    const o = requireOwner(opts.owner);
+    const o = await resolveOwner(be, opts.owner);
     const visibility = opts.visibility || 'private';
     const res = await be.createBucket({ bucketName: name, owner: o, visibility });
     return { bucketName: res.bucketName, visibility, txHash: res.txHash };
@@ -348,7 +380,7 @@ export function createGreenfieldClient({
     assertBucketName(bucket);
     assertObjectKey(key);
     const be = requireBackend();
-    const o = requireOwner(opts.owner);
+    const o = await resolveOwner(be, opts.owner);
     return be.putObject({
       bucketName: bucket,
       objectKey: key,

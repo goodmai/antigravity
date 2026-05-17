@@ -19,6 +19,7 @@
     "smartcontracts/buckets/crypto-envelope.js",
     "smartcontracts/buckets/course-template.js",
     "smartcontracts/buckets/course-publish.js",
-    "smartcontracts/buckets/greenfield-wallet-backend.js"
+    "smartcontracts/buckets/greenfield-wallet-backend.js",
+    "smartcontracts/buckets/wallet-provider.js"
   ]
 }

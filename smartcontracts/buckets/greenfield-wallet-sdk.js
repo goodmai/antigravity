@@ -13,6 +13,8 @@
  * greenfield-testnet/sdk-backend.mjs.
  */
 
+import { makeSignTypedDataCallback } from './greenfield-wallet-backend.js';
+
 const SDK_URL = 'https://esm.sh/@bnb-chain/greenfield-js-sdk@2.2.2';
 
 /**
@@ -78,8 +80,9 @@ export async function makeWalletGreenfieldClient({
         gasPrice: sim.gasPrice,
         payer: creator,
         granter: '',
-        // wallet-driven signing
-        provider,
+        // Browser wallet signing: SDK hands us the EIP-712 payload, we
+        // sign it via the wallet's eth_signTypedData_v4 (documented flow).
+        signTypedDataCallback: makeSignTypedDataCallback(provider),
       });
       return { txHash: res.transactionHash || null };
     },
