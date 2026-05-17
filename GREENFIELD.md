@@ -14,7 +14,9 @@ frontend integration test.
 | Path | Purpose |
 |------|---------|
 | `smartcontracts/index.html` | Main page — the common console for create / search / save / read. Modeled on the site's landing page (`academy/index.html`), self-contained so it serves standalone under nginx. |
-| `smartcontracts/buckets/greenfield-core.js` | Pure, DOM-free Greenfield client. Injectable HTTP transport, S3-style validation, URL builders, coded errors. Same philosophy as `academy/js/web3-core.js`. |
+| `smartcontracts/buckets/greenfield-core.js` | Pure, DOM-free Greenfield client. Real SP HTTP reads via injectable transport; writes **delegated to an injected signer `GreenfieldBackend`** (no fake writes). S3-style validation, URL builders, coded errors. |
+| `smartcontracts/greenfield-testnet/sdk-backend.mjs` | **Real** SDK-backed signer backend (on-chain create + signed upload). |
+| `smartcontracts/integration/sp-emulation-backend.js` | Local SP-emulation backend for Flow-A offline integration (honestly named, not real chain). |
 | `smartcontracts/buckets/greenfield-ui.js` | DOM glue: wires the page's forms to the core client. `fetchTransport` for the browser; `initBucketConsole()` is jsdom-testable with a mock client. |
 | `smartcontracts/courses/course-0{1,2,3}/index.html` | 3 course **stubs** (placeholders) linked from the main page. |
 | `smartcontracts/docker-compose.yml` | Flow A — local integration stack: nginx (frontend) + **mock** SP. |
@@ -271,3 +273,23 @@ Three placeholder courses are linked from the main page; replace the
   (was a raw `BigInt` throw).
 - **Supply chain** — `greenfield-testnet` pins
   `@bnb-chain/greenfield-js-sdk` to `2.2.2` (was floating `latest`).
+- **Greenfield is no longer a mock.** `greenfield-core` writes
+  (`createBucket`/`saveObject`) no longer fabricate a fake `PUT`-to-SP —
+  real Greenfield writes are on-chain signed txs (MsgCreateBucket /
+  MsgCreateObject + SP approval). The core now **delegates writes to an
+  injected `GreenfieldBackend` signer** and throws `NO_BACKEND` rather
+  than faking an unsigned write. Reads (list/search/read/URLs) remain the
+  genuine SP HTTP protocol.
+  - **Real backend**: `smartcontracts/greenfield-testnet/sdk-backend.mjs`
+    implements the interface via the official SDK (on-chain
+    `createBucket` + signed `delegateUploadObject`). `write-testnet.mjs`
+    now publishes a full encrypted course through
+    `course-publish.publishCourse` against **real testnet** (Flow C).
+  - **Local emulator**: `smartcontracts/integration/sp-emulation-backend.js`
+    (honestly named) speaks the simplified PUT protocol the mock SP
+    understands, injected explicitly by the Flow-A integration test —
+    the core itself never pretends to be real.
+  - The browser console has no signer, so writes surface a clear
+    `NO_BACKEND` instead of silent fake success (a wallet/PKP backend is
+    the documented next step). TDD: `tests/sp-emulation-backend.test.js`
+    + rewritten write-path suites in `tests/greenfield-buckets.test.js`.

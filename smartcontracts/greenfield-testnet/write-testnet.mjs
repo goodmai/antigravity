@@ -1,26 +1,28 @@
 /**
- * Write a bucket + object to the REAL BNB Greenfield public testnet.
+ * Publish a REAL encrypted course to the BNB Greenfield public testnet,
+ * end-to-end through the same orchestrator the app uses:
  *
- * Chain id 5600 · RPC https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
- * SDK: @bnb-chain/greenfield-js-sdk  (Client.create(rpcUrl, chainId))
+ *   course-publish.publishCourse
+ *     → course-template (build + encrypt)  → crypto-envelope
+ *     → lit-pricing (w3ext 20% save settlement)
+ *     → greenfield-core client + REAL sdk-backend (on-chain tx + SP upload)
+ *   then reads an object back via the SP to prove the round-trip.
  *
- * Requires a FUNDED testnet account. Fund it first:
- *   1. Claim test tBNB on BSC testnet, bridge to Greenfield, or
- *   2. Use the Greenfield faucet / DCellar testnet.
- *      https://docs.bnbchain.org/bnb-greenfield/getting-started/get-test-bnb/
+ * This performs real on-chain testnet transactions and consumes real
+ * gas. Strictly opt-in. Fund a testnet account first:
+ *   https://docs.bnbchain.org/bnb-greenfield/getting-started/get-test-bnb/
  *
  * Env:
  *   GREENFIELD_TESTNET_PRIVATE_KEY  (required) 0x… funded testnet key
- *   GREENFIELD_TESTNET_ADDRESS      (required) the matching 0x… address
- *   GF_BUCKET                       (optional) override bucket name
- *
- * This performs REAL on-chain transactions and consumes real testnet gas.
- * It is never run by the default `npm test`.
+ *   GREENFIELD_TESTNET_ADDRESS      (required) matching 0x… address
  */
 
-import { Client, Long, VisibilityType } from '@bnb-chain/greenfield-js-sdk';
+import { createGreenfieldClient } from '../buckets/greenfield-core.js';
+import { publishCourse, quoteCourseSale } from '../buckets/course-publish.js';
+import { createSdkBackend } from './sdk-backend.mjs';
 
 const RPC = 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
+const SP = 'https://gnfd-testnet-sp1.bnbchain.org';
 const CHAIN_ID = '5600';
 
 const PK = process.env.GREENFIELD_TESTNET_PRIVATE_KEY;
@@ -33,69 +35,74 @@ if (!PK || !ADDR) {
   process.exit(2);
 }
 
-const bucketName =
-  process.env.GF_BUCKET || `daskibo-${Date.now().toString(36)}`;
-const objectName = 'courses/01/intro.md';
-const payload = Buffer.from(
-  `# Daskibo · Greenfield testnet write\nbucket: ${bucketName}\nat: ${new Date().toISOString()}\n`,
-);
+async function fetchTransport({ method, url, headers, body }) {
+  const res = await fetch(url, { method, headers, body: body || undefined });
+  const text = await res.text();
+  const h = {};
+  res.headers.forEach((v, k) => (h[k.toLowerCase()] = v));
+  return { status: res.status, headers: h, body: text };
+}
 
-const client = Client.create(RPC, CHAIN_ID);
+const slug = `daskibo-${Date.now().toString(36)}`;
+const spec = {
+  slug,
+  title: 'Daskibo · Greenfield Testnet Course',
+  litNetwork: 'datil-test',
+  lessons: [
+    {
+      key: 'lessons/01/intro.md',
+      title: 'Intro',
+      contentType: 'text/markdown',
+      body: `# Real testnet course\nbucket: ${slug}\nat: ${new Date().toISOString()}\n`,
+    },
+  ],
+};
 
 async function main() {
-  console.log(`→ testnet ${CHAIN_ID} as ${ADDR}`);
+  console.log(`→ testnet ${CHAIN_ID} as ${ADDR}, bucket ${slug}`);
 
-  const sps = await client.sp.getStorageProviders();
-  const primarySp = sps.find((s) => s.endpoint?.startsWith('https'));
-  if (!primarySp) throw new Error('no usable storage provider on testnet');
-  console.log(`→ primary SP ${primarySp.operatorAddress} ${primarySp.endpoint}`);
-
-  // 1. Create bucket (on-chain tx, SP approval handled by the SDK)
-  const createBucketTx = await client.bucket.createBucket({
-    bucketName,
-    creator: ADDR,
-    visibility: VisibilityType.VISIBILITY_TYPE_PUBLIC_READ,
-    chargedReadQuota: Long.fromString('0'),
-    primarySpAddress: primarySp.operatorAddress,
-    paymentAddress: ADDR,
-  });
-  const bSim = await createBucketTx.simulate({ denom: 'BNB' });
-  const bRes = await createBucketTx.broadcast({
-    denom: 'BNB',
-    gasLimit: Number(bSim.gasLimit),
-    gasPrice: bSim.gasPrice,
-    payer: ADDR,
-    granter: '',
+  const backend = createSdkBackend({
+    rpcUrl: RPC,
+    chainId: CHAIN_ID,
     privateKey: PK,
+    address: ADDR,
   });
-  console.log(`✓ bucket "${bucketName}" created — tx ${bRes.transactionHash}`);
+  const client = createGreenfieldClient({
+    transport: fetchTransport,
+    owner: ADDR,
+    endpoint: SP,
+    backend,
+  });
 
-  // 2. Upload object via the SP delegate path
-  await client.object.delegateUploadObject(
-    {
-      bucketName,
-      objectName,
-      body: {
-        name: objectName,
-        type: 'text/markdown',
-        size: payload.length,
-        content: payload,
-      },
-      delegatedOpts: { visibility: VisibilityType.VISIBILITY_TYPE_PUBLIC_READ },
-    },
-    { type: 'ECDSA', privateKey: PK },
+  const res = await publishCourse({
+    client,
+    spec,
+    pricing: { litSaveCost: 800n, storageCost: 200n },
+    owner: ADDR,
+  });
+  console.log(`✓ published ${res.savedKeys.length} objects`);
+  console.log(
+    `  w3ext save settlement: base=${res.settlement.base} ` +
+      `fee=${res.settlement.w3extFee} total=${res.settlement.total}`,
   );
-  console.log(`✓ object "${objectName}" uploaded to ${bucketName}`);
 
-  // 3. Read it back from the SP universal endpoint
-  const url = `${primarySp.endpoint}/view/${bucketName}/${objectName}`;
-  const res = await fetch(url);
-  const text = await res.text();
-  console.log(`✓ read back (${res.status}) from ${url}`);
-  if (!text.includes(bucketName)) {
-    throw new Error('round-trip mismatch: read content did not match');
+  const sale = quoteCourseSale({
+    salePrice: 100000n,
+    treasury: '0xTREASURY',
+    seller: ADDR,
+  });
+  console.log(
+    `  sale split: treasury=${sale.treasuryAmount} seller=${sale.sellerAmount}`,
+  );
+
+  // Read an encrypted object back from the SP (public-read, no signer).
+  const encKey = 'lessons/01/intro.md.enc';
+  const back = await client.readObject(slug, encKey);
+  if (!back || !back.includes('ciphertext')) {
+    throw new Error('round-trip mismatch: could not read back the envelope');
   }
-  console.log('ALL GOOD — real testnet round-trip succeeded.');
+  console.log(`✓ read back ${encKey} from SP`);
+  console.log('ALL GOOD — real testnet publish + round-trip succeeded.');
 }
 
 main().catch((e) => {

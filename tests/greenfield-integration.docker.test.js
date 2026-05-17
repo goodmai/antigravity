@@ -14,6 +14,7 @@ import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createGreenfieldClient } from '../smartcontracts/buckets/greenfield-core.js';
+import { createSpEmulationBackend } from '../smartcontracts/integration/sp-emulation-backend.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = ['compose', '-f', 'smartcontracts/docker-compose.yml'];
@@ -92,6 +93,12 @@ d('Greenfield frontend integration (docker-compose)', () => {
       transport: nodeTransport,
       owner,
       endpoint: MOCK_SP,
+      // Flow A is offline integration: inject the explicit SP-emulation
+      // backend (core never fabricates writes itself).
+      backend: createSpEmulationBackend({
+        transport: nodeTransport,
+        endpoint: MOCK_SP,
+      }),
     });
 
     const created = await client.createBucket('course-bucket', {

@@ -129,37 +129,51 @@ describe('4. URL builders', () => {
   });
 });
 
-describe('5. createBucket', () => {
-  let transport, client;
+describe('5. createBucket (delegates to a signer backend)', () => {
+  let transport, backend, client;
   beforeEach(() => {
     transport = mockTransport(async () => ({ status: 200, headers: {}, body: '' }));
-    client = createGreenfieldClient({ transport, owner: OWNER });
+    backend = {
+      createBucket: vi.fn(async () => ({ bucketName: 'my-bucket', txHash: '0xtx' })),
+      putObject: vi.fn(async () => ({
+        bucketName: 'my-bucket',
+        objectKey: 'k',
+        txHash: '0xobj',
+      })),
+    };
+    client = createGreenfieldClient({ transport, owner: OWNER, backend });
   });
 
-  it('validates the name before any network call', async () => {
+  it('validates the name before any backend/network call', async () => {
     await expect(client.createBucket('BAD NAME')).rejects.toMatchObject({
       code: 'INVALID_BUCKET_NAME',
+    });
+    expect(backend.createBucket).not.toHaveBeenCalled();
+    expect(transport).not.toHaveBeenCalled();
+  });
+
+  it('refuses to fake a write when no signer backend is configured', async () => {
+    const noBackend = createGreenfieldClient({ transport, owner: OWNER });
+    await expect(noBackend.createBucket('my-bucket')).rejects.toMatchObject({
+      code: 'NO_BACKEND',
     });
     expect(transport).not.toHaveBeenCalled();
   });
 
-  it('PUTs the bucket to the SP and returns metadata', async () => {
-    transport.mockResolvedValueOnce({
-      status: 200,
-      headers: { 'x-gnfd-txn-hash': '0xtx' },
-      body: '',
-    });
+  it('delegates the real on-chain create to the backend', async () => {
     const res = await client.createBucket('my-bucket', { visibility: 'public' });
     expect(res).toMatchObject({ bucketName: 'my-bucket', txHash: '0xtx' });
-
-    const call = transport.mock.calls[0][0];
-    expect(call.method).toBe('PUT');
-    expect(call.url).toBe(`${GREENFIELD_TESTNET.spEndpoint}/my-bucket`);
-    expect(call.headers['X-Gnfd-User-Address']).toBe(OWNER);
+    expect(backend.createBucket).toHaveBeenCalledWith({
+      bucketName: 'my-bucket',
+      owner: OWNER,
+      visibility: 'public',
+    });
   });
 
-  it('maps a 409 to a BUCKET_EXISTS error', async () => {
-    transport.mockResolvedValueOnce({ status: 409, headers: {}, body: 'exists' });
+  it('propagates a backend BUCKET_EXISTS error', async () => {
+    backend.createBucket.mockRejectedValueOnce(
+      Object.assign(new Error('exists'), { code: 'BUCKET_EXISTS' }),
+    );
     await expect(client.createBucket('dup-bucket')).rejects.toMatchObject({
       code: 'BUCKET_EXISTS',
     });
@@ -252,25 +266,36 @@ describe('6b. listBuckets pagination (continuation token)', () => {
 });
 
 describe('7. saveObject / readObject', () => {
-  let transport, client;
+  let transport, backend, client;
   beforeEach(() => {
     transport = mockTransport(async () => ({ status: 200, headers: {}, body: '' }));
-    client = createGreenfieldClient({ transport, owner: OWNER });
+    backend = {
+      createBucket: vi.fn(async () => ({ bucketName: 'b', txHash: '0xb' })),
+      putObject: vi.fn(async () => ({
+        bucketName: 'my-bucket',
+        objectKey: 'courses/01.md',
+        txHash: '0xobj',
+      })),
+    };
+    client = createGreenfieldClient({ transport, owner: OWNER, backend });
   });
 
-  it('rejects an invalid object key before any network call', async () => {
+  it('rejects an invalid object key before any backend/network call', async () => {
     await expect(client.saveObject('my-bucket', '', 'data')).rejects.toMatchObject(
       { code: 'INVALID_OBJECT_KEY' },
     );
+    expect(backend.putObject).not.toHaveBeenCalled();
     expect(transport).not.toHaveBeenCalled();
   });
 
-  it('PUTs object data with the given content type', async () => {
-    transport.mockResolvedValueOnce({
-      status: 200,
-      headers: { 'x-gnfd-txn-hash': '0xobj' },
-      body: '',
-    });
+  it('refuses to fake an object write without a signer backend', async () => {
+    const noBackend = createGreenfieldClient({ transport, owner: OWNER });
+    await expect(
+      noBackend.saveObject('my-bucket', 'a.md', 'x'),
+    ).rejects.toMatchObject({ code: 'NO_BACKEND' });
+  });
+
+  it('delegates the real signed object write to the backend', async () => {
     const res = await client.saveObject('my-bucket', 'courses/01.md', '# Hi', {
       contentType: 'text/markdown',
     });
@@ -279,13 +304,14 @@ describe('7. saveObject / readObject', () => {
       objectKey: 'courses/01.md',
       txHash: '0xobj',
     });
-    const call = transport.mock.calls[0][0];
-    expect(call.method).toBe('PUT');
-    expect(call.url).toBe(
-      `${GREENFIELD_TESTNET.spEndpoint}/my-bucket/courses/01.md`,
-    );
-    expect(call.headers['Content-Type']).toBe('text/markdown');
-    expect(call.body).toBe('# Hi');
+    expect(backend.putObject).toHaveBeenCalledWith({
+      bucketName: 'my-bucket',
+      objectKey: 'courses/01.md',
+      data: '# Hi',
+      contentType: 'text/markdown',
+      owner: OWNER,
+      visibility: 'inherit',
+    });
   });
 
   it('reads object data back via the download URL', async () => {

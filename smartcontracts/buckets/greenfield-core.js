@@ -52,6 +52,16 @@ export const GREENFIELD_TESTNET = {
  * @property {Record<string,unknown>} raw
  *
  * @typedef {Error & { code: string }} CodedError
+ *
+ * Write operations on real Greenfield are on-chain, signed transactions
+ * (MsgCreateBucket / MsgCreateObject + SP approval), not plain HTTP PUTs.
+ * The core never fabricates them — it delegates to an injected signer
+ * `GreenfieldBackend` (the real one is SDK-backed; tests/Flow-A inject a
+ * local SP-emulation backend).
+ *
+ * @typedef {Object} GreenfieldBackend
+ * @property {(args: { bucketName: string, owner: string, visibility: string }) => Promise<{ bucketName: string, txHash: string|null }>} createBucket
+ * @property {(args: { bucketName: string, objectKey: string, data: string|Uint8Array, contentType: string, owner: string, visibility: string }) => Promise<{ bucketName: string, objectKey: string, txHash: string|null }>} putObject
  */
 
 // ── Error helper ──────────────────────────────────────────────────────────
@@ -229,9 +239,14 @@ function mapStatus(status, body) {
 // ── Client ────────────────────────────────────────────────────────────────
 
 /**
- * @param {{ transport?: Transport, owner?: string, endpoint?: string }} [cfg]
+ * @param {{ transport?: Transport, owner?: string, endpoint?: string, backend?: GreenfieldBackend }} [cfg]
  */
-export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
+export function createGreenfieldClient({
+  transport,
+  owner,
+  endpoint,
+  backend,
+} = {}) {
   if (typeof transport !== 'function') {
     throw gfError('A transport function is required', 'NO_TRANSPORT');
   }
@@ -244,6 +259,19 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
     const o = override || owner;
     if (!o) throw gfError('An owner address is required', 'NO_OWNER');
     return o;
+  }
+
+  /** @returns {GreenfieldBackend} */
+  function requireBackend() {
+    if (!backend) {
+      throw gfError(
+        'Write operations require a Greenfield signer backend ' +
+          '(real SDK backend, or a local SP-emulation backend for dev). ' +
+          'The client will not fabricate an unsigned write.',
+        'NO_BACKEND',
+      );
+    }
+    return backend;
   }
 
   /** @param {TransportRequest} req @returns {Promise<TransportResponse>} */
@@ -270,21 +298,11 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
    */
   async function createBucket(name, opts = {}) {
     assertBucketName(name);
+    const be = requireBackend();
     const o = requireOwner(opts.owner);
-    const res = await send({
-      method: 'PUT',
-      url: `${sp}/${name}`,
-      headers: {
-        'X-Gnfd-User-Address': o,
-        'X-Gnfd-Visibility': opts.visibility || 'private',
-      },
-      body: '',
-    });
-    return {
-      bucketName: name,
-      visibility: opts.visibility || 'private',
-      txHash: res.headers?.['x-gnfd-txn-hash'] || null,
-    };
+    const visibility = opts.visibility || 'private';
+    const res = await be.createBucket({ bucketName: name, owner: o, visibility });
+    return { bucketName: res.bucketName, visibility, txHash: res.txHash };
   }
 
   /** @param {string} [ownerOverride] @returns {Promise<BucketInfo[]>} */
@@ -329,22 +347,16 @@ export function createGreenfieldClient({ transport, owner, endpoint } = {}) {
   async function saveObject(bucket, key, data, opts = {}) {
     assertBucketName(bucket);
     assertObjectKey(key);
+    const be = requireBackend();
     const o = requireOwner(opts.owner);
-    const res = await send({
-      method: 'PUT',
-      url: `${sp}/${bucket}/${encodeKey(key)}`,
-      headers: {
-        'X-Gnfd-User-Address': o,
-        'Content-Type': opts.contentType || 'application/octet-stream',
-        'X-Gnfd-Visibility': opts.visibility || 'inherit',
-      },
-      body: data,
-    });
-    return {
+    return be.putObject({
       bucketName: bucket,
       objectKey: key,
-      txHash: res.headers?.['x-gnfd-txn-hash'] || null,
-    };
+      data,
+      contentType: opts.contentType || 'application/octet-stream',
+      owner: o,
+      visibility: opts.visibility || 'inherit',
+    });
   }
 
   /** @param {string} bucket @param {string} key @returns {Promise<string>} */
