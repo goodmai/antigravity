@@ -15,6 +15,7 @@
 
 import { makeSignTypedDataCallback } from './greenfield-wallet-backend.js';
 import { pickPrimarySp } from './greenfield-sp.js';
+import { sdkCreateBucket } from './greenfield-sdk-tx.js';
 
 const SDK_URL = 'https://esm.sh/@bnb-chain/greenfield-js-sdk@2.2.2';
 
@@ -71,27 +72,19 @@ export async function makeWalletGreenfieldClient({
 
   return {
     async createBucket({ bucketName, creator, visibility }) {
-      const sp = await getSp();
-      const tx = await client.bucket.createBucket({
+      // Browser wallet signing: the SDK hands us the EIP-712 payload, we
+      // sign it via the wallet's eth_signTypedData_v4 (documented flow).
+      return sdkCreateBucket({
+        client,
+        Long,
+        VisibilityType,
         bucketName,
         creator,
-        visibility: vis(visibility),
-        chargedReadQuota: Long.fromString('0'),
-        primarySpAddress: sp.operatorAddress,
-        paymentAddress: creator,
+        visibility,
+        broadcastSigner: {
+          signTypedDataCallback: makeSignTypedDataCallback(provider),
+        },
       });
-      const sim = await tx.simulate({ denom: 'BNB' });
-      const res = await tx.broadcast({
-        denom: 'BNB',
-        gasLimit: Number(sim.gasLimit),
-        gasPrice: sim.gasPrice,
-        payer: creator,
-        granter: '',
-        // Browser wallet signing: SDK hands us the EIP-712 payload, we
-        // sign it via the wallet's eth_signTypedData_v4 (documented flow).
-        signTypedDataCallback: makeSignTypedDataCallback(provider),
-      });
-      return { txHash: res.transactionHash || null };
     },
 
     async uploadObject({ bucketName, objectKey, data, contentType, creator, visibility }) {

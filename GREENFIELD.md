@@ -355,6 +355,17 @@ Three placeholder courses are linked from the main page; replace the
 - **D1 — composition test.** `tests/greenfield-wallet-core.test.js`
   exercises the real `createWalletBackend` → `greenfield-core` seam:
   owner derived from the wallet, `OWNER_MISMATCH` end-to-end.
+- **A3 — real create-bucket flow deduplicated.** New pure, injected
+  `smartcontracts/buckets/greenfield-sdk-tx.js` `sdkCreateBucket()`
+  (pick SP → msg → simulate → broadcast; caller passes only the
+  signer-specific broadcast fields). Both `sdk-backend.mjs` (Node,
+  `privateKey`) and `greenfield-wallet-sdk.js` (browser,
+  `signTypedDataCallback`) now call it — one orchestration, unit-tested
+  with fakes (`tests/greenfield-sdk-tx.test.js`), so the divergence class
+  that hid C1 can't recur.
+- **C3 — no silent truncation.** `listBuckets` now throws
+  `LIST_TRUNCATED` when the 1000-page cap is hit with more data behind
+  it, instead of returning a silently-incomplete list.
 
 > **Scope status (honest, audit A1/A4).** Lit Protocol is **not
 > integrated** anywhere in code — `lit.md` + `lit-pricing` +

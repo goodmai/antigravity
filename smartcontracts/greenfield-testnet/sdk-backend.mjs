@@ -10,7 +10,7 @@
  */
 
 import { Client, Long, VisibilityType } from '@bnb-chain/greenfield-js-sdk';
-import { pickPrimarySp } from '../buckets/greenfield-sp.js';
+import { sdkCreateBucket } from '../buckets/greenfield-sdk-tx.js';
 
 /**
  * @param {{ rpcUrl: string, chainId: string|number, privateKey: string, address: string }} cfg
@@ -24,13 +24,6 @@ export function createSdkBackend({ rpcUrl, chainId, privateKey, address }) {
   }
   const client = Client.create(rpcUrl, String(chainId));
 
-  let spCache;
-  async function primarySp() {
-    if (spCache) return spCache;
-    spCache = pickPrimarySp(await client.sp.getStorageProviders());
-    return spCache;
-  }
-
   const vis = (v) =>
     v === 'private'
       ? VisibilityType.VISIBILITY_TYPE_PRIVATE
@@ -38,25 +31,16 @@ export function createSdkBackend({ rpcUrl, chainId, privateKey, address }) {
 
   return {
     async createBucket({ bucketName, owner, visibility }) {
-      const sp = await primarySp();
-      const tx = await client.bucket.createBucket({
+      const { txHash } = await sdkCreateBucket({
+        client,
+        Long,
+        VisibilityType,
         bucketName,
         creator: owner,
-        visibility: vis(visibility),
-        chargedReadQuota: Long.fromString('0'),
-        primarySpAddress: sp.operatorAddress,
-        paymentAddress: owner,
+        visibility,
+        broadcastSigner: { privateKey },
       });
-      const sim = await tx.simulate({ denom: 'BNB' });
-      const res = await tx.broadcast({
-        denom: 'BNB',
-        gasLimit: Number(sim.gasLimit),
-        gasPrice: sim.gasPrice,
-        payer: owner,
-        granter: '',
-        privateKey,
-      });
-      return { bucketName, txHash: res.transactionHash || null };
+      return { bucketName, txHash };
     },
 
     async putObject({ bucketName, objectKey, data, contentType, visibility }) {

@@ -249,7 +249,7 @@ describe('6b. listBuckets pagination (continuation token)', () => {
     expect(transport).toHaveBeenCalledTimes(2);
   });
 
-  it('stops after a bounded number of pages (no infinite loop)', async () => {
+  it('throws LIST_TRUNCATED instead of silently returning a partial list', async () => {
     const transport = mockTransport(async () => ({
       status: 200,
       headers: {},
@@ -259,8 +259,10 @@ describe('6b. listBuckets pagination (continuation token)', () => {
       }),
     }));
     const client = createGreenfieldClient({ transport, owner: OWNER });
-    const out = await client.listBuckets();
-    expect(Array.isArray(out)).toBe(true);
+    await expect(client.listBuckets()).rejects.toMatchObject({
+      code: 'LIST_TRUNCATED',
+    });
+    // still bounded — the cap stopped the loop before throwing
     expect(transport.mock.calls.length).toBeLessThanOrEqual(1000);
   });
 });

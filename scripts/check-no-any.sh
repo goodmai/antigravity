@@ -14,6 +14,7 @@ files=(
   smartcontracts/buckets/greenfield-wallet-backend.js
   smartcontracts/buckets/wallet-provider.js
   smartcontracts/buckets/greenfield-sp.js
+  smartcontracts/buckets/greenfield-sdk-tx.js
 )
 
 # `any` as a TS type token: @type {…any…}, ": any", "<any>", "any[]".

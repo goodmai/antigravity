@@ -353,6 +353,15 @@ export function createGreenfieldClient({
       token = page.next;
       pages += 1;
     } while (token && pages < MAX_PAGES);
+    if (token) {
+      // Hit the page cap with more data behind it: fail loudly rather
+      // than hand back a silently-incomplete list.
+      throw gfError(
+        `Bucket list exceeded ${MAX_PAGES} pages — result would be ` +
+          `incomplete; narrow the query or page explicitly.`,
+        'LIST_TRUNCATED',
+      );
+    }
     return all;
   }
 
