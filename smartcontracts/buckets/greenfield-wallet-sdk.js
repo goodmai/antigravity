@@ -14,6 +14,7 @@
  */
 
 import { makeSignTypedDataCallback } from './greenfield-wallet-backend.js';
+import { pickPrimarySp } from './greenfield-sp.js';
 
 const SDK_URL = 'https://esm.sh/@bnb-chain/greenfield-js-sdk@2.2.2';
 
@@ -38,11 +39,18 @@ export async function makeWalletGreenfieldClient({
 
   // One-time wallet off-chain auth (personal_sign → EDDSA session seed).
   let auth;
+  /** @type {{ operatorAddress: string, endpoint: string }|undefined} */
+  let spCache;
+  async function getSp() {
+    if (spCache) return spCache;
+    spCache = pickPrimarySp(await client.sp.getStorageProviders());
+    return spCache;
+  }
   async function ensureAuth(address) {
     if (auth) return auth;
-    const provInfo = await client.sp.getStorageProviders();
-    const sp = provInfo.find((s) => s.endpoint && s.endpoint.startsWith('http'));
-    const offchain = await client.offchainAuth.genOffChainAuthKeyPairAndUpload(
+    const sp = await getSp();
+    // NOTE: the SDK property is `offchainauth` (all-lowercase).
+    const offchain = await client.offchainauth.genOffChainAuthKeyPairAndUpload(
       {
         sps: [{ address: sp.operatorAddress, endpoint: sp.endpoint }],
         chainId: Number(chainId),
@@ -63,8 +71,7 @@ export async function makeWalletGreenfieldClient({
 
   return {
     async createBucket({ bucketName, creator, visibility }) {
-      const sps = await client.sp.getStorageProviders();
-      const sp = sps.find((s) => s.endpoint && s.endpoint.startsWith('http'));
+      const sp = await getSp();
       const tx = await client.bucket.createBucket({
         bucketName,
         creator,

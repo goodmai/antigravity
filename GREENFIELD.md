@@ -334,3 +334,34 @@ Three placeholder courses are linked from the main page; replace the
 > `@bnb-chain/greenfield-js-sdk@2.2.2` from esm.sh (pinned by version
 > only — a wallet-context supply-chain dependency). Self-hosting that
 > bundle is the recommended hardening before production.
+
+### Audit round 2 — addressed (TDD)
+
+- **C1 — SDK casing bug fixed.** `greenfield-wallet-sdk.js` called
+  `client.offchainAuth` (camelCase); the SDK property is
+  `client.offchainauth`. Wrong casing → guaranteed TypeError on the first
+  browser upload. Corrected.
+- **C2 / A3 — guarded, shared SP selection.** New pure
+  `smartcontracts/buckets/greenfield-sp.js` `pickPrimarySp()` (https→http,
+  coded `SP_UNAVAILABLE` on empty/invalid — no more
+  `undefined.operatorAddress` TypeError). Now used by **both** the
+  browser wallet adapter and the Node `sdk-backend.mjs`, removing the
+  duplicated/divergent SP-find logic. TDD: `tests/greenfield-sp.test.js`.
+- **D2 — backend conformance suite.**
+  `tests/greenfield-backend-contract.test.js` runs one contract against
+  every unit-testable backend (sp-emulation + wallet) so a
+  missing/renamed method or wrong return shape is caught structurally
+  (`sdk-backend.mjs` stays opt-in/live by design).
+- **D1 — composition test.** `tests/greenfield-wallet-core.test.js`
+  exercises the real `createWalletBackend` → `greenfield-core` seam:
+  owner derived from the wallet, `OWNER_MISMATCH` end-to-end.
+
+> **Scope status (honest, audit A1/A4).** Lit Protocol is **not
+> integrated** anywhere in code — `lit.md` + `lit-pricing` +
+> `crypto-envelope` are the design and the *local* AES envelope/fee
+> pieces; there is no `@lit-protocol` threshold-decryption path yet.
+> The encrypted-course pipeline (`course-publish` / `encryptCourseBucket`
+> / `lit-pricing`) is reachable from the Node `write-testnet.mjs` and the
+> test suite, **not from the browser console** (`index.html` still does
+> plain create/search/save/read). These are deliberate, documented gaps —
+> not delivered features.

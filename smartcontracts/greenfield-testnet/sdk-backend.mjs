@@ -10,6 +10,7 @@
  */
 
 import { Client, Long, VisibilityType } from '@bnb-chain/greenfield-js-sdk';
+import { pickPrimarySp } from '../buckets/greenfield-sp.js';
 
 /**
  * @param {{ rpcUrl: string, chainId: string|number, privateKey: string, address: string }} cfg
@@ -26,15 +27,8 @@ export function createSdkBackend({ rpcUrl, chainId, privateKey, address }) {
   let spCache;
   async function primarySp() {
     if (spCache) return spCache;
-    const sps = await client.sp.getStorageProviders();
-    const sp = sps.find((s) => s.endpoint && s.endpoint.startsWith('https'));
-    if (!sp) {
-      throw Object.assign(new Error('no usable storage provider'), {
-        code: 'SP_UNAVAILABLE',
-      });
-    }
-    spCache = sp;
-    return sp;
+    spCache = pickPrimarySp(await client.sp.getStorageProviders());
+    return spCache;
   }
 
   const vis = (v) =>
