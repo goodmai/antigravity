@@ -29,12 +29,20 @@
  * @property {(name: string, opts?: { owner?: string, visibility?: string }) => Promise<{ bucketName: string, txHash: string|null }>} createBucket
  * @property {(bucket: string, key: string, data: string|Uint8Array, opts?: { owner?: string, contentType?: string, visibility?: string }) => Promise<{ bucketName: string, objectKey: string, txHash: string|null }>} saveObject
  *
+ * @typedef {import('./lit-access.js').LitEnvelope} LitEnvelope
+ * @typedef {import('./lit-access.js').AccessControlConditions} AccessControlConditions
+ *
+ * @typedef {Object} LitOption
+ * @property {{ encryptMasterKey: (master: string, acc: AccessControlConditions) => Promise<LitEnvelope> }} access
+ * @property {AccessControlConditions} [accessControlConditions]
+ *
  * @typedef {Object} PublishPlan
  * @property {string}                                            bucketName
  * @property {'public'}                                          visibility
  * @property {BucketObject[]}                                    objects
- * @property {import('./course-template.js').CourseManifest}     manifest
+ * @property {import('./course-template.js').CourseManifest & { lit?: LitEnvelope }} manifest
  * @property {string}                                            masterKey
+ * @property {LitEnvelope}                                       [litMaster]
  * @property {ReturnType<typeof computeSaveCharge>}              settlement
  */
 
@@ -44,19 +52,54 @@ import { computeSaveCharge, computeSaleSplit } from './lit-pricing.js';
 /**
  * Build + encrypt the course and compute the w3ext save settlement.
  * Pure: no client, no network.
- * @param {{ spec: CourseSpec, pricing: SavePricing, crypto?: WebCryptoLike, masterKey?: string }} args
+ * When `lit` is given, the AES bucket master key is Lit-wrapped under the
+ * access control conditions and recorded in the manifest (`manifest.lit`)
+ * — the raw master is never written into any stored object.
+ * @param {{ spec: CourseSpec, pricing: SavePricing, crypto?: WebCryptoLike, masterKey?: string, lit?: LitOption }} args
  * @returns {Promise<PublishPlan>}
  */
-export async function planCoursePublish({ spec, pricing, crypto, masterKey }) {
+export async function planCoursePublish({
+  spec,
+  pricing,
+  crypto,
+  masterKey,
+  lit,
+}) {
   const plain = buildCourseBucket(spec);
   const enc = await encryptCourseBucket(plain, { crypto, masterKey });
   const settlement = computeSaveCharge(pricing);
+
+  /** @type {import('./course-template.js').CourseManifest & { lit?: LitEnvelope }} */
+  let manifest = enc.manifest;
+  let objects = enc.objects;
+  /** @type {LitEnvelope|undefined} */
+  let litMaster;
+
+  if (lit && lit.access) {
+    const acc = lit.accessControlConditions;
+    if (!Array.isArray(acc) || acc.length === 0) {
+      throw /** @type {Error & { code: string }} */ (
+        Object.assign(
+          new Error('Lit access requires at least one access control condition'),
+          { code: 'INVALID_ACC' },
+        )
+      );
+    }
+    litMaster = await lit.access.encryptMasterKey(enc.masterKey, acc);
+    manifest = { ...enc.manifest, lit: litMaster };
+    const body = JSON.stringify(manifest);
+    objects = enc.objects.map((o) =>
+      o.kind === 'manifest' ? { ...o, body } : o,
+    );
+  }
+
   return {
     bucketName: enc.bucketName,
     visibility: enc.visibility,
-    objects: enc.objects,
-    manifest: enc.manifest,
+    objects,
+    manifest,
     masterKey: enc.masterKey,
+    ...(litMaster ? { litMaster } : {}),
     settlement,
   };
 }

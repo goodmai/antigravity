@@ -367,12 +367,32 @@ Three placeholder courses are linked from the main page; replace the
   `LIST_TRUNCATED` when the 1000-page cap is hit with more data behind
   it, instead of returning a silently-incomplete list.
 
-> **Scope status (honest, audit A1/A4).** Lit Protocol is **not
-> integrated** anywhere in code — `lit.md` + `lit-pricing` +
-> `crypto-envelope` are the design and the *local* AES envelope/fee
-> pieces; there is no `@lit-protocol` threshold-decryption path yet.
-> The encrypted-course pipeline (`course-publish` / `encryptCourseBucket`
-> / `lit-pricing`) is reachable from the Node `write-testnet.mjs` and the
-> test suite, **not from the browser console** (`index.html` still does
-> plain create/search/save/read). These are deliberate, documented gaps —
-> not delivered features.
+### Lit Protocol integrated (audit A1, TDD)
+
+The lit.md §12 compose is now real code, not design-only:
+
+- `smartcontracts/buckets/lit-access.js` — pure, strict-typed,
+  zero-`any` Lit access core. `createLitAccess({ litClient })` →
+  `encryptMasterKey(masterB64, acc)` / `decryptMasterKey(env, auth)`:
+  Lit threshold-encrypts the **AES bucket master key** under on-chain
+  Access Control Conditions (AES does the bulk, Lit guards the 32-byte
+  master). Coded errors `INVALID_ACC` / `INVALID_MASTER` /
+  `INVALID_LIT_ENVELOPE` / `ACCESS_DENIED` / `LIT_UNAVAILABLE`. TDD'd by
+  `tests/lit-access.test.js` (7) with an injected fake Lit client.
+- `course-publish.planCoursePublish({ …, lit })` Lit-wraps the master
+  and records it in `manifest.lit` — the raw master is **never written
+  into any stored object**. TDD'd in `tests/course-publish.test.js`.
+- `smartcontracts/buckets/lit-sdk.js` — real `LitClient` adapter:
+  CDN-loaded `@lit-protocol/lit-node-client` + `@lit-protocol/encryption`
+  on the Datil network (`datil-test` paired with Greenfield testnet).
+  Integration glue, outside the strict core like the other SDK adapters.
+
+> **Honest status (audit A1/A4).** The Lit *orchestration* (envelope,
+> ACC validation, error mapping, master-key compose) is real and
+> unit-tested. **Integration-only / not unit-verified**: the exact
+> `@lit-protocol` SDK call shapes in `lit-sdk.js` and the runtime CDN
+> import (pinned by major `@7`) — self-host before production, same as
+> the Greenfield SDK adapter. The encrypted-course + Lit pipeline is
+> still driven from `write-testnet.mjs` / tests and **not yet surfaced
+> in the browser console** (`index.html` remains plain
+> create/search/save/read) — a deliberate, documented gap.

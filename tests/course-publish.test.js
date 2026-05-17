@@ -109,7 +109,74 @@ describe('2. publishCourse (drives a greenfield client)', () => {
   });
 });
 
-describe('3. quoteCourseSale (treasury split seam)', () => {
+describe('3. Lit access composition', () => {
+  function fakeLitAccess() {
+    return {
+      encryptMasterKey: vi.fn(async (_master, acc) => ({
+        schema: 'daskibo.lit.acc/1',
+        chain: 'ethereum',
+        accessControlConditions: acc,
+        ciphertext: 'OPAQUE_LIT_CIPHERTEXT',
+        dataToEncryptHash: 'LITHASH',
+      })),
+    };
+  }
+  const ACC = [{ chain: 'ethereum', returnValueTest: { comparator: '=', value: '0xR' } }];
+
+  it('Lit-wraps the master and records it in the manifest (no raw master stored)', async () => {
+    const access = fakeLitAccess();
+    const plan = await planCoursePublish({
+      spec: SPEC,
+      pricing: PRICING,
+      crypto: webcrypto,
+      lit: { access, accessControlConditions: ACC },
+    });
+
+    expect(access.encryptMasterKey).toHaveBeenCalledWith(plan.masterKey, ACC);
+    expect(plan.litMaster).toMatchObject({
+      schema: 'daskibo.lit.acc/1',
+      dataToEncryptHash: 'LITHASH',
+      accessControlConditions: ACC,
+    });
+
+    const manifest = JSON.parse(
+      plan.objects.find((o) => o.kind === 'manifest').body,
+    );
+    expect(manifest.lit).toMatchObject({ schema: 'daskibo.lit.acc/1' });
+    expect(plan.manifest.lit.ciphertext).toBe('OPAQUE_LIT_CIPHERTEXT');
+
+    // the raw AES master must NOT be written into any stored object
+    for (const o of plan.objects) {
+      expect(o.body).not.toContain(plan.masterKey);
+    }
+  });
+
+  it('without a lit option the manifest has no lit block (unchanged path)', async () => {
+    const plan = await planCoursePublish({
+      spec: SPEC,
+      pricing: PRICING,
+      crypto: webcrypto,
+    });
+    expect(plan.litMaster).toBeUndefined();
+    const manifest = JSON.parse(
+      plan.objects.find((o) => o.kind === 'manifest').body,
+    );
+    expect(manifest.lit).toBeUndefined();
+  });
+
+  it('requires access control conditions when a lit access is given', async () => {
+    await expect(
+      planCoursePublish({
+        spec: SPEC,
+        pricing: PRICING,
+        crypto: webcrypto,
+        lit: { access: fakeLitAccess() },
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_ACC' });
+  });
+});
+
+describe('4. quoteCourseSale (treasury split seam)', () => {
   it('routes 20% of the sale to the treasury, remainder to seller', () => {
     const q = quoteCourseSale({
       salePrice: 1000n,
