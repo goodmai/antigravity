@@ -10,6 +10,8 @@ import {
   createGreenfieldClient,
   GREENFIELD_TESTNET,
 } from './greenfield-core.js';
+import { createWalletBackend } from './greenfield-wallet-backend.js';
+import { getMetaMaskProvider } from '../../academy/js/web3-core.js';
 
 /** Real-fetch transport used in the browser. */
 export async function fetchTransport({ method, url, headers, body }) {
@@ -36,7 +38,27 @@ export function initBucketConsole({ doc, client } = {}) {
   const ownerInput = $('gf-owner');
   // The factory captures `owner` once, so the live address from the input
   // is passed per-call via ownerOpt()/ownerArgs() instead.
-  const gfClient = client || createGreenfieldClient({ transport: fetchTransport });
+  //
+  // Browser writes are signed by the user's wallet: the wallet backend
+  // resolves the account (EIP-1193) and the real Greenfield protocol is
+  // loaded lazily from the CDN SDK only when a write actually happens.
+  const gfClient =
+    client ||
+    createGreenfieldClient({
+      transport: fetchTransport,
+      backend: createWalletBackend({
+        provider: getMetaMaskProvider(),
+        makeClient: async () => {
+          const m = await import('./greenfield-wallet-sdk.js');
+          return m.makeWalletGreenfieldClient({
+            provider: getMetaMaskProvider(),
+            rpcUrl: GREENFIELD_TESTNET.rpcUrl,
+            chainId: GREENFIELD_TESTNET.chainId,
+            spEndpoint: GREENFIELD_TESTNET.spEndpoint,
+          });
+        },
+      }),
+    });
 
   const ownerOpt = () =>
     ownerInput && ownerInput.value.trim()

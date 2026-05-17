@@ -11,6 +11,7 @@ files=(
   smartcontracts/buckets/crypto-envelope.js
   smartcontracts/buckets/course-template.js
   smartcontracts/buckets/course-publish.js
+  smartcontracts/buckets/greenfield-wallet-backend.js
 )
 
 # `any` as a TS type token: @type {…any…}, ": any", "<any>", "any[]".

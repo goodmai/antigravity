@@ -289,7 +289,19 @@ Three placeholder courses are linked from the main page; replace the
     (honestly named) speaks the simplified PUT protocol the mock SP
     understands, injected explicitly by the Flow-A integration test —
     the core itself never pretends to be real.
-  - The browser console has no signer, so writes surface a clear
-    `NO_BACKEND` instead of silent fake success (a wallet/PKP backend is
-    the documented next step). TDD: `tests/sp-emulation-backend.test.js`
-    + rewritten write-path suites in `tests/greenfield-buckets.test.js`.
+  - **Browser wallet backend**:
+    `smartcontracts/buckets/greenfield-wallet-backend.js` —
+    `createWalletBackend({ provider, makeClient })` resolves the account
+    via the user's EIP-1193 wallet and delegates the protocol to an
+    injected client (pure, strict-typed, zero-`any`, TDD'd by
+    `tests/greenfield-wallet-backend.test.js`, 7 tests: connect-once
+    caching, `NO_WALLET` / `USER_REJECTED` / `NO_ACCOUNTS` /
+    `NO_WALLET_CLIENT`). The real client
+    (`greenfield-wallet-sdk.js`, integration glue, CDN-loaded SDK +
+    off-chain auth, outside the strict core like `sdk-backend.mjs`) is
+    lazy-imported only when a write happens. `greenfield-ui` now wires
+    this backend so the console signs real writes via the wallet instead
+    of failing `NO_BACKEND`.
+  - TDD: `tests/greenfield-wallet-backend.test.js`,
+    `tests/sp-emulation-backend.test.js` + rewritten write-path suites in
+    `tests/greenfield-buckets.test.js`.
