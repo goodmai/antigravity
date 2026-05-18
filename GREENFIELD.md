@@ -366,6 +366,14 @@ Three placeholder courses are linked from the main page; replace the
 - **C3 — no silent truncation.** `listBuckets` now throws
   `LIST_TRUNCATED` when the 1000-page cap is hit with more data behind
   it, instead of returning a silently-incomplete list.
+- **B2 — AEAD metadata binding.** `crypto-envelope` now binds the public
+  envelope header as AES-GCM `additionalData`: the content ciphertext is
+  authenticated against `{schema, alg, contentType, originalKey,
+  encoding}` and the wrapped DEK against `{schema, originalKey}`.
+  Tampering with `meta` (e.g. flipping `encoding`, swapping
+  `contentType`) or relocating a wrapped DEK to another object now fails
+  decryption (`DECRYPT_FAILED`), closing the cross-field/cross-object
+  swap gap. TDD'd by `tests/crypto-envelope.test.js` (+4).
 
 ### Lit Protocol integrated (audit A1, TDD)
 

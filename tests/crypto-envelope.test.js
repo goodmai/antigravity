@@ -131,3 +131,51 @@ describe('4. Passphrase-wrapped master (portable, no Lit)', () => {
     expect(out.text).toBe('lesson body');
   });
 });
+
+describe('5. AEAD metadata binding (additionalData)', () => {
+  it('round-trips normally and preserves meta', async () => {
+    const m = await createBucketMasterKey(C);
+    const env = await encryptObject(
+      m,
+      '# bound',
+      { contentType: 'text/markdown', originalKey: 'l1.md' },
+      C,
+    );
+    const out = await decryptObject(m, env, C);
+    expect(out.text).toBe('# bound');
+    expect(out.meta).toMatchObject({
+      contentType: 'text/markdown',
+      originalKey: 'l1.md',
+      encoding: 'utf-8',
+    });
+  });
+
+  it('detects a tampered contentType (meta is authenticated)', async () => {
+    const m = await createBucketMasterKey(C);
+    const env = await encryptObject(m, 'secret', { contentType: 'text/plain' }, C);
+    const tampered = { ...env, meta: { ...env.meta, contentType: 'text/html' } };
+    await expect(decryptObject(m, tampered, C)).rejects.toMatchObject({
+      code: 'DECRYPT_FAILED',
+    });
+  });
+
+  it('detects a flipped encoding flag (binary <-> utf-8)', async () => {
+    const m = await createBucketMasterKey(C);
+    const env = await encryptObject(m, 'plain text', {}, C);
+    const tampered = { ...env, meta: { ...env.meta, encoding: 'binary' } };
+    await expect(decryptObject(m, tampered, C)).rejects.toMatchObject({
+      code: 'DECRYPT_FAILED',
+    });
+  });
+
+  it('detects a wrapped-DEK relocated to a different object key', async () => {
+    const m = await createBucketMasterKey(C);
+    const a = await encryptObject(m, 'A', { originalKey: 'a.md' }, C);
+    const b = await encryptObject(m, 'B', { originalKey: 'b.md' }, C);
+    // attacker swaps a's wrapped DEK (bound to a.md) into b's envelope
+    const frankenstein = { ...b, wrappedDek: a.wrappedDek, dekIv: a.dekIv };
+    await expect(decryptObject(m, frankenstein, C)).rejects.toMatchObject({
+      code: 'DECRYPT_FAILED',
+    });
+  });
+});

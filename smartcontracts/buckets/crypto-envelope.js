@@ -32,8 +32,8 @@ const DEFAULT_PBKDF2_ITERATIONS = 210000;
  * @typedef {object} CryptoKeyLike
  * @typedef {object} SubtleCryptoLike
  * @property {(format: string, keyData: Uint8Array, algorithm: { name: string }, extractable: boolean, keyUsages: string[]) => Promise<CryptoKeyLike>} importKey
- * @property {(algorithm: { name: string, iv: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} encrypt
- * @property {(algorithm: { name: string, iv: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} decrypt
+ * @property {(algorithm: { name: string, iv: Uint8Array, additionalData?: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} encrypt
+ * @property {(algorithm: { name: string, iv: Uint8Array, additionalData?: Uint8Array }, key: CryptoKeyLike, data: Uint8Array) => Promise<ArrayBuffer>} decrypt
  * @property {(algorithm: { name: string, salt: Uint8Array, iterations: number, hash: string }, baseKey: CryptoKeyLike, derivedKeyType: { name: string, length: number }, extractable: boolean, keyUsages: string[]) => Promise<CryptoKeyLike>} deriveKey
  * @property {(algorithm: string, data: Uint8Array) => Promise<ArrayBuffer>} digest
  *
@@ -121,6 +121,37 @@ function b64decode(str) {
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
+/**
+ * Canonical AEAD additionalData binding the public envelope header to the
+ * content ciphertext — tampering with schema/alg/meta fails decryption.
+ * @param {string} schema
+ * @param {string} alg
+ * @param {{ contentType?: string, originalKey?: string, encoding?: string }} meta
+ * @returns {Uint8Array}
+ */
+function headerAad(schema, alg, meta) {
+  return enc.encode(
+    JSON.stringify({
+      schema,
+      alg,
+      contentType: meta.contentType ?? null,
+      originalKey: meta.originalKey ?? null,
+      encoding: meta.encoding ?? null,
+    }),
+  );
+}
+
+/**
+ * AEAD additionalData binding the wrapped DEK to its object identity, so
+ * a wrapped key cannot be relocated to a different object/schema.
+ * @param {string} schema
+ * @param {string} [originalKey]
+ * @returns {Uint8Array}
+ */
+function wrapAad(schema, originalKey) {
+  return enc.encode(JSON.stringify({ schema, originalKey: originalKey ?? null }));
+}
+
 // ── Keys ──────────────────────────────────────────────────────────────────
 
 /**
@@ -191,25 +222,41 @@ export async function encryptObject(masterKeyB64, data, meta = {}, cryptoImpl) {
   const iv = c.getRandomValues(new Uint8Array(12));
   const dekIv = c.getRandomValues(new Uint8Array(12));
 
+  /** @type {{ contentType: string, originalKey?: string, encoding: string }} */
+  const finalMeta = {
+    contentType: meta.contentType || 'application/octet-stream',
+    originalKey: meta.originalKey,
+    encoding: isBinary ? 'binary' : 'utf-8',
+  };
+  const alg = 'AES-256-GCM';
+
   const ct = new Uint8Array(
-    await c.subtle.encrypt({ name: 'AES-GCM', iv }, dek, payload),
+    await c.subtle.encrypt(
+      { name: 'AES-GCM', iv, additionalData: headerAad(ENVELOPE_SCHEMA, alg, finalMeta) },
+      dek,
+      payload,
+    ),
   );
   const wrappedDek = new Uint8Array(
-    await c.subtle.encrypt({ name: 'AES-GCM', iv: dekIv }, master, dekRaw),
+    await c.subtle.encrypt(
+      {
+        name: 'AES-GCM',
+        iv: dekIv,
+        additionalData: wrapAad(ENVELOPE_SCHEMA, finalMeta.originalKey),
+      },
+      master,
+      dekRaw,
+    ),
   );
 
   return {
     schema: ENVELOPE_SCHEMA,
-    alg: 'AES-256-GCM',
+    alg,
     iv: b64encode(iv),
     ciphertext: b64encode(ct),
     dekIv: b64encode(dekIv),
     wrappedDek: b64encode(wrappedDek),
-    meta: {
-      contentType: meta.contentType || 'application/octet-stream',
-      originalKey: meta.originalKey,
-      encoding: isBinary ? 'binary' : 'utf-8',
-    },
+    meta: finalMeta,
   };
 }
 
@@ -234,7 +281,11 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
   try {
     const dekRaw = new Uint8Array(
       await c.subtle.decrypt(
-        { name: 'AES-GCM', iv: b64decode(env.dekIv) },
+        {
+          name: 'AES-GCM',
+          iv: b64decode(env.dekIv),
+          additionalData: wrapAad(env.schema, env.meta?.originalKey),
+        },
         master,
         b64decode(env.wrappedDek),
       ),
@@ -242,7 +293,11 @@ export async function decryptObject(masterKeyB64, env, cryptoImpl) {
     const dek = await importAesKey(c, dekRaw, ['decrypt']);
     bytes = new Uint8Array(
       await c.subtle.decrypt(
-        { name: 'AES-GCM', iv: b64decode(env.iv) },
+        {
+          name: 'AES-GCM',
+          iv: b64decode(env.iv),
+          additionalData: headerAad(env.schema, env.alg, env.meta || {}),
+        },
         dek,
         b64decode(env.ciphertext),
       ),
