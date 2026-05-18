@@ -479,3 +479,31 @@ audited MPC is used as-is via `lit-access.js`/`lit-sdk.js`; the local
 `crypto-envelope` is standard WebCrypto AES-GCM with AEAD-bound metadata
 (audit B2). Device-binding of Lit `sessionSigs` remains an
 integration-layer hardening (documented, not unit-scoped).
+
+---
+
+## Smart contracts ТЗ (Solidity / Foundry)
+
+`smartcontracts/contracts/` holds the on-chain settlement layer the
+BFOPS audit referenced (the JS layer had no Solidity before).
+
+- `SPEC.md` — full ТЗ: actors, contracts, the money split **bps-aligned
+  with `lit-pricing.js`** (treasury 2000 / w3ext 2000), audit-hardening
+  map (CEI, ReentrancyGuard, pull-payments, soulbound pass), Lit ACC
+  integration (no per-user cross-chain), and a **cross-chain section**:
+  *needed only for on-chain Greenfield bucket lifecycle, not for access*;
+  if used, must wrap the official `bnb-chain/greenfield-contracts`
+  (`CrossChain`/`BucketHub`) with idempotent, hub-authenticated,
+  refund-on-FailureAck handlers — never a custom bridge.
+- `src/` — self-contained (no OZ install needed): `AccessPass.sol`
+  (soulbound), `Treasury.sol`, `CourseMarketplace.sol`
+  (CEI + reentrancy guard + pull-payments + bounded Ownable2Step),
+  interfaces incl. the optional `IGreenfieldCourseBucket`.
+- `test/` — Foundry TDD spec (split-invariant fuzz, reentrancy attack,
+  soulbound, pull-withdraw, bounded bps).
+
+> **Verification gap (honest).** No solidity toolchain in this
+> environment (`forge`/`solc` absent) — contracts + tests are written as
+> the executable spec; `forge build && forge test` must run in a CI with
+> the toolchain (`forge install foundry-rs/forge-std` for tests). Same
+> integration-only discipline as the CDN SDK adapters.
