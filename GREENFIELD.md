@@ -387,12 +387,39 @@ The lit.md §12 compose is now real code, not design-only:
   on the Datil network (`datil-test` paired with Greenfield testnet).
   Integration glue, outside the strict core like the other SDK adapters.
 
-> **Honest status (audit A1/A4).** The Lit *orchestration* (envelope,
-> ACC validation, error mapping, master-key compose) is real and
-> unit-tested. **Integration-only / not unit-verified**: the exact
-> `@lit-protocol` SDK call shapes in `lit-sdk.js` and the runtime CDN
-> import (pinned by major `@7`) — self-host before production, same as
-> the Greenfield SDK adapter. The encrypted-course + Lit pipeline is
-> still driven from `write-testnet.mjs` / tests and **not yet surfaced
-> in the browser console** (`index.html` remains plain
-> create/search/save/read) — a deliberate, documented gap.
+### Round-trip closed — protected course reader (TDD)
+
+`smartcontracts/buckets/course-read.js` completes the encrypt↔decrypt
+loop the pipeline sets up:
+
+- `recoverCourseMasterKey(manifest, { access, authContext })` — recovers
+  the AES master from `manifest.lit` via Lit **only if the reader
+  satisfies the ACC** (`NO_LIT` / `NO_LIT_CLIENT`, `ACCESS_DENIED`
+  propagated).
+- `decryptCourseObject(manifest, encBodyJson, { access, authContext,
+  crypto })` — recover master → AES-decrypt the `.enc` envelope
+  (`INVALID_ENVELOPE` / `DECRYPT_FAILED`).
+- `openCourseObject({ client, bucketName, objectKey, lit, crypto })` —
+  IO wrapper: reads `_lit/manifest.json` + `<key>.enc` via a
+  greenfield-core read client (no signer needed) then decrypts.
+
+Pure, strict-typed, zero-`any`, TDD'd by `tests/course-read.test.js`
+(7 tests incl. a real AES round-trip with `node:crypto`).
+
+> **Honest status (audit A1/A4).** Lit *orchestration* — publish
+> (`course-publish` + `lit-access`) and read (`course-read`) — is real,
+> composed and unit-tested end-to-end with fakes + real AES.
+> **Integration-only / not unit-verified**: the exact `@lit-protocol`
+> SDK call shapes in `lit-sdk.js`, Lit `sessionSigs` generation, and the
+> runtime CDN import (pinned `@7`) — self-host before production, same as
+> the Greenfield SDK adapter.
+>
+> **UI handoff (A4).** The browser console (`index.html` /
+> `greenfield-ui.js`) is **left to wire by the maintainer**. The tested
+> seam to call: `publishCourse({ client, spec, pricing, crypto, lit })`
+> (lit = `{ access: createLitAccess({ litClient: await makeLitClient() }),
+> accessControlConditions }`) for publish; `openCourseObject({ client,
+> bucketName, objectKey, lit: { access, authContext /* sessionSigs */ },
+> crypto })` for read. `client` is the existing wallet-backed
+> greenfield-core client; `litClient` comes from `lit-sdk.js`
+> `makeLitClient()`. Everything below that line is already tested.
