@@ -108,10 +108,12 @@ contract CourseMarketplace is ICourseMarketplace {
 
     // ── Courses ──────────────────────────────────────────────────────────
     /// @inheritdoc ICourseMarketplace
-    function registerCourse(uint96 price, bytes32 contentHash, string calldata bucket)
-        external
-        returns (uint256 courseId)
-    {
+    function registerCourse(
+        uint96 price,
+        bytes32 contentHash,
+        string calldata bucket,
+        uint64 accessDuration
+    ) external returns (uint256 courseId) {
         if (price == 0) revert BadPrice();
         courseId = nextCourseId++;
         courses[courseId] = Course({
@@ -119,9 +121,21 @@ contract CourseMarketplace is ICourseMarketplace {
             price: price,
             contentHash: contentHash,
             bucket: bucket,
+            accessDuration: accessDuration,
             active: true
         });
         emit CourseRegistered(courseId, msg.sender, price, bucket);
+    }
+
+    /// @inheritdoc ICourseMarketplace
+    function hasCourseAccess(address user, uint256 courseId)
+        public
+        view
+        returns (bool)
+    {
+        // Publisher always decrypts their own content for free.
+        if (courses[courseId].author == user) return true;
+        return accessPass.hasAccess(user, courseId);
     }
 
     /// @inheritdoc ICourseMarketplace
@@ -153,7 +167,8 @@ contract CourseMarketplace is ICourseMarketplace {
         // ── Checks ───────────────────────────────────────────────────────
         if (!c.active) revert Inactive();
         if (msg.value != c.price) revert BadPrice();
-        if (accessPass.hasAccess(msg.sender, courseId)) revert AlreadyOwned();
+        // Author already has free access; existing valid pass blocks too.
+        if (hasCourseAccess(msg.sender, courseId)) revert AlreadyOwned();
 
         (uint256 protocolCut, uint256 w3extFee, uint256 authorAmount) = quote(msg.value);
 
@@ -162,7 +177,10 @@ contract CourseMarketplace is ICourseMarketplace {
         pendingWithdrawals[w3ext] += w3extFee;
 
         // ── Interactions ─────────────────────────────────────────────────
-        accessPass.mint(msg.sender, courseId); // trusted, set-once
+        uint64 expiry = c.accessDuration == 0
+            ? 0
+            : uint64(block.timestamp) + c.accessDuration;
+        accessPass.mint(msg.sender, courseId, expiry); // trusted, set-once
         (bool ok,) = treasury.call{value: protocolCut}(""); // fixed address
         if (!ok) revert TransferFailed();
 

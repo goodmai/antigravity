@@ -23,7 +23,8 @@ contract AccessPass is IAccessPass {
     uint256 private _nextId = 1;
     mapping(uint256 => address) public ownerOf; // tokenId => holder
     mapping(uint256 => uint256) public courseOf; // tokenId => courseId
-    mapping(address => mapping(uint256 => bool)) private _access; // user=>course=>granted
+    mapping(address => mapping(uint256 => bool)) private _granted; // user=>course
+    mapping(address => mapping(uint256 => uint64)) public expiryOf; // 0 = perpetual
 
     constructor() {
         owner = msg.sender;
@@ -42,21 +43,33 @@ contract AccessPass is IAccessPass {
     }
 
     /// @inheritdoc IAccessPass
-    function mint(address to, uint256 courseId) external returns (uint256 tokenId) {
+    function mint(address to, uint256 courseId, uint64 expiry)
+        external
+        returns (uint256 tokenId)
+    {
         if (msg.sender != marketplace) revert NotMarketplace();
         if (to == address(0)) revert ZeroAddress();
-        if (_access[to][courseId]) revert AlreadyOwned();
+        if (_granted[to][courseId] && !_expired(to, courseId)) {
+            revert AlreadyOwned();
+        }
 
         tokenId = _nextId++;
         ownerOf[tokenId] = to;
         courseOf[tokenId] = courseId;
-        _access[to][courseId] = true;
+        _granted[to][courseId] = true;
+        expiryOf[to][courseId] = expiry; // 0 = perpetual; else unix ts
         emit AccessGranted(to, courseId, tokenId);
     }
 
+    function _expired(address user, uint256 courseId) internal view returns (bool) {
+        uint64 exp = expiryOf[user][courseId];
+        return exp != 0 && block.timestamp > exp;
+    }
+
     /// @inheritdoc IAccessPass
+    /// @dev Time-limited: false once a non-zero expiry has passed.
     function hasAccess(address user, uint256 courseId) external view returns (bool) {
-        return _access[user][courseId];
+        return _granted[user][courseId] && !_expired(user, courseId);
     }
 
     // ── Soulbound: every transfer/approval path reverts ──────────────────

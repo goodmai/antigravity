@@ -16,7 +16,7 @@ contract ReenterAuthor {
     }
 
     function register() external returns (uint256) {
-        return mp.registerCourse(1 ether, bytes32("h"), "bkt");
+        return mp.registerCourse(1 ether, bytes32("h"), "bkt", 0);
     }
 
     function pull() external {
@@ -51,7 +51,7 @@ contract CourseMarketplaceTest is Test {
 
     function _register(uint96 price) internal returns (uint256 id) {
         vm.prank(author);
-        id = mp.registerCourse(price, bytes32("hash"), "course-bucket");
+        id = mp.registerCourse(price, bytes32("hash"), "course-bucket", 0);
     }
 
     function test_quote_splitResumsToPrice_default2020() public view {
@@ -137,5 +137,29 @@ contract CourseMarketplaceTest is Test {
         assertEq(p, 1000);
         assertEq(w, 500);
         assertEq(a, 8500);
+    }
+
+    function test_author_hasFreeAccess_withoutPurchase() public {
+        uint256 id = _register(1 ether);
+        assertTrue(mp.hasCourseAccess(author, id)); // never paid
+        assertFalse(mp.hasCourseAccess(buyer, id));
+        // author cannot (and need not) purchase — already has access
+        vm.deal(author, 1 ether);
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.AlreadyOwned.selector);
+        mp.purchase{value: 1 ether}(id);
+    }
+
+    function test_client_timeLimitedAccessExpires() public {
+        vm.prank(author);
+        uint256 id =
+            mp.registerCourse(1 ether, bytes32("h"), "bkt", uint64(7 days));
+        vm.prank(buyer);
+        mp.purchase{value: 1 ether}(id);
+
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 7 days + 1);
+        assertFalse(mp.hasCourseAccess(buyer, id)); // expired
+        assertTrue(mp.hasCourseAccess(author, id)); // author still free
     }
 }

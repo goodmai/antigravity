@@ -78,14 +78,14 @@ src/
 ```
 
 ### 3.1 AccessPass (soulbound ERC-721)
-- `mint(to, courseId)` — только `marketplace` (модификатор `onlyMarketplace`).
-- Переводы запрещены: `transferFrom`/`safeTransferFrom`/`approve` ревертят
-  (`SoulboundError`). Это и есть митигация flash-loan: нет переводимого
-  баланса, который можно занять и вернуть в одной транзакции.
-- `hasAccess(address user, uint256 courseId) → bool` — то, что читает
-  Lit ACC (через `evmContractConditions`).
-- Опц. `expiry[courseId]` для аренды/подписки (time-bound доступ).
-- События: `AccessGranted(user, courseId, tokenId)`.
+- `mint(to, courseId, expiry)` — только `marketplace`. `expiry` —
+  unix-ts, `0` = бессрочно. Ре-минт после истечения разрешён (продление).
+- Переводы запрещены: `transferFrom`/`safeTransferFrom`/`approve`/
+  `setApprovalForAll` ревертят (`Soulbound`). Это митигация flash-loan:
+  нет переводимого баланса.
+- `hasAccess(user, courseId) → bool` — `granted && !expired`
+  (time-limited клиентский доступ). Читается Lit ACC.
+- `expiryOf[user][courseId]` (uint64). События `AccessGranted`.
 
 ### 3.2 Treasury
 - Принимает BNB (receive) и/или ERC-20.
@@ -98,9 +98,10 @@ src/
 ```solidity
 struct Course {
   address author;
-  uint96  price;          // в wei BNB (или ERC-20 units)
-  bytes32 contentHash;    // keccak256 манифеста/контента (целостность)
-  string  bucket;         // имя Greenfield-бакета (public-read, ciphertext)
+  uint96  price;           // в wei BNB (или ERC-20 units)
+  bytes32 contentHash;     // keccak256 манифеста/контента (целостность)
+  string  bucket;          // Greenfield-бакет (public-read, ciphertext)
+  uint64  accessDuration;  // сек; 0 = бессрочно для покупателей
   bool    active;
 }
 mapping(uint256 => Course) public courses;
@@ -112,8 +113,12 @@ address public w3ext;
 IAccessPass public accessPass;
 ```
 Функции (все внешние write — события + CEI):
-- `registerCourse(price, contentHash, bucket) → courseId` — автор;
-  `CourseRegistered`.
+- `registerCourse(price, contentHash, bucket, accessDuration) →
+  courseId` — автор; `CourseRegistered`.
+- `hasCourseAccess(user, courseId) → bool` — **автор всегда имеет
+  бесплатный доступ к своему контенту**, иначе (возможно
+  ограниченный по времени) AccessPass. Именно это читает Lit ACC.
+  В `purchase` автор отбивается `AlreadyOwned` (платить не нужно).
 - `updateCourse(courseId, price, active)` — только автор; `CourseUpdated`.
 - `purchase(courseId)` `payable nonReentrant`:
   1. **Checks**: `course.active`, `msg.value == price`,

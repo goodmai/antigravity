@@ -151,6 +151,66 @@ run_workflow securcheck
 
 ---
 
+## 🧪 Testing — Greenfield Smart Contracts (branch `claude/greenfield-smartcontracts-setup-2HS95`)
+
+This branch adds the **Greenfield bucket console + Lit-gated encrypted
+courses + Solidity settlement layer**. Full design lives in
+[`GREENFIELD.md`](./GREENFIELD.md) / [`lit.md`](./lit.md) /
+[`smartcontracts/contracts/SPEC.md`](./smartcontracts/contracts/SPEC.md);
+all user/test cases in [`uc.md`](./uc.md) / [`tc.md`](./tc.md).
+
+### 1. Default suite (fast, hermetic — no Docker, no network)
+
+```bash
+npm install
+npm run typecheck     # tsc --strict --checkJs over the pure modules → 0 errors
+npm run lint:noany    # bans explicit `any` in the strict modules
+npm test              # vitest: ~320 pass, ~9 skipped (gated suites skip)
+```
+
+`npm test` is **offline & deterministic**: WebCrypto is injected
+(`node:crypto`), all SDK/chain adapters are faked. Every gated
+integration suite *auto-skips* unless its preconditions are met, so a
+green default run never touches a wallet, a chain, the CDN, or Docker.
+
+### 2. Opt-in integration flows (need Docker; some need funds)
+
+| Flow | Command | Gate |
+|------|---------|------|
+| A — mock SP frontend | `docker compose -f smartcontracts/docker-compose.yml up -d --wait` | Docker daemon |
+| B — real private Greenfield | `RUN_GREENFIELD_LOCAL=1 npx vitest run tests/greenfield-local.docker.test.js` | Docker + env |
+| C — real testnet write | set `GREENFIELD_TESTNET_PRIVATE_KEY`/`_ADDRESS`, run `tests/greenfield-testnet.live.test.js` | Docker + funded key |
+| Contracts (Foundry) | `RUN_CONTRACTS=1 npx vitest run tests/contracts.docker.test.js` | Docker |
+
+The contracts toolchain has **no host install** — it lives in
+`smartcontracts/contracts/docker-compose.yml` (forge/anvil/cast):
+
+```bash
+docker compose -f smartcontracts/contracts/docker-compose.yml run --rm forge   # build + test
+docker compose -f smartcontracts/contracts/docker-compose.yml up -d anvil       # local EVM :8545
+docker compose -f smartcontracts/contracts/docker-compose.yml run --rm deploy   # forge script broadcast
+```
+
+### 3. What is verified vs integration-only (honest)
+
+- **Verified by `npm test`:** all pure logic — Greenfield client (reads,
+  pagination, coded errors), `lit-pricing` money math, `crypto-envelope`
+  AES round-trip + AEAD tamper-detection, `course-template`/`-publish`
+  /`-read` (incl. **publisher free access** and **time-limited client
+  access** wiring), wallet/SP backends, ACC builders, CSP guard.
+- **Integration-only (run in their Docker flow, not unit-verified):**
+  the CDN-loaded `@bnb-chain`/`@lit-protocol` SDK call shapes and the
+  Solidity contracts (`forge test` in the container). Documented
+  per-module; never presented as "passing" without the flow run.
+
+### 4. CI mapping
+
+`.github/workflows/test.yml` runs §1 on every push/PR. Docker flows
+(§2) are opt-in jobs / manual — they pull images and hit the network,
+so they are not part of the hermetic gate.
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! If you have a new **Skill** or **Workflow**, please submit a Pull Request.

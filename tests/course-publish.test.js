@@ -174,6 +174,38 @@ describe('3. Lit access composition', () => {
       }),
     ).rejects.toMatchObject({ code: 'INVALID_ACC' });
   });
+
+  it('grants the publisher free access (author OR-ed into the ACC)', async () => {
+    const access = fakeLitAccess();
+    await planCoursePublish({
+      spec: SPEC,
+      pricing: PRICING,
+      crypto: webcrypto,
+      lit: { access, accessControlConditions: ACC, author: '0xAUTHOR' },
+    });
+    const [, effectiveAcc] = access.encryptMasterKey.mock.calls[0];
+    // shape: [ authorAllowlist , {operator:'or'} , ...ACC ]
+    expect(effectiveAcc[0]).toMatchObject({
+      parameters: [':userAddress'],
+      returnValueTest: { comparator: '=', value: '0xAUTHOR' },
+    });
+    expect(effectiveAcc).toContainEqual({ operator: 'or' });
+    expect(effectiveAcc).toEqual(expect.arrayContaining(ACC));
+  });
+
+  it('without author the ACC is unchanged (buyers-only)', async () => {
+    const access = fakeLitAccess();
+    await planCoursePublish({
+      spec: SPEC,
+      pricing: PRICING,
+      crypto: webcrypto,
+      lit: { access, accessControlConditions: ACC },
+    });
+    expect(access.encryptMasterKey).toHaveBeenCalledWith(
+      expect.any(String),
+      ACC,
+    );
+  });
 });
 
 describe('4. quoteCourseSale (treasury split seam)', () => {

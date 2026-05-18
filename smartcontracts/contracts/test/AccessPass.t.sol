@@ -21,10 +21,10 @@ contract AccessPassTest is Test {
 
     function test_onlyMarketplaceCanMint() public {
         vm.expectRevert(AccessPass.NotMarketplace.selector);
-        pass.mint(alice, 1);
+        pass.mint(alice, 1, 0);
 
         vm.prank(mp);
-        uint256 id = pass.mint(alice, 1);
+        uint256 id = pass.mint(alice, 1, 0);
         assertEq(pass.ownerOf(id), alice);
         assertTrue(pass.hasAccess(alice, 1));
         assertFalse(pass.hasAccess(alice, 2));
@@ -32,15 +32,15 @@ contract AccessPassTest is Test {
 
     function test_doubleMintSameCourseReverts() public {
         vm.startPrank(mp);
-        pass.mint(alice, 1);
+        pass.mint(alice, 1, 0);
         vm.expectRevert(AccessPass.AlreadyOwned.selector);
-        pass.mint(alice, 1);
+        pass.mint(alice, 1, 0);
         vm.stopPrank();
     }
 
     function test_soulbound_allTransferPathsRevert() public {
         vm.prank(mp);
-        uint256 id = pass.mint(alice, 1);
+        uint256 id = pass.mint(alice, 1, 0);
 
         vm.startPrank(alice);
         vm.expectRevert(AccessPass.Soulbound.selector);
@@ -52,5 +52,18 @@ contract AccessPassTest is Test {
         vm.expectRevert(AccessPass.Soulbound.selector);
         pass.setApprovalForAll(address(0xB0B), true);
         vm.stopPrank();
+    }
+
+    function test_timeLimitedAccessExpires() public {
+        vm.prank(mp);
+        pass.mint(alice, 7, uint64(block.timestamp + 1 days));
+        assertTrue(pass.hasAccess(alice, 7));
+        vm.warp(block.timestamp + 1 days + 1);
+        assertFalse(pass.hasAccess(alice, 7)); // expired
+
+        // re-mint after expiry is allowed (renewal)
+        vm.prank(mp);
+        pass.mint(alice, 7, uint64(block.timestamp + 1 days));
+        assertTrue(pass.hasAccess(alice, 7));
     }
 }

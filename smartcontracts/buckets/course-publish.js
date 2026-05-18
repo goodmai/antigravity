@@ -35,6 +35,8 @@
  * @typedef {Object} LitOption
  * @property {{ encryptMasterKey: (master: string, acc: AccessControlConditions) => Promise<LitEnvelope> }} access
  * @property {AccessControlConditions} [accessControlConditions]
+ * @property {string} [author]  Publisher address — always granted free
+ *   decryption of their own content (OR'd into the ACC).
  *
  * @typedef {Object} PublishPlan
  * @property {string}                                            bucketName
@@ -48,6 +50,7 @@
 
 import { buildCourseBucket, encryptCourseBucket } from './course-template.js';
 import { computeSaveCharge, computeSaleSplit } from './lit-pricing.js';
+import { addressAllowlistAcc, anyOf } from './lit-acc.js';
 
 /**
  * Build + encrypt the course and compute the w3ext save settlement.
@@ -85,7 +88,12 @@ export async function planCoursePublish({
         )
       );
     }
-    litMaster = await lit.access.encryptMasterKey(enc.masterKey, acc);
+    // The publisher always decrypts their own content for free: OR the
+    // author's address allowlist into the reader/buyer conditions.
+    const effectiveAcc = lit.author
+      ? anyOf(addressAllowlistAcc(lit.author), acc)
+      : acc;
+    litMaster = await lit.access.encryptMasterKey(enc.masterKey, effectiveAcc);
     manifest = { ...enc.manifest, lit: litMaster };
     const body = JSON.stringify(manifest);
     objects = enc.objects.map((o) =>

@@ -9,6 +9,7 @@ interface ICourseMarketplace {
         uint96 price; // wei
         bytes32 contentHash; // keccak256 of the encrypted manifest/content
         string bucket; // public-read Greenfield bucket holding ciphertext
+        uint64 accessDuration; // seconds; 0 = perpetual access for buyers
         bool active;
     }
 
@@ -26,13 +27,25 @@ interface ICourseMarketplace {
     );
     event Withdrawn(address indexed account, uint256 amount);
 
-    function registerCourse(uint96 price, bytes32 contentHash, string calldata bucket)
-        external
-        returns (uint256 courseId);
+    function registerCourse(
+        uint96 price,
+        bytes32 contentHash,
+        string calldata bucket,
+        uint64 accessDuration
+    ) external returns (uint256 courseId);
 
     function updateCourse(uint256 courseId, uint96 price, bool active) external;
 
     function purchase(uint256 courseId) external payable;
+
+    /// @notice True if `user` may decrypt: the **author always has free
+    ///         access to their own content**, otherwise a (possibly
+    ///         time-limited) AccessPass. This is what Lit's
+    ///         evmContractConditions calls.
+    function hasCourseAccess(address user, uint256 courseId)
+        external
+        view
+        returns (bool);
 
     function withdraw() external;
 
