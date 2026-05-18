@@ -1,0 +1,59 @@
+# Foundry toolchain for the on-chain settlement layer (SPEC §0, §9).
+#
+# The host has no solidity toolchain — this compose IS the toolchain:
+#   - anvil : local EVM node (deterministic accounts) on :8545
+#   - forge : build + test the contracts (installs forge-std first)
+#   - deploy: forge script broadcast against anvil (+ cast smoke)
+#
+#   docker compose -f smartcontracts/contracts/docker-compose.yml run --rm forge
+#   docker compose -f smartcontracts/contracts/docker-compose.yml up -d anvil
+#   docker compose -f smartcontracts/contracts/docker-compose.yml run --rm deploy
+#
+# Driven by tests/contracts.docker.test.js (opt-in: RUN_CONTRACTS=1).
+
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ["anvil"]
+    command: ["--host", "0.0.0.0", "--silent"]
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  forge:
+    image: ghcr.io/foundry-rs/foundry:latest
+    working_dir: /work
+    volumes:
+      - ./:/work
+    # forge-std is fetched on first run (network); then build + test.
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && forge build
+        && forge test -vvv
+
+  deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    working_dir: /work
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      # anvil account #0 (well-known dev key — local only, never prod)
+      - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - RPC_URL=http://anvil:8545
+    volumes:
+      - ./:/work
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv

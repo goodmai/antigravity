@@ -501,9 +501,16 @@ BFOPS audit referenced (the JS layer had no Solidity before).
   interfaces incl. the optional `IGreenfieldCourseBucket`.
 - `test/` — Foundry TDD spec (split-invariant fuzz, reentrancy attack,
   soulbound, pull-withdraw, bounded bps).
+- `docker-compose.yml` — **Foundry toolchain container** (`forge` +
+  `anvil` + `cast`): `run --rm forge` builds+tests; `up -d anvil` is a
+  local EVM; `run --rm deploy` runs `script/Deploy.s.sol`. Driven by
+  `tests/contracts.docker.test.js` (opt-in `RUN_CONTRACTS=1`,
+  auto-skips without Docker — same guarded-docker pattern as Flow A/B/C).
 
-> **Verification gap (honest).** No solidity toolchain in this
-> environment (`forge`/`solc` absent) — contracts + tests are written as
-> the executable spec; `forge build && forge test` must run in a CI with
-> the toolchain (`forge install foundry-rs/forge-std` for tests). Same
-> integration-only discipline as the CDN SDK adapters.
+> **Verification gap (honest).** The host has no solidity toolchain
+> (`forge`/`solc` absent) — the toolchain now lives in the contracts
+> docker-compose (forge/anvil/cast), so `forge build && forge test` and
+> deploy run reproducibly in a Docker CI:
+> `docker compose -f smartcontracts/contracts/docker-compose.yml run
+> --rm forge`. In this sandbox (no Docker daemon) the suite skips; the
+> contracts are not verified here but the container makes it repeatable.

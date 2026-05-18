@@ -5,11 +5,22 @@
 Хранение — BNB Greenfield (зашифрованные объекты). Доступ к расшифровке —
 Lit Protocol, читающий состояние этих контрактов.
 
-> **Verification gap (честно).** В этом окружении нет solidity-тулчейна
-> (`forge`/`solc` отсутствуют). Контракты и Foundry-тесты пишутся как
-> исполняемая спецификация; `forge build` / `forge test` обязан
-> прогоняться в нормальном CI с тулчейном — здесь не верифицируется
-> (та же дисциплина «integration-only», что у CDN SDK-адаптеров).
+> **Verification gap (честно).** На хосте нет solidity-тулчейна
+> (`forge`/`solc` отсутствуют). Тулчейн вынесен в **оркестровый
+> docker-compose**: `smartcontracts/contracts/docker-compose.yml` несёт
+> контейнер Foundry (`forge` + `anvil` + `cast`) для билда, прогона
+> тестов и деплоя:
+>
+> ```bash
+> docker compose -f smartcontracts/contracts/docker-compose.yml run --rm forge   # build + test
+> docker compose -f smartcontracts/contracts/docker-compose.yml up -d anvil       # локальная EVM :8545
+> docker compose -f smartcontracts/contracts/docker-compose.yml run --rm deploy   # forge script broadcast
+> ```
+>
+> Гейтится `tests/contracts.docker.test.js` (opt-in `RUN_CONTRACTS=1`,
+> авто-skip без Docker) — та же дисциплина guarded-docker, что у Flow
+> A/B/C. В песочнице без Docker-демона прогон скипается; контракты+тесты
+> здесь не верифицируются, но контейнер делает это воспроизводимо в CI.
 
 ---
 
@@ -228,8 +239,10 @@ Trade-off (зафиксировано): cross-chain на пользовател�
   sequence идемпотентен; `FailureAck` рефандит.
 - Fuzz/invariant: Σ выплат == Σ принятого; нет «застрявших» средств.
 
-CI: добавить job `forge build && forge test -vvv` (когда тулчейн
-доступен). Здесь — не запускается (verification gap, §0).
+CI: job = `docker compose -f smartcontracts/contracts/docker-compose.yml
+run --rm forge` (build + test в контейнере Foundry, §0). Деплой/смоук —
+сервисы `anvil` + `deploy` (`script/Deploy.s.sol`). В песочнице без
+Docker — skip (verification gap, §0).
 
 ---
 
