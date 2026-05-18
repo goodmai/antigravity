@@ -3,6 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Audit 4.2: contain XSS / session-sig theft. Scripts only from self
+       + the pinned esm.sh CDN (no 'unsafe-inline'); network limited to
+       https. style 'unsafe-inline' retained for the inline <style>/style
+       attrs (CSS-injection is lower risk) — see GREENFIELD.md. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://esm.sh;
+    connect-src 'self' https:;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+    frame-ancestors 'none'" />
   <title>Daskibo Smart Contracts — Greenfield Buckets</title>
   <style>
     :root {
@@ -197,14 +212,7 @@
     Daskibo Academy · Smart Contracts · BNB Greenfield testnet integration
   </footer>
 
-  <script type="module">
-    import { GREENFIELD_TESTNET } from './buckets/greenfield-core.js';
-    import './buckets/greenfield-ui.js';
-    document.getElementById('net-chain').textContent = GREENFIELD_TESTNET.cosmosChainId;
-    document.getElementById('net-sp').textContent = GREENFIELD_TESTNET.spEndpoint;
-    const f = document.getElementById('net-faucet'); f.href = GREENFIELD_TESTNET.faucet;
-    const e = document.getElementById('net-explorer'); e.href = GREENFIELD_TESTNET.explorer;
-  </script>
+  <script type="module" src="./index-init.js"></script>
 
 </body>
 </html>

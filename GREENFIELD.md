@@ -434,3 +434,48 @@ Pure, strict-typed, zero-`any`, TDD'd by `tests/course-read.test.js`
 > (`makeLitClient` / `makeLitAuth` — CDN, wallet SIWE session sigs,
 > integration-only like the other SDK adapters). Pure orchestration
 > below the glue is fully tested.
+
+---
+
+## Security audit response (BFOPS — EVM/Greenfield/Lit)
+
+The audit's threat model is sound; scoping it to *this repo* (a JS
+orchestration layer — there is **no Solidity in the tree**):
+
+**Applied (TDD):**
+
+- **4.2 CSP / session-sig theft.** `smartcontracts/index.html` ships a
+  `Content-Security-Policy`: `script-src 'self' https://esm.sh` (no
+  `'unsafe-inline'` — the inline module was extracted to
+  `index-init.js`), `connect-src 'self' https:`, `object-src 'none'`,
+  `frame-ancestors 'none'`. Guarded by `tests/index-csp.test.js`.
+  Trade-off: `style-src` keeps `'unsafe-inline'` for the inline
+  `<style>`/`style=` attrs (CSS-injection is materially lower risk than
+  script injection); `connect-src https:` rather than an allowlist
+  because Lit's Datil node set is dynamic.
+- **3.2 / 4.1 flash-loan-aware ACC.** ACC builders centralised in the
+  pure, strict, zero-`any` `smartcontracts/buckets/lit-acc.js`
+  (`addressAllowlistAcc`, `tokenBalanceAcc`, `anyOf`/`allOf`) with the
+  flash-loan caveat documented in one place: address equality (the
+  default) is **not** flash-loanable; spot `balanceOf` gates are, so the
+  module steers callers to staked/locked/non-transferable positions.
+  TDD'd by `tests/lit-acc.test.js`.
+
+**Advisory / out of scope here (no on-chain contract in this repo):**
+
+- 3.3 reentrancy, 3.2 flash-loan *enforcement*, 3.1 cross-chain message
+  forgery, 4.3 cross-chain failover/refund — these target a future
+  Solidity `CourseMarketplace` + the BSC↔Greenfield bridge, not the JS
+  layer. The Checks-Effects-Interactions + `ReentrancyGuard` +
+  pull-payments + time-weighted-balance guidance is recorded here as the
+  contract spec for whoever writes that contract.
+- 1.3 opBNB L1/L2 topology — architectural guidance accepted: keep
+  Greenfield storage-management contracts on **BSC L1**, move
+  ticketing/payments/NFTs to **opBNB L2**, with Lit ACCs evaluating the
+  L2 contracts. No code change in this layer.
+
+**Crypto note (§2).** No custom threshold crypto is implemented — Lit's
+audited MPC is used as-is via `lit-access.js`/`lit-sdk.js`; the local
+`crypto-envelope` is standard WebCrypto AES-GCM with AEAD-bound metadata
+(audit B2). Device-binding of Lit `sessionSigs` remains an
+integration-layer hardening (documented, not unit-scoped).

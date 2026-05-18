@@ -24,19 +24,9 @@ export async function fetchTransport({ method, url, headers, body }) {
   return { status: res.status, headers: hdrs, body: text };
 }
 
-/** Build a wallet-address allowlist Access Control Condition for Lit. */
-export function addressAllowlistAcc(address) {
-  return [
-    {
-      contractAddress: '',
-      standardContractType: '',
-      chain: 'ethereum',
-      method: '',
-      parameters: [':userAddress'],
-      returnValueTest: { comparator: '=', value: address },
-    },
-  ];
-}
+// ACC builders live in lit-acc.js (centralised + flash-loan caveat).
+export { addressAllowlistAcc, tokenBalanceAcc, anyOf, allOf } from './lit-acc.js';
+import { addressAllowlistAcc } from './lit-acc.js';
 
 export function initBucketConsole({
   doc,

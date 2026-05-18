@@ -17,6 +17,7 @@ files=(
   smartcontracts/buckets/greenfield-sdk-tx.js
   smartcontracts/buckets/lit-access.js
   smartcontracts/buckets/course-read.js
+  smartcontracts/buckets/lit-acc.js
 )
 
 # `any` as a TS type token: @type {…any…}, ": any", "<any>", "any[]".
