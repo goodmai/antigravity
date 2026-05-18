@@ -36,11 +36,14 @@ contract CourseMarketplaceTest is Test {
     AccessPass pass;
     Treasury treasury;
 
-    address w3ext = address(0xW3);
-    address author = address(0xA47);
-    address buyer = address(0xB17);
+    address w3ext;
+    address author;
+    address buyer;
 
     function setUp() public {
+        w3ext = makeAddr("w3ext");
+        author = makeAddr("author");
+        buyer = makeAddr("buyer");
         treasury = new Treasury(address(this));
         mp = new CourseMarketplace(address(treasury), w3ext);
         pass = new AccessPass();

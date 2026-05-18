@@ -6,10 +6,12 @@ import {AccessPass} from "../src/AccessPass.sol";
 
 contract AccessPassTest is Test {
     AccessPass pass;
-    address mp = address(0xMP);
-    address alice = address(0xA11CE);
+    address mp;
+    address alice;
 
     function setUp() public {
+        mp = makeAddr("mp");
+        alice = makeAddr("alice");
         pass = new AccessPass();
         pass.setMarketplace(mp);
     }
@@ -28,6 +30,18 @@ contract AccessPassTest is Test {
         assertEq(pass.ownerOf(id), alice);
         assertTrue(pass.hasAccess(alice, 1));
         assertFalse(pass.hasAccess(alice, 2));
+    }
+
+    /// Audit 5.2 — Access Control Bypass: NOBODY but the marketplace can
+    /// mint (not even the contract owner / deployer). Equivalent to a
+    /// MINTER_ROLE granted solely to CourseMarketplace, but immutable.
+    function test_ownerCannotMint_noBypass() public {
+        // `this` is the deployer/owner of `pass`
+        vm.expectRevert(AccessPass.NotMarketplace.selector);
+        pass.mint(alice, 99, 0);
+        vm.prank(makeAddr("attacker"));
+        vm.expectRevert(AccessPass.NotMarketplace.selector);
+        pass.mint(alice, 99, 0);
     }
 
     function test_doubleMintSameCourseReverts() public {

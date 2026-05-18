@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Audit 4.2: contain XSS / session-sig theft. Scripts only from self
-       + the pinned esm.sh CDN (no 'unsafe-inline'); network limited to
-       https. style 'unsafe-inline' retained for the inline <style>/style
-       attrs (CSS-injection is lower risk) — see GREENFIELD.md. -->
+  <!-- Audit 4.2 / 5.3: contain XSS / Lit session-sig theft. Scripts only
+       from self + the pinned esm.sh CDN (no 'unsafe-inline'); connect-src
+       is an explicit allowlist (Greenfield *.bnbchain.org, Lit
+       *.litprotocol.com/*.litgateway.com, esm.sh) — NO bare `https:`.
+       style 'unsafe-inline' retained for the inline <style>/style attrs
+       (CSS-injection is lower risk) — see GREENFIELD.md. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' https://esm.sh;
-    connect-src 'self' https:;
+    connect-src 'self' https://*.bnbchain.org https://*.litprotocol.com https://*.litgateway.com https://esm.sh;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     font-src 'self' https://fonts.gstatic.com;
     img-src 'self' data:;

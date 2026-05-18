@@ -32,6 +32,16 @@ describe('index.html Content-Security-Policy', () => {
     expect(csp).toMatch(/frame-ancestors 'none'/);
   });
 
+  it('restricts connect-src to trusted domains (audit 5.3 — no bare https:)', () => {
+    const csp = html.match(/Content-Security-Policy"\s+content="([^"]+)"/i)[1];
+    const connect = csp.match(/connect-src ([^;]+)/)[1].trim();
+    // must NOT be the broad `https:` wildcard
+    expect(connect).not.toMatch(/(^|\s)https:(\s|$)/);
+    expect(connect).toContain("'self'");
+    expect(connect).toContain('https://*.bnbchain.org'); // Greenfield RPC/SP
+    expect(connect).toMatch(/litprotocol\.com|litgateway\.com/); // Lit nodes
+  });
+
   it('has no inline module script body (extracted to index-init.js)', () => {
     expect(html).toContain('src="./index-init.js"');
     expect(html).not.toMatch(/<script type="module">\s*\S/);

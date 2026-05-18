@@ -228,6 +228,35 @@ Trade-off (зафиксировано): cross-chain на пользовател�
 | DoS push-выплатой | Pull-pattern для author/w3ext; Treasury — фиксированный адрес |
 | Param-захват | `Ownable2Step`, bounded bps (≤ лимит, сумма ≤ 100 %), события |
 
+### 7.1 Ответ на аудит компонентов (5.2 / 5.3)
+
+- **AccessControl bypass (AccessPass)** — `mint` строго закрыт:
+  `msg.sender != marketplace ⇒ revert NotMarketplace`; `marketplace`
+  ставится один раз (`MarketplaceAlreadySet`), даже owner/деплойер
+  минтить не может. Это эквивалент `MINTER_ROLE`, выданной
+  исключительно `CourseMarketplace`, но **неизменяемый** (проще и
+  строже, без OZ-зависимости в `src/`). Тест:
+  `AccessPass.t.sol::test_ownerCannotMint_noBypass`.
+- **Oracle/Slippage/Flash-loan по цене** — **неприменимо в v1**:
+  контракт принимает **только нативный BNB по фиксированной цене**
+  (`msg.value == price`), без конвертации токенов и без DEX-оракула →
+  нет поверхности price-manipulation. Мульти-токен потребовал бы
+  Chainlink Price Feeds / прайсинг в стейблкоинах — **явно вне scope
+  v1** (заведено как требование к будущей версии). Тест фикс-цены:
+  `test_purchase_wrongPriceReverts`.
+- **Frozen funds (Treasury)** — pull-over-push: `CourseMarketplace`
+  кредитует `pendingWithdrawals` + `withdraw()`; `Treasury` — push
+  только на **фиксированный** адрес, без циклов по массивам
+  получателей. Полный баланс всегда выводим, сбойный получатель не
+  блокирует средства. Тесты: `Treasury.t.sol`
+  (`test_noFrozenFunds_fullBalanceAlwaysWithdrawable`,
+  `test_withdraw_failingRecipientReverts_fundsStaySafe`).
+- **CSP (5.3)** — `connect-src` сужен до явного allowlist
+  (`'self' https://*.bnbchain.org https://*.litprotocol.com
+  https://*.litgateway.com https://esm.sh`) — убран широкий `https:`;
+  `script-src` без `'unsafe-inline'`. Гард: `tests/index-csp.test.js`
+  (выполняется в hermetic `npm test`).
+
 ---
 
 ## 8. План тестов (Foundry, TDD)
