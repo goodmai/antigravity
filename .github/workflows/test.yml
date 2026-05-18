@@ -46,7 +46,9 @@ jobs:
 
       - name: Install forge-std
         working-directory: smartcontracts/contracts
-        run: forge install foundry-rs/forge-std --no-commit
+        # --no-git: vendor into lib/ without a submodule (mirrors the
+        # contracts docker-compose); avoids dirty-tree/commit failures in CI.
+        run: forge install --no-git foundry-rs/forge-std
 
       - name: forge build
         working-directory: smartcontracts/contracts
