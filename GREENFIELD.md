@@ -414,12 +414,15 @@ Pure, strict-typed, zero-`any`, TDD'd by `tests/course-read.test.js`
 > runtime CDN import (pinned `@7`) — self-host before production, same as
 > the Greenfield SDK adapter.
 >
-> **UI handoff (A4).** The browser console (`index.html` /
-> `greenfield-ui.js`) is **left to wire by the maintainer**. The tested
-> seam to call: `publishCourse({ client, spec, pricing, crypto, lit })`
-> (lit = `{ access: createLitAccess({ litClient: await makeLitClient() }),
-> accessControlConditions }`) for publish; `openCourseObject({ client,
-> bucketName, objectKey, lit: { access, authContext /* sessionSigs */ },
-> crypto })` for read. `client` is the existing wallet-backed
-> greenfield-core client; `litClient` comes from `lit-sdk.js`
-> `makeLitClient()`. Everything below that line is already tested.
+> **UI wired (A4 done).** `index.html` now has a *Lit-protected course*
+> section (publish + open) and `greenfield-ui.js` wires it: a
+> **Publish encrypted course** form (slug + reader-address ACC →
+> `publishCourse` with `lit`) and an **Open protected object** form
+> (bucket + key → `openCourseObject`, renders the decrypted text). The
+> publish/open functions are injectable seams (`publishCourseFn` /
+> `openCourseObjectFn`) so the DOM glue is unit-tested under jsdom
+> (`tests/greenfield-ui.test.js`, +3); production lazily builds the real
+> ones from `course-publish`/`course-read` + `lit-sdk.js`
+> (`makeLitClient` / `makeLitAuth` — CDN, wallet SIWE session sigs,
+> integration-only like the other SDK adapters). Pure orchestration
+> below the glue is fully tested.

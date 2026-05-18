@@ -24,7 +24,28 @@ export async function fetchTransport({ method, url, headers, body }) {
   return { status: res.status, headers: hdrs, body: text };
 }
 
-export function initBucketConsole({ doc, client } = {}) {
+/** Build a wallet-address allowlist Access Control Condition for Lit. */
+export function addressAllowlistAcc(address) {
+  return [
+    {
+      contractAddress: '',
+      standardContractType: '',
+      chain: 'ethereum',
+      method: '',
+      parameters: [':userAddress'],
+      returnValueTest: { comparator: '=', value: address },
+    },
+  ];
+}
+
+export function initBucketConsole({
+  doc,
+  client,
+  // Injectable seams so the Lit publish/open glue is unit-testable
+  // without the CDN SDK; production lazily builds the real ones.
+  publishCourseFn,
+  openCourseObjectFn,
+} = {}) {
   const d = doc || document;
   const $ = (id) => d.getElementById(id);
 
@@ -118,6 +139,83 @@ export function initBucketConsole({ doc, client } = {}) {
     const data = await gfClient.readObject(bucket, key);
     if (out) out.textContent = data;
     setStatus(`Read ${key} from ${bucket}`);
+  });
+
+  // ── Lit-protected encrypted course (publish / open) ──────────────────
+  // Real defaults lazily load course-publish/read + the CDN Lit SDK; the
+  // tested orchestration is injected in unit tests.
+  const doPublishCourse =
+    publishCourseFn ||
+    (async ({ slug, accAddress }) => {
+      const [{ publishCourse }, { createLitAccess }, { COURSE_TEMPLATE }, lit] =
+        await Promise.all([
+          import('./course-publish.js'),
+          import('./lit-access.js'),
+          import('./course-template.js'),
+          import('./lit-sdk.js'),
+        ]);
+      const access = createLitAccess({
+        litClient: await lit.makeLitClient({ network: 'datil-test' }),
+      });
+      return publishCourse({
+        client: gfClient,
+        spec: { ...COURSE_TEMPLATE, slug },
+        pricing: { litSaveCost: 0n, storageCost: 0n },
+        crypto: globalThis.crypto,
+        lit: { access, accessControlConditions: addressAllowlistAcc(accAddress) },
+      });
+    });
+
+  const doOpenCourse =
+    openCourseObjectFn ||
+    (async ({ bucketName, objectKey }) => {
+      const [{ openCourseObject }, { createLitAccess }, lit] =
+        await Promise.all([
+          import('./course-read.js'),
+          import('./lit-access.js'),
+          import('./lit-sdk.js'),
+        ]);
+      const access = createLitAccess({
+        litClient: await lit.makeLitClient({ network: 'datil-test' }),
+      });
+      const authContext = await lit.makeLitAuth({
+        provider: walletProvider,
+        network: 'datil-test',
+      });
+      return openCourseObject({
+        client: gfClient,
+        bucketName,
+        objectKey,
+        lit: { access, authContext },
+        crypto: globalThis.crypto,
+      });
+    });
+
+  bind('gf-lit-publish-form', async () => {
+    const slug = $('gf-lit-slug').value.trim();
+    const accAddress =
+      ($('gf-lit-acc') && $('gf-lit-acc').value.trim()) ||
+      (ownerInput && ownerInput.value.trim());
+    if (!accAddress) {
+      setStatus('Enter the reader address allowed to decrypt', false);
+      return;
+    }
+    setStatus('Publishing Lit-protected course…');
+    const res = await doPublishCourse({ slug, accAddress });
+    setStatus(
+      `Published "${res.bucketName}" — ${res.savedKeys.length} objects, ` +
+        `w3ext fee ${res.settlement.w3extFee}`,
+    );
+  });
+
+  bind('gf-lit-open-form', async () => {
+    const bucketName = $('gf-lit-open-bucket').value.trim();
+    const objectKey = $('gf-lit-open-key').value.trim();
+    setStatus('Opening protected object via Lit…');
+    const out = await doOpenCourse({ bucketName, objectKey });
+    const pane = $('gf-lit-output');
+    if (pane) pane.textContent = out.text ?? '[binary]';
+    setStatus(`Decrypted ${objectKey}`);
   });
 
   function ownerArgs() {

@@ -21,6 +21,13 @@ function setupDom() {
     <form id="gf-read-form">
       <input id="gf-read-bucket" /><input id="gf-read-key" /><button>read</button>
     </form>
+    <form id="gf-lit-publish-form">
+      <input id="gf-lit-slug" /><input id="gf-lit-acc" /><button>publish</button>
+    </form>
+    <form id="gf-lit-open-form">
+      <input id="gf-lit-open-bucket" /><input id="gf-lit-open-key" /><button>open</button>
+    </form>
+    <pre id="gf-lit-output"></pre>
     <ul id="gf-bucket-list"></ul>
     <pre id="gf-object-output"></pre>
     <div id="gf-status"></div>
@@ -107,5 +114,67 @@ describe('initBucketConsole', () => {
     expect(document.getElementById('gf-status').textContent).toMatch(
       /INVALID_BUCKET_NAME/,
     );
+  });
+});
+
+describe('initBucketConsole — Lit-protected course', () => {
+  let client;
+  beforeEach(() => {
+    setupDom();
+    client = mockClient();
+  });
+
+  it('publishes a Lit-gated course with the slug + reader ACC address', async () => {
+    const publishCourseFn = vi.fn(async () => ({
+      bucketName: 'my-course-01',
+      savedKeys: ['_lit/manifest.json', 'a.enc', 'a.lit.json'],
+      settlement: { w3extFee: 200n },
+    }));
+    initBucketConsole({ doc: document, client, publishCourseFn });
+
+    document.getElementById('gf-lit-slug').value = 'my-course-01';
+    document.getElementById('gf-lit-acc').value = '0xReader';
+    document.getElementById('gf-lit-publish-form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    );
+    await flush();
+    expect(publishCourseFn).toHaveBeenCalledWith({
+      slug: 'my-course-01',
+      accAddress: '0xReader',
+    });
+    expect(document.getElementById('gf-status').textContent).toMatch(
+      /Published "my-course-01"/,
+    );
+  });
+
+  it('opens a protected object and renders the decrypted text', async () => {
+    const openCourseObjectFn = vi.fn(async () => ({ text: '# decrypted' }));
+    initBucketConsole({ doc: document, client, openCourseObjectFn });
+
+    document.getElementById('gf-lit-open-bucket').value = 'my-course-01';
+    document.getElementById('gf-lit-open-key').value = 'lessons/01/intro.md';
+    document.getElementById('gf-lit-open-form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    );
+    await flush();
+    expect(openCourseObjectFn).toHaveBeenCalledWith({
+      bucketName: 'my-course-01',
+      objectKey: 'lessons/01/intro.md',
+    });
+    expect(document.getElementById('gf-lit-output').textContent).toBe(
+      '# decrypted',
+    );
+  });
+
+  it('refuses publish without a reader address', async () => {
+    const publishCourseFn = vi.fn();
+    initBucketConsole({ doc: document, client, publishCourseFn });
+    document.getElementById('gf-lit-slug').value = 'c';
+    document.getElementById('gf-lit-publish-form').dispatchEvent(
+      new Event('submit', { bubbles: true, cancelable: true }),
+    );
+    await flush();
+    expect(publishCourseFn).not.toHaveBeenCalled();
+    expect(document.getElementById('gf-status').dataset.state).toBe('error');
   });
 });

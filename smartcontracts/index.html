@@ -144,6 +144,33 @@
     </section>
 
     <section class="section">
+      <h2 class="section-title">Lit-protected course</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Publish encrypted course</h3>
+          <form id="gf-lit-publish-form">
+            <label for="gf-lit-slug">Bucket / course slug</label>
+            <input id="gf-lit-slug" placeholder="my-course-01" />
+            <label for="gf-lit-acc">Reader address allowed to decrypt</label>
+            <input id="gf-lit-acc" placeholder="0x… (defaults to Owner)" />
+            <button type="submit">Publish (Lit-gated)</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Open protected object</h3>
+          <form id="gf-lit-open-form">
+            <label for="gf-lit-open-bucket">Bucket</label>
+            <input id="gf-lit-open-bucket" placeholder="my-course-01" />
+            <label for="gf-lit-open-key">Object key</label>
+            <input id="gf-lit-open-key" placeholder="lessons/01/intro.md" />
+            <button type="submit">Decrypt via Lit</button>
+          </form>
+          <pre id="gf-lit-output"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
       <h2 class="section-title">Courses</h2>
       <div class="grid">
         <a class="card course-card" href="./courses/course-01/index.html">
