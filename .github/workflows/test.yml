@@ -34,3 +34,25 @@ jobs:
         run: npm test
         # Docker-gated suites (Flow A/B/C) auto-skip on the runner unless
         # explicitly enabled; the hermetic suite always runs here.
+
+  contracts:
+    name: Solidity (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install forge-std
+        working-directory: smartcontracts/contracts
+        run: forge install foundry-rs/forge-std --no-commit
+
+      - name: forge build
+        working-directory: smartcontracts/contracts
+        run: forge build --sizes
+
+      - name: forge test
+        working-directory: smartcontracts/contracts
+        run: forge test -vvv
+
