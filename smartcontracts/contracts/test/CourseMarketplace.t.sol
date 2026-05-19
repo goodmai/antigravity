@@ -369,12 +369,16 @@ contract CourseMarketplaceTest is Test {
 
     // ── Audit hardening: finite duration bounded (no overflow DoS) ──────
     function test_registerCourse_rejectsOverlongDuration() public {
+        // Precompute the constants: an external getter call inside the
+        // argument list would otherwise consume `vm.expectRevert`.
+        uint64 max = mp.MAX_DURATION();
+        uint64 perpetual = mp.DURATION_PERPETUAL();
         vm.startPrank(author);
         vm.expectRevert(CourseMarketplace.BadDuration.selector);
-        mp.registerCourse(1 ether, bytes32("h"), "b", mp.MAX_DURATION() + 1);
-        // exactly MAX_DURATION is allowed; PERPETUAL still allowed
-        mp.registerCourse(1 ether, bytes32("h"), "b", mp.MAX_DURATION());
-        mp.registerCourse(1 ether, bytes32("h"), "b", mp.DURATION_PERPETUAL());
+        mp.registerCourse(1 ether, bytes32("h"), "b", max + 1);
+        // exactly MAX_DURATION is allowed; PERPETUAL / 0 still allowed
+        mp.registerCourse(1 ether, bytes32("h"), "b", max);
+        mp.registerCourse(1 ether, bytes32("h"), "b", perpetual);
         mp.registerCourse(1 ether, bytes32("h"), "b", 0);
         vm.stopPrank();
     }
