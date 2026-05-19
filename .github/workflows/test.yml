@@ -74,3 +74,29 @@ jobs:
         working-directory: smartcontracts/contracts
         run: forge test -vvv
 
+      # ── Static analysis / coverage / gas (audit growth #1) ───────────
+      # Advisory on introduction (forge fmt + slither need a triage pass
+      # in a Foundry env first); flip continue-on-error → false once the
+      # baseline is clean. forge coverage/snapshot are informational.
+      - name: forge fmt --check
+        working-directory: smartcontracts/contracts
+        continue-on-error: true
+        run: forge fmt --check
+
+      - name: Slither static analysis
+        uses: crytic/slither-action@v0.4.0
+        continue-on-error: true
+        with:
+          target: smartcontracts/contracts
+          slither-args: --exclude-dependencies
+
+      - name: forge coverage (summary)
+        working-directory: smartcontracts/contracts
+        continue-on-error: true
+        run: forge coverage --report summary
+
+      - name: forge gas snapshot
+        working-directory: smartcontracts/contracts
+        continue-on-error: true
+        run: forge snapshot && cat .gas-snapshot
+

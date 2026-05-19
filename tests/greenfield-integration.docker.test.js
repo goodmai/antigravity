@@ -21,6 +21,10 @@ import { createGreenfieldClient } from '../smartcontracts/buckets/greenfield-cor
 import { createSpEmulationBackend } from '../smartcontracts/integration/sp-emulation-backend.js';
 import { planCoursePublish } from '../smartcontracts/buckets/course-publish.js';
 import { decryptObject } from '../smartcontracts/buckets/crypto-envelope.js';
+import {
+  crawlCourseIndex,
+  searchCourseIndex,
+} from '../smartcontracts/buckets/course-index.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = ['compose', '-f', 'smartcontracts/docker-compose.yml'];
@@ -181,6 +185,26 @@ d('Greenfield network integration', () => {
         const out = await decryptObject(master, JSON.parse(encBody), webcrypto);
         expect(out.text).toMatch(/# Secret [12]/);
       }
+    }, 60_000);
+
+    it('crawls manifests across buckets and searches by title (real HTTP)', async () => {
+      const c = newClient();
+      // bucket without a course manifest must be skipped, not fail
+      await c.createBucket('plain-bucket', { visibility: 'public' });
+      await c.saveObject('plain-bucket', 'readme.txt', 'hi', {
+        contentType: 'text/plain',
+      });
+
+      const idx = await crawlCourseIndex({
+        client: c,
+        buckets: ['idx-course', 'plain-bucket', 'does-not-exist'],
+      });
+      // only the real course manifest is indexed
+      expect(idx.courses.map((co) => co.bucket)).toEqual(['idx-course']);
+      expect(searchCourseIndex(idx, 'Indexed').map((co) => co.bucket)).toEqual([
+        'idx-course',
+      ]);
+      expect(searchCourseIndex(idx, 'zzz-nope')).toEqual([]);
     }, 60_000);
   });
 

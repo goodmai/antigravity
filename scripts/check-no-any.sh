@@ -18,6 +18,7 @@ files=(
   smartcontracts/buckets/lit-access.js
   smartcontracts/buckets/course-read.js
   smartcontracts/buckets/lit-acc.js
+  smartcontracts/buckets/course-index.js
 )
 
 # `any` as a TS type token: @type {…any…}, ": any", "<any>", "any[]".

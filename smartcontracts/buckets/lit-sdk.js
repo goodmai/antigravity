@@ -18,16 +18,30 @@ const ENC_URL = 'https://esm.sh/@lit-protocol/encryption@7';
 const AUTH_URL = 'https://esm.sh/@lit-protocol/auth-helpers@7';
 const CONST_URL = 'https://esm.sh/@lit-protocol/constants@7';
 
+// Default loaders pull the pinned SDKs from the ESM CDN. They are
+// injectable (`loadSdk`) so the adapter's call-shapes are unit-tested
+// against a fake — closing the "unverified glue" gap without network.
+async function defaultLoadLitClientSdk() {
+  const [n, e] = await Promise.all([
+    import(/* @vite-ignore */ NODE_URL),
+    import(/* @vite-ignore */ ENC_URL),
+  ]);
+  return {
+    LitNodeClient: n.LitNodeClient,
+    encryptString: e.encryptString,
+    decryptToString: e.decryptToString,
+  };
+}
+
 /**
- * @param {{ network?: string }} [cfg]
+ * @param {{ network?: string, loadSdk?: () => Promise<{ LitNodeClient: any, encryptString: any, decryptToString: any }> }} [cfg]
  * @returns {Promise<import('./lit-access.js').LitClient>}
  */
-export async function makeLitClient({ network = 'datil-test' } = {}) {
-  const [{ LitNodeClient }, { encryptString, decryptToString }] =
-    await Promise.all([
-      import(/* @vite-ignore */ NODE_URL),
-      import(/* @vite-ignore */ ENC_URL),
-    ]);
+export async function makeLitClient({
+  network = 'datil-test',
+  loadSdk = defaultLoadLitClientSdk,
+} = {}) {
+  const { LitNodeClient, encryptString, decryptToString } = await loadSdk();
 
   const litNodeClient = new LitNodeClient({ litNetwork: network });
   await litNodeClient.connect();
@@ -65,22 +79,40 @@ export async function makeLitClient({ network = 'datil-test' } = {}) {
   };
 }
 
-/**
- * Produce a Lit auth context (session sigs) for decryption, signed by the
- * user's wallet via SIWE. Integration glue — CDN-loaded, wallet-driven,
- * not unit-verified (like the rest of lit-sdk.js).
- *
- * @param {{ provider: any, network?: string }} cfg
- * @returns {Promise<{ sessionSigs: unknown }>}
- */
-export async function makeLitAuth({ provider, network = 'datil-test' }) {
-  const [{ LitNodeClient }, authHelpers, consts] = await Promise.all([
+// Produce a Lit auth context (session sigs) for decryption, signed by
+// the user's wallet via SIWE. Integration glue — CDN-loaded, wallet-
+// driven; the call-shape is unit-tested via an injected loadSdk.
+async function defaultLoadLitAuthSdk() {
+  const [n, authHelpers, consts] = await Promise.all([
     import(/* @vite-ignore */ NODE_URL),
     import(/* @vite-ignore */ AUTH_URL),
     import(/* @vite-ignore */ CONST_URL),
   ]);
-  const { LitActionResource, createSiweMessage, generateAuthSig } = authHelpers;
-  const { LIT_ABILITY } = consts;
+  return {
+    LitNodeClient: n.LitNodeClient,
+    LitActionResource: authHelpers.LitActionResource,
+    createSiweMessage: authHelpers.createSiweMessage,
+    generateAuthSig: authHelpers.generateAuthSig,
+    LIT_ABILITY: consts.LIT_ABILITY,
+  };
+}
+
+/**
+ * @param {{ provider: any, network?: string, loadSdk?: () => Promise<any> }} cfg
+ * @returns {Promise<{ sessionSigs: unknown }>}
+ */
+export async function makeLitAuth({
+  provider,
+  network = 'datil-test',
+  loadSdk = defaultLoadLitAuthSdk,
+}) {
+  const {
+    LitNodeClient,
+    LitActionResource,
+    createSiweMessage,
+    generateAuthSig,
+    LIT_ABILITY,
+  } = await loadSdk();
 
   const litNodeClient = new LitNodeClient({ litNetwork: network });
   await litNodeClient.connect();

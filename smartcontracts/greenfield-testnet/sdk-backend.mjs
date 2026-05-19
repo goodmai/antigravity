@@ -9,19 +9,21 @@
  * browser bucket console.
  */
 
-import { Client, Long, VisibilityType } from '@bnb-chain/greenfield-js-sdk';
+import * as gnfdSdk from '@bnb-chain/greenfield-js-sdk';
 import { sdkCreateBucket } from '../buckets/greenfield-sdk-tx.js';
 
 /**
- * @param {{ rpcUrl: string, chainId: string|number, privateKey: string, address: string }} cfg
+ * @param {{ rpcUrl: string, chainId: string|number, privateKey: string, address: string, sdk?: any }} cfg
  */
-export function createSdkBackend({ rpcUrl, chainId, privateKey, address }) {
+export function createSdkBackend({ rpcUrl, chainId, privateKey, address, sdk }) {
   if (!privateKey || !address) {
     throw Object.assign(
       new Error('createSdkBackend requires a funded privateKey + address'),
       { code: 'NO_SIGNER' },
     );
   }
+  // `sdk` injectable so the call-shapes are unit-tested with a fake.
+  const { Client, Long, VisibilityType } = sdk || gnfdSdk;
   const client = Client.create(rpcUrl, String(chainId));
 
   const vis = (v) =>

@@ -75,6 +75,7 @@ contract CourseMarketplace is ICourseMarketplace {
     event OwnershipTransferStarted(address indexed previous, address indexed pending);
     event OwnershipTransferred(address indexed previous, address indexed current);
     event ParamsUpdated(uint16 treasuryBps, uint16 w3extBps, address treasury, address w3ext);
+    event AccessPassSet(address indexed accessPass);
 
     constructor(address _treasury, address _w3ext) {
         if (_treasury == address(0) || _w3ext == address(0)) revert ZeroAddress();
@@ -101,6 +102,7 @@ contract CourseMarketplace is ICourseMarketplace {
         if (ap == address(0)) revert ZeroAddress();
         if (address(accessPass) != address(0)) revert AccessPassAlreadySet();
         accessPass = IAccessPass(ap);
+        emit AccessPassSet(ap);
     }
 
     function setParams(uint16 _treasuryBps, uint16 _w3extBps, address _treasury, address _w3ext)

@@ -35,6 +35,8 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 
 ## UC-06 search/discover
 | TC-06.1 | U | `LIST_TRUNCATED` thrown at page cap (no silent partial) | `tests/greenfield-buckets.test.js` |
+| TC-06.2 | U | real course search: aggregate `_lit/manifest.json` across buckets, query by bucket/title/lesson/tag, skip malformed | `tests/course-index.test.js` |
+| TC-06.3 | D | crawl manifests across buckets over real HTTP, search by title, skip non-course buckets | `tests/greenfield-integration.docker.test.js` |
 
 ## UC-07 author withdraw (pull)
 | TC-07.1 | F | pull `withdraw` pays exact amount, zeroes pending | `CourseMarketplace.t.sol` |
@@ -79,6 +81,8 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 | TC-09.7 | F | marketplace: `hasCourseAccess` false w/o purchase & for nonexistent course (no revert); expired client loses access then can re-purchase (treasury paid 2×); cannot re-purchase before expiry → `AlreadyOwned` | `CourseMarketplace.t.sol` |
 | TC-04.8 | F | duration presets: HOUR/WEEK/MONTH/YEAR/PERPETUAL constant values; HOUR expires after 1h; YEAR valid <365d / expired after; PERPETUAL (`uint64.max`) → expiry 0, never expires, no overflow (century warp) | `CourseMarketplace.t.sol` |
 | TC-04.9 | F | audit hardening: finite `accessDuration > MAX_DURATION` → `BadDuration`; `MAX_DURATION`/`PERPETUAL`/`0` allowed (no overflow-DoS) | `CourseMarketplace.t.sol` |
+| TC-08.5 | F | `setAccessPass` emits `AccessPassSet` event | `CourseMarketplace.t.sol` |
+| TC-G1   | U | SDK adapter call-shapes (growth #4): makeLitClient connect/encrypt/decrypt; makeLitAuth SIWE+sessionSigs; wallet createBucket signTypedDataCallback + lowercase `offchainauth` + EDDSA delegate auth | `tests/sdk-adapters.shape.test.js` |
 
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs
 every unit-testable backend → `tests/greenfield-backend-contract.test.js`.

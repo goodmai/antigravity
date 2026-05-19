@@ -28,8 +28,11 @@ export async function makeWalletGreenfieldClient({
   rpcUrl,
   chainId,
   spEndpoint,
+  // Injectable so the adapter's call-shapes are unit-tested with a fake
+  // SDK (default = the pinned CDN import).
+  loadSdk = () => import(/* @vite-ignore */ SDK_URL),
 }) {
-  const sdk = await import(/* @vite-ignore */ SDK_URL);
+  const sdk = await loadSdk();
   const { Client, Long, VisibilityType } = sdk;
   const client = Client.create(rpcUrl, String(chainId));
 

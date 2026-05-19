@@ -136,3 +136,23 @@ overflow-DoS по `accessDuration` (Medium→fixed), апгрейд Solidity д�
 ERC-721-терминология AccessPass (doc), treasury push-DoS (governance-
 trust), anvil-ключ в compose (ops/doc), передача ownership на мультисиг
 перед прод. Cross-chain модуль (SPEC §6) — вне scope v1 (`*(spec)*`).
+
+---
+
+## 6. Точки роста — выполнено (ревью-итерация)
+
+- **#5 — событие `AccessPassSet`** добавлено в `setAccessPass`
+  (наблюдаемость wiring критичного адреса); тест
+  `test_setAccessPass_emitsEvent`.
+- **#1 — CI static analysis**: в Foundry-джоб добавлены
+  `forge fmt --check`, **Slither** (`crytic/slither-action`),
+  `forge coverage --report summary`, `forge snapshot` — пока
+  `continue-on-error: true` (advisory до первичного triage в Foundry-
+  среде; затем переключить в blocking).
+- **#3 — реальный поиск курсов**: `smartcontracts/buckets/course-index.js`
+  (агрегация `_lit/manifest.json` всех бакетов, поиск по
+  bucket/title/lesson/tag) — заменяет фильтр только по имени бакета.
+- **#4 — верификация SDK-адаптеров**: `loadSdk`/`sdk` инъекции +
+  `tests/sdk-adapters.shape.test.js` пинит call-shape
+  `@lit-protocol`/`@bnb-chain` (ловит C1-класс: регистр `offchainauth`,
+  `signTypedDataCallback`, EDDSA delegate-auth) без сети.

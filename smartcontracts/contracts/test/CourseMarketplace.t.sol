@@ -382,4 +382,12 @@ contract CourseMarketplaceTest is Test {
         mp.registerCourse(1 ether, bytes32("h"), "b", 0);
         vm.stopPrank();
     }
+
+    function test_setAccessPass_emitsEvent() public {
+        CourseMarketplace fresh = new CourseMarketplace(address(treasury), w3ext);
+        AccessPass ap = new AccessPass();
+        vm.expectEmit(true, false, false, false);
+        emit CourseMarketplace.AccessPassSet(address(ap));
+        fresh.setAccessPass(address(ap));
+    }
 }
