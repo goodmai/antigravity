@@ -163,15 +163,18 @@ all user/test cases in [`uc.md`](./uc.md) / [`tc.md`](./tc.md).
 
 ```bash
 npm install
-npm run typecheck     # tsc --strict --checkJs over the pure modules → 0 errors
-npm run lint:noany    # bans explicit `any` in the strict modules
-npm test              # vitest: ~320 pass, ~9 skipped (gated suites skip)
+npm run typecheck      # tsc --strict --checkJs over the pure modules → 0 errors
+npm run lint:noany     # bans explicit `any` in the strict modules
+npm run test:unit      # hermetic vitest (docker/live specs EXCLUDED) → 321 pass
+npm test               # everything; docker/live specs self-skip without Docker
 ```
 
-`npm test` is **offline & deterministic**: WebCrypto is injected
-(`node:crypto`), all SDK/chain adapters are faked. Every gated
-integration suite *auto-skips* unless its preconditions are met, so a
-green default run never touches a wallet, a chain, the CDN, or Docker.
+`npm run test:unit` is **offline & deterministic** and is the CI
+hermetic gate: WebCrypto is injected (`node:crypto`), all SDK/chain
+adapters are faked, and the `*.docker.test.js` / `*.live.test.js` specs
+are excluded outright (not just skipped) so it never touches Docker, a
+wallet, a chain or the CDN. Real network coverage lives in
+`npm run test:integration` (the dedicated CI **integration** job).
 
 ### 2. Opt-in integration flows (need Docker; some need funds)
 
@@ -205,9 +208,16 @@ docker compose -f smartcontracts/contracts/docker-compose.yml run --rm deploy   
 
 ### 4. CI mapping
 
-`.github/workflows/test.yml` runs §1 on every push/PR. Docker flows
-(§2) are opt-in jobs / manual — they pull images and hit the network,
-so they are not part of the hermetic gate.
+`.github/workflows/test.yml` has three jobs on every push/PR:
+- **test** — `typecheck` + `lint:noany` + `test:unit` (hermetic).
+- **integration** — `test:integration`: brings up the Greenfield
+  mock-SP docker stack and runs the full network suite (serving,
+  saving, access/retrieval, encrypted-course indexing + decrypt
+  round-trip, negative cases, a perf benchmark).
+- **contracts** — Foundry `forge build` + `forge test`.
+
+Flows B/C (real private chain / real testnet) stay opt-in/manual
+(env-gated) — they need funds or minutes, not part of per-push CI.
 
 ---
 

@@ -52,7 +52,7 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 | TC-09.5 | F | soulbound: transfer/approve/setApprovalForAll revert | `AccessPass.t.sol` |
 
 ## UC-10 mock / real-private / real-testnet
-| TC-10.1 | D | Flow A create→search→save→read vs mock SP | `tests/greenfield-integration.docker.test.js` |
+| TC-10.1 | D | Flow A network suite vs mock SP: serving; save+retrieval (nested/special-char keys, overwrite); **indexing** — encrypted-course manifest crawl, sidecar is ciphertext-free, decrypt round-trip over real HTTP; negatives (NOT_FOUND, BUCKET_EXISTS/409, INVALID_BUCKET_NAME, NO_OWNER); **benchmark** 25 save+read under bound. Runs in the CI **integration** job (`npm run test:integration`). | `tests/greenfield-integration.docker.test.js` |
 | TC-10.2 | D | Flow B private chain id `greenfield_9000-1`, blocks advance | `tests/greenfield-local.docker.test.js` |
 | TC-10.3 | D | Flow C real testnet publish + round-trip | `tests/greenfield-testnet.live.test.js` |
 | TC-10.4 | F | `forge build && forge test` + deploy smoke vs anvil | `tests/contracts.docker.test.js` |

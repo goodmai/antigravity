@@ -30,10 +30,26 @@ jobs:
       - name: Ban explicit `any`
         run: npm run lint:noany
 
-      - name: Unit / integration tests
-        run: npm test
-        # Docker-gated suites (Flow A/B/C) auto-skip on the runner unless
-        # explicitly enabled; the hermetic suite always runs here.
+      - name: Hermetic unit suite (no docker / no network)
+        run: npm run test:unit
+
+  integration:
+    name: Greenfield integration (docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm install --no-audit --no-fund
+
+      # ubuntu-latest ships Docker + compose; the Greenfield mock-SP
+      # stack comes up in-job. Covers serving, saving, access/retrieval,
+      # encrypted-course indexing + decrypt round-trip, negatives, bench.
+      - name: Greenfield network integration
+        run: npm run test:integration
 
   contracts:
     name: Solidity (Foundry)

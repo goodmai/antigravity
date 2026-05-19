@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'",
+    "test:integration": "vitest run tests/greenfield-integration.docker.test.js",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "typecheck": "tsc -p tsconfig.json",
