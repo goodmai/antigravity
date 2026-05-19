@@ -378,3 +378,4 @@ contract CourseMarketplaceTest is Test {
         mp.registerCourse(1 ether, bytes32("h"), "b", 0);
         vm.stopPrank();
     }
+}
