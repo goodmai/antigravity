@@ -165,4 +165,119 @@ contract CourseMarketplaceTest is Test {
         assertFalse(mp.hasCourseAccess(buyer, id)); // expired
         assertTrue(mp.hasCourseAccess(author, id)); // author still free
     }
+
+    // ── registerCourse / updateCourse ───────────────────────────────────
+    function test_registerCourse_rejectsZeroPrice() public {
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.registerCourse(0, bytes32("h"), "bkt", 0);
+    }
+
+    function test_registerCourse_incrementsIdAndStores() public {
+        uint256 id1 = _register(1 ether);
+        uint256 id2 = _register(2 ether);
+        assertEq(id2, id1 + 1);
+        (address a, uint96 p,,,, bool active) = mp.courses(id2);
+        assertEq(a, author);
+        assertEq(p, 2 ether);
+        assertTrue(active);
+    }
+
+    function test_updateCourse_authorCanRepriceAndToggle() public {
+        uint256 id = _register(1 ether);
+        vm.prank(author);
+        mp.updateCourse(id, 3 ether, false);
+        (, uint96 p,,,, bool active) = mp.courses(id);
+        assertEq(p, 3 ether);
+        assertFalse(active);
+    }
+
+    function test_updateCourse_rejectsNonAuthorAndZeroPrice() public {
+        uint256 id = _register(1 ether);
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotAuthor.selector);
+        mp.updateCourse(id, 2 ether, true);
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.updateCourse(id, 0, true);
+    }
+
+    function test_purchase_inactiveCourseReverts() public {
+        uint256 id = _register(1 ether);
+        vm.prank(author);
+        mp.updateCourse(id, 1 ether, false);
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.Inactive.selector);
+        mp.purchase{value: 1 ether}(id);
+    }
+
+    function test_purchase_revertsWhenAccessPassUnset() public {
+        CourseMarketplace fresh = new CourseMarketplace(address(treasury), w3ext);
+        vm.prank(author);
+        uint256 id = fresh.registerCourse(1 ether, bytes32("h"), "b", 0);
+        vm.deal(buyer, 1 ether);
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.AccessPassUnset.selector);
+        fresh.purchase{value: 1 ether}(id);
+    }
+
+    // ── withdraw ────────────────────────────────────────────────────────
+    function test_withdraw_nothingToWithdrawReverts() public {
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NothingToWithdraw.selector);
+        mp.withdraw();
+    }
+
+    // ── quote rounding ──────────────────────────────────────────────────
+    function test_quote_oddPrice_remainderGoesToAuthor() public view {
+        (uint256 p, uint256 w, uint256 a) = mp.quote(999);
+        assertEq(p, 199); // floor(999*0.2)
+        assertEq(w, 199);
+        assertEq(a, 601); // 999 - 398, remainder to author
+        assertEq(p + w + a, 999);
+    }
+
+    // ── Ownable2Step ────────────────────────────────────────────────────
+    function test_ownable2step_handover() public {
+        address newOwner = makeAddr("newOwner");
+        mp.transferOwnership(newOwner); // owner == address(this)
+        vm.prank(newOwner);
+        mp.acceptOwnership();
+        // old owner can no longer setParams
+        vm.expectRevert(CourseMarketplace.NotOwner.selector);
+        mp.setParams(1000, 1000, address(treasury), w3ext);
+        vm.prank(newOwner);
+        mp.setParams(1000, 1000, address(treasury), w3ext); // ok
+    }
+
+    function test_ownable2step_negatives() public {
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotOwner.selector);
+        mp.transferOwnership(buyer);
+        mp.transferOwnership(makeAddr("pending"));
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotPendingOwner.selector);
+        mp.acceptOwnership();
+    }
+
+    // ── setAccessPass / setParams access ────────────────────────────────
+    function test_setAccessPass_isOneShot() public {
+        vm.expectRevert(CourseMarketplace.AccessPassAlreadySet.selector);
+        mp.setAccessPass(address(pass)); // already set in setUp
+    }
+
+    function test_setAccessPass_zeroAndOnlyOwner() public {
+        CourseMarketplace fresh = new CourseMarketplace(address(treasury), w3ext);
+        vm.expectRevert(CourseMarketplace.ZeroAddress.selector);
+        fresh.setAccessPass(address(0));
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotOwner.selector);
+        fresh.setAccessPass(address(pass));
+    }
+
+    function test_setParams_onlyOwner() public {
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotOwner.selector);
+        mp.setParams(1000, 1000, address(treasury), w3ext);
+    }
 }

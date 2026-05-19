@@ -42,7 +42,7 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 
 ## UC-08 governance
 | TC-08.1 | F | bps bounded (per-cut limit, zero-addr) | `CourseMarketplace.t.sol` |
-| TC-08.2 | F | Treasury withdraw owner-only | `Treasury.t.sol` *(spec)* |
+| TC-08.2 | F | Treasury withdraw owner-only (full matrix below) | `Treasury.t.sol` |
 
 ## UC-09 tamper/abuse
 | TC-09.1 | U | tampered ciphertext / meta / relocated DEK → `DECRYPT_FAILED` | `tests/crypto-envelope.test.js` (3,5) |
@@ -63,9 +63,22 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 
 ---
 
+### Foundry coverage — positive + negative (added)
+
+| TC | Type | Assertion | Where |
+|----|------|-----------|-------|
+| TC-08.2 | F | Treasury: owner-only withdraw; zero/overdraw revert; failing recipient → funds safe; full + partial balance withdrawable (no frozen funds) | `Treasury.t.sol` |
+| TC-08.3 | F | `setParams` onlyOwner; `setAccessPass` one-shot / zero / onlyOwner | `CourseMarketplace.t.sol` |
+| TC-08.4 | F | Ownable2Step: handover positive; non-owner transfer → `NotOwner`; non-pending accept → `NotPendingOwner` | `CourseMarketplace.t.sol` |
+| TC-04.5 | F | `registerCourse` rejects zero price; id increments + stored; `updateCourse` author repcice/toggle, non-author → `NotAuthor`, zero → `BadPrice` | `CourseMarketplace.t.sol` |
+| TC-04.6 | F | `purchase` reverts `Inactive` (toggled off) and `AccessPassUnset` (pass not wired) | `CourseMarketplace.t.sol` |
+| TC-04.7 | F | `quote` odd price → remainder to author, Σ == price | `CourseMarketplace.t.sol` |
+| TC-07.3 | F | `withdraw` with nothing pending → `NothingToWithdraw` | `CourseMarketplace.t.sol` |
+| TC-03.3 | F | AccessPass `setMarketplace` zero/non-owner revert; `mint` zero recipient → `ZeroAddress`; owner/course/expiry mappings recorded | `AccessPass.t.sol` |
+
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs
 every unit-testable backend → `tests/greenfield-backend-contract.test.js`.
 
-**Status:** U = green in `npm test` (320 pass / 9 skip). D/F = run in
+**Status:** U = green in `npm test` (321 pass / 9 skip). D/F = run in
 their Docker/Foundry flow; not part of the hermetic gate (honest
 verification boundary, see README §3).

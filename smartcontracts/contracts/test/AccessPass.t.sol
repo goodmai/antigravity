@@ -80,4 +80,27 @@ contract AccessPassTest is Test {
         pass.mint(alice, 7, uint64(block.timestamp + 1 days));
         assertTrue(pass.hasAccess(alice, 7));
     }
+
+    function test_setMarketplace_rejectsZeroAndNonOwner() public {
+        AccessPass fresh = new AccessPass(); // owner == address(this)
+        vm.expectRevert(AccessPass.ZeroAddress.selector);
+        fresh.setMarketplace(address(0));
+        vm.prank(makeAddr("notOwner"));
+        vm.expectRevert(AccessPass.NotOwner.selector);
+        fresh.setMarketplace(mp);
+    }
+
+    function test_mint_rejectsZeroRecipient() public {
+        vm.prank(mp);
+        vm.expectRevert(AccessPass.ZeroAddress.selector);
+        pass.mint(address(0), 1, 0);
+    }
+
+    function test_mappings_ownerAndCourseRecorded() public {
+        vm.prank(mp);
+        uint256 id = pass.mint(alice, 42, 0);
+        assertEq(pass.ownerOf(id), alice);
+        assertEq(pass.courseOf(id), 42);
+        assertEq(pass.expiryOf(alice, 42), 0); // perpetual
+    }
 }

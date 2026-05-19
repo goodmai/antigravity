@@ -74,4 +74,14 @@ contract TreasuryTest is Test {
         treasury.withdraw(sink, 1 ether);
         assertEq(address(treasury).balance, 0);
     }
+
+    function test_partialWithdraw_leavesRemainder() public {
+        treasury.fund{value: 4 ether}();
+        vm.prank(gov);
+        treasury.withdraw(sink, 1.5 ether);
+        assertEq(sink.balance, 1.5 ether);
+        assertEq(address(treasury).balance, 2.5 ether); // not frozen
+        // totalReceived is cumulative, not balance
+        assertEq(treasury.totalReceived(), 4 ether);
+    }
 }
