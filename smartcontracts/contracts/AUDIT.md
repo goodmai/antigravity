@@ -17,8 +17,9 @@ shanghai` (BSC-safe: без допущений Cancun/transient storage).
 
 ### CourseMarketplace
 - 🟢 **CEI + reentrancy**: `purchase`/`withdraw` — checks→effects→
-  interactions, `nonReentrant`, pull-payments (author/w3ext), push
-  только на фиксированный `treasury`. Реентрант-тест зелёный (spec).
+  interactions, `nonReentrant` (custom `error Reentrancy()`), **единый
+  pull** (author/w3ext/treasury), zero push в `purchase`. Реентрант-тест
+  зелёный (spec).
 - 🟢 **Сплит**: `protocolCut+w3extFee+authorAmount == price` (fuzz),
   bps совпадают с off-chain `lit-pricing.js` (2000/2000), остаток —
   автору. Bounded bps (`MAX_BPS_EACH`, сумма ≤ 100 %).
@@ -30,11 +31,14 @@ shanghai` (BSC-safe: без допущений Cancun/transient storage).
   `purchase` нерабочим для курса. Добавлены `MAX_DURATION (~100 лет)` +
   `error BadDuration`; `0`/`DURATION_PERPETUAL` — безопасный sentinel
   (expiry 0, без сложения). Тест `test_registerCourse_rejectsOverlongDuration`.
-- 🟡 **`treasury` push-DoS через governance**: если `setParams`
-  установит `treasury` = контракт, ревертящий на приём BNB, `purchase`
-  будет ревертить (DoS продаж). Принято: `treasury` — governance-trusted
-  (Ownable2Step), не пользовательский ввод; задокументировано как
-  доверительное допущение. Митигация на будущее — pull и для treasury.
+- 🟡→✅ **`treasury` push-DoS** (исправлено, growth #2): был
+  единственный push (`treasury.call{value}` в `purchase`); реверт-
+  treasury мог за-DoS-ить все продажи. Теперь treasury кредитуется в
+  `pendingWithdrawals` как author/w3ext (**единый pull**), в `purchase`
+  push отсутствует вовсе. Treasury забирает через
+  `Treasury.collectFrom(marketplace)`. Тесты:
+  `test_revertingTreasuryDoesNotBlockPurchase`,
+  `test_collectFrom_pullsAndCredits`.
 - 🟡 **`updateCourse` не меняет `bucket`/`contentHash`/`accessDuration`**:
   нельзя ротировать контент/продлить срок существующего курса. By
   design v1 (новый курс = новый bucket/MK). Зафиксировано.
@@ -156,3 +160,8 @@ trust), anvil-ключ в compose (ops/doc), передача ownership на м�
   `tests/sdk-adapters.shape.test.js` пинит call-shape
   `@lit-protocol`/`@bnb-chain` (ловит C1-класс: регистр `offchainauth`,
   `signTypedDataCallback`, EDDSA delegate-auth) без сети.
+- **#2 — единый pull (последний push убран)**: `purchase` больше не
+  пушит на `treasury`; все три (`author`/`w3ext`/`treasury`) — pull.
+  Реверт-treasury не блокирует продажи. Снят 🟡 push-DoS.
+- **#8 — кастомная ошибка реентранси**: `require(_lock==1,"REENTRANCY")`
+  → `error Reentrancy()` (газ + единый стиль custom-error).

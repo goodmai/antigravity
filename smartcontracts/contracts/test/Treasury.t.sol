@@ -11,6 +11,16 @@ contract RejectEth {
     }
 }
 
+/// Pull-payment source stub: withdraw() pays the caller its balance.
+contract MpStub {
+    receive() external payable {}
+
+    function withdraw() external {
+        (bool ok,) = msg.sender.call{value: address(this).balance}("");
+        require(ok, "send");
+    }
+}
+
 contract TreasuryTest is Test {
     Treasury treasury;
     address gov;
@@ -83,5 +93,19 @@ contract TreasuryTest is Test {
         assertEq(address(treasury).balance, 2.5 ether); // not frozen
         // totalReceived is cumulative, not balance
         assertEq(treasury.totalReceived(), 4 ether);
+    }
+
+    function test_collectFrom_pullsAndCredits() public {
+        MpStub mp = new MpStub();
+        (bool ok,) = address(mp).call{value: 2 ether}("");
+        assertTrue(ok);
+        treasury.collectFrom(address(mp)); // permissionless pull
+        assertEq(address(treasury).balance, 2 ether);
+        assertEq(treasury.totalReceived(), 2 ether); // landed via receive()
+    }
+
+    function test_collectFrom_rejectsZeroAddress() public {
+        vm.expectRevert(Treasury.ZeroAddress.selector);
+        treasury.collectFrom(address(0));
     }
 }

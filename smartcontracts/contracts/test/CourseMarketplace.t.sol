@@ -31,6 +31,9 @@ contract ReenterAuthor {
     }
 }
 
+/// No payable receive/fallback — any ETH transfer to it reverts.
+contract RejectEth {}
+
 contract CourseMarketplaceTest is Test {
     CourseMarketplace mp;
     AccessPass pass;
@@ -71,15 +74,40 @@ contract CourseMarketplaceTest is Test {
         assertEq(p + w + a, uint256(price)); // no wei created/lost
     }
 
-    function test_purchase_happyPath_creditsPullAndPushesTreasury() public {
+    function test_purchase_happyPath_creditsAllPull() public {
         uint256 id = _register(1 ether);
         vm.prank(buyer);
         mp.purchase{value: 1 ether}(id);
 
         assertTrue(pass.hasAccess(buyer, id));
-        assertEq(treasury.totalReceived(), 0.2 ether);
+        // no push during purchase — all three are pull-credited
+        assertEq(treasury.totalReceived(), 0);
+        assertEq(mp.pendingWithdrawals(address(treasury)), 0.2 ether);
         assertEq(mp.pendingWithdrawals(author), 0.6 ether);
         assertEq(mp.pendingWithdrawals(w3ext), 0.2 ether);
+
+        // Treasury pulls its cut; it lands via receive()
+        treasury.collectFrom(address(mp));
+        assertEq(treasury.totalReceived(), 0.2 ether);
+        assertEq(mp.pendingWithdrawals(address(treasury)), 0);
+    }
+
+    function test_revertingTreasuryDoesNotBlockPurchase() public {
+        // a treasury that rejects ETH must NOT be able to DoS sales,
+        // because purchase no longer pushes — it only credits pull.
+        RejectEth badTreasury = new RejectEth();
+        CourseMarketplace mp2 =
+            new CourseMarketplace(address(badTreasury), w3ext);
+        AccessPass pass2 = new AccessPass();
+        pass2.setMarketplace(address(mp2));
+        mp2.setAccessPass(address(pass2));
+        vm.prank(author);
+        uint256 id = mp2.registerCourse(1 ether, bytes32("h"), "b", 0);
+        vm.deal(buyer, 1 ether);
+        vm.prank(buyer);
+        mp2.purchase{value: 1 ether}(id); // succeeds despite bad treasury
+        assertTrue(pass2.hasAccess(buyer, id));
+        assertEq(mp2.pendingWithdrawals(address(badTreasury)), 0.2 ether);
     }
 
     function test_purchase_wrongPriceReverts() public {
@@ -311,7 +339,8 @@ contract CourseMarketplaceTest is Test {
         vm.prank(buyer);
         mp.purchase{value: 1 ether}(id);
         assertTrue(mp.hasCourseAccess(buyer, id));
-        assertEq(treasury.totalReceived(), 0.4 ether); // paid twice (2×0.2)
+        // pull-credited twice (2×0.2); collected on demand
+        assertEq(mp.pendingWithdrawals(address(treasury)), 0.4 ether);
     }
 
     function test_cannotRepurchaseBeforeExpiry() public {

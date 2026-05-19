@@ -40,7 +40,8 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 
 ## UC-07 author withdraw (pull)
 | TC-07.1 | F | pull `withdraw` pays exact amount, zeroes pending | `CourseMarketplace.t.sol` |
-| TC-07.2 | F | reentrant `withdraw` blocked, no double-pay | `CourseMarketplace.t.sol` |
+| TC-07.2 | F | reentrant `withdraw` blocked (custom `Reentrancy`), no double-pay | `CourseMarketplace.t.sol` |
+| TC-07.4 | F | unified pull: `purchase` credits treasury/author/w3ext, **no push**; reverting treasury cannot DoS `purchase`; `Treasury.collectFrom` pulls the cut | `CourseMarketplace.t.sol`, `Treasury.t.sol` |
 
 ## UC-08 governance
 | TC-08.1 | F | bps bounded (per-cut limit, zero-addr) | `CourseMarketplace.t.sol` |

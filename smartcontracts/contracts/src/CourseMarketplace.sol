@@ -26,6 +26,7 @@ contract CourseMarketplace is ICourseMarketplace {
     error AccessPassUnset();
     error AccessPassAlreadySet();
     error BadDuration();
+    error Reentrancy();
 
     uint16 public constant BPS_DENOMINATOR = 10_000;
     uint16 public constant MAX_BPS_EACH = 3_000;
@@ -55,7 +56,7 @@ contract CourseMarketplace is ICourseMarketplace {
     }
 
     modifier nonReentrant() {
-        require(_lock == 1, "REENTRANCY");
+        if (_lock != 1) revert Reentrancy();
         _lock = 2;
         _;
         _lock = 1;
@@ -194,10 +195,15 @@ contract CourseMarketplace is ICourseMarketplace {
         (uint256 protocolCut, uint256 w3extFee, uint256 authorAmount) = quote(msg.value);
 
         // ── Effects (before any external call) ───────────────────────────
+        // Uniform pull-payments: author, w3ext AND treasury are all
+        // credited here and pull via withdraw(). No value is pushed during
+        // purchase, so a hostile/reverting treasury can no longer DoS
+        // sales (audit growth #2 — last push removed).
         pendingWithdrawals[c.author] += authorAmount;
         pendingWithdrawals[w3ext] += w3extFee;
+        pendingWithdrawals[treasury] += protocolCut;
 
-        // ── Interactions ─────────────────────────────────────────────────
+        // ── Interactions (only the trusted, set-once AccessPass) ─────────
         // 0 or the PERPETUAL sentinel ⇒ never expires (AccessPass expiry
         // 0). Special-casing the sentinel also avoids a uint64 overflow
         // on `block.timestamp + accessDuration`.
@@ -205,9 +211,7 @@ contract CourseMarketplace is ICourseMarketplace {
             || c.accessDuration == DURATION_PERPETUAL)
             ? 0
             : uint64(block.timestamp) + c.accessDuration;
-        accessPass.mint(msg.sender, courseId, expiry); // trusted, set-once
-        (bool ok,) = treasury.call{value: protocolCut}(""); // fixed address
-        if (!ok) revert TransferFailed();
+        accessPass.mint(msg.sender, courseId, expiry);
 
         emit CoursePurchased(
             courseId, msg.sender, msg.value, protocolCut, w3extFee, authorAmount

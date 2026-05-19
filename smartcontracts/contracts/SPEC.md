@@ -129,7 +129,7 @@ IAccessPass public accessPass;
   2. **Effects**: расчёт сплита (см. §4), `pendingWithdrawals[author] +=
      authorAmount`, `pendingWithdrawals[w3ext] += w3extFee`.
   3. **Interactions**: `accessPass.mint(msg.sender, courseId)`;
-     `treasury.call{value: protocolCut}("")` (проверка success);
+     `pendingWithdrawals[treasury] += protocolCut` (pull, как author/w3ext);
      событие `CoursePurchased`.
   > Внешний вызов (mint) идёт **после** обновления состояния;
   > `nonReentrant` + отсутствие выплат push автору в этой же tx.
@@ -150,7 +150,7 @@ IAccessPass public accessPass;
 Цена курса `P`. При `purchase`:
 
 ```
-protocolCut = P * treasuryBps / 10000      // 20 % → Treasury (push, fixed addr)
+protocolCut = P * treasuryBps / 10000      // 20 % → Treasury (pull)
 w3extFee    = P * w3extBps    / 10000      // 20 % → w3ext   (pull)
 authorAmt   = P - protocolCut - w3extFee   // остаток → author (pull)
 ```
@@ -161,8 +161,10 @@ authorAmt   = P - protocolCut - w3extFee   // остаток → author (pull)
   `protocolCut + w3extFee + authorAmt == P`.
 - `bps` совпадают с `DEFAULT_TREASURY_BPS` / `DEFAULT_W3EXT_FEE_BPS`
   (= 2000) из `lit-pricing.js` — единая политика on-/off-chain.
-- Treasury — фиксированный известный адрес → push безопасен; автор и
-  w3ext — pull (push автору = вектор reentrancy/DoS, аудит 3.3).
+- **Единый pull**: author, w3ext И treasury кредитуются в
+  `pendingWithdrawals` и забирают через `withdraw()`; в `purchase` нет
+  ни одного push → реверт-treasury не может за-DoS-ить продажи.
+  Treasury тянет свой кат через `Treasury.collectFrom(marketplace)`.
 
 ---
 
@@ -228,7 +230,7 @@ Trade-off (зафиксировано): cross-chain на пользовател�
 | 3.1 Cross-chain forgery | Только офиц. `CrossChain`/Hub; проверка `msg.sender`, `srcChainId`, sequence; идемпотентность |
 | 4.3 Failover | `FailureAck`→refund, явный retry |
 | §2 Custom crypto | Нет: Lit MPC + WebCrypto AES, контракт крипту не делает |
-| DoS push-выплатой | Pull-pattern для author/w3ext; Treasury — фиксированный адрес |
+| DoS push-выплатой | **Единый pull** для author/w3ext/treasury; в `purchase` push отсутствует |
 | Param-захват | `Ownable2Step`, bounded bps (≤ лимит, сумма ≤ 100 %), события |
 
 ### 7.1 Ответ на аудит компонентов (5.2 / 5.3)
