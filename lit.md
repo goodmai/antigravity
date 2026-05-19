@@ -329,7 +329,7 @@ protocol cut on sales.
 Implemented as pure, deterministic BigInt math (integer minor units,
 basis-points percentages, no float, every split re-sums exactly to its
 input) in **`smartcontracts/buckets/lit-pricing.js`**, fully TDD'd by
-**`tests/lit-pricing.test.js`** (15 tests).
+**`tests/lit-pricing.test.js`**.
 
 ### Defaults
 

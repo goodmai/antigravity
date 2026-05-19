@@ -88,6 +88,6 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs
 every unit-testable backend → `tests/greenfield-backend-contract.test.js`.
 
-**Status:** U = green in `npm test` (321 pass / 9 skip). D/F = run in
+**Status:** U = green via `npm run test:unit` (exact counts: run it; docs intentionally don't embed numbers — they rot). D/F = run in
 their Docker/Foundry flow; not part of the hermetic gate (honest
 verification boundary, see README §3).

@@ -23,8 +23,8 @@ frontend integration test.
 | `smartcontracts/integration/mock-sp.mjs` | Deterministic mock Greenfield SP gateway. |
 | `smartcontracts/greenfield-local/` | Flow B — **real** local PRIVATE Greenfield network (Dockerfile + compose), clean state. |
 | `smartcontracts/greenfield-testnet/` | Flow C — **real** PUBLIC Greenfield testnet writer (SDK + compose). |
-| `tests/greenfield-buckets.test.js` | 26 unit tests for the core module. |
-| `tests/greenfield-ui.test.js` | 5 jsdom tests for the UI glue. |
+| `tests/greenfield-buckets.test.js` | Unit tests for the core module. |
+| `tests/greenfield-ui.test.js` | jsdom tests for the UI glue. |
 | `tests/greenfield-integration.docker.test.js` | Flow A integration test (auto-skips without Docker). |
 | `tests/greenfield-local.docker.test.js` | Flow B test — boots the real private chain, asserts consensus (opt-in). |
 | `tests/greenfield-testnet.live.test.js` | Flow C test — real testnet bucket+object round-trip (opt-in). |
@@ -69,9 +69,9 @@ The work followed strict red → green:
 
 1. **Red** — `tests/greenfield-buckets.test.js` written first; suite fails
    (module absent).
-2. **Green** — `greenfield-core.js` implemented until 26/26 pass.
+2. **Green** — `greenfield-core.js` implemented until the suite is green.
 3. **Red** — `tests/greenfield-ui.test.js` written for the DOM glue.
-4. **Green** — `greenfield-ui.js` implemented until 5/5 pass.
+4. **Green** — `greenfield-ui.js` implemented until the suite is green.
 5. **Integration** — `tests/greenfield-integration.docker.test.js` +
    docker-compose stack; verified by running the mock SP under Node and
    driving the *real shipped* client through the full
@@ -82,7 +82,7 @@ Run it all:
 
 ```bash
 npm install
-npm test                 # 196 unit/UI tests pass, docker suite skips
+npm run test:unit        # hermetic unit/UI suite (docker/live excluded)
 ```
 
 ---
@@ -255,7 +255,7 @@ Three placeholder courses are linked from the main page; replace the
   `encryptCourseBucket` **rewrites the manifest** so each entry points at
   the stored `.enc` key + its `.lit.json` sidecar + `dataToEncryptHash`
   (lit.md schema) — indexers resolve real objects, never plaintext keys.
-  TDD'd by `tests/course-template.test.js` (12 tests).
+  TDD'd by `tests/course-template.test.js`.
 
 ### Growth points addressed (TDD)
 
@@ -264,7 +264,7 @@ Three placeholder courses are linked from the main page; replace the
   + `lit-pricing` + the `greenfield-core` client: `planCoursePublish`
   (pure: build → encrypt → w3ext save settlement), `publishCourse`
   (createBucket + saveObject every object, fail-fast), `quoteCourseSale`
-  (20% → treasury). `tests/course-publish.test.js` (4 tests).
+  (20% → treasury). `tests/course-publish.test.js`.
 - **Manifest correctness** — see above; consistency asserted in tests.
 - **Pagination** — `listBuckets` now follows `next_continuation_token`
   across pages (bounded to 1000 pages, no infinite loop);
@@ -294,7 +294,7 @@ Three placeholder courses are linked from the main page; replace the
     `createWalletBackend({ provider, makeClient })` resolves the account
     via the user's EIP-1193 wallet and delegates the protocol to an
     injected client (pure, strict-typed, zero-`any`, TDD'd by
-    `tests/greenfield-wallet-backend.test.js`, 7 tests: connect-once
+    `tests/greenfield-wallet-backend.test.js`: connect-once
     caching, `NO_WALLET` / `USER_REJECTED` / `NO_ACCOUNTS` /
     `NO_WALLET_CLIENT`). The real client
     (`greenfield-wallet-sdk.js`, integration glue, CDN-loaded SDK +
@@ -412,7 +412,7 @@ loop the pipeline sets up:
   greenfield-core read client (no signer needed) then decrypts.
 
 Pure, strict-typed, zero-`any`, TDD'd by `tests/course-read.test.js`
-(7 tests incl. a real AES round-trip with `node:crypto`).
+(incl. a real AES round-trip with `node:crypto`).
 
 > **Honest status (audit A1/A4).** Lit *orchestration* — publish
 > (`course-publish` + `lit-access`) and read (`course-read`) — is real,

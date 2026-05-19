@@ -154,10 +154,23 @@ run_workflow securcheck
 ## 🧪 Testing — Greenfield Smart Contracts (branch `claude/greenfield-smartcontracts-setup-2HS95`)
 
 This branch adds the **Greenfield bucket console + Lit-gated encrypted
-courses + Solidity settlement layer**. Full design lives in
-[`GREENFIELD.md`](./GREENFIELD.md) / [`lit.md`](./lit.md) /
-[`smartcontracts/contracts/SPEC.md`](./smartcontracts/contracts/SPEC.md);
-all user/test cases in [`uc.md`](./uc.md) / [`tc.md`](./tc.md).
+courses + Solidity settlement layer**.
+
+**📚 Documentation map** (single source of truth per topic):
+
+| Doc | Topic |
+|-----|-------|
+| [`GREENFIELD.md`](./GREENFIELD.md) | Bucket console, the 3 Greenfield flows (mock / private / testnet), backends, CI layout |
+| [`lit.md`](./lit.md) | Lit Protocol access-control design (encrypt → store → gated decrypt) |
+| [`crypto.md`](./crypto.md) | Full crypto map — protocols, encrypt/decrypt, Alice/Bob/Charlie, diagrams |
+| [`smartcontracts/contracts/SPEC.md`](./smartcontracts/contracts/SPEC.md) | On-chain settlement ТЗ (marketplace / access pass / treasury) |
+| [`smartcontracts/contracts/AUDIT.md`](./smartcontracts/contracts/AUDIT.md) | Contracts audit — logic / deploy / mint, findings & status |
+| [`uc.md`](./uc.md) / [`tc.md`](./tc.md) | Use cases / test cases mapped to suites |
+
+> **Counts are not embedded in docs** — they rot. The authoritative test
+> count is whatever `npm run test:unit` (hermetic) reports; integration
+> and Solidity counts come from the CI `integration` / `contracts` jobs.
+> Docs describe *what* is covered, not *how many*.
 
 ### 1. Default suite (fast, hermetic — no Docker, no network)
 
@@ -165,7 +178,7 @@ all user/test cases in [`uc.md`](./uc.md) / [`tc.md`](./tc.md).
 npm install
 npm run typecheck      # tsc --strict --checkJs over the pure modules → 0 errors
 npm run lint:noany     # bans explicit `any` in the strict modules
-npm run test:unit      # hermetic vitest (docker/live specs EXCLUDED) → 321 pass
+npm run test:unit      # hermetic vitest (docker/live specs EXCLUDED)
 npm test               # everything; docker/live specs self-skip without Docker
 ```
 
