@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 /// @title IGreenfieldCourseBucket — OPTIONAL cross-chain module (SPEC §6)
 /// @notice Only needed if Greenfield bucket lifecycle must be managed

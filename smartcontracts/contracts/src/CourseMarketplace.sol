@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import {ICourseMarketplace} from "./interfaces/ICourseMarketplace.sol";
 import {IAccessPass} from "./interfaces/IAccessPass.sol";
@@ -25,6 +25,7 @@ contract CourseMarketplace is ICourseMarketplace {
     error TransferFailed();
     error AccessPassUnset();
     error AccessPassAlreadySet();
+    error BadDuration();
 
     uint16 public constant BPS_DENOMINATOR = 10_000;
     uint16 public constant MAX_BPS_EACH = 3_000;
@@ -37,6 +38,9 @@ contract CourseMarketplace is ICourseMarketplace {
     uint64 public constant DURATION_MONTH = 30 days;
     uint64 public constant DURATION_YEAR = 365 days;
     uint64 public constant DURATION_PERPETUAL = type(uint64).max;
+    // Upper bound for finite durations — keeps `block.timestamp +
+    // accessDuration` (uint64) far from overflow (audit hardening).
+    uint64 public constant MAX_DURATION = 36_500 days; // ~100 years
 
     // ── Ownable2Step ─────────────────────────────────────────────────────
     address public owner;
@@ -124,6 +128,12 @@ contract CourseMarketplace is ICourseMarketplace {
         uint64 accessDuration
     ) external returns (uint256 courseId) {
         if (price == 0) revert BadPrice();
+        // 0 / PERPETUAL = never expires; any finite duration must stay
+        // within MAX_DURATION so purchase() can't overflow uint64.
+        if (
+            accessDuration != 0 && accessDuration != DURATION_PERPETUAL
+                && accessDuration > MAX_DURATION
+        ) revert BadDuration();
         courseId = nextCourseId++;
         courses[courseId] = Course({
             author: msg.sender,

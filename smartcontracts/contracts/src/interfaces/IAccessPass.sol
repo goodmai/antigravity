@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 /// @title IAccessPass — soulbound course access ticket
 /// @notice Non-transferable on purpose: Lit ACC checks `hasAccess`, not a

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {CourseMarketplace} from "../src/CourseMarketplace.sol";
@@ -366,4 +366,15 @@ contract CourseMarketplaceTest is Test {
         vm.warp(block.timestamp + 100 * 365 days); // century later
         assertTrue(mp.hasCourseAccess(buyer, id));
     }
-}
+
+    // ── Audit hardening: finite duration bounded (no overflow DoS) ──────
+    function test_registerCourse_rejectsOverlongDuration() public {
+        vm.startPrank(author);
+        vm.expectRevert(CourseMarketplace.BadDuration.selector);
+        mp.registerCourse(1 ether, bytes32("h"), "b", mp.MAX_DURATION() + 1);
+        // exactly MAX_DURATION is allowed; PERPETUAL still allowed
+        mp.registerCourse(1 ether, bytes32("h"), "b", mp.MAX_DURATION());
+        mp.registerCourse(1 ether, bytes32("h"), "b", mp.DURATION_PERPETUAL());
+        mp.registerCourse(1 ether, bytes32("h"), "b", 0);
+        vm.stopPrank();
+    }

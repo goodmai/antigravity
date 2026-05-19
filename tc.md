@@ -78,6 +78,7 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 | TC-09.6 | F | **No NFT** → no access; course isolation (pass≠other course); expiry boundary (valid at `=exp`, invalid at `>exp`); past-expiry mint = no access then renewable; ANY holder's pass (incl. owner-like) is soulbound; `ownerOf` of nonexistent = 0 | `AccessPass.t.sol` |
 | TC-09.7 | F | marketplace: `hasCourseAccess` false w/o purchase & for nonexistent course (no revert); expired client loses access then can re-purchase (treasury paid 2×); cannot re-purchase before expiry → `AlreadyOwned` | `CourseMarketplace.t.sol` |
 | TC-04.8 | F | duration presets: HOUR/WEEK/MONTH/YEAR/PERPETUAL constant values; HOUR expires after 1h; YEAR valid <365d / expired after; PERPETUAL (`uint64.max`) → expiry 0, never expires, no overflow (century warp) | `CourseMarketplace.t.sol` |
+| TC-04.9 | F | audit hardening: finite `accessDuration > MAX_DURATION` → `BadDuration`; `MAX_DURATION`/`PERPETUAL`/`0` allowed (no overflow-DoS) | `CourseMarketplace.t.sol` |
 
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs
 every unit-testable backend → `tests/greenfield-backend-contract.test.js`.

@@ -71,13 +71,13 @@ src/
     IAccessPass.sol
     ITreasury.sol
     IGreenfieldCourseBucket.sol   (опц., cross-chain)
-  AccessPass.sol          — soulbound ERC-721, минтит только Marketplace
+  AccessPass.sol          — soulbound access registry (НЕ ERC-721; минтит только Marketplace)
   Treasury.sol            — приём/вывод протокол-ката (governance)
   CourseMarketplace.sol    — реестр курсов + покупка + сплит (CEI+guard)
   GreenfieldCourseBucket.sol — опц. обёртка над офиц. BucketHub/CrossChain
 ```
 
-### 3.1 AccessPass (soulbound ERC-721)
+### 3.1 AccessPass (soulbound access registry, не ERC-721)
 - `mint(to, courseId, expiry)` — только `marketplace`. `expiry` —
   unix-ts, `0` = бессрочно. Ре-минт после истечения разрешён (продление).
 - Переводы запрещены: `transferFrom`/`safeTransferFrom`/`approve`/
