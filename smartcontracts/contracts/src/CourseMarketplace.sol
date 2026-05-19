@@ -29,6 +29,15 @@ contract CourseMarketplace is ICourseMarketplace {
     uint16 public constant BPS_DENOMINATOR = 10_000;
     uint16 public constant MAX_BPS_EACH = 3_000;
 
+    // Named access-duration presets for `registerCourse` / `updateCourse`
+    // (seconds). DURATION_PERPETUAL is a sentinel → never expires (mapped
+    // to AccessPass expiry 0, overflow-safe). 0 is also perpetual.
+    uint64 public constant DURATION_HOUR = 1 hours;
+    uint64 public constant DURATION_WEEK = 7 days;
+    uint64 public constant DURATION_MONTH = 30 days;
+    uint64 public constant DURATION_YEAR = 365 days;
+    uint64 public constant DURATION_PERPETUAL = type(uint64).max;
+
     // ── Ownable2Step ─────────────────────────────────────────────────────
     address public owner;
     address public pendingOwner;
@@ -177,7 +186,11 @@ contract CourseMarketplace is ICourseMarketplace {
         pendingWithdrawals[w3ext] += w3extFee;
 
         // ── Interactions ─────────────────────────────────────────────────
-        uint64 expiry = c.accessDuration == 0
+        // 0 or the PERPETUAL sentinel ⇒ never expires (AccessPass expiry
+        // 0). Special-casing the sentinel also avoids a uint64 overflow
+        // on `block.timestamp + accessDuration`.
+        uint64 expiry = (c.accessDuration == 0
+            || c.accessDuration == DURATION_PERPETUAL)
             ? 0
             : uint64(block.timestamp) + c.accessDuration;
         accessPass.mint(msg.sender, courseId, expiry); // trusted, set-once

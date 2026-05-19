@@ -325,4 +325,45 @@ contract CourseMarketplaceTest is Test {
         mp.purchase{value: 1 ether}(id); // still valid → blocked
         vm.stopPrank();
     }
+
+    // ── Duration presets (hour / week / month / year / perpetual) ───────
+    function test_durationPresets_haveExpectedValues() public view {
+        assertEq(mp.DURATION_HOUR(), 3600);
+        assertEq(mp.DURATION_WEEK(), 7 * 24 * 3600);
+        assertEq(mp.DURATION_MONTH(), 30 * 24 * 3600);
+        assertEq(mp.DURATION_YEAR(), 365 * 24 * 3600);
+        assertEq(mp.DURATION_PERPETUAL(), type(uint64).max);
+    }
+
+    function _buyWith(uint64 duration) internal returns (uint256 id) {
+        vm.prank(author);
+        id = mp.registerCourse(1 ether, bytes32("h"), "bkt", duration);
+        vm.deal(buyer, 10 ether);
+        vm.prank(buyer);
+        mp.purchase{value: 1 ether}(id);
+    }
+
+    function test_preset_hour_expiresAfterAnHour() public {
+        uint256 id = _buyWith(mp.DURATION_HOUR());
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 3600 + 1);
+        assertFalse(mp.hasCourseAccess(buyer, id));
+    }
+
+    function test_preset_year_validWithinExpiresAfter() public {
+        uint256 id = _buyWith(mp.DURATION_YEAR());
+        vm.warp(block.timestamp + 364 days);
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 2 days); // now > 365 days
+        assertFalse(mp.hasCourseAccess(buyer, id));
+    }
+
+    function test_preset_perpetual_neverExpires_noOverflow() public {
+        uint256 id = _buyWith(mp.DURATION_PERPETUAL()); // uint64 max sentinel
+        // mapped to AccessPass expiry 0 (perpetual), no add → no overflow
+        assertEq(pass.expiryOf(buyer, id), 0);
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 100 * 365 days); // century later
+        assertTrue(mp.hasCourseAccess(buyer, id));
+    }
 }

@@ -101,7 +101,7 @@ struct Course {
   uint96  price;           // в wei BNB (или ERC-20 units)
   bytes32 contentHash;     // keccak256 манифеста/контента (целостность)
   string  bucket;          // Greenfield-бакет (public-read, ciphertext)
-  uint64  accessDuration;  // сек; 0 = бессрочно для покупателей
+  uint64  accessDuration;  // сек; 0 или DURATION_PERPETUAL = бессрочно
   bool    active;
 }
 mapping(uint256 => Course) public courses;
@@ -114,7 +114,10 @@ IAccessPass public accessPass;
 ```
 Функции (все внешние write — события + CEI):
 - `registerCourse(price, contentHash, bucket, accessDuration) →
-  courseId` — автор; `CourseRegistered`.
+  courseId` — автор; `CourseRegistered`. Пресеты длительности (public
+  constants): `DURATION_HOUR` (3600), `DURATION_WEEK`, `DURATION_MONTH`
+  (30д), `DURATION_YEAR` (365д), `DURATION_PERPETUAL` (`type(uint64).max`
+  → бессрочно, маппится в expiry 0, без overflow).
 - `hasCourseAccess(user, courseId) → bool` — **автор всегда имеет
   бесплатный доступ к своему контенту**, иначе (возможно
   ограниченный по времени) AccessPass. Именно это читает Lit ACC.
