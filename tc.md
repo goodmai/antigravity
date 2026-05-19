@@ -75,6 +75,8 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 | TC-04.7 | F | `quote` odd price → remainder to author, Σ == price | `CourseMarketplace.t.sol` |
 | TC-07.3 | F | `withdraw` with nothing pending → `NothingToWithdraw` | `CourseMarketplace.t.sol` |
 | TC-03.3 | F | AccessPass `setMarketplace` zero/non-owner revert; `mint` zero recipient → `ZeroAddress`; owner/course/expiry mappings recorded | `AccessPass.t.sol` |
+| TC-09.6 | F | **No NFT** → no access; course isolation (pass≠other course); expiry boundary (valid at `=exp`, invalid at `>exp`); past-expiry mint = no access then renewable; ANY holder's pass (incl. owner-like) is soulbound; `ownerOf` of nonexistent = 0 | `AccessPass.t.sol` |
+| TC-09.7 | F | marketplace: `hasCourseAccess` false w/o purchase & for nonexistent course (no revert); expired client loses access then can re-purchase (treasury paid 2×); cannot re-purchase before expiry → `AlreadyOwned` | `CourseMarketplace.t.sol` |
 
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs
 every unit-testable backend → `tests/greenfield-backend-contract.test.js`.

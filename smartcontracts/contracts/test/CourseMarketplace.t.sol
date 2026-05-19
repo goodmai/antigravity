@@ -280,4 +280,49 @@ contract CourseMarketplaceTest is Test {
         vm.expectRevert(CourseMarketplace.NotOwner.selector);
         mp.setParams(1000, 1000, address(treasury), w3ext);
     }
+
+    // ── Negative / edge: access without / expired NFT (marketplace) ─────
+    function test_hasCourseAccess_falseWithoutPurchase() public {
+        uint256 id = _register(1 ether);
+        assertFalse(mp.hasCourseAccess(buyer, id)); // never bought, no pass
+    }
+
+    function test_hasCourseAccess_nonexistentCourse_noRevertFalse() public view {
+        // course 0/999 never registered → author == address(0), no pass
+        assertFalse(mp.hasCourseAccess(buyer, 0));
+        assertFalse(mp.hasCourseAccess(buyer, 999));
+    }
+
+    function test_expiredClient_losesAccess_thenCanRepurchase() public {
+        vm.prank(author);
+        uint256 id =
+            mp.registerCourse(1 ether, bytes32("h"), "bkt", uint64(7 days));
+        vm.deal(buyer, 10 ether);
+
+        vm.prank(buyer);
+        mp.purchase{value: 1 ether}(id);
+        assertTrue(mp.hasCourseAccess(buyer, id));
+
+        vm.warp(block.timestamp + 7 days + 1);
+        assertFalse(mp.hasCourseAccess(buyer, id)); // expired
+        assertTrue(mp.hasCourseAccess(author, id)); // author still free
+
+        // expired ⇒ not AlreadyOwned ⇒ renewal purchase succeeds
+        vm.prank(buyer);
+        mp.purchase{value: 1 ether}(id);
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        assertEq(treasury.totalReceived(), 0.4 ether); // paid twice (2×0.2)
+    }
+
+    function test_cannotRepurchaseBeforeExpiry() public {
+        vm.prank(author);
+        uint256 id =
+            mp.registerCourse(1 ether, bytes32("h"), "bkt", uint64(30 days));
+        vm.deal(buyer, 10 ether);
+        vm.startPrank(buyer);
+        mp.purchase{value: 1 ether}(id);
+        vm.expectRevert(CourseMarketplace.AlreadyOwned.selector);
+        mp.purchase{value: 1 ether}(id); // still valid → blocked
+        vm.stopPrank();
+    }
 }

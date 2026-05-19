@@ -103,4 +103,59 @@ contract AccessPassTest is Test {
         assertEq(pass.courseOf(id), 42);
         assertEq(pass.expiryOf(alice, 42), 0); // perpetual
     }
+
+    // ── Negative / edge: access without / expired NFT ───────────────────
+    function test_noAccessWithoutNft() public view {
+        // never minted → no access at all
+        assertFalse(pass.hasAccess(alice, 1));
+        assertFalse(pass.hasAccess(address(0xCAFE), 999));
+    }
+
+    function test_courseIsolation_passDoesNotLeakAcrossCourses() public {
+        vm.prank(mp);
+        pass.mint(alice, 1, 0);
+        assertTrue(pass.hasAccess(alice, 1));
+        assertFalse(pass.hasAccess(alice, 2)); // different course
+    }
+
+    function test_expiryBoundary_validAtExpiryInvalidAfter() public {
+        uint64 exp = uint64(block.timestamp + 1000);
+        vm.prank(mp);
+        pass.mint(alice, 5, exp);
+        vm.warp(exp); // exactly at expiry → still valid (> only)
+        assertTrue(pass.hasAccess(alice, 5));
+        vm.warp(uint256(exp) + 1); // one second past → expired
+        assertFalse(pass.hasAccess(alice, 5));
+    }
+
+    function test_pastExpiryGrantsNoAccess_thenRenewable() public {
+        vm.warp(10_000);
+        vm.prank(mp);
+        pass.mint(alice, 5, uint64(9_000)); // expiry already in the past
+        assertFalse(pass.hasAccess(alice, 5));
+        // expired ⇒ re-mint (renewal) allowed, restores access
+        vm.prank(mp);
+        pass.mint(alice, 5, uint64(block.timestamp + 1000));
+        assertTrue(pass.hasAccess(alice, 5));
+    }
+
+    /// "НФТ владельца тоже не трансферабл": ANY holder's pass is soulbound,
+    /// including one minted to an author-like / owner address.
+    function test_anyHoldersPassIsSoulbound() public {
+        address holder = makeAddr("courseOwnerHolder");
+        vm.prank(mp);
+        uint256 id = pass.mint(holder, 3, 0);
+        vm.startPrank(holder);
+        vm.expectRevert(AccessPass.Soulbound.selector);
+        pass.transferFrom(holder, alice, id);
+        vm.expectRevert(AccessPass.Soulbound.selector);
+        pass.safeTransferFrom(holder, alice, id);
+        vm.expectRevert(AccessPass.Soulbound.selector);
+        pass.approve(alice, id);
+        vm.stopPrank();
+    }
+
+    function test_ownerOf_nonexistentTokenIsZero() public view {
+        assertEq(pass.ownerOf(99999), address(0));
+    }
 }
