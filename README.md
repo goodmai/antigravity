@@ -173,6 +173,13 @@ courses + Solidity settlement layer**.
 > and Solidity counts come from the CI `integration` / `contracts` jobs.
 > Docs describe *what* is covered, not *how many*.
 
+### 🔒 Роль Phala TEE (Trusted Execution Environment)
+
+Для работы децентрализованной криптографии в **Chipotle (Lit Protocol)** используется Phala TEE. Это изолированный анклав (аппаратная защищенная область памяти), который гарантирует конфиденциальность:
+- **Защита ключей:** Мастер-ключи (`DEK` / `PKP`) расшифровываются и хранятся исключительно внутри TEE. Ни оператор сервера, ни хостер не могут получить доступ к памяти анклава.
+- **Безопасное исполнение (Lit Actions):** Пользовательский JavaScript-код (Lit Actions) выполняется внутри V8-песочницы, изолированной в TEE.
+- **Локальная эмуляция:** В локальной среде (`e2e-full` профиль Docker Compose) мы используем `dstack-simulator` от Phala. Он эмулирует TEE-процессор, создавая Unix-сокет (`dstack.sock`), через который `lit-api-server` "доказывает" свою защищенность (Attestation).
+
 ### 1. THE main check — real-network E2E happy-path (no mocks)
 
 `tests/e2e-course-flow.live.test.js` + `smartcontracts/e2e/` is the

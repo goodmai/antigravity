@@ -35,6 +35,7 @@ services:
       - mainnet
       - test-local
       - test-devnet
+      - e2e-full
 
   mock-sp:
     image: node:22-alpine
@@ -98,6 +99,7 @@ services:
     profiles:
       - local
       - test-local
+      - e2e-full
 
   testnet-writer:
     image: node:22-bookworm
@@ -186,6 +188,7 @@ services:
       retries: 5
     profiles:
       - local-real-chipotle
+      - e2e-full
 
   chipotle-dstack-sim:
     image: ubuntu:24.04
@@ -201,14 +204,15 @@ services:
       - dstack-shared:/var/run
     command: >
       bash -c "
-      sed -i 's|unix:/var/run/dstack.sock|unix:/var/run/dstack.sock|' dstack.toml &&
+      sed -i 's|unix:./dstack.sock|unix:/var/run/dstack.sock|' dstack.toml &&
       exec dstack-simulator
       "
     profiles:
       - local-real-chipotle
+      - e2e-full
 
   chipotle-deployer:
-    image: node:22-bookworm
+    image: rust:1.88.0-bookworm
     container_name: chipotle-deployer
     working_dir: /app/lit-api-server/blockchain/lit_node_express
     volumes:
@@ -219,19 +223,22 @@ services:
         condition: service_healthy
     command: >
       bash -c "
-      npm install --no-audit --no-fund &&
-      npx hardhat compile &&
-      DEPLOY_OUTPUT=\$$(npx hardhat run scripts/deploy.ts --network localhost) &&
-      echo \"\$\$DEPLOY_OUTPUT\" &&
-      CONTRACT_ADDRESS=\$$(echo \"\$\$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
+      apt-get update && apt-get install -y curl &&
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &&
+      apt-get install -y nodejs &&
+      DEPLOY_OUTPUT=$$(make deploy_anvil 2>&1) &&
+      echo \"$$DEPLOY_OUTPUT\" &&
+      CONTRACT_ADDRESS=$$(echo \"$$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
       echo \"[chain]\" > /shared-config/NodeConfig.toml &&
       echo \"name = \\\"anvil\\\"\" >> /shared-config/NodeConfig.toml &&
-      echo \"contract_address = \\\"\$\$CONTRACT_ADDRESS\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"contract_address = \\\"$$CONTRACT_ADDRESS\\\"\" >> /shared-config/NodeConfig.toml &&
       echo \"Generated NodeConfig.toml:\" &&
       cat /shared-config/NodeConfig.toml
       "
+
     profiles:
       - local-real-chipotle
+      - e2e-full
 
   chipotle-real:
     build:
@@ -246,6 +253,7 @@ services:
       - ROCKET_PORT=8000
       - BASE_CHAIN_RPC=http://chipotle-anvil:8545
       - DSTACK_SOCKET=/var/run/dstack.sock
+      - LIT_TELEMETRY_ENDPOINT=http://chipotle-jaeger:4317
     volumes:
       - dstack-shared:/var/run
       - chipotle-config:/app/config:ro
@@ -259,8 +267,130 @@ services:
         condition: service_started
       chipotle-deployer:
         condition: service_completed_successfully
+      chipotle-jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8000"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
     profiles:
       - local-real-chipotle
+      - e2e-full
+
+  chipotle-jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: chipotle-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686/"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  # ─── USER CONTRACTS & E2E HAPPY PATH ───
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-anvil
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        anvil --host 0.0.0.0 --chain-id 97 --hardfork shanghai
+        $${BSC_TESTNET_RPC:+--fork-url "$$BSC_TESTNET_RPC"}
+        --silent
+    environment:
+      - BSC_TESTNET_RPC
+    ports:
+      - "8546:8545"
+    healthcheck:
+      test:
+        ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    profiles:
+      - e2e-full
+
+  deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-deploy
+    working_dir: /work
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - RPC_URL=http://anvil:8545
+      - W3EXT=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+    volumes:
+      - ./contracts:/work
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && forge build
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
+    profiles:
+      - e2e-full
+
+  e2e:
+    build:
+      context: ./e2e
+      dockerfile: Dockerfile.e2e
+    container_name: daskibo-e2e
+    working_dir: /app
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      chipotle-real:
+        condition: service_healthy
+      greenfield-local:
+        condition: service_healthy
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=97
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - DEPLOYER_ADDR=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - ALICE_ADDR=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - BOB_ADDR=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      - W3EXT_ADDR=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+      # REAL public Greenfield testnet (chain 5600) — overridden for local
+      - RUN_GREENFIELD_LOCAL=1
+      - GREENFIELD_LOCAL_RPC=http://greenfield-local:26750
+      - GREENFIELD_LOCAL_SP=http://greenfield-local:9033
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+      - GF_CHAIN_ID=5600
+      - GF_RPC=http://greenfield-local:26750
+      - GF_SP=http://greenfield-local:9033
+      - LIT_NETWORK=custom
+      - CHIPOTLE_URL=http://chipotle-real:8000
+      - COURSE_PRICE_WEI=10000000000000000
+    volumes:
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+    profiles:
+      - e2e-full
 
 volumes:
   dstack-shared:

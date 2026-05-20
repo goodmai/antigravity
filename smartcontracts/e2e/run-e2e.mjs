@@ -46,6 +46,7 @@ import { decryptCourseObject } from '/app/buckets/course-read.js';
 import { addressAllowlistAcc, anyOf } from '/app/buckets/lit-acc.js';
 import { createLitAccess } from '/app/buckets/lit-access.js';
 import { createGreenfieldClient } from '/app/buckets/greenfield-core.js';
+import { createChipotleClient } from '/app/buckets/lit-sdk-chipotle.js';
 
 // ── env ──────────────────────────────────────────────────────────────
 const env = (k, required = true) => {
@@ -72,6 +73,11 @@ const GF_RPC = env('GF_RPC');
 const GF_SP = env('GF_SP');
 const GF_CHAIN_ID = env('GF_CHAIN_ID');
 const LIT_NETWORK = env('LIT_NETWORK');
+const CHIPOTLE_URL = process.env.CHIPOTLE_URL ? process.env.CHIPOTLE_URL.replace(/\/$/, '') : null;
+const isChipotle = LIT_NETWORK === 'custom' || LIT_NETWORK === 'chipotle' || !!CHIPOTLE_URL;
+let PKP_ID = null;
+let litClient = null;
+
 // Course price in native wei on the anvil chain. Default 0.01 ether
 // (= 10^16 wei). Anvil dev accounts hold 10 000 native each so this has
 // zero real-world cost — set via COURSE_PRICE_WEI to change.
@@ -117,24 +123,38 @@ import { LitAccessControlConditionResource, createSiweMessageWithRecaps, generat
 import { LIT_ABILITY } from '@lit-protocol/constants';
 
 async function connectLit() {
-  const c = new LitNodeClient({ litNetwork: LIT_NETWORK, debug: false });
-  await c.connect();
-  return {
-    encrypt: ({ accessControlConditions, dataToEncrypt }) =>
-      encryptString({ accessControlConditions, dataToEncrypt }, c),
-    decrypt: ({ accessControlConditions, ciphertext, dataToEncryptHash, chain: ch }, authContext) =>
-      decryptToString(
-        {
-          accessControlConditions,
-          ciphertext,
-          dataToEncryptHash,
-          chain: ch,
-          sessionSigs: authContext?.sessionSigs,
-        },
-        c,
-      ),
-    _client: c,
-  };
+  if (isChipotle) {
+    console.log(`  Chipotle mode enabled (URL: ${CHIPOTLE_URL})`);
+    const walletRes = await fetch(`${CHIPOTLE_URL}/core/v1/create_wallet`);
+    if (!walletRes.ok) {
+      throw new Error(`Failed to fetch Chipotle PKP wallet: ${walletRes.status} ${await walletRes.text()}`);
+    }
+    const wallet = await walletRes.json();
+    PKP_ID = wallet.wallet_address;
+    console.log(`  Chipotle PKP: ${PKP_ID}`);
+
+    return createChipotleClient({ chipotleUrl: CHIPOTLE_URL, pkpId: PKP_ID });
+  } else {
+    console.log(`  Standard Lit mode enabled (Network: ${LIT_NETWORK})`);
+    const c = new LitNodeClient({ litNetwork: LIT_NETWORK, debug: false });
+    await c.connect();
+    return {
+      encrypt: ({ accessControlConditions, dataToEncrypt }) =>
+        encryptString({ accessControlConditions, dataToEncrypt }, c),
+      decrypt: ({ accessControlConditions, ciphertext, dataToEncryptHash, chain: ch }, authContext) =>
+        decryptToString(
+          {
+            accessControlConditions,
+            ciphertext,
+            dataToEncryptHash,
+            chain: ch,
+            sessionSigs: authContext?.sessionSigs,
+          },
+          c,
+        ),
+      _client: c,
+    };
+  }
 }
 
 /**
@@ -166,6 +186,27 @@ async function sessionSigsFor(litClient, pkHex, address) {
       return generateAuthSig({ signer: wallet, toSign });
     },
   });
+}
+
+/**
+ * Resolves the appropriate auth context based on network mode (Chipotle vs Lit P2P).
+ */
+async function getAuthContext(pkHex, address) {
+  if (isChipotle) {
+    const { Wallet } = await import('ethers');
+    const wallet = new Wallet(pkHex);
+    const nonce = 'Daskibo-DRM-Auth-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    const message =
+      `Daskibo Academy — Verify ownership of ${address}\n\nNonce: ${nonce}\n\nThis signature is used only for local DRM access verification.`;
+    const signature = await wallet.signMessage(message);
+    return {
+      userAddress: address,
+      signedProof: { message, signature },
+    };
+  } else {
+    const sigs = await sessionSigsFor(litClient._client, pkHex, address);
+    return { sessionSigs: sigs, address };
+  }
 }
 
 // ── Greenfield ───────────────────────────────────────────────────────
@@ -229,8 +270,8 @@ async function main() {
   console.log(`  GF testnet account (paid uploads): ${GF_ADDR}`);
 
   // ── 0. Connect Lit (real datil-dev). ─────────────────────────────
-  console.log('\n[0/9] Connect Lit datil-dev…');
-  const litClient = await connectLit();
+  console.log('\n[0/9] Connect Lit…');
+  litClient = await connectLit();
   const lit = createLitAccess({ litClient });
   console.log('  ✓ Lit connected');
 
@@ -253,12 +294,27 @@ async function main() {
   };
   // initial ACC: Alice-only (the operator OR-s buyers in on Purchase)
   const initialAcc = addressAllowlistAcc(alice.address);
-  const plan = await planCoursePublish({
+  let plan = await planCoursePublish({
     spec,
     pricing: { litSaveCost: 800n, storageCost: 200n, w3extPayee: W3EXT_ADDR },
     crypto: webcrypto,
     lit: { access: lit, accessControlConditions: initialAcc, author: alice.address },
   });
+
+  if (isChipotle) {
+    const litEnv = {
+      ...plan.manifest.lit,
+      litNetwork: 'chipotle',
+      chipotleUrl: CHIPOTLE_URL,
+      pkpId: PKP_ID,
+    };
+    const manifest = { ...plan.manifest, lit: litEnv };
+    const objects = plan.objects.map(o =>
+      o.kind === 'manifest' ? { ...o, body: JSON.stringify(manifest) } : o,
+    );
+    plan = { ...plan, manifest, objects };
+  }
+
   eqBig('  settlement.base', plan.settlement.base, 1000n);
   eqBig('  settlement.w3extFee', plan.settlement.w3extFee, 200n);
   eqBig('  settlement.total', plan.settlement.total, 1200n);
@@ -319,12 +375,12 @@ async function main() {
   const manifestText = await gf.readObject(plan.bucketName, '_lit/manifest.json');
   const manifest = JSON.parse(manifestText);
   const encText = await gf.readObject(plan.bucketName, 'lessons/01/secret.md.enc');
-  const bobSig0 = await sessionSigsFor(litClient._client, BOB_PK, bob.address);
+  const bobAuth0 = await getAuthContext(BOB_PK, bob.address);
   await expectRejected(
     '  Bob Lit decrypt (pre-buy)',
     decryptCourseObject(manifest, encText, {
       access: lit,
-      authContext: { sessionSigs: bobSig0, address: bob.address },
+      authContext: bobAuth0,
       crypto: webcrypto,
     }),
     /ACCESS_DENIED|not authorized|unauthorized/i,
@@ -378,7 +434,15 @@ async function main() {
   // ── 6. Operator re-wraps Lit envelope on Purchase. ────────────────
   console.log('\n[6/9] Operator re-wraps Lit master with (Alice OR Bob)…');
   const newAcc = anyOf(addressAllowlistAcc(alice.address), addressAllowlistAcc(bob.address));
-  const newLitEnv = await lit.encryptMasterKey(plan.masterKey, newAcc);
+  let newLitEnv = await lit.encryptMasterKey(plan.masterKey, newAcc);
+  if (isChipotle) {
+    newLitEnv = {
+      ...newLitEnv,
+      litNetwork: 'chipotle',
+      chipotleUrl: CHIPOTLE_URL,
+      pkpId: PKP_ID,
+    };
+  }
   const newManifest = { ...manifest, lit: newLitEnv };
   await gf.saveObject(
     plan.bucketName,
@@ -393,10 +457,10 @@ async function main() {
   const bobManifestText = await gf.readObject(plan.bucketName, '_lit/manifest.json');
   const bobManifest = JSON.parse(bobManifestText);
   const bobEnc = await gf.readObject(plan.bucketName, 'lessons/01/secret.md.enc');
-  const bobSig = await sessionSigsFor(litClient._client, BOB_PK, bob.address);
+  const bobAuth = await getAuthContext(BOB_PK, bob.address);
   const bobRead = await decryptCourseObject(bobManifest, bobEnc, {
     access: lit,
-    authContext: { sessionSigs: bobSig, address: bob.address },
+    authContext: bobAuth,
     crypto: webcrypto,
   });
   eq('  Bob plaintext == SECRET', bobRead.text, SECRET);
@@ -413,12 +477,12 @@ async function main() {
     functionName: 'hasAccess', args: [eve.address, courseId],
   });
   eq('  Eve AccessPass.hasAccess', evePass, false);
-  const eveSig = await sessionSigsFor(litClient._client, EVE_PK, eve.address);
+  const eveAuth = await getAuthContext(EVE_PK, eve.address);
   await expectRejected(
     '  Eve Lit decrypt',
     decryptCourseObject(bobManifest, bobEnc, {
       access: lit,
-      authContext: { sessionSigs: eveSig, address: eve.address },
+      authContext: eveAuth,
       crypto: webcrypto,
     }),
     /ACCESS_DENIED|not authorized|unauthorized/i,
