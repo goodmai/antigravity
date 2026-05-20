@@ -19,7 +19,8 @@
 | 🌐 **Browser** | Исполняет WebCrypto (AES/PBKDF2/SHA-256). Plaintext и DEK существуют только здесь, в памяти вкладки. |
 | 📦 **Greenfield SP** | HTTPS-эндпоинт хранилища. Хранит **только ciphertext** + публичный манифест/сайдкары. Bucket = `public-read`. |
 | ⛓ **Контракты (BSC)** | `CourseMarketplace` / `AccessPass` (soulbound) / `Treasury`. Крипты не делают; хранят состояние прав, читаемое Lit. |
-| 🔑 **Lit Network** | Децентрализованный MPC/threshold-KMS. Хранит долю ключа; реассемблирует ключ расшифровки только при выполнении ACC. |
+| 🔑 **Lit Network** | Децентрализованный MPC/threshold-KMS. Хранит долю ключа; реассемблирует ключ расшифровки только при выполнении ACC. Используется только в mainnet (Flow E). |
+| 🌶 **Chipotle** | REST-замена Lit Network для Flows B–D. Запускает JS-действие в TEE (production) или in-process mock (devnet). Одна AES-256-GCM мастер-пара — производится из `CHIPOTLE_PKP_KEY`. |
 | `DEK` | Data Encryption Key — случайный 256-бит ключ **на объект**. |
 | `MK` | Bucket **Master Key** — один 256-бит ключ на бакет; оборачивает все DEK. |
 | `KEK` | Key Encryption Key — производный из пароля (PBKDF2) ключ-обёртка `MK`. |
@@ -34,12 +35,108 @@
 |---|----------|--------------|------------|
 | P1 | **AES-256-GCM** (AEAD) | `crypto-envelope.js` | Объёмное шифрование контента + key-wrap DEK под MK |
 | P2 | **PBKDF2-SHA-256** (210k) | `crypto-envelope.js` | Опц. парольная обёртка MK (портативный бэкап, без Lit) |
-| P3 | **Lit threshold encryption** (BLS12-381, MPC) | `lit-access.js` + `lit-sdk.js` ⚠︎ | Обёртка `MK` под `ACC`; реассемблирование при доступе |
-| P4 | **Lit off-chain auth** (Ed25519/EDDSA) | `lit-sdk.js` ⚠︎ | Сессионная пара ключей SP-аутентификации Greenfield |
-| P5 | **SIWE / sessionSigs** (EIP-4361 + ECDSA) | `lit-sdk.js::makeLitAuth` ⚠︎ | Авторизация Charlie перед Lit-узлами |
+| P3-Lit | **Lit threshold encryption** (BLS12-381, MPC) | `lit-access.js` + `lit-sdk.js` ⚠︎ | Обёртка `MK` под `ACC`; mainnet (Flow E) |
+| P3-Ch | **Chipotle AES-256-GCM** (TEE / mock) | `lit-access.js` + `lit-sdk-chipotle.js` | Обёртка `MK` под `ACC`; Flows B–D. Единый AES-ключ, производный от PKP |
+| P4 | **Lit off-chain auth** (Ed25519/EDDSA) | `lit-sdk.js` ⚠︎ | Сессионная Ed25519-пара (SP-auth Greenfield). Только mainnet. |
+| P5-Lit | **SIWE / sessionSigs** (EIP-4361 + ECDSA) | `lit-sdk.js::makeLitAuth` ⚠︎ | Авторизация Charlie перед Lit-узлами. Только mainnet. |
+| P5-Ch | **personal\_sign proof** (ECDSA) | `lit-sdk-chipotle.js::createSignedProof` | Charlie подписывает nonce; Chipotle сервер проверяет ECDSA + ACC. Flows B–D. |
 | P6 | **EVM подпись** (ECDSA secp256k1) | MetaMask + `greenfield-sdk-tx.js`, контракты | EIP-712 `eth_signTypedData_v4` (Greenfield tx), tx BSC (`purchase`) |
 | P7 | **Хеши**: keccak256 / SHA-256 | контракты / `course-template.js` | `contentHash` on-chain; `dataToEncryptHash` сайдкара |
 | P8 | **TLS** | транспорт к Greenfield SP / RPC / Lit | Конфиденциальность канала (CSP allowlist) |
+
+---
+
+## Окружения: devnet / testnet / mainnet
+
+Три тира. Криптографическая схема P1/P2/P6/P7/P8 **не меняется** ни в одном из них.
+Меняется только DRM-бэкенд (P3) и путь авторизации (P4/P5).
+
+| Тир | Flow | DRM (P3) | Greenfield | EVM-цепь | Авторизация (P5) |
+|-----|------|----------|-----------|----------|-----------------|
+| **devnet** | B, C | 🌶 Chipotle **mock** `localhost:8000` | local 9000 или testnet 5600 | Anvil / BSC testnet | `personal_sign` → `signedProof` |
+| **testnet** | D | 🌶 Chipotle **live** `api.chipotle.litprotocol.com` | testnet 5600 | BSC testnet | `personal_sign` → `signedProof` |
+| **mainnet** | E | 🔑 **Lit** `datil` | mainnet | BSC mainnet | SIWE sessionSigs (Ed25519) |
+
+### Что меняется по протоколам
+
+#### P3: Lit → Chipotle (devnet и testnet)
+
+| Параметр | Lit (mainnet) | Chipotle mock (devnet) | Chipotle live (testnet) |
+|----------|--------------|----------------------|------------------------|
+| Транспорт | P2P, порт 7470 | HTTP `localhost:8000` | HTTPS REST |
+| Хранение `MK` | BLS-долю в каждом узле сети | AES-GCM env, только в памяти | AES-GCM в TEE |
+| Проверка ACC | Узлы Lit читают on-chain-состояние BSC | In-process: `returnValueTest.value === userAddress` | В TEE: JS-код Chipotle |
+| Ключевая пара PKP | Threshold BLS — нет единой точки отказа | `CHIPOTLE_PKP_KEY` из env → **не подходит для production** | `CHIPOTLE_PKP_KEY` в TEE |
+| `litNetwork` в манифесте | `"datil"` | `"chipotle"` | `"chipotle"` |
+| Дополнительные поля манифеста | — | `chipotleUrl`, `pkpId` | `chipotleUrl`, `pkpId` |
+
+Одинаково: `LitClient`-интерфейс (`encrypt` / `decrypt`) и формат `manifest.lit` (schema `daskibo.lit.acc/1`) — единые для всех тиров. Переключение — замена адаптера в одной строке:
+
+```js
+// devnet / testnet (Flows B–D)
+import { createChipotleClient } from './smartcontracts/buckets/lit-sdk-chipotle.js';
+const litClient = createChipotleClient({ chipotleUrl: 'http://localhost:8000' }); // devnet
+// chipotleUrl: 'https://api.chipotle.litprotocol.com'                            // testnet
+
+// mainnet (Flow E)
+import { createLitClient } from './smartcontracts/buckets/lit-sdk.js';
+const litClient = await createLitClient({ litNetwork: 'datil' });
+
+// Далее одинаково:
+import { createLitAccess } from './smartcontracts/buckets/lit-access.js';
+const { encryptMasterKey, decryptMasterKey } = createLitAccess({ litClient });
+```
+
+#### P5: sessionSigs → signedProof (devnet и testnet)
+
+Lit требует полный SIWE/EIP-4361 флоу с Ed25519 сессионными ключами (`sessionSigs`).
+Chipotle заменяет его на простую `personal_sign`-подпись одноразового нонса:
+
+```
+Charlie → MetaMask.personal_sign(nonce) → { message, signature }
+          → POST /core/v1/lit_action { action:"decrypt", userAddress, signedProof }
+Chipotle → verifyMessage(message, signature) == userAddress → проверить ACC → вернуть MK
+```
+
+`signedProof` не является полноценной SIWE-сессией: нет истечения по времени на уровне
+ключа, нет скоупинга ресурсов. Для production Lit (Flow E) — только `sessionSigs`.
+
+#### ACC на devnet vs mainnet
+
+На devnet Chipotle mock проверяет ACC упрощённо:
+```js
+// chipotle-mock.mjs — проверка ACC
+const allowed = conditions.some(
+  c => c.returnValueTest?.value?.toLowerCase() === userAddress.toLowerCase(),
+);
+```
+Это означает: на devnet ACC пропускает только адреса, **явно перечисленные** в `returnValueTest.value`.
+Логика NFT/ERC-721/balanceOf **не исполняется** — на devnet она всегда ложная.
+
+На mainnet узлы Lit читают реальное on-chain-состояние BSC — NFT balanceOf, AccessPass expiry.
+
+### Чеклист перехода testnet → mainnet
+
+- [ ] Заменить адаптер: `createChipotleClient` → `createLitClient({ litNetwork: 'datil' })`
+- [ ] Убрать `chipotleUrl` / `pkpId` из конфига и сборки
+- [ ] Задеплоить `CourseMarketplace` / `AccessPass` / `Treasury` на BSC mainnet
+- [ ] Прописать реальные адреса контрактов в ACC (`accessControlConditions`)
+- [ ] Пополнить Lit Capacity Credits (без них `datil` ограничивает RPS)
+- [ ] Перевести Greenfield bucket на mainnet SP (`gnfd-mainnet-sp1.bnbchain.org`)
+- [ ] Убедиться, что `litNetwork: "datil"` в каждом манифесте (старые maniest'ы с `"chipotle"` на mainnet не расшифруются через Lit)
+- [ ] CSP: убрать `localhost:8000` из `connect-src`, добавить `api.chipotle.litprotocol.com` (testnet) или Lit-узлы (mainnet)
+- [ ] `CHIPOTLE_PKP_KEY` — не передавать в production; Lit PKP — threshold, без единой точки
+
+### Что тестируется на каждом тире
+
+| Тест | devnet | testnet | mainnet |
+|------|--------|---------|---------|
+| `tests/chipotle-drm.test.js` | ✅ in-process mock | — | — |
+| `tests/lit-access.test.js` | ✅ fake LitClient | ✅ same | ✅ same |
+| `tests/crypto-envelope.test.js` | ✅ WebCrypto | ✅ same | ✅ same |
+| `greenfield-testnet.live.test.js` (chipotle-writer) | — | ✅ реальный testnet 5600 | — |
+| `greenfield-testnet.live.test.js` (testnet-writer) | — | ✅ | — |
+| Браузерный reader (manual) | ✅ localhost:8099 | ✅ testnet bucket | ✅ mainnet |
 
 ---
 
@@ -79,15 +176,21 @@ graph LR
   subgraph BSC["⛓ BSC контракты"]
     CM["CourseMarketplace"] --- AP["AccessPass (soulbound)"] --- TR["Treasury"]
   end
-  subgraph LIT["🔑 Lit Network (MPC)"]
-    SH["доли threshold-ключа"]
+  subgraph DRM["DRM (P3)"]
+    LIT["🔑 Lit Network MPC (mainnet)"]
+    CH["🌶 Chipotle TEE/mock (devnet/testnet)"]
   end
   JS -->|P6 запрос подписи| MM
   JS -->|store/read ciphertext| GF
-  JS -->|P3 encrypt/decrypt MK| LIT
+  JS -->|P3-Lit encrypt/decrypt MK| LIT
+  JS -->|P3-Ch encrypt/decrypt MK| CH
   MM -->|подписанные tx| BSC
   LIT -->|читает hasCourseAccess| BSC
+  CH -->|mock: проверяет ACC in-process; live: в TEE| BSC
 ```
+
+> **Devnet/testnet**: блок Lit Network не задействован; все P3-операции идут через Chipotle.
+> **Mainnet**: блок Chipotle не задействован; Lit читает BSC on-chain.
 
 ---
 
@@ -114,30 +217,38 @@ salt, 210000, SHA-256)`, `wrapped = AES-GCM(KEK, iv, MK)`. Обратное —
 `unwrapMasterWithPassphrase`. Неверный пароль ⇒ `DECRYPT_FAILED`.
 Назначение: портативный бэкап `MK` без Lit.
 
-## P3 — Lit threshold encryption (обёртка MK)
+## P3 — обёртка MK (Lit или Chipotle)
 
-`lit-access.js` (чистое ядро, тестируется с фейком) +
-`lit-sdk.js` (реальный `@lit-protocol`, CDN, ⚠︎ integration).
+Ядро: `lit-access.js` (чистое, тестируется с фейком). Адаптер зависит от тира:
 
-**Encrypt** (`encryptMasterKey(MK, ACC)`): `encryptString({ACC,
-dataToEncrypt=MK})` → клиент-сайд шифрование к публичному ключу сети
-Lit; `{ciphertext, dataToEncryptHash}` + `ACC` кладутся в
-`manifest.lit`. Сам `MK` сеть Lit не видит — она хранит лишь долю
-своего корневого ключа.
-**Decrypt** (`decryptMasterKey(env, authContext)`): узлы Lit проверяют
-`ACC` (P5 sessionSigs) и возвращают доли расшифровки; при пороге `t`
-из `n` `MK` восстанавливается на клиенте. Неавторизован ⇒
-`ACCESS_DENIED`. ACC строит `lit-acc.js`: `anyOf(addressAllowlistAcc(Bob),
-<условие покупателя>)` — **Bob всегда внутри ⇒ бесплатный доступ**.
+**P3-Lit** — `lit-sdk.js` (CDN, ⚠︎ integration). Только mainnet (Flow E).
+`encryptString({ACC, dataToEncrypt=MK})` → шифрование к публичному threshold-ключу
+сети Lit; `{ciphertext, dataToEncryptHash}` кладутся в `manifest.lit`.
+Decrypt: узлы Lit проверяют ACC (P5-sessionSigs), возвращают t-из-n долей → `MK` на клиенте.
 
-## P4/P5 — Lit off-chain auth + sessionSigs
+**P3-Chipotle** — `lit-sdk-chipotle.js`. Flows B–D.
+`POST /core/v1/lit_action { action:"encrypt", masterKey, ACC }` → Chipotle
+шифрует `MK` своим AES-GCM ключом (из `CHIPOTLE_PKP_KEY`); возвращает
+`{ciphertext:"ivB64:ctB64", dataToEncryptHash, pkpId}`.
+Decrypt: Chipotle проверяет `signedProof` (P5-Ch) + ACC → возвращает `MK`.
+`manifest.lit` дополняется полями `litNetwork:"chipotle"`, `chipotleUrl`, `pkpId`.
 
-`makeLitAuth` ⚠︎: `genOffChainAuthKeyPairAndUpload` создаёт сессионную
-**Ed25519** пару (seed получается из `personal_sign` кошелька) для
-SP-аутентификации Greenfield. Далее `getSessionSigs` с
-`authNeededCallback`, подписывающим **SIWE/EIP-4361** сообщение через
-`personal_sign` (P6/ECDSA). Полученные `sessionSigs` — это то, чем
-Charlie доказывает Lit-узлам право на P3-decrypt.
+В обоих случаях: ошибка авторизации ⇒ `classify()` в `lit-access.js` →
+`ACCESS_DENIED`. ACC содержит `anyOf(addressAllowlistAcc(Bob), <условие покупателя>)`
+— **Bob всегда внутри ⇒ бесплатный доступ** без покупки.
+
+## P4/P5 — авторизация (зависит от тира)
+
+**Mainnet (P4 + P5-Lit):** `makeLitAuth` ⚠︎ создаёт сессионную **Ed25519** пару
+(seed из `personal_sign` кошелька) для SP-аутентификации Greenfield. Затем
+`getSessionSigs` + `authNeededCallback` (SIWE/EIP-4361 через `personal_sign`).
+`sessionSigs` — доказательство права на P3-Lit-decrypt.
+
+**Devnet/testnet (P5-Ch):** упрощённый путь — только `personal_sign(nonce)`:
+`createSignedProof(userAddress, provider)` в `lit-sdk-chipotle.js`. Возвращает
+`{ message, signature }` → `signedProof` в теле запроса к Chipotle.
+Chipotle верифицирует подпись (`verifyMessage`), проверяет ACC, возвращает `MK`.
+Ed25519 сессионные ключи **не нужны** — Chipotle не требует P4.
 
 ## P6 — EVM подписи (MetaMask, secp256k1)
 
@@ -225,13 +336,48 @@ sequenceDiagram
 получает `ACCESS_DENIED` или `DECRYPT_FAILED`; ciphertext без `MK`
 бесполезен.
 
+### Charlie (devnet/testnet) — Chipotle path
+
+```mermaid
+sequenceDiagram
+  participant Ch as 🧑 Charlie
+  participant MM as 🦊 MetaMask
+  participant Br as 🌐 Browser
+  participant Chip as 🌶 Chipotle mock/live
+  participant GF as 📦 Greenfield SP
+
+  Ch->>Br: open object
+  Br->>GF: GET manifest.json + .enc (litNetwork="chipotle")
+  Note over Br: читает chipotleUrl, pkpId из manifest.lit
+  Br->>MM: P5-Ch personal_sign(nonce)  ← createSignedProof()
+  MM-->>Br: {message, signature}
+  Br->>Chip: POST /core/v1/lit_action {action:"decrypt", ciphertext,<br/>ACC, userAddress, signedProof}
+  Note over Chip: verifyMessage(sig) == userAddress
+  Note over Chip: ACC.returnValueTest.value == userAddress (mock)<br/>или on-chain eval (live TEE)
+  Chip-->>Br: {response: {decrypted: MK}}
+  Br->>Br: P1 wrappedDek→DEK→plaintext (AAD проверены)
+```
+
+**Devnet отличия:** нет покупки NFT/AccessPass (контракт не деплоен на Anvil);
+ACC — простой адресный allowlist (`returnValueTest.value = ALLOWED_ADDRESS`).
+На testnet — реальный BSC testnet, но ACC всё ещё проверяется в TEE Chipotle, не Lit-узлами.
+
 ---
 
 ## Границы и допущения (честно)
 
-- **Доверие к Lit**: безопасность P3/P5 опирается на честное
+- **Доверие к Lit** (mainnet): безопасность P3-Lit/P5-Lit опирается на честное
   большинство узлов Lit (порог `t` из `n`). Кастомной пороговой крипты
   мы не пишем — используется аудированный `@lit-protocol`.
+- **Доверие к Chipotle** (devnet/testnet): P3-Ch — единственная точка отказа.
+  Mock (`localhost:8000`): `CHIPOTLE_PKP_KEY` в переменных среды — **не для production**.
+  Live Chipotle: TEE-изоляция снижает риск, но это централизованный сервис.
+  Переход на mainnet = переход на Lit (threshold MPC).
+- **ACC на devnet — упрощённые**: mock проверяет только `returnValueTest.value === userAddress`.
+  NFT/ERC-721 balanceOf, `AccessPass.expiry` — **не исполняются** на devnet.
+  Тестировать ACC-логику на BSC testnet (Flow D) с реальным Chipotle live.
+- **signedProof vs sessionSigs**: `personal_sign(nonce)` (P5-Ch) не имеет
+  scoping ресурсов и TTL ключа. Для production требуется полный SIWE-флоу (P5-Lit).
 - **⚠︎ integration**: точные вызовы `@lit-protocol`/`@bnb-chain` SDK
   (`lit-sdk.js`, `greenfield-wallet-sdk.js`, `sdk-backend.mjs`) и CDN-
   импорт верифицируются только в Docker/Foundry-флоу, не hermetic-юнитами
@@ -241,6 +387,7 @@ sequenceDiagram
   в именах.
 - **Контракты крипты не выполняют**: только хранят состояние прав;
   вся конфиденциальность — P1+P3. ECDSA-подписи — в MetaMask.
-- **Session-sig theft**: кража `sessionSigs` (XSS) = доступ к контенту →
-  митигируется CSP (аудит 4.2/5.3), `connect-src`-allowlist, отсутствием
-  inline-скриптов.
+- **signedProof theft / sessionSig theft** (XSS): кража любого из них = доступ
+  к контенту → митигируется CSP (`connect-src`-allowlist, нет inline-скриптов).
+  `signedProof` на devnet не истекает по времени — дополнительная причина
+  не использовать Chipotle mock за пределами dev-окружения.
