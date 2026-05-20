@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daskibo DRM Reader</title>
+  <style>
+    :root {
+      --bg:#0b0d12; --panel:#141821; --line:#232a38;
+      --fg:#e8ecf4; --muted:#94a3b8; --accent:#f0b90b; --accent-2:#57c0ff;
+      --ok:#34d399; --err:#f87171; --warn:#fbbf24; --purple:#a78bfa;
+      --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font)}
+    a{color:var(--accent-2);text-decoration:none}
+    code{font-family:'Fira Code','Consolas',monospace;font-size:.85em}
+    .container{max-width:960px;margin:0 auto;padding:0 1.25rem}
+
+    /* hero */
+    .hero{padding:2rem 0 1rem;background:radial-gradient(ellipse at top,#1a2030,var(--bg))}
+    .hero h1{font-size:1.8rem;margin:0 0 .3rem}
+    .badge{display:inline-block;font-size:.65rem;padding:.12rem .45rem;border-radius:999px;
+      background:#1f2937;color:var(--accent);margin-left:.4rem;vertical-align:middle}
+    .toolbar{display:flex;gap:.55rem;align-items:flex-end;padding:.75rem 0 .5rem;flex-wrap:wrap}
+    .field{display:flex;flex-direction:column;gap:.15rem}
+    .field label{font-size:.72rem;color:var(--muted)}
+    .field input{background:#0e131b;border:1px solid var(--line);color:var(--fg);
+      border-radius:7px;padding:.4rem .6rem;font:inherit;font-size:.85rem}
+    .field.fb input{width:210px}
+    .field.fo input{width:390px}
+
+    /* buttons */
+    .btn{background:var(--accent);color:#1a1300;border:0;border-radius:7px;
+      padding:.45rem 1rem;font-weight:700;cursor:pointer;font-size:.85rem;white-space:nowrap;align-self:flex-end}
+    .btn:hover{filter:brightness(1.08)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-sm{font-size:.72rem;padding:.2rem .55rem;border-radius:5px;
+      border:1px solid var(--line);background:#1f2937;color:var(--fg);
+      cursor:pointer;text-decoration:none;display:inline-block;white-space:nowrap}
+    .btn-sm:hover{background:#2a3347}
+    .btn-sm.pri{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:700}
+    .btn-sm.pri:hover{filter:brightness(1.1)}
+    .btn-sm.unlock{background:#1e2d45;border-color:var(--accent-2);color:var(--accent-2)}
+    .btn-sm.unlock:hover{background:#243450}
+    .btn-sm:disabled{opacity:.4;cursor:not-allowed}
+
+    /* connect row */
+    .connect-row{display:flex;gap:.75rem;padding:.75rem 0;flex-wrap:wrap}
+    .connect-card{flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line);
+      border-radius:10px;padding:.75rem 1rem}
+    .connect-card h3{margin:0 0 .5rem;font-size:.82rem;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.06em}
+    .connect-card .row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+    .chip{display:inline-flex;align-items:center;gap:.3rem;font-size:.74rem;padding:.18rem .5rem;
+      border-radius:999px;background:#1f2937;border:1px solid var(--line)}
+    .chip.ok{border-color:var(--ok);color:var(--ok)}
+    .chip.err{border-color:var(--err);color:var(--err)}
+    .chip.warn{border-color:var(--warn);color:var(--warn)}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+    /* session bar */
+    .session-bar{background:#0e1a2b;border:1px solid var(--accent-2);border-radius:8px;
+      padding:.55rem .9rem;margin:.4rem 0 .75rem;font-size:.82rem;display:flex;
+      align-items:center;gap:.7rem;flex-wrap:wrap}
+    .session-bar.expired{border-color:var(--err);background:#1a0f0f}
+    .ttl{font-weight:700;color:var(--accent-2)}
+    .session-bar.expired .ttl{color:var(--err)}
+
+    /* status */
+    .status{padding:.5rem .85rem;border-radius:8px;background:#11161f;
+      border:1px solid var(--line);font-size:.85rem;margin:.4rem 0 .8rem}
+    .status.ok{border-color:var(--ok);color:var(--ok)}
+    .status.err{border-color:var(--err);color:var(--err)}
+    .status.loading{border-color:var(--accent);color:var(--accent)}
+    .status.warn{border-color:var(--warn);color:var(--warn)}
+
+    /* course banner */
+    .course-banner{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:.9rem 1.1rem;margin-bottom:1rem;display:flex;justify-content:space-between;
+      align-items:center;flex-wrap:wrap;gap:.5rem}
+    .course-banner h2{margin:0;font-size:1.1rem}
+    .banner-meta{font-size:.76rem;color:var(--muted)}
+    .banner-meta code{color:var(--accent)}
+
+    /* acc info */
+    .acc-panel{background:#0d1420;border:1px solid #1e3a5f;border-radius:8px;
+      padding:.6rem .85rem;margin-bottom:.75rem;font-size:.78rem}
+    .acc-panel h4{margin:0 0 .35rem;font-size:.78rem;color:var(--accent-2)}
+
+    /* objects */
+    .section-label{font-size:.95rem;font-weight:600;margin:.2rem 0 .6rem;
+      border-left:3px solid var(--accent);padding-left:.55rem}
+    .obj-list{list-style:none;padding:0;margin:0 0 1.2rem}
+    .obj-item{border:1px solid var(--line);border-radius:8px;margin-bottom:.5rem;overflow:hidden}
+    .obj-header{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem;
+      cursor:pointer;user-select:none}
+    .obj-header:hover{background:#191f2c}
+    .chevron{color:var(--muted);font-size:.68rem;transition:transform .15s;flex-shrink:0}
+    .obj-item.open .chevron{transform:rotate(90deg)}
+    .obj-key{font-family:'Fira Code','Consolas',monospace;font-size:.78rem;
+      color:var(--accent-2);flex:1;word-break:break-all}
+    .obj-tag{font-size:.65rem;padding:.08rem .35rem;border-radius:4px;
+      background:#1f2937;white-space:nowrap}
+    .obj-tag.enc{color:#f0b90b}
+    .obj-tag.sidecar{color:#a78bfa}
+    .obj-tag.json{color:#34d399}
+    .lock-icon{font-size:.9rem;flex-shrink:0}
+
+    .obj-body{display:none;border-top:1px solid var(--line);background:#0e131b}
+    .obj-item.open .obj-body{display:block}
+    .obj-actions{display:flex;gap:.4rem;padding:.55rem .8rem .35rem;flex-wrap:wrap;align-items:center}
+    pre.obj-pre{margin:0;padding:.55rem .8rem .75rem;font-size:.76rem;white-space:pre-wrap;
+      word-break:break-all;max-height:320px;overflow-y:auto;color:#cbd5e1}
+
+    /* decrypted content */
+    .decrypted-panel{margin:.4rem .8rem .75rem;border:1px solid var(--ok);border-radius:6px;
+      background:#071310;padding:.65rem .85rem;font-size:.82rem}
+    .decrypted-panel .dec-header{display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:.45rem;gap:.5rem;flex-wrap:wrap}
+    .decrypted-panel .dec-title{font-size:.76rem;color:var(--ok);font-weight:600}
+    .decrypted-panel pre{margin:0;white-space:pre-wrap;word-break:break-word;
+      color:#d1fae5;font-family:'Fira Code','Consolas',monospace;font-size:.76rem;
+      max-height:260px;overflow-y:auto}
+
+    /* lesson block */
+    .lesson-block{margin-bottom:.9rem}
+    .lesson-name{font-size:.9rem;font-weight:600;margin:0 0 .15rem}
+    .lesson-type{font-size:.72rem;color:var(--muted);margin-bottom:.4rem}
+
+    /* lit log */
+    .lit-log-wrap{margin:1rem 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+    .lit-log-wrap summary{padding:.55rem .85rem;cursor:pointer;font-size:.8rem;
+      color:var(--muted);user-select:none;background:var(--panel)}
+    .lit-log-wrap summary:hover{background:#1f2937}
+    .lit-log-pre{margin:0;padding:.6rem .85rem;font-size:.72rem;line-height:1.6;
+      color:#94a3b8;background:#080c13;max-height:220px;overflow-y:auto;
+      font-family:'Fira Code','Consolas',monospace;white-space:pre-wrap}
+
+    footer{padding:1rem 0;text-align:center;color:var(--muted);font-size:.75rem;
+      border-top:1px solid var(--line);margin-top:1.5rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{display:inline-block;animation:spin .7s linear infinite}
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="container">
+    <h1>Daskibo DRM Reader <span class="badge">Greenfield · Lit Protocol</span></h1>
+    <div class="toolbar">
+      <div class="field fb"><label>Bucket</label>
+        <input id="inp-bucket" value="daskibo-mpe55fo5" autocomplete="off"/></div>
+      <div class="field fo"><label>Owner address</label>
+        <input id="inp-owner" value="0x58F2D197045087910b737B1C5eDc61B896069039" autocomplete="off"/></div>
+      <button class="btn" id="btn-load">Load</button>
+    </div>
+  </div>
+</section>
+
+<main class="container">
+
+  <!-- Wallet + Lit connect row -->
+  <div class="connect-row">
+    <div class="connect-card">
+      <h3>Wallet</h3>
+      <div class="row">
+        <button class="btn-sm" id="btn-wallet">Connect MetaMask</button>
+        <span class="chip" id="chip-wallet"><span class="dot"></span> Not connected</span>
+      </div>
+    </div>
+    <div class="connect-card">
+      <h3 id="lit-card-title">Lit Protocol <span style="color:var(--muted);font-weight:400" id="lit-network-label">(datil-dev)</span></h3>
+      <div class="row">
+        <button class="btn-sm" id="btn-lit" disabled>Connect Lit</button>
+        <button class="btn-sm unlock" id="btn-session" disabled>Get Session</button>
+        <button class="btn-sm unlock" id="btn-chipotle-auth" disabled style="display:none">Sign Proof</button>
+        <span class="chip" id="chip-lit"><span class="dot"></span> —</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session bar (hidden until session active) -->
+  <div id="session-bar" class="session-bar" style="display:none">
+    <span>🔓 Session active</span>
+    <span class="ttl" id="ttl-display">—</span>
+    <button class="btn-sm" id="btn-revoke" style="margin-left:auto">Revoke</button>
+  </div>
+
+  <!-- Status -->
+  <div id="status" class="status loading"><span class="spin">⟳</span> Loading manifest…</div>
+
+  <!-- Main content -->
+  <div id="reader-root"></div>
+
+  <!-- DRM log -->
+  <details class="lit-log-wrap" id="lit-log-wrap">
+    <summary>DRM Log (0 events)</summary>
+    <pre class="lit-log-pre" id="lit-log-pre">(empty)</pre>
+  </details>
+
+</main>
+
+<footer>Daskibo Academy · DRM Reader · Greenfield testnet 5600 + Lit Protocol / Chipotle</footer>
+
+<script type="module">
+import {
+  GREENFIELD_TESTNET,
+  buildViewUrl,
+  buildDownloadUrl,
+} from './buckets/greenfield-core.js';
+import { decryptObject } from './buckets/crypto-envelope.js';
+
+const SP = GREENFIELD_TESTNET.spEndpoint;
+const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/* ── state ──────────────────────────────────────────────────────────── */
+let wallet          = null;   // { address }
+let litNode         = null;   // LitNodeClient (Lit P2P mode)
+let sessionSigs     = null;   // Lit session sigs
+let sessionExpiry   = null;   // Date
+let chipotleSession = null;   // { userAddress, signedProof: { message, sig }, expiresAt }
+let manifest        = null;
+let bucket          = '';
+// { [key]: { text, meta, expiresAt } }  — in-memory only, never persisted
+const decrypted     = {};
+const logLines      = [];
+
+/* ── Lit SDK (lazy, from CDN) ───────────────────────────────────────── */
+let _LitNodeClient, _decryptToString, _LitAbility, _LitACCResource, _createSiwe;
+
+async function loadLitSdk() {
+  if (_LitNodeClient) return;
+  addLog('Loading Lit SDK…');
+  const [nodeM, encM, authM] = await Promise.all([
+    import('https://esm.sh/@lit-protocol/lit-node-client@7'),
+    import('https://esm.sh/@lit-protocol/encryption@7'),
+    import('https://esm.sh/@lit-protocol/auth-helpers@7'),
+  ]);
+  _LitNodeClient   = nodeM.LitNodeClient;
+  _decryptToString = encM.decryptToString;
+  _LitAbility      = authM.LitAbility;
+  _LitACCResource  = authM.LitAccessControlConditionResource;
+  _createSiwe      = authM.createSiweMessageWithRecaps;
+  addLog('✓ Lit SDK loaded (v7 datil-test)');
+}
+
+/* ── log ────────────────────────────────────────────────────────────── */
+const logPre     = document.getElementById('lit-log-pre');
+const logSummary = document.querySelector('#lit-log-wrap summary');
+
+function addLog(msg) {
+  const ts = new Date().toISOString().slice(11, 23);
+  logLines.push(`[${ts}] ${msg}`);
+  logPre.textContent = logLines.join('\n');
+  logPre.scrollTop   = logPre.scrollHeight;
+  logSummary.textContent = `DRM Log (${logLines.length} events)`;
+}
+
+/* ── chip helpers ───────────────────────────────────────────────────── */
+function setChip(id, cls, text) {
+  const el = document.getElementById(id);
+  el.className = `chip ${cls}`;
+  el.innerHTML = `<span class="dot"></span> ${text}`;
+}
+
+/* ── status ─────────────────────────────────────────────────────────── */
+const statusEl = document.getElementById('status');
+function setStatus(msg, type = '') {
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+  statusEl.innerHTML = msg;
+}
+
+/* ── session bar + TTL ──────────────────────────────────────────────── */
+const sessionBar = document.getElementById('session-bar');
+const ttlDisplay = document.getElementById('ttl-display');
+
+function startSessionClock() {
+  sessionBar.style.display = 'flex';
+  updateTTL();
+  const iv = setInterval(() => {
+    if (!sessionExpiry) { clearInterval(iv); return; }
+    updateTTL();
+    const now = Date.now();
+    // Wipe expired decrypted content
+    for (const key of Object.keys(decrypted)) {
+      if (decrypted[key].expiresAt <= now) {
+        addLog(`⏱ Session content for "${key}" expired — wiping`);
+        delete decrypted[key];
+        rerenderLessons();
+      }
+    }
+    if (sessionExpiry.getTime() <= now) {
+      clearInterval(iv);
+      sessionSigs     = null;
+      chipotleSession = null;
+      sessionExpiry   = null;
+      sessionBar.classList.add('expired');
+      ttlDisplay.textContent = 'Session expired';
+      addLog('Session expired — all decrypted content wiped');
+      document.getElementById('btn-session').disabled = !litNode;
+      document.getElementById('btn-chipotle-auth').disabled = !wallet;
+    }
+  }, 10_000);
+}
+
+function updateTTL() {
+  if (!sessionExpiry) return;
+  const ms  = sessionExpiry.getTime() - Date.now();
+  const min = Math.max(0, Math.floor(ms / 60000));
+  const sec = Math.max(0, Math.floor((ms % 60000) / 1000));
+  ttlDisplay.textContent = `Expires in ${min}m ${sec.toString().padStart(2,'0')}s`;
+}
+
+/* ── MetaMask ───────────────────────────────────────────────────────── */
+document.getElementById('btn-wallet').addEventListener('click', async () => {
+  if (!window.ethereum) {
+    alert('MetaMask not found. Install the extension and reload.');
+    return;
+  }
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    wallet = { address: accounts[0] };
+    setChip('chip-wallet', 'ok', wallet.address.slice(0,8) + '…' + wallet.address.slice(-4));
+    addLog(`Wallet connected: ${wallet.address}`);
+    document.getElementById('btn-lit').disabled = false;
+    document.getElementById('btn-chipotle-auth').disabled = false;
+    // update explorer link
+    const expLink = document.getElementById('explorer-link');
+    if (expLink) expLink.href = GREENFIELD_TESTNET.explorer + '/account/' + wallet.address;
+  } catch(e) {
+    addLog(`Wallet error: ${e.message}`);
+    setChip('chip-wallet', 'err', 'Rejected');
+  }
+});
+
+/* ── Lit connect ────────────────────────────────────────────────────── */
+document.getElementById('btn-lit').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-lit');
+  btn.disabled = true;
+  btn.textContent = '⟳ Connecting…';
+  setChip('chip-lit', 'warn', 'Connecting…');
+  addLog('Connecting to Lit (datil-dev, free remote)…');
+  try {
+    await loadLitSdk();
+    litNode = new _LitNodeClient({ litNetwork: 'datil-dev', debug: false });
+    await litNode.connect();
+    setChip('chip-lit', 'ok', 'Connected');
+    addLog('✓ Lit nodes connected');
+    btn.textContent = 'Reconnect Lit';
+    btn.disabled = false;
+    document.getElementById('btn-session').disabled = false;
+  } catch(e) {
+    setChip('chip-lit', 'err', 'Error');
+    addLog(`Lit connect error: ${e.message}`);
+    btn.textContent = 'Connect Lit';
+    btn.disabled = false;
+  }
+});
+
+/* ── Get session sigs ───────────────────────────────────────────────── */
+document.getElementById('btn-session').addEventListener('click', async () => {
+  if (!wallet) { addLog('Connect wallet first'); return; }
+  if (!litNode) { addLog('Connect Lit first'); return; }
+  const btn = document.getElementById('btn-session');
+  btn.disabled = true;
+  btn.textContent = '⟳ Signing…';
+  addLog('Requesting session sigs…');
+  try {
+    const expiry  = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    const nonce   = await litNode.getLatestBlockhash();
+    addLog(`Nonce: ${nonce}`);
+
+    const sigs = await litNode.getSessionSigs({
+      chain: 'ethereum',
+      expiration: expiry,
+      resourceAbilityRequests: [{
+        resource: new _LitACCResource('*'),
+        ability: _LitAbility.AccessControlConditionDecryption,
+      }],
+      authNeededCallback: async ({ uri, expiration, resourceAbilityRequests }) => {
+        addLog('Building SIWE message…');
+        const message = await _createSiwe({
+          uri,
+          expiration,
+          resources: resourceAbilityRequests,
+          walletAddress: wallet.address,
+          nonce,
+          litNodeClient: litNode,
+        });
+        addLog('Waiting for MetaMask signature…');
+        const sig = await window.ethereum.request({
+          method: 'personal_sign',
+          params: [message, wallet.address],
+        });
+        addLog('✓ SIWE signed');
+        return { sig, derivedVia: 'web3.eth.personal.sign', signedMessage: message, address: wallet.address };
+      },
+    });
+
+    sessionSigs   = sigs;
+    sessionExpiry = new Date(expiry);
+    addLog(`✓ Session sigs obtained, valid until ${expiry}`);
+    document.getElementById('session-bar').classList.remove('expired');
+    sessionBar.style.display = 'flex';
+    startSessionClock();
+    btn.textContent = 'Refresh Session';
+    btn.disabled = false;
+    rerenderLessons();
+  } catch(e) {
+    addLog(`Session error: ${e.message}`);
+    btn.textContent = 'Get Session';
+    btn.disabled = false;
+  }
+});
+
+/* ── Revoke ─────────────────────────────────────────────────────────── */
+document.getElementById('btn-revoke').addEventListener('click', () => {
+  sessionSigs     = null;
+  chipotleSession = null;
+  sessionExpiry   = null;
+  for (const k of Object.keys(decrypted)) delete decrypted[k];
+  sessionBar.style.display = 'none';
+  addLog('Session revoked — all content wiped');
+  rerenderLessons();
+});
+
+/* ── Chipotle: Sign Proof ───────────────────────────────────────────── */
+document.getElementById('btn-chipotle-auth').addEventListener('click', async () => {
+  if (!wallet) { addLog('Connect MetaMask first'); return; }
+  const btn = document.getElementById('btn-chipotle-auth');
+  btn.disabled = true;
+  btn.textContent = '⟳ Signing…';
+  setChip('chip-lit', 'warn', 'Signing…');
+  addLog('Requesting MetaMask signature for Chipotle auth…');
+  try {
+    const proof = await signChipotleProof(wallet.address);
+    chipotleSession = {
+      userAddress: wallet.address,
+      signedProof: proof,
+      expiresAt: Date.now() + SESSION_TTL_MS,
+    };
+    sessionExpiry = new Date(chipotleSession.expiresAt);
+    setChip('chip-lit', 'ok', 'Chipotle auth');
+    addLog('✓ Proof signed — Chipotle session active for 1 h');
+    document.getElementById('session-bar').classList.remove('expired');
+    sessionBar.style.display = 'flex';
+    startSessionClock();
+    btn.textContent = 'Re-sign Proof';
+    btn.disabled = false;
+    rerenderLessons();
+  } catch(e) {
+    setChip('chip-lit', 'err', 'Error');
+    addLog(`Chipotle auth error: ${e.message}`);
+    btn.textContent = 'Sign Proof';
+    btn.disabled = false;
+  }
+});
+
+/* ── Fetch helpers ──────────────────────────────────────────────────── */
+async function fetchText(bkt, key) {
+  const url = `${SP}/${bkt}/${key}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${key}`);
+  return res.text();
+}
+
+function pretty(text) {
+  try { return JSON.stringify(JSON.parse(text), null, 2); } catch { return text; }
+}
+
+function tagOf(key) {
+  if (key.endsWith('.enc'))      return ['enc',     '🔒 encrypted'];
+  if (key.endsWith('.lit.json')) return ['sidecar', '🗝 sidecar'];
+  if (key.endsWith('.json'))     return ['json',    'json'];
+  return ['', key.split('.').pop() || 'object'];
+}
+
+/* ── Chipotle: create signed proof ──────────────────────────────────── */
+async function signChipotleProof(userAddress) {
+  const nonce   = 'Daskibo-DRM-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  const message = `Daskibo Academy — Verify ownership of ${userAddress}\n\nNonce: ${nonce}\n\nThis signature is used only for local DRM access verification.`;
+  addLog('Waiting for MetaMask personal_sign…');
+  const sig = await window.ethereum.request({
+    method: 'personal_sign',
+    params: [message, userAddress],
+  });
+  addLog('✓ Proof signature obtained');
+  return { message, signature: sig };
+}
+
+/* ── Decrypt via Chipotle ────────────────────────────────────────────── */
+async function decryptViaChipotle(entry, btnEl) {
+  const lit = manifest.lit;
+  if (!wallet) throw new Error('Connect MetaMask first');
+
+  // Lazy auth: sign proof on first unlock if not already done
+  if (!chipotleSession || chipotleSession.expiresAt < Date.now()) {
+    btnEl.textContent = '⟳ Signing proof…';
+    const proof = await signChipotleProof(wallet.address);
+    chipotleSession = {
+      userAddress: wallet.address,
+      signedProof: proof,
+      expiresAt: Date.now() + SESSION_TTL_MS,
+    };
+    sessionExpiry = new Date(chipotleSession.expiresAt);
+    setChip('chip-lit', 'ok', 'Chipotle auth');
+    document.getElementById('session-bar').classList.remove('expired');
+    sessionBar.style.display = 'flex';
+    startSessionClock();
+    document.getElementById('btn-chipotle-auth').textContent = 'Re-sign Proof';
+    addLog('✓ Chipotle proof signed');
+  }
+
+  const chipotleUrl = lit.chipotleUrl || 'http://localhost:8000';
+  addLog(`→ Calling Chipotle at ${chipotleUrl} (ACC check)…`);
+  btnEl.textContent = '⟳ Requesting master key…';
+
+  const r = await fetch(`${chipotleUrl}/core/v1/lit_action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: `async function main(p) { return Lit.Actions[p.action](p); }`,
+      js_params: {
+        action: 'decrypt',
+        ciphertext:              lit.ciphertext,
+        dataToEncryptHash:       lit.dataToEncryptHash,
+        accessControlConditions: lit.accessControlConditions,
+        chain:                   lit.chain || 'ethereum',
+        pkpId:                   lit.pkpId,
+        userAddress:             chipotleSession.userAddress,
+        signedProof:             chipotleSession.signedProof,
+      },
+    }),
+  });
+  const data = await r.json();
+  if (data.has_error) throw new Error(data.error || data.logs || 'Chipotle decrypt failed');
+  addLog('✓ Master key recovered from Chipotle');
+  return data.response.decrypted;
+}
+
+/* ── Decrypt one lesson ──────────────────────────────────────────────── */
+async function decryptLesson(entry, btnEl, panelEl) {
+  if (!manifest?.lit) {
+    throw new Error(
+      'Bucket has no Lit envelope in manifest — re-publish with write-testnet-chipotle.mjs or write-testnet-lit.mjs',
+    );
+  }
+  addLog(`Decrypting ${entry.key}…`);
+  const isChipotle = manifest.lit.litNetwork === 'chipotle';
+
+  // ── 1. Recover master key ────────────────────────────────────────────
+  let masterKey;
+  if (isChipotle) {
+    masterKey = await decryptViaChipotle(entry, btnEl);
+  } else {
+    if (!sessionSigs) throw new Error('No active Lit session — click "Get Session" first');
+    btnEl.textContent = '⟳ Requesting master key…';
+    addLog('→ Sending request to Lit nodes (ACC check)…');
+    masterKey = await _decryptToString({
+      accessControlConditions: manifest.lit.accessControlConditions,
+      ciphertext:              manifest.lit.ciphertext,
+      dataToEncryptHash:       manifest.lit.dataToEncryptHash,
+      chain:                   manifest.lit.chain || 'ethereum',
+      sessionSigs,
+    }, litNode);
+    addLog('✓ Master key recovered from Lit');
+  }
+
+  // ── 2. Fetch .enc envelope ───────────────────────────────────────────
+  btnEl.textContent = '⟳ Fetching ciphertext…';
+  addLog(`→ Fetching ${entry.key}…`);
+  const envelopeJson = await fetchText(bucket, entry.key);
+  const envelope     = JSON.parse(envelopeJson);
+
+  // ── 3. AES-GCM decrypt via crypto-envelope ───────────────────────────
+  addLog('→ AES-GCM decrypting content…');
+  const { bytes, text, meta } = await decryptObject(masterKey, envelope);
+  addLog(`✓ Decrypted: ${bytes.length} bytes, encoding=${meta.encoding}`);
+
+  const expiresAt = sessionExpiry ? sessionExpiry.getTime() : Date.now() + SESSION_TTL_MS;
+  decrypted[entry.key] = { text: text ?? `[binary ${bytes.length} bytes]`, meta, expiresAt };
+  return decrypted[entry.key];
+}
+
+/* ── Object row (generic) ─────────────────────────────────────────────── */
+function makeObjectItem(bkt, key, prefetched = null) {
+  const [cls, label] = tagOf(key);
+  const isEnc = key.endsWith('.enc');
+  const viewUrl = buildViewUrl(SP, bkt, key);
+  const dlUrl   = buildDownloadUrl(SP, bkt, key);
+
+  const li = document.createElement('li');
+  li.className = 'obj-item';
+  li.dataset.key = key;
+
+  const lockIcon = isEnc ? '<span class="lock-icon" id="lk-' + encodeURIComponent(key) + '">🔒</span>' : '';
+
+  li.innerHTML = `
+    <div class="obj-header">
+      <span class="chevron">▶</span>
+      ${lockIcon}
+      <span class="obj-key">${key}</span>
+      <span class="obj-tag ${cls}">${label}</span>
+    </div>
+    <div class="obj-body">
+      <div class="obj-actions">
+        ${isEnc ? `<button class="btn-sm unlock btn-unlock">Unlock 🔓</button>` : `<button class="btn-sm pri btn-fetch">Fetch</button>`}
+        <a class="btn-sm" href="${viewUrl}" target="_blank" rel="noopener">Raw ↗</a>
+        <a class="btn-sm" href="${dlUrl}" download>Download</a>
+      </div>
+      <div class="dec-panel"></div>
+      <pre class="obj-pre">${prefetched !== null ? pretty(prefetched) : 'Click to load.'}</pre>
+    </div>`;
+
+  li.querySelector('.obj-header').addEventListener('click', () => li.classList.toggle('open'));
+
+  if (isEnc) {
+    const unlockBtn = li.querySelector('.btn-unlock');
+    const decPanel  = li.querySelector('.dec-panel');
+    const pre       = li.querySelector('.obj-pre');
+
+    function refreshDecryptedView() {
+      const d = decrypted[key];
+      if (d) {
+        const ms   = d.expiresAt - Date.now();
+        const min  = Math.max(0, Math.floor(ms / 60000));
+        decPanel.innerHTML = `
+          <div class="decrypted-panel">
+            <div class="dec-header">
+              <span class="dec-title">✓ Decrypted · ${d.meta.contentType ?? ''}</span>
+              <span style="font-size:.7rem;color:var(--muted)">expires in ~${min}m</span>
+              <button class="btn-sm" style="font-size:.68rem" onclick="this.closest('.decrypted-panel').nextSibling;delete decrypted_global['${key}'];this.closest('.decrypted-panel').remove()">Wipe</button>
+            </div>
+            <pre>${escHtml(d.text)}</pre>
+          </div>`;
+        unlockBtn.textContent = '✓ Decrypted';
+        unlockBtn.disabled    = false;
+        li.querySelector('.lock-icon')?.replaceWith(Object.assign(document.createElement('span'), { className: 'lock-icon', textContent: '🔓' }));
+      } else {
+        decPanel.innerHTML = '';
+        unlockBtn.textContent = 'Unlock 🔓';
+        unlockBtn.disabled    = false;
+      }
+    }
+
+    unlockBtn.addEventListener('click', async () => {
+      if (decrypted[key]) {
+        delete decrypted[key];
+        refreshDecryptedView();
+        addLog(`Content wiped for ${key}`);
+        return;
+      }
+      unlockBtn.disabled = true;
+      try {
+        li.classList.add('open');
+        await decryptLesson({ key }, unlockBtn, decPanel);
+        refreshDecryptedView();
+      } catch(e) {
+        addLog(`✗ Decrypt failed: ${e.message}`);
+        pre.textContent = `Error: ${e.message}`;
+        unlockBtn.textContent = 'Unlock 🔓';
+        unlockBtn.disabled    = false;
+      }
+    });
+
+    // expose for TTL wipe
+    li._refreshDecrypted = refreshDecryptedView;
+
+  } else {
+    const fetchBtn = li.querySelector('.btn-fetch');
+    const pre      = li.querySelector('.obj-pre');
+
+    if (prefetched !== null) {
+      li.classList.add('open');
+      pre.textContent = pretty(prefetched);
+    }
+
+    fetchBtn.addEventListener('click', async () => {
+      fetchBtn.disabled = true;
+      fetchBtn.textContent = '⟳ Loading…';
+      try {
+        const text = await fetchText(bkt, key);
+        pre.textContent = pretty(text);
+        fetchBtn.textContent = '✓ Loaded';
+      } catch(e) {
+        pre.textContent = 'Error: ' + e.message;
+        fetchBtn.textContent = 'Retry';
+        fetchBtn.disabled = false;
+      }
+    });
+  }
+
+  return li;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ── Re-render lessons (called on session change) ─────────────────────── */
+function rerenderLessons() {
+  // Refresh each encrypted item's view
+  document.querySelectorAll('.obj-item[data-key]').forEach(li => {
+    if (li._refreshDecrypted) li._refreshDecrypted();
+  });
+  // Update unlock button states
+  const hasSession = !!sessionSigs;
+  document.querySelectorAll('.btn-unlock').forEach(btn => {
+    if (btn.textContent.startsWith('✓')) return;
+    btn.disabled = false; // always clickable, decryptLesson shows error if no session
+  });
+}
+
+/* ── Main render ──────────────────────────────────────────────────────── */
+const root = document.getElementById('reader-root');
+
+async function loadBucket(bkt, owner) {
+  bucket = bkt;
+  root.innerHTML = '';
+  setStatus('<span class="spin">⟳</span> Fetching <code>_lit/manifest.json</code>…', 'loading');
+  addLog(`Loading bucket "${bkt}"…`);
+
+  try {
+    const raw = await fetchText(bkt, '_lit/manifest.json');
+    manifest  = JSON.parse(raw);
+    const n   = (manifest.objects ?? manifest.lessons ?? []).length;
+    setStatus(`✓ Loaded <strong>${bkt}</strong> — ${n} object${n !== 1 ? 's' : ''}`, 'ok');
+    addLog(`✓ Manifest OK: ${n} objects, litNetwork=${manifest.litNetwork ?? manifest.lit?.litNetwork ?? '—'}`);
+
+    // Switch UI to Chipotle mode if manifest says so
+    const chipotleMode = manifest.lit?.litNetwork === 'chipotle';
+    document.getElementById('lit-network-label').textContent =
+      chipotleMode ? '(chipotle)' : '(datil-dev)';
+    document.getElementById('btn-lit').style.display    = chipotleMode ? 'none' : '';
+    document.getElementById('btn-session').style.display = chipotleMode ? 'none' : '';
+    document.getElementById('btn-chipotle-auth').style.display = chipotleMode ? '' : 'none';
+    if (chipotleMode && wallet) {
+      document.getElementById('btn-chipotle-auth').disabled = false;
+    }
+  } catch(e) {
+    setStatus('Could not load manifest: ' + e.message, 'err');
+    addLog(`✗ Manifest error: ${e.message}`);
+    return;
+  }
+
+  // Course banner
+  const banner = document.createElement('div');
+  banner.className = 'course-banner';
+  banner.innerHTML = `
+    <div>
+      <h2>📚 ${escHtml(manifest.title ?? bkt)}</h2>
+    </div>
+    <div class="banner-meta">
+      bucket: <code>${manifest.bucket ?? bkt}</code> ·
+      Lit: <code>${manifest.litNetwork ?? '—'}</code>
+      ${manifest.updatedAt ? ` · updated: <code>${manifest.updatedAt.slice(0,10)}</code>` : ''}<br>
+      owner: <a id="explorer-link" href="${GREENFIELD_TESTNET.explorer}/account/${owner}"
+        target="_blank" rel="noopener">${owner.slice(0,10)}…${owner.slice(-6)} ↗</a>
+    </div>`;
+  root.appendChild(banner);
+
+  // ACC info panel
+  if (manifest.lit?.accessControlConditions) {
+    const acc = manifest.lit.accessControlConditions;
+    const accPanel = document.createElement('div');
+    accPanel.className = 'acc-panel';
+    accPanel.innerHTML = `
+      <h4>🛡 Access Control Conditions (${acc.filter(c => !c.operator).length} rule${acc.filter(c => !c.operator).length !== 1 ? 's' : ''})</h4>
+      <pre style="margin:0;font-size:.72rem;color:#94a3b8;white-space:pre-wrap">${escHtml(JSON.stringify(acc, null, 2))}</pre>`;
+    root.appendChild(accPanel);
+    addLog(`ACC: ${acc.filter(c => !c.operator).length} condition(s) found`);
+  } else {
+    const warn = document.createElement('div');
+    warn.className = 'status warn';
+    warn.innerHTML = '⚠ This bucket has <strong>no DRM envelope</strong> in the manifest — content cannot be decrypted. Re-publish with <code>write-testnet-chipotle.mjs</code> (Chipotle) or <code>write-testnet-lit.mjs</code> (Lit).';
+    root.appendChild(warn);
+    addLog('⚠ manifest.lit missing — bucket not Lit-protected');
+  }
+
+  // Manifest row
+  const mSec = document.createElement('div');
+  mSec.innerHTML = '<div class="section-label">Manifest</div>';
+  const mList = document.createElement('ul');
+  mList.className = 'obj-list';
+  mList.appendChild(makeObjectItem(bkt, '_lit/manifest.json', JSON.stringify(manifest)));
+  mSec.appendChild(mList);
+  root.appendChild(mSec);
+
+  // Lessons / objects
+  const items = manifest.objects ?? manifest.lessons ?? [];
+  if (items.length) {
+    const lSec = document.createElement('div');
+    lSec.innerHTML = `<div class="section-label">Objects (${items.length})</div>`;
+    for (const item of items) {
+      const block = document.createElement('div');
+      block.className = 'lesson-block';
+      block.innerHTML = `
+        <div class="lesson-name">${escHtml(item.title ?? item.key)}</div>
+        <div class="lesson-type">${escHtml(item.contentType ?? '')}</div>`;
+      const ul = document.createElement('ul');
+      ul.className = 'obj-list';
+      if (item.key)     ul.appendChild(makeObjectItem(bkt, item.key));
+      if (item.sidecar) ul.appendChild(makeObjectItem(bkt, item.sidecar));
+      block.appendChild(ul);
+      lSec.appendChild(block);
+    }
+    root.appendChild(lSec);
+  }
+
+  // Manual read
+  const manSec = document.createElement('div');
+  manSec.innerHTML = `
+    <div class="section-label" style="margin-top:.4rem">Read any object</div>
+    <div style="display:flex;gap:.55rem;align-items:flex-end;margin-bottom:.6rem">
+      <div class="field" style="flex:1">
+        <label>Object key</label>
+        <input id="manual-key" placeholder="lessons/01/intro.md.enc" style="width:100%"/>
+      </div>
+      <button class="btn" id="manual-btn">Read</button>
+    </div>
+    <ul class="obj-list" id="manual-out"></ul>`;
+  root.appendChild(manSec);
+
+  document.getElementById('manual-btn').addEventListener('click', async () => {
+    const key = document.getElementById('manual-key').value.trim();
+    if (!key) return;
+    const out = document.getElementById('manual-out');
+    out.innerHTML = '<li style="padding:.4rem .6rem;color:var(--muted)"><span class="spin">⟳</span> fetching…</li>';
+    try {
+      const text = await fetchText(bkt, key);
+      out.innerHTML = '';
+      out.appendChild(makeObjectItem(bkt, key, text));
+    } catch(e) {
+      out.innerHTML = `<li style="padding:.4rem .6rem;color:var(--err)">${escHtml(e.message)}</li>`;
+    }
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────────── */
+function vals() {
+  return {
+    bucket: document.getElementById('inp-bucket').value.trim(),
+    owner:  document.getElementById('inp-owner').value.trim(),
+  };
+}
+
+const { bucket: initBucket, owner: initOwner } = vals();
+
+// Support ?bucket=xxx&owner=0x... or #bucket=xxx&owner=0x...
+const urlParams = new URLSearchParams(location.search || location.hash.replace('#','?'));
+if (urlParams.get('bucket')) document.getElementById('inp-bucket').value = urlParams.get('bucket');
+if (urlParams.get('owner'))  document.getElementById('inp-owner').value  = urlParams.get('owner');
+
+loadBucket(
+  document.getElementById('inp-bucket').value.trim(),
+  document.getElementById('inp-owner').value.trim(),
+);
+
+document.getElementById('btn-load').addEventListener('click', () => {
+  const v = vals();
+  if (!v.bucket) return;
+  loadBucket(v.bucket, v.owner);
+});
+
+// Expose for wipe button (eval context needs it)
+window.decrypted_global = decrypted;
+</script>
+
+</body>
+</html>

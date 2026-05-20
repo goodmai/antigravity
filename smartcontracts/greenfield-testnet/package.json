@@ -7,6 +7,9 @@
     "write": "node write-testnet.mjs"
   },
   "dependencies": {
-    "@bnb-chain/greenfield-js-sdk": "2.2.2"
+    "@bnb-chain/greenfield-js-sdk": "2.2.2",
+    "@lit-protocol/auth-helpers": "^7.4.0",
+    "@lit-protocol/encryption": "^7.4.0",
+    "@lit-protocol/lit-node-client": "^7.4.0"
   }
 }

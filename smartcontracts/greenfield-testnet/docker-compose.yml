@@ -15,15 +15,43 @@
 # Never invoked by the default `npm test`.
 
 services:
+  # Local Chipotle mock — DRM key server for Flow C testing.
+  # Starts the chipotle-mock.mjs HTTP server on port 8000.
+  # Set CHIPOTLE_PKP_KEY to reuse the same PKP across restarts.
+  chipotle-mock:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../../:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - CHIPOTLE_PKP_KEY
+      - CHIPOTLE_PORT=8000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   testnet-writer:
     image: node:22-bookworm
-    working_dir: /app
+    # Mount the project root so that the root package.json ("type":"module")
+    # is visible to Node — otherwise sibling .js files are treated as CJS.
+    working_dir: /app/smartcontracts/greenfield-testnet
     volumes:
-      - ./:/app
+      - ../../:/app
     environment:
       - GREENFIELD_TESTNET_PRIVATE_KEY
       - GREENFIELD_TESTNET_ADDRESS
       - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - CHIPOTLE_URL
+      - CHIPOTLE_PKP_KEY
     # Pin the SDK in package.json for reproducible runs; `npm ci` if a
     # lockfile is committed alongside.
+    # Default: original write (no DRM). Override command:
+    #   node write-testnet-lit.mjs      — Lit Protocol (datil-dev)
+    #   node write-testnet-chipotle.mjs — Chipotle mock (start chipotle-mock service first)
     command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet.mjs"]
