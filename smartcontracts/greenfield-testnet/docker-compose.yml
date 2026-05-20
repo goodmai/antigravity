@@ -55,3 +55,26 @@ services:
     #   node write-testnet-lit.mjs      — Lit Protocol (datil-dev)
     #   node write-testnet-chipotle.mjs — Chipotle mock (start chipotle-mock service first)
     command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet.mjs"]
+
+  # Publish a course to Greenfield testnet with Chipotle DRM.
+  # Uses chipotle-mock as the key server (Docker service DNS: chipotle-mock:8000).
+  # Waits for chipotle-mock to pass its healthcheck before starting.
+  #
+  #   docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml \
+  #     run --rm chipotle-writer
+  chipotle-writer:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../../:/app
+    depends_on:
+      chipotle-mock:
+        condition: service_healthy
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - CHIPOTLE_PKP_KEY
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet-chipotle.mjs"]
