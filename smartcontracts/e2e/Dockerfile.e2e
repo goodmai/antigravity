@@ -1,0 +1,15 @@
+# Daskibo Academy — E2E runner container
+# Node 22 + pinned @bnb-chain/greenfield-js-sdk, @lit-protocol/*, viem.
+FROM node:22-bookworm
+
+WORKDIR /app
+COPY package.json /app/package.json
+RUN npm install --no-audit --no-fund
+COPY run-e2e.mjs /app/run-e2e.mjs
+
+# The buckets/ tree (course-template, course-publish, crypto-envelope,
+# lit-access, course-read, greenfield-core, lit-acc) is mounted at
+# /app/buckets read-only by docker-compose so the runner uses the SAME
+# code paths as production — no copies, no drift.
+
+CMD ["node", "/app/run-e2e.mjs"]
