@@ -1,8 +1,8 @@
 # Real local PRIVATE BNB Greenfield network (clean state).
 #
-# Builds the official node from source and runs the canonical local-up
-# script (validators + storage providers). Commands mirror the upstream
-# readme: https://github.com/bnb-chain/greenfield
+# Uses the pre-built gnfd binary from the official GHCR image instead of
+# compiling from source, which reduces build time from ~20 min to ~1 min.
+# The deployment/localup scripts are cloned at the matching release tag.
 #
 #   bash ./deployment/localup/localup.sh all <validators> <sps>
 #   chain-id: greenfield_9000-1   validator0 RPC: tcp://0.0.0.0:26750
@@ -11,28 +11,34 @@
 # from a fresh genesis, which is exactly the "private chain, clean state"
 # requirement.
 
-FROM golang:1.21-bookworm
+# Stage 1: extract the pre-built gnfd binary (matches latest release tag)
+FROM ghcr.io/bnb-chain/greenfield:latest AS gnfd-bin
 
-ARG GREENFIELD_REF=master
+# Stage 2: runtime — same musl base as the gnfd binary (Alpine 3.17)
+FROM alpine:3.17
+
+ARG GREENFIELD_REF=v1.10.7
 ARG VALIDATORS=1
 ARG SPS=1
 ENV VALIDATORS=${VALIDATORS} SPS=${SPS}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      git make build-essential jq curl ca-certificates procps \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache bash git jq curl procps coreutils sed grep findutils
+
+# Copy pre-built binary from stage 1
+COPY --from=gnfd-bin /app/gnfd /tmp/gnfd
 
 WORKDIR /opt
-RUN git clone https://github.com/bnb-chain/greenfield.git \
- && cd greenfield \
- && git checkout "${GREENFIELD_REF}" \
- && make build
+RUN git clone --depth=1 --branch "${GREENFIELD_REF}" \
+      https://github.com/bnb-chain/greenfield.git
 
 WORKDIR /opt/greenfield
 
-# localup.sh binds RPC to 127.0.0.1 by default; expose it on all
-# interfaces so the host (and other compose services) can reach it.
-RUN find deployment/localup -type f -name '*.toml*' -o -name '*.sh' | xargs -r grep -l '127.0.0.1' >/dev/null 2>&1 || true
+# Place binary where localup.sh expects it: build/bin/gnfd (relative to repo root)
+RUN mkdir -p build/bin && cp /tmp/gnfd build/bin/gnfd && chmod +x build/bin/gnfd
+
+# v1.10.7 changed the default CHAIN_ID to greenfield_9000-121; pin it back
+# to greenfield_9000-1 so the test assertion stays stable across versions.
+RUN sed -i 's/^CHAIN_ID=.*/CHAIN_ID=greenfield_9000-1/' deployment/localup/.env
 
 EXPOSE 26750 9033 1317
 

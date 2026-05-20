@@ -31,6 +31,17 @@ export const GREENFIELD_TESTNET = {
   faucet: 'https://gnfd-testnet-faucet.bnbchain.org',
 };
 
+export const GREENFIELD_LOCAL = {
+  chainId: 9000,
+  chainIdHex: '0x2328',
+  chainName: 'BNB Greenfield Local',
+  cosmosChainId: 'greenfield_9000-1',
+  nativeCurrency: { name: 'tBNB', symbol: 'BNB', decimals: 18 },
+  rpcUrl: 'http://localhost:26750',
+  spEndpoint: 'http://localhost:9033',
+  explorer: '',
+};
+
 /**
  * @typedef {Object} TransportRequest
  * @property {string} method

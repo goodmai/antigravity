@@ -7,8 +7,108 @@ at rest**, **the metadata stays public so an indexer can crawl it**, and
 
 This builds directly on the bucket console in
 [`GREENFIELD.md`](./GREENFIELD.md): Lit only ever touches *bytes* and
-*public JSON*, so it works identically over Flow A (mock SP), Flow B
-(local private chain) and Flow C (public testnet).
+*public JSON*, so the encrypted objects look the same regardless of which
+storage tier they land on.
+
+> **Implementation note**: Lit P2P nodes (datil-dev) at port 7470 are
+> blocked at the server firewall. For local and testnet development we use
+> **Chipotle** as a drop-in Lit replacement — same REST API surface, TEE
+> instead of P2P, no port-7470 dependency. See [§1a](#1a-drm-per-development-flow) below.
+
+---
+
+## 1a. DRM per development flow
+
+Five flows, five storage / DRM combinations. The `LitClient` interface
+(`smartcontracts/buckets/lit-access.js`) is identical in all of them;
+only the concrete adapter and server URL change.
+
+| Flow | Chain | DRM server | Adapter | Lit network field |
+|------|-------|-----------|---------|------------------|
+| **A** — Mock SP | none | **none** | — | — |
+| **B** — Local chain | `greenfield_9000-1` | **Chipotle mock** `localhost:8000` | `lit-sdk-chipotle.js` | `chipotle` |
+| **C** — Local DRM | testnet 5600 | **Chipotle mock** `localhost:8000` | `lit-sdk-chipotle.js` | `chipotle` |
+| **D** — Testnet DRM | testnet 5600 | **Chipotle live** `api.chipotle.litprotocol.com` | `lit-sdk-chipotle.js` | `chipotle` |
+| **E** — Mainnet | mainnet | **Lit** `datil` | `lit-sdk.js` | `datil` |
+
+### Why Chipotle instead of Lit for Flows B–D
+
+Lit's P2P nodes (datil-dev network) communicate on port **7470**, which
+is blocked at the network level on the development server. Live Chipotle
+(`api.chipotle.litprotocol.com`) requires pre-purchased credits ($5 min).
+Chipotle is also architecturally cleaner for server-side use: REST over
+HTTP instead of a P2P handshake.
+
+The **Chipotle mock** (`smartcontracts/greenfield-testnet/chipotle-mock.mjs`)
+provides an identical REST surface on `localhost:8000` using Node.js
+`crypto.subtle` instead of a TEE. It is the canonical dev server for
+Flows B and C.
+
+### How to switch adapters
+
+```js
+// Flow C / D — Chipotle
+import { createChipotleClient } from './smartcontracts/buckets/lit-sdk-chipotle.js';
+const litClient = createChipotleClient({
+  chipotleUrl: 'http://localhost:8000',   // Flow C
+  // chipotleUrl: 'https://api.chipotle.litprotocol.com',  // Flow D
+});
+
+// Flow E — real Lit
+import { createLitClient } from './smartcontracts/buckets/lit-sdk.js';
+const litClient = await createLitClient({ litNetwork: 'datil' });
+
+// Common path for both (LitClient interface is identical):
+import { createLitAccess } from './smartcontracts/buckets/lit-access.js';
+const { encryptMasterKey, decryptMasterKey } = createLitAccess({ litClient });
+```
+
+### manifest.lit.json — Chipotle variant
+
+When the Chipotle adapter is used, the public manifest carries two extra
+fields so the reader knows which server to call and which PKP holds the
+key:
+
+```jsonc
+{
+  "schema": "daskibo.lit.acc/1",
+  "chain": "ethereum",
+  "litNetwork": "chipotle",           // ← signals Chipotle path to the reader
+  "chipotleUrl": "http://localhost:8000",
+  "pkpId": "0x<PKP wallet address>",
+  "accessControlConditions": [ /* … */ ],
+  "ciphertext": "<base64iv>:<base64ciphertext>",
+  "dataToEncryptHash": "<sha256hex>"
+}
+```
+
+For `litNetwork: "datil"` (Flow E) the fields `chipotleUrl` and `pkpId`
+are absent; the reader loads the Lit SDK instead.
+
+### Flow C quick-start (local DRM)
+
+```bash
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x...
+export GREENFIELD_TESTNET_ADDRESS=0x...
+export CHIPOTLE_PKP_KEY=0x...     # optional; printed on first start if omitted
+
+# Start mock key server
+docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml \
+  up -d chipotle-mock
+
+# Publish a Chipotle-DRM-protected course to Greenfield testnet
+docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml \
+  run --rm chipotle-writer
+# → prints "ALL DONE — Chipotle-protected course published to Greenfield"
+
+# Read it back in the browser
+static-web-server --port 8099 --root smartcontracts/
+# http://localhost:8099/bucket-reader.html?bucket=BUCKET&owner=0xADDR
+# → Connect MetaMask → "Sign Proof" → lessons unlock
+```
+
+See `smartcontracts/COMPOSE.md` for the full service reference and
+`smartcontracts/CHIPOTLE.md` for the Chipotle DRM architecture deep-dive.
 
 ---
 
@@ -96,9 +196,10 @@ npm i @lit-protocol/lit-node-client @lit-protocol/encryption \
       @lit-protocol/auth-helpers @lit-protocol/constants
 ```
 
-Networks: `datil-dev` (free, dev), `datil-test` (staging, **pair with
-Greenfield testnet**), `datil` (production, pair with Greenfield
-mainnet). Pin the version — v7 had breaking changes.
+Networks: `datil-dev` (free, dev — port 7470 P2P, blocked on our server),
+`datil-test` (staging), `datil` (production, pair with Greenfield mainnet).
+For Flows B–D use the **Chipotle adapter** instead (see §1a). Pin the SDK
+version — v7 had breaking changes.
 
 ---
 
@@ -275,8 +376,8 @@ Credit NFT to cover Lit node rate limits — provision before launch.
   sees public material. Verify the manifest against on-chain object
   checksums (Greenfield stores object hashes) to detect a tampering SP or
   indexer.
-- **Network pairing**: use `datil-dev`/`datil-test` with Greenfield
-  **testnet** (Flow B/C), `datil` with mainnet. Pin SDK + ACC schema
+- **Network pairing**: use Chipotle mock with Greenfield testnet (Flows
+  B–D; see §1a), `datil` with mainnet (Flow E). Pin SDK + ACC schema
   versions; record `litNetwork` in every envelope so old data stays
   decryptable after upgrades.
 - **Availability**: Lit liveness gates *all* reads. Cache the Greenfield

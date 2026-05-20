@@ -9,7 +9,12 @@
  * browser bucket console.
  */
 
-import * as gnfdSdk from '@bnb-chain/greenfield-js-sdk';
+// SDK v2.2.2: package has no "type":"module", so the "import" condition
+// resolves dist/esm which Node treats as CJS and chokes on ESM syntax.
+// Force the CJS build explicitly via createRequire.
+import { createRequire } from 'node:module';
+const _require = createRequire(import.meta.url);
+const { Client, Long, VisibilityType } = _require('@bnb-chain/greenfield-js-sdk');
 import { sdkCreateBucket } from '../buckets/greenfield-sdk-tx.js';
 
 /**

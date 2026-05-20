@@ -16,6 +16,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { GREENFIELD_LOCAL } from '../smartcontracts/buckets/greenfield-core.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = [
@@ -59,16 +60,17 @@ d('REAL local private Greenfield (docker-compose, clean state)', () => {
     }
   }, 120_000);
 
-  it('runs a real private chain with id greenfield_9000-1', async () => {
-    const res = await fetch('http://localhost:26750/status');
+  it(`runs a real private chain with id ${GREENFIELD_LOCAL.cosmosChainId}`, async () => {
+    const res = await fetch(`${GREENFIELD_LOCAL.rpcUrl}/status`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.result.node_info.network).toBe('greenfield_9000-1');
+    expect(json.result.node_info.network).toBe(GREENFIELD_LOCAL.cosmosChainId);
+    expect(json.result.node_info.network).toContain(`${GREENFIELD_LOCAL.chainId}`);
   }, 60_000);
 
   it('produces blocks (height advances → real consensus, not a mock)', async () => {
     const h = async () => {
-      const r = await fetch('http://localhost:26750/status');
+      const r = await fetch(`${GREENFIELD_LOCAL.rpcUrl}/status`);
       const j = await r.json();
       return Number(j.result.sync_info.latest_block_height);
     };
