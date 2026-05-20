@@ -9,7 +9,7 @@
  *              addresses
  *   storage    REAL public BNB Greenfield testnet (chain 5600) via
  *              @bnb-chain/greenfield-js-sdk
- *   crypto     REAL Lit Protocol datil-test (encrypt + decrypt with
+ *   crypto     REAL Lit Protocol datil-dev (encrypt + decrypt with
  *              session sigs derived from EOA personal_sign)
  *
  * Actors (anvil deterministic accounts):
@@ -72,6 +72,10 @@ const GF_RPC = env('GF_RPC');
 const GF_SP = env('GF_SP');
 const GF_CHAIN_ID = env('GF_CHAIN_ID');
 const LIT_NETWORK = env('LIT_NETWORK');
+// Course price in native wei on the anvil chain. Default 0.01 ether
+// (= 10^16 wei). Anvil dev accounts hold 10 000 native each so this has
+// zero real-world cost — set via COURSE_PRICE_WEI to change.
+const COURSE_PRICE_WEI = BigInt(env('COURSE_PRICE_WEI', false) || '10000000000000000');
 
 // ── chain ────────────────────────────────────────────────────────────
 const chain = defineChain({
@@ -134,7 +138,7 @@ async function connectLit() {
 }
 
 /**
- * Build Lit session sigs for a given EOA private key against datil-test.
+ * Build Lit session sigs for a given EOA private key against datil-dev.
  * The signer is purely off-chain — Lit nodes verify a SIWE personal_sign,
  * not a chain tx, so anvil-only accounts are fine.
  */
@@ -214,7 +218,7 @@ async function expectRejected(label, p, codeOrMatch) {
 
 // ── main flow ────────────────────────────────────────────────────────
 async function main() {
-  console.log('━━ Daskibo E2E — anvil-BNB(97) + Greenfield(5600) + Lit datil-test ━━');
+  console.log('━━ Daskibo E2E — anvil-BNB(97) + Greenfield(5600) + Lit datil-dev ━━');
   console.log(`  Marketplace : ${MARKETPLACE_ADDR}`);
   console.log(`  AccessPass  : ${ACCESSPASS_ADDR}`);
   console.log(`  Treasury    : ${TREASURY_ADDR}`);
@@ -224,8 +228,8 @@ async function main() {
   console.log(`  Eve freeloader: ${eve.address}`);
   console.log(`  GF testnet account (paid uploads): ${GF_ADDR}`);
 
-  // ── 0. Connect Lit (real datil-test). ─────────────────────────────
-  console.log('\n[0/9] Connect Lit datil-test…');
+  // ── 0. Connect Lit (real datil-dev). ─────────────────────────────
+  console.log('\n[0/9] Connect Lit datil-dev…');
   const litClient = await connectLit();
   const lit = createLitAccess({ litClient });
   console.log('  ✓ Lit connected');
@@ -280,7 +284,7 @@ async function main() {
 
   // ── 3. Register course on the anvil Marketplace. ──────────────────
   console.log('\n[3/9] Alice registers course on Marketplace (anvil chain 97)…');
-  const PRICE = parseEther('0.01'); // 0.01 tBNB
+  const PRICE = COURSE_PRICE_WEI; // wei on the anvil chain (chain 97)
   const txReg = await wAlice.writeContract({
     address: MARKETPLACE_ADDR,
     abi: MP_ABI,

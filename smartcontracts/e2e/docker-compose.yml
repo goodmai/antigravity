@@ -16,7 +16,8 @@
 #   e2e      Node container that drives the happy-path:
 #              · Alice publishes encrypted course to REAL Greenfield
 #                testnet (chain 5600)
-#              · Master key Lit-wrapped on REAL datil-test
+#              · Master key Lit-wrapped on REAL datil-dev (free; switch
+#                to datil-test only if you own capacity credits)
 #              · Alice registers course on the anvil Marketplace
 #              · Bob purchases — money split asserted on-chain
 #              · Operator re-wraps Lit envelope (Alice OR Bob) — mirrors
@@ -116,9 +117,14 @@ services:
       - GF_CHAIN_ID=5600
       - GF_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
       - GF_SP=https://gnfd-testnet-sp1.bnbchain.org
-      # REAL Lit Protocol — datil-test is permissionless to encrypt;
-      # decrypt session sigs are signed by the anvil dev keys.
-      - LIT_NETWORK=datil-test
+      # REAL Lit Protocol — datil-dev is permissionless and free (no
+      # capacity credits required). Switch to datil-test only if the
+      # operator owns capacity credits on Chronicle Yellowstone.
+      - LIT_NETWORK=datil-dev
+      # Course list price (uint96 wei on the anvil chain). 0.01 native.
+      # Anvil dev accounts are auto-funded with 10 000 each, so this is
+      # zero real-world cost — only Greenfield uploads spend funds.
+      - COURSE_PRICE_WEI=10000000000000000
     volumes:
       - ./:/app
       - ../buckets:/app/buckets:ro

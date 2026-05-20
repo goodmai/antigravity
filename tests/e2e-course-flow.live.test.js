@@ -7,7 +7,7 @@
  *   deploy  Foundry container deploying Treasury / AccessPass /
  *           CourseMarketplace at deterministic addresses
  *   e2e     Node container running run-e2e.mjs against REAL Greenfield
- *           testnet (5600) and REAL Lit datil-test
+ *           testnet (5600) and REAL Lit datil-dev
  *
  * No mocks: real chain, real storage, real threshold encryption. This is
  * the canonical pre-release verification — every other suite is a
@@ -49,7 +49,7 @@ const ENABLED =
 
 const d = ENABLED ? describe : describe.skip;
 
-d('REAL-network E2E (anvil-BNB + Greenfield-testnet + Lit-datil-test)', () => {
+d('REAL-network E2E (anvil-BNB + Greenfield-testnet + Lit-datil-dev)', () => {
   it(
     'encrypts → publishes → sells → decrypts; Eve denied at both layers',
     () => {
