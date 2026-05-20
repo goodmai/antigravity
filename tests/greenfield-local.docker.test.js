@@ -81,8 +81,22 @@ d('REAL local private Greenfield (docker-compose, clean state)', () => {
       return Number(j.result.sync_info.latest_block_height);
     };
     const h1 = await h();
-    await new Promise((r) => setTimeout(r, 6000));
-    const h2 = await h();
-    expect(h2).toBeGreaterThan(h1);
+
+    async function waitForStateSync(validationFn, maxRetries = 5) {
+        let delay = 1000;
+        for (let i = 0; i < maxRetries; i++) {
+            if (await validationFn()) return true;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+        }
+        throw new Error("Timeout: State sync failed across modules");
+    }
+
+    const advanced = await waitForStateSync(async () => {
+      const currentHeight = await h();
+      return currentHeight > h1;
+    });
+
+    expect(advanced).toBe(true);
   }, 30_000);
 });

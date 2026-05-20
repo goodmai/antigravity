@@ -45,6 +45,8 @@ def generate_checklist(skill_name, output_path):
         ("Frontend", "FE-004", "Check for broken links (404)", "Pending", "High", ""),
         ("Functional", "FN-001", "Verify core skill functionality", "Pending", "Critical", ""),
         ("Security", "SEC-001", "Run Security Checker", "Pending", "High", ""),
+        ("Security", "SEC-002", "Negative: Attempt Lit Protocol decryption with expired session key", "Pending", "Critical", "Audit 4.3"),
+        ("Security", "SEC-003", "Negative: Attempt upload of oversized payload (>50MB) to Greenfield (DDoS check)", "Pending", "Critical", "Audit 4.3"),
     ]
     
     for item in items:
@@ -85,8 +87,8 @@ def run_gemini_plan(skill_path, output_path):
     print("🤖 Gemini Test Architect analyzing SKILL.md...")
     with open(output_path, "w") as f:
         f.write(f"# Test Plan for {os.path.basename(skill_path)}\n\n")
-        f.write("## Strategy\nExecute automated regression suite.\n\n")
-        f.write("## Test Cases\n1. Verify Init\n2. Verify Execution\n3. Verify Output")
+        f.write("## Strategy\nExecute automated regression suite including negative security scenarios.\n\n")
+        f.write("## Test Cases\n1. Verify Init\n2. Verify Execution\n3. Verify Output\n4. [Negative] Expired Lit Key Decryption\n5. [Negative] Oversized Greenfield Payload")
     print(f"✅ Test Plan saved: {output_path}")
 
 def main():
@@ -111,6 +113,7 @@ def main():
     # 3. Simulate Execution (Here we would actually call the skill's scripts)
     print("⚡ Running Test Cases...")
     issues = ["UI Overlap detected on Mobile View", "Latency > 200ms"] # Simulated finding
+
     
     # 4. Report
     generate_bug_report(skill_name, issues, os.path.join(run_dir, "bug_report.docx"))

@@ -38,6 +38,20 @@
 # funded Greenfield testnet keys).
 
 services:
+  greenfield-validator:
+    image: bnbchain/greenfield:latest
+    ports:
+      - "26657:26657"
+      - "9090:9090"
+    environment:
+      - CHAIN_ID=greenfield_local_1
+      - ENABLE_STRICT_AUTH=true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:26657/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   anvil:
     image: ghcr.io/foundry-rs/foundry:latest
     entrypoint: ["sh", "-c"]
@@ -93,6 +107,8 @@ services:
         condition: service_healthy
       deploy:
         condition: service_completed_successfully
+      greenfield-validator:
+        condition: service_healthy
     environment:
       # Anvil-cloned BNB testnet (chain-id 97 matches BSC testnet)
       - ANVIL_RPC=http://anvil:8545
