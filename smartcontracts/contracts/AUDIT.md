@@ -165,3 +165,11 @@ trust), anvil-ключ в compose (ops/doc), передача ownership на м�
   Реверт-treasury не блокирует продажи. Снят 🟡 push-DoS.
 - **#8 — кастомная ошибка реентранси**: `require(_lock==1,"REENTRANCY")`
   → `error Reentrancy()` (газ + единый стиль custom-error).
+- **Foundry — логи + газ + полное покрытие**: CI прогоняет
+  `forge test -vvvv --gas-report` (полные трейсы вызовов + emitted
+  events + ревёрты + per-function gas table) и **жёсткий 100% gate** по
+  `src/` (`forge coverage --report lcov` + `scripts/check-coverage.sh`,
+  падает джоб при <100% LH/LF любого `src/*.sol`). Артефакты CI:
+  `forge-test.log`, `coverage-summary.txt`, `lcov.info`. Dead-branch
+  «sum > 10000» в `setParams` удалён (`MAX_BPS_EACH·2 < BPS_DENOMINATOR`
+  — инвариант, не runtime-проверка) → нет недостижимых веток.

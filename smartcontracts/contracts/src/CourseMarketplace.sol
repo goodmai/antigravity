@@ -111,10 +111,12 @@ contract CourseMarketplace is ICourseMarketplace {
         onlyOwner
     {
         if (_treasury == address(0) || _w3ext == address(0)) revert ZeroAddress();
-        if (
-            _treasuryBps > MAX_BPS_EACH || _w3extBps > MAX_BPS_EACH
-                || uint256(_treasuryBps) + _w3extBps > BPS_DENOMINATOR
-        ) revert BpsTooHigh();
+        // Each cut is bounded by MAX_BPS_EACH; with MAX_BPS_EACH * 2 ≤
+        // BPS_DENOMINATOR (3000·2 < 10000) the sum is invariantly within
+        // 100%, so no extra sum check is needed (would be dead branch).
+        if (_treasuryBps > MAX_BPS_EACH || _w3extBps > MAX_BPS_EACH) {
+            revert BpsTooHigh();
+        }
         treasuryBps = _treasuryBps;
         w3extBps = _w3extBps;
         treasury = _treasury;

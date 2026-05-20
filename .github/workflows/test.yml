@@ -70,14 +70,43 @@ jobs:
         working-directory: smartcontracts/contracts
         run: forge build --sizes
 
-      - name: forge test
+      # Maximum verbosity (-vvvv) prints full call traces + emitted
+      # logs/console2.log + reverts; --gas-report appends a per-contract
+      # / per-function gas-usage table at the end of the run.
+      - name: forge test (verbose + gas report)
         working-directory: smartcontracts/contracts
-        run: forge test -vvv
+        run: forge test -vvvv --gas-report | tee forge-test.log
 
-      # ── Static analysis / coverage / gas (audit growth #1) ───────────
-      # Advisory on introduction (forge fmt + slither need a triage pass
-      # in a Foundry env first); flip continue-on-error → false once the
-      # baseline is clean. forge coverage/snapshot are informational.
+      - name: Upload forge-test log + gas report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-test-log
+          path: smartcontracts/contracts/forge-test.log
+          if-no-files-found: warn
+
+      # ── Coverage gate (must be 100% over src/) ───────────────────────
+      - name: forge coverage (summary + lcov)
+        working-directory: smartcontracts/contracts
+        run: |
+          forge coverage --report summary | tee coverage-summary.txt
+          forge coverage --report lcov
+
+      - name: Enforce 100% src/ line coverage
+        working-directory: smartcontracts/contracts
+        run: bash scripts/check-coverage.sh lcov.info
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-coverage
+          path: |
+            smartcontracts/contracts/coverage-summary.txt
+            smartcontracts/contracts/lcov.info
+          if-no-files-found: warn
+
+      # ── Advisory (flip to blocking after first triage in Foundry env) ─
       - name: forge fmt --check
         working-directory: smartcontracts/contracts
         continue-on-error: true
@@ -89,11 +118,6 @@ jobs:
         with:
           target: smartcontracts/contracts
           slither-args: --exclude-dependencies
-
-      - name: forge coverage (summary)
-        working-directory: smartcontracts/contracts
-        continue-on-error: true
-        run: forge coverage --report summary
 
       - name: forge gas snapshot
         working-directory: smartcontracts/contracts
