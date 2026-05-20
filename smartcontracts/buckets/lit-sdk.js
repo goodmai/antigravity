@@ -47,9 +47,13 @@ export async function makeLitClient({
   await litNodeClient.connect();
 
   return {
-    async encrypt({ accessControlConditions, dataToEncrypt }) {
+    async encrypt({ accessControlConditions, dataToEncrypt }, authContext) {
+      const sessionSigs =
+        authContext && typeof authContext === 'object'
+          ? authContext.sessionSigs
+          : undefined;
       const { ciphertext, dataToEncryptHash } = await encryptString(
-        { accessControlConditions, dataToEncrypt },
+        { accessControlConditions, dataToEncrypt, sessionSigs },
         litNodeClient,
       );
       return { ciphertext, dataToEncryptHash };
@@ -98,13 +102,14 @@ async function defaultLoadLitAuthSdk() {
 }
 
 /**
- * @param {{ provider: any, network?: string, loadSdk?: () => Promise<any> }} cfg
+ * @param {{ provider: any, network?: string, loadSdk?: () => Promise<any>, capacityDelegationAuthSig?: any }} cfg
  * @returns {Promise<{ sessionSigs: unknown }>}
  */
 export async function makeLitAuth({
   provider,
   network = 'datil-test',
   loadSdk = defaultLoadLitAuthSdk,
+  capacityDelegationAuthSig = undefined,
 }) {
   const {
     LitNodeClient,
@@ -120,11 +125,31 @@ export async function makeLitAuth({
   const accounts = await provider.request({ method: 'eth_requestAccounts' });
   const walletAddress = Array.isArray(accounts) ? accounts[0] : undefined;
 
+  let capAuthSigs = undefined;
+  if (capacityDelegationAuthSig) {
+    try {
+      capAuthSigs = [
+        typeof capacityDelegationAuthSig === 'string'
+          ? JSON.parse(capacityDelegationAuthSig)
+          : capacityDelegationAuthSig
+      ];
+    } catch (e) {
+      console.warn('Failed to parse capacityDelegationAuthSig:', e);
+    }
+  } else if (typeof process !== 'undefined' && process.env && process.env.LIT_CAPACITY_DELEGATION_AUTH_SIG) {
+    try {
+      capAuthSigs = [JSON.parse(process.env.LIT_CAPACITY_DELEGATION_AUTH_SIG)];
+    } catch (e) {
+      console.warn('Failed to parse LIT_CAPACITY_DELEGATION_AUTH_SIG:', e);
+    }
+  }
+
   const sessionSigs = await litNodeClient.getSessionSigs({
     chain: 'ethereum',
     resourceAbilityRequests: [
       { resource: new LitActionResource('*'), ability: LIT_ABILITY.LitActionExecution },
     ],
+    capabilityAuthSigs: capAuthSigs,
     authNeededCallback: async ({ uri, expiration, resourceAbilityRequests }) => {
       const toSign = await createSiweMessage({
         uri,

@@ -21,9 +21,9 @@ import { createGreenfieldClient } from '../buckets/greenfield-core.js';
 import { publishCourse, quoteCourseSale } from '../buckets/course-publish.js';
 import { createSdkBackend } from './sdk-backend.mjs';
 
-const RPC = 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
-const SP = 'https://gnfd-testnet-sp1.bnbchain.org';
-const CHAIN_ID = '5600';
+const RPC = process.env.GREENFIELD_RPC || 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
+const SP = process.env.GREENFIELD_SP || 'https://gnfd-testnet-sp1.bnbchain.org';
+const CHAIN_ID = process.env.GREENFIELD_CHAIN_ID || '5600';
 
 const PK = process.env.GREENFIELD_TESTNET_PRIVATE_KEY;
 const ADDR = process.env.GREENFIELD_TESTNET_ADDRESS;

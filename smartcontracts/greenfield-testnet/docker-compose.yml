@@ -18,6 +18,11 @@ services:
   # Local Chipotle mock — DRM key server for Flow C testing.
   # Starts the chipotle-mock.mjs HTTP server on port 8000.
   # Set CHIPOTLE_PKP_KEY to reuse the same PKP across restarts.
+  #
+  # NOTE: This service is also defined in the parent
+  # smartcontracts/docker-compose.yml (multi-profile orchestration stack).
+  # The two definitions are intentionally independent — these compose files
+  # are NEVER combined (see COMPOSE.md § "each is entirely self-contained").
   chipotle-mock:
     image: node:22-bookworm
     working_dir: /app/smartcontracts/greenfield-testnet

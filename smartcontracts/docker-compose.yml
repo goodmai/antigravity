@@ -1,21 +1,26 @@
-# Local frontend integration stack for the Greenfield bucket console.
+# Unified BNB Greenfield & Lit Protocol 4-Profile Orchestration Stack.
+# Supports 4 distinct profiles representing the complete product lifecycle:
 #
-#   frontend  — nginx serving the static smartcontracts/ site
-#   mock-sp   — deterministic mock Greenfield Storage Provider gateway
+# 1. local-mock (Local runs with mocks):
+#    docker compose --profile local-mock up -d
 #
-# Brought up automatically by tests/greenfield-integration.docker.test.js
-# (skipped when Docker is unavailable), or by hand:
+# 2. local (Local Private Chain with clean state):
+#    docker compose --profile local up -d
 #
-#   docker compose -f smartcontracts/docker-compose.yml up -d
-#   curl localhost:8080/                       # the bucket console
-#   curl localhost:9000/healthz                # the mock SP
-#   docker compose -f smartcontracts/docker-compose.yml down
+# 3. testnet (Real BNB Greenfield Testnet + Lit datil-test/datil-dev):
+#    docker compose --profile testnet run --rm testnet-writer
+#
+# 4. mainnet (Real BNB Greenfield Mainnet + Lit datil network + Capacity Credits):
+#    docker compose --profile mainnet run --rm mainnet-writer
+#
+# Static frontend Nginx is served on port 8085 across all profiles to preserve
+# complete backward compatibility with vitest integration tests.
 
 services:
   frontend:
     image: nginx:1.27-alpine
     ports:
-      - "8080:80"
+      - "8085:80"
     volumes:
       - ./:/usr/share/nginx/html:ro
     healthcheck:
@@ -23,6 +28,13 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    profiles:
+      - local-mock
+      - local
+      - testnet
+      - mainnet
+      - test-local
+      - test-devnet
 
   mock-sp:
     image: node:22-alpine
@@ -39,3 +51,218 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    profiles:
+      - local-mock
+
+  chipotle-mock:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - CHIPOTLE_PKP_KEY
+      - CHIPOTLE_PORT=8000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - local-mock
+      - local
+      - testnet
+      - mainnet
+      - test-devnet
+
+  greenfield-local:
+    build:
+      context: ./greenfield-local
+      dockerfile: Dockerfile
+      args:
+        GREENFIELD_REF: ${GREENFIELD_REF:-master}
+        VALIDATORS: ${VALIDATORS:-1}
+        SPS: ${SPS:-1}
+    ports:
+      - "26750:26750"   # validator0 Tendermint RPC
+      - "9033:9033"     # sp0 HTTP gateway
+      - "1317:1317"     # cosmos REST
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:26750/status | grep greenfield_9000-1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 240s
+    profiles:
+      - local
+      - test-local
+
+  testnet-writer:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - LIT_CAPACITY_DELEGATION_AUTH_SIG
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - CHIPOTLE_PKP_KEY
+    depends_on:
+      chipotle-mock:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet-lit.mjs"]
+    profiles:
+      - testnet
+
+  mainnet-writer:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    environment:
+      - GREENFIELD_MAINNET_PRIVATE_KEY
+      - GREENFIELD_MAINNET_ADDRESS
+      - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - LIT_CAPACITY_DELEGATION_AUTH_SIG
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-mainnet.mjs"]
+    profiles:
+      - mainnet
+
+  test-local-runner:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - RUN_GREENFIELD_LOCAL=1
+      - SKIP_DOCKER_ORCHESTRATION=1
+      - GREENFIELD_LOCAL_RPC=http://greenfield-local:26750
+      - GREENFIELD_LOCAL_SP=http://greenfield-local:9033
+    depends_on:
+      greenfield-local:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npx vitest run tests/greenfield-local.docker.test.js"]
+    profiles:
+      - test-local
+
+  test-devnet-runner:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - RUN_GREENFIELD_LOCAL=0
+      - SKIP_DOCKER_ORCHESTRATION=1
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+    depends_on:
+      chipotle-mock:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npx vitest run tests/greenfield-testnet.live.test.js"]
+    profiles:
+      - test-devnet
+
+  # ─── REAL CHIPOTLE PROFILE (TEE EMULATION) ───
+
+  chipotle-anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: chipotle-anvil
+    command: anvil --host 0.0.0.0 --port 8545 --silent
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8545"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - local-real-chipotle
+
+  chipotle-dstack-sim:
+    image: ubuntu:24.04
+    container_name: chipotle-dstack-sim
+    working_dir: /app
+    volumes:
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
+      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml
+      - dstack-shared:/var/run
+    command: >
+      bash -c "
+      sed -i 's|unix:/var/run/dstack.sock|unix:/var/run/dstack.sock|' dstack.toml &&
+      exec dstack-simulator
+      "
+    profiles:
+      - local-real-chipotle
+
+  chipotle-deployer:
+    image: node:22-bookworm
+    container_name: chipotle-deployer
+    working_dir: /app/lit-api-server/blockchain/lit_node_express
+    volumes:
+      - ${CHIPOTLE_DIR:-/home/g/GitHub/chipotle}:/app
+      - chipotle-config:/shared-config
+    depends_on:
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      npm install --no-audit --no-fund &&
+      npx hardhat compile &&
+      DEPLOY_OUTPUT=\$$(npx hardhat run scripts/deploy.ts --network localhost) &&
+      echo \"\$\$DEPLOY_OUTPUT\" &&
+      CONTRACT_ADDRESS=\$$(echo \"\$\$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
+      echo \"[chain]\" > /shared-config/NodeConfig.toml &&
+      echo \"name = \\\"anvil\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"contract_address = \\\"\$\$CONTRACT_ADDRESS\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"Generated NodeConfig.toml:\" &&
+      cat /shared-config/NodeConfig.toml
+      "
+    profiles:
+      - local-real-chipotle
+
+  chipotle-real:
+    build:
+      context: ${CHIPOTLE_DIR:-/home/g/GitHub/chipotle}
+      dockerfile: Dockerfile
+    container_name: chipotle-real
+    ports:
+      - "8000:8000"
+    environment:
+      - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
+      - ROCKET_ADDRESS=0.0.0.0
+      - ROCKET_PORT=8000
+      - BASE_CHAIN_RPC=http://chipotle-anvil:8545
+      - DSTACK_SOCKET=/var/run/dstack.sock
+    volumes:
+      - dstack-shared:/var/run
+      - chipotle-config:/app/config:ro
+    entrypoint: >
+      bash -c "
+      cp /app/config/NodeConfig.toml /app/NodeConfig.toml &&
+      /usr/local/bin/DockerEntryPoint.sh
+      "
+    depends_on:
+      chipotle-dstack-sim:
+        condition: service_started
+      chipotle-deployer:
+        condition: service_completed_successfully
+    profiles:
+      - local-real-chipotle
+
+volumes:
+  dstack-shared:
+  chipotle-config:
+

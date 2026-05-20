@@ -26,6 +26,9 @@ const COMPOSE = [
 ];
 
 function dockerAvailable() {
+  if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+    return true;
+  }
   try {
     execSync('docker compose version', { stdio: 'ignore' });
     execSync('docker info', { stdio: 'ignore' });
@@ -39,6 +42,9 @@ const ENABLED = dockerAvailable() && process.env.RUN_GREENFIELD_LOCAL === '1';
 const d = ENABLED ? describe : describe.skip;
 
 function compose(args, timeout = 600_000) {
+  if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+    return 'skipped';
+  }
   return execFileSync('docker', [...COMPOSE, ...args], {
     cwd: ROOT,
     stdio: 'pipe',

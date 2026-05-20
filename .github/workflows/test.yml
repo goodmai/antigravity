@@ -51,6 +51,35 @@ jobs:
       - name: Greenfield network integration
         run: npm run test:integration
 
+  chipotle-mock:
+    name: Chipotle DRM integration (docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm install --no-audit --no-fund
+
+      # The test-devnet profile wires chipotle-mock + frontend + a vitest
+      # runner container that exercises the DRM encrypt/decrypt flow via
+      # Docker service DNS. No funded testnet keys required — only the
+      # local chipotle-mock is used.
+      - name: Chipotle DRM integration (test-devnet profile)
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile test-devnet up \
+            --abort-on-container-exit \
+            --exit-code-from test-devnet-runner
+
+      - name: Teardown
+        if: always()
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile test-devnet down --remove-orphans
+
   contracts:
     name: Solidity (Foundry)
     runs-on: ubuntu-latest
@@ -123,4 +152,72 @@ jobs:
         working-directory: smartcontracts/contracts
         continue-on-error: true
         run: forge snapshot && cat .gas-snapshot
+
+  chipotle-real-integration:
+    name: Real Chipotle TEE Integration (docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Chipotle Repo
+        uses: actions/checkout@v4
+        with:
+          repository: LIT-Protocol/chipotle
+          path: GitHub/chipotle
+          ref: next
+
+      - name: Checkout dstack Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Dstack-TEE/dstack
+          path: GitHub/dstack
+
+      - name: Setup Rust toolchain (for simulator build)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build dstack simulator
+        working-directory: GitHub/dstack/sdk/simulator
+        run: |
+          cargo build --release -p dstack-guest-agent-simulator
+          cp ../../target/release/dstack-simulator .
+
+      - name: Setup Node.js (for deployer dependency install)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build & Launch Real Chipotle Stack
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile local-real-chipotle up -d --wait
+
+      - name: Healthcheck and Sanity verification
+        run: |
+          # Wait up to 10 seconds for service response
+          for i in {1..10}; do
+            if curl -sf http://localhost:8000/core/v1/version; then
+              echo "Real Chipotle is healthy and responding!"
+              exit 0
+            fi
+            echo "Waiting for Real Chipotle..."
+            sleep 2
+          done
+          echo "ERROR: Real Chipotle failed to respond in time."
+          docker compose -f smartcontracts/docker-compose.yml --profile local-real-chipotle logs
+          exit 1
+
+      - name: Teardown
+        if: always()
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile local-real-chipotle down --remove-orphans -v
+
 

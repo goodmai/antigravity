@@ -47,9 +47,9 @@ const EXTRA_ALLOWED = (process.env.LIT_ALLOWED_ADDRESS || '')
 
 const CHIPOTLE_URL = (process.env.CHIPOTLE_URL || 'http://localhost:8000').replace(/\/$/, '');
 
-const RPC      = 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
-const SP       = 'https://gnfd-testnet-sp1.bnbchain.org';
-const CHAIN_ID = '5600';
+const RPC      = process.env.GREENFIELD_RPC || 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
+const SP       = process.env.GREENFIELD_SP || 'https://gnfd-testnet-sp1.bnbchain.org';
+const CHAIN_ID = process.env.GREENFIELD_CHAIN_ID || '5600';
 
 async function main() {
   // ── 1. Connect Chipotle + get PKP ─────────────────────────────────────────

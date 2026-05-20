@@ -37,8 +37,8 @@ export const GREENFIELD_LOCAL = {
   chainName: 'BNB Greenfield Local',
   cosmosChainId: 'greenfield_9000-1',
   nativeCurrency: { name: 'tBNB', symbol: 'BNB', decimals: 18 },
-  rpcUrl: 'http://localhost:26750',
-  spEndpoint: 'http://localhost:9033',
+  rpcUrl: (typeof process !== 'undefined' && process.env && process.env.GREENFIELD_LOCAL_RPC) || 'http://localhost:26750',
+  spEndpoint: (typeof process !== 'undefined' && process.env && process.env.GREENFIELD_LOCAL_SP) || 'http://localhost:9033',
   explorer: '',
 };
 

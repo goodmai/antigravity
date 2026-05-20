@@ -18,6 +18,12 @@
  *   { action: 'decrypt', ciphertext, accessControlConditions, userAddress, signedProof? }
  *     → { decrypted }
  *
+ * NOTE: signedProof is OPTIONAL in mock mode. When present, the mock
+ * verifies the Ethereum signature (ecrecover) to match userAddress. When
+ * absent, only the ACC address check is enforced. Real Chipotle TEE
+ * always requires a valid signature — this relaxation is intentional for
+ * dev/test convenience (no MetaMask needed in Node.js test harnesses).
+ *
  * Usage:
  *   export CHIPOTLE_PKP_KEY=0x...   # optional; generated if missing
  *   node chipotle-mock.mjs

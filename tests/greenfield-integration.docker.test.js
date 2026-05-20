@@ -47,6 +47,7 @@ function compose(args) {
     cwd: ROOT,
     stdio: 'pipe',
     encoding: 'utf8',
+    env: { ...process.env, COMPOSE_PROFILES: 'local-mock' }
   });
 }
 
@@ -58,7 +59,7 @@ async function nodeTransport({ method, url, headers, body }) {
   return { status: res.status, headers: hdrs, body: text };
 }
 
-const FRONTEND = 'http://localhost:8080';
+const FRONTEND = 'http://localhost:8085';
 const MOCK_SP = 'http://localhost:9000';
 const OWNER = '0xAbCd1234567890abcdef1234567890AbCd123456';
 

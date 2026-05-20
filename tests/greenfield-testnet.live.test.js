@@ -25,6 +25,9 @@ const COMPOSE = [
 ];
 
 function dockerAvailable() {
+  if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+    return true;
+  }
   try {
     execSync('docker compose version', { stdio: 'ignore' });
     execSync('docker info', { stdio: 'ignore' });
@@ -43,6 +46,9 @@ const d = ENABLED ? describe : describe.skip;
 
 d('REAL Greenfield testnet write (docker-compose, chain 5600)', () => {
   afterAll(() => {
+    if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+      return;
+    }
     // Tear down any services that were started as dependencies (e.g. chipotle-mock).
     try {
       execFileSync('docker', [...COMPOSE, 'down', '--remove-orphans'], {
@@ -54,17 +60,32 @@ d('REAL Greenfield testnet write (docker-compose, chain 5600)', () => {
   });
 
   it('creates a bucket and round-trips an object on testnet', () => {
-    const out = execFileSync(
-      'docker',
-      [...COMPOSE, 'run', '--rm', 'testnet-writer'],
-      {
-        cwd: ROOT,
-        stdio: 'pipe',
-        encoding: 'utf8',
-        timeout: 600_000,
-        env: { ...process.env },
-      },
-    );
+    let out;
+    if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+      out = execFileSync(
+        'node',
+        ['smartcontracts/greenfield-testnet/write-testnet.mjs'],
+        {
+          cwd: ROOT,
+          stdio: 'pipe',
+          encoding: 'utf8',
+          timeout: 600_000,
+          env: { ...process.env },
+        }
+      );
+    } else {
+      out = execFileSync(
+        'docker',
+        [...COMPOSE, 'run', '--rm', 'testnet-writer'],
+        {
+          cwd: ROOT,
+          stdio: 'pipe',
+          encoding: 'utf8',
+          timeout: 600_000,
+          env: { ...process.env },
+        },
+      );
+    }
     expect(out).toContain('bucket');
     expect(out).toContain('ALL GOOD');
   }, 600_000);
@@ -72,17 +93,35 @@ d('REAL Greenfield testnet write (docker-compose, chain 5600)', () => {
   it('publishes Chipotle-DRM course via chipotle-writer service', () => {
     // chipotle-mock is started automatically by depends_on + service_healthy.
     // CHIPOTLE_URL is fixed to http://chipotle-mock:8000 in the service definition.
-    const out = execFileSync(
-      'docker',
-      [...COMPOSE, 'run', '--rm', 'chipotle-writer'],
-      {
-        cwd: ROOT,
-        stdio: 'pipe',
-        encoding: 'utf8',
-        timeout: 600_000,
-        env: { ...process.env },
-      },
-    );
+    let out;
+    if (process.env.SKIP_DOCKER_ORCHESTRATION === '1') {
+      out = execFileSync(
+        'node',
+        ['smartcontracts/greenfield-testnet/write-testnet-chipotle.mjs'],
+        {
+          cwd: ROOT,
+          stdio: 'pipe',
+          encoding: 'utf8',
+          timeout: 600_000,
+          env: {
+            ...process.env,
+            CHIPOTLE_URL: process.env.CHIPOTLE_URL || 'http://chipotle-mock:8000',
+          },
+        }
+      );
+    } else {
+      out = execFileSync(
+        'docker',
+        [...COMPOSE, 'run', '--rm', 'chipotle-writer'],
+        {
+          cwd: ROOT,
+          stdio: 'pipe',
+          encoding: 'utf8',
+          timeout: 600_000,
+          env: { ...process.env },
+        },
+      );
+    }
     expect(out).toContain('ALL DONE');
   }, 600_000);
 });
