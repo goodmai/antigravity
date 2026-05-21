@@ -3,13 +3,20 @@ set -euo pipefail
 
 # Определение рабочей директории
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/smartcontracts/docker-compose.yml"
+
+if [ ! -f "$COMPOSE_FILE" ]; then
+    echo "ERROR: Docker compose file not found at $COMPOSE_FILE"
+    exit 1
+fi
+
 cd "$SCRIPT_DIR/smartcontracts"
 mkdir -p ../logs
 
 # --- Dependency Checks ---
 echo "==> Validating environment..."
-SIMULATOR_DIR="${SIMULATOR_DIR:-$HOME/GitHub/dstack/sdk/simulator}"
-CHIPOTLE_DIR="${CHIPOTLE_DIR:-$HOME/GitHub/chipotle}"
+export SIMULATOR_DIR="${SIMULATOR_DIR:-$HOME/GitHub/dstack/sdk/simulator}"
+export CHIPOTLE_DIR="${CHIPOTLE_DIR:-$HOME/GitHub/chipotle}"
 
 if [ ! -d "$SIMULATOR_DIR" ]; then
     echo "ERROR: dstack simulator not found at $SIMULATOR_DIR"
@@ -28,10 +35,35 @@ if ! command -v docker &>/dev/null; then
     exit 1
 fi
 
-if ! docker info >/dev/null 2>&1; then
+if ! docker info > /dev/null 2>&1; then
     echo "ERROR: docker daemon is not reachable."
     exit 1
 fi
+
+# --- Pre-flight: stop containers that conflict with e2e-full ports ---
+# local_test.sh leaves behind lit-local-jaeger (ports 4317/4318/16686);
+# chipotle-real needs 8000, chipotle-anvil needs 8545.
+# Killing these before compose up prevents "port is already allocated" errors.
+echo "==> Checking for conflicting containers on e2e-full ports..."
+CONFLICT_PORTS=("4317" "4318" "16686" "8000" "8545" "8546" "26750" "9033" "1317")
+for port in "${CONFLICT_PORTS[@]}"; do
+    # Find containers that have this host port bound
+    CONFLICTS=$(docker ps --format '{{.Names}}' --filter "publish=${port}" 2>/dev/null)
+    if [ -n "$CONFLICTS" ]; then
+        for cname in $CONFLICTS; do
+            # Don't kill containers that are part of our own compose project
+            if ! docker inspect "$cname" --format '{{index .Config.Labels "com.docker.compose.project"}}' 2>/dev/null | grep -q "smartcontracts"; then
+                echo "    Stopping conflicting container '$cname' (port $port)..."
+                docker stop "$cname" > /dev/null 2>&1 || true
+            fi
+        done
+    fi
+done
+
+# Also do a clean compose down to remove any stale named containers
+# (chipotle-real, chipotle-anvil, etc.) from a previous interrupted run.
+echo "==> Cleaning up any stale e2e-full containers..."
+(cd "$SCRIPT_DIR/smartcontracts" && docker compose --profile e2e-full down -v --remove-orphans 2>/dev/null) || true
 
 # --- Cleanup Logic ---
 LOGGER_PIDS=()
@@ -75,8 +107,8 @@ echo "Real-time log streams started in ../logs/"
 wait_for_service() {
     local name="$1"
     local container="$2"
-    local timeout=60
-    echo -n "Waiting for $name..."
+    local timeout=300
+    echo -n "Waiting for $name ($container)..."
     for i in $(seq 1 "$timeout"); do
         # Check health status if available
         local status=$(docker inspect "$container" --format='{{.State.Health.Status}}' 2>/dev/null || echo "no-healthcheck")
@@ -101,6 +133,7 @@ wait_for_service() {
                 return 0
             else
                 echo " [FAILED (Exit Code: $code)]"
+                docker logs "$container" | tail -n 20
                 return 1
             fi
         fi
@@ -127,6 +160,9 @@ echo "========================================="
 
 # Стримим лог E2E теста на экран
 docker compose --profile e2e-full logs -f e2e 2>&1 | tee ../logs/e2e-full-run.log
+
+# Убедимся, что контейнер завершился
+docker wait daskibo-e2e >/dev/null 2>&1 || true
 
 # Получаем финальный exit code контейнера e2e
 EXIT_CODE=$(docker inspect daskibo-e2e --format='{{.State.ExitCode}}' 2>/dev/null || echo "1")

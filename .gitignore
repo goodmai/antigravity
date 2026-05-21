@@ -17,6 +17,11 @@ dist/
 build/
 artifacts/*/test/
 out/
+.screenshots/
+test_results.md
+installed_skills_ls.txt
+screenshot_list.txt
+security_checklist.xlsx
 
 .env
 .env.*

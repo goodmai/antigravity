@@ -186,10 +186,10 @@ services:
     ports:
       - "8545:8545"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8545"]
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
       interval: 3s
-      timeout: 3s
-      retries: 5
+      timeout: 5s
+      retries: 10
     profiles:
       - local-real-chipotle
       - e2e-full
@@ -199,18 +199,26 @@ services:
     container_name: chipotle-dstack-sim
     working_dir: /app
     volumes:
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
-      - ${SIMULATOR_DIR:-/home/g/GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
+      # Mount as :ro to prevent sed -i from corrupting the original file on the host
+      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml.orig:ro
       - dstack-shared:/var/run
     command: >
       bash -c "
-      sed -i 's|unix:./dstack.sock|unix:/var/run/dstack.sock|' dstack.toml &&
+      cp /app/dstack.toml.orig /app/dstack.toml &&
+      sed -i 's|unix:\./dstack\.sock|unix:/var/run/dstack.sock|g' /app/dstack.toml &&
       exec dstack-simulator
       "
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -S /var/run/dstack.sock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
     profiles:
       - local-real-chipotle
       - e2e-full
@@ -220,7 +228,7 @@ services:
     container_name: chipotle-deployer
     working_dir: /app/lit-api-server/blockchain/lit_node_express
     volumes:
-      - ${CHIPOTLE_DIR:-/home/g/GitHub/chipotle}:/app
+      - ${CHIPOTLE_DIR:-../../GitHub/chipotle}:/app
       - chipotle-config:/shared-config
     depends_on:
       chipotle-anvil:
@@ -246,7 +254,7 @@ services:
 
   chipotle-real:
     build:
-      context: ${CHIPOTLE_DIR:-/home/g/GitHub/chipotle}
+      context: ${CHIPOTLE_DIR:-../../GitHub/chipotle}
       dockerfile: Dockerfile
     container_name: chipotle-real
     ports:
@@ -268,7 +276,7 @@ services:
       "
     depends_on:
       chipotle-dstack-sim:
-        condition: service_started
+        condition: service_healthy
       chipotle-deployer:
         condition: service_completed_successfully
       chipotle-jaeger:
