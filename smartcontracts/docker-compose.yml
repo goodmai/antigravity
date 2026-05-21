@@ -92,6 +92,7 @@ services:
         SPS: ${SPS:-1}
     ports:
       - "26750:26750"   # validator0 Tendermint RPC
+      - "7545:8545"     # validator0 EVM RPC
       - "9033:9033"     # sp0 HTTP gateway
       - "1317:1317"     # cosmos REST
     healthcheck:
@@ -182,9 +183,13 @@ services:
   chipotle-anvil:
     image: ghcr.io/foundry-rs/foundry:latest
     container_name: chipotle-anvil
-    command: anvil --host 0.0.0.0 --port 8545 --silent
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        anvil --host 0.0.0.0 --port 8545
     ports:
       - "8545:8545"
+      - "8000:8000"
     healthcheck:
       test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
       interval: 3s
@@ -199,13 +204,13 @@ services:
     container_name: chipotle-dstack-sim
     working_dir: /app
     volumes:
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
       # Mount as :ro to prevent sed -i from corrupting the original file on the host
-      - ${SIMULATOR_DIR:-../../GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml.orig:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml.orig:ro
       - dstack-shared:/var/run
     command: >
       bash -c "
@@ -228,17 +233,19 @@ services:
     container_name: chipotle-deployer
     working_dir: /app/lit-api-server/blockchain/lit_node_express
     volumes:
-      - ${CHIPOTLE_DIR:-../../GitHub/chipotle}:/app
+      - ${CHIPOTLE_DIR:-../../../GitHub/chipotle}:/app
       - chipotle-config:/shared-config
     depends_on:
       chipotle-anvil:
         condition: service_healthy
     command: >
       bash -c "
-      apt-get update && apt-get install -y curl &&
+      apt-get update -qq && apt-get install -y -qq curl &&
       curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &&
-      apt-get install -y nodejs &&
-      DEPLOY_OUTPUT=$$(make deploy_anvil 2>&1) &&
+      apt-get install -y -qq nodejs &&
+      make compile &&
+      cd ../rust_generator_and_deployer && cargo build --bin contract_deployer &&
+      DEPLOY_OUTPUT=$$(./target/debug/contract_deployer --action=deploy --network=anvil --abifolder=../lit_node_express/artifacts/contracts --secret=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url=http://chipotle-anvil:8545 2>&1) &&
       echo \"$$DEPLOY_OUTPUT\" &&
       CONTRACT_ADDRESS=$$(echo \"$$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
       echo \"[chain]\" > /shared-config/NodeConfig.toml &&
@@ -252,13 +259,39 @@ services:
       - local-real-chipotle
       - e2e-full
 
+  chipotle-bootstrap:
+    image: rust:1.88.0-bookworm
+    container_name: chipotle-bootstrap
+    depends_on:
+      chipotle-deployer:
+        condition: service_completed_successfully
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      curl -L https://foundry.paradigm.xyz | bash &&
+      export PATH=\"/root/.foundry/bin:$$PATH\" &&
+      foundryup &&
+      export ADDR=$$(grep contract_address /shared-config/NodeConfig.toml | cut -d'\"' -f2) &&
+      echo \"Seeding signers and registering account at $$ADDR...\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x49052f8877e87a0d87efe794e5d9b04eff35a5ea --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x8cf71453c626b7efc75ec43787c3af36ef9028da --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0xddf180025c7581f4c13b901c84c18d83b86679e6 --value 10ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf --value 100ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setApiPayers(address[])\" \"[0x49052f8877e87a0d87efe794e5d9b04eff35a5ea, 0x8cf71453c626b7efc75ec43787c3af36ef9028da, 0xddf180025c7581f4c13b901c84c18d83b86679e6]\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"newAccount(uint256,bool,string,string,address)\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 true Dummy \"Dummy Account\" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setUsageApiKey(uint256,uint256,uint256,uint256,string,string,bool,bool,bool,uint256[],uint256[],uint256[],uint256[])\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 2000000000 0 \"DummyKey\" \"Dummy Key\" true true true \"[]\" \"[]\" \"[]\" \"[0]\"
+      "
+    volumes:
+      - chipotle-config:/shared-config:ro
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
   chipotle-real:
     build:
-      context: ${CHIPOTLE_DIR:-../../GitHub/chipotle}
+      context: ${CHIPOTLE_DIR:-../../../GitHub/chipotle}
       dockerfile: Dockerfile
     container_name: chipotle-real
-    ports:
-      - "8000:8000"
+    network_mode: "service:chipotle-anvil"
     environment:
       - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
       - ROCKET_ADDRESS=0.0.0.0
@@ -277,7 +310,7 @@ services:
     depends_on:
       chipotle-dstack-sim:
         condition: service_healthy
-      chipotle-deployer:
+      chipotle-bootstrap:
         condition: service_completed_successfully
       chipotle-jaeger:
         condition: service_healthy
@@ -322,7 +355,7 @@ services:
     environment:
       - BSC_TESTNET_RPC
     ports:
-      - "8546:8545"
+      - "9545:8545"
     healthcheck:
       test:
         ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
@@ -335,6 +368,7 @@ services:
   deploy:
     image: ghcr.io/foundry-rs/foundry:latest
     container_name: daskibo-deploy
+    user: root
     working_dir: /work
     depends_on:
       anvil:
@@ -393,14 +427,17 @@ services:
       - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
       - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
       - GF_CHAIN_ID=5600
-      - GF_RPC=http://greenfield-local:26750
-      - GF_SP=http://greenfield-local:9033
+      - GF_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+      - GF_SP=https://gnfd-testnet-sp1.bnbchain.org
       - LIT_NETWORK=custom
-      - CHIPOTLE_URL=http://chipotle-real:8000
+      - CHIPOTLE_URL=http://chipotle-anvil:8000
       - COURSE_PRICE_WEI=10000000000000000
     volumes:
       - ./e2e:/app
       - ./buckets:/app/buckets:ro
+      - ./greenfield-local:/app/greenfield-local:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node /app/run-e2e.mjs"]
     profiles:
       - e2e-full
 

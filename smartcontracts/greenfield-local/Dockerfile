@@ -13,6 +13,7 @@
 
 # Stage 1: extract the pre-built gnfd binary (matches latest release tag)
 FROM ghcr.io/bnb-chain/greenfield:latest AS gnfd-bin
+FROM ghcr.io/bnb-chain/greenfield-storage-provider:latest AS gnfd-sp-bin
 
 # Stage 2: runtime — same musl base as the gnfd binary (Alpine 3.17)
 FROM alpine:3.17
@@ -26,6 +27,7 @@ RUN apk add --no-cache bash git jq curl procps coreutils sed grep findutils
 
 # Copy pre-built binary from stage 1
 COPY --from=gnfd-bin /app/gnfd /tmp/gnfd
+COPY --from=gnfd-sp-bin /app/gnfd-sp /tmp/gnfd-sp
 
 WORKDIR /opt
 RUN git clone --depth=1 --branch "${GREENFIELD_REF}" \
@@ -34,7 +36,7 @@ RUN git clone --depth=1 --branch "${GREENFIELD_REF}" \
 WORKDIR /opt/greenfield
 
 # Place binary where localup.sh expects it: build/bin/gnfd (relative to repo root)
-RUN mkdir -p build/bin && cp /tmp/gnfd build/bin/gnfd && chmod +x build/bin/gnfd
+RUN mkdir -p build/bin && cp /tmp/gnfd build/bin/gnfd && chmod +x build/bin/gnfd && cp /tmp/gnfd-sp build/bin/gnfd-sp && chmod +x build/bin/gnfd-sp
 
 # v1.10.7 changed the default CHAIN_ID to greenfield_9000-121; pin it back
 # to greenfield_9000-1 so the test assertion stays stable across versions.

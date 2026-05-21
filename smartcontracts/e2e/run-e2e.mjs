@@ -125,7 +125,9 @@ import { LIT_ABILITY } from '@lit-protocol/constants';
 async function connectLit() {
   if (isChipotle) {
     console.log(`  Chipotle mode enabled (URL: ${CHIPOTLE_URL})`);
-    const walletRes = await fetch(`${CHIPOTLE_URL}/core/v1/create_wallet`);
+    const walletRes = await fetch(`${CHIPOTLE_URL}/core/v1/create_wallet`, {
+      headers: { 'X-Api-Key': 'dummy-api-key' }
+    });
     if (!walletRes.ok) {
       throw new Error(`Failed to fetch Chipotle PKP wallet: ${walletRes.status} ${await walletRes.text()}`);
     }
@@ -219,7 +221,7 @@ async function fetchTransport({ method, url, headers, body }) {
 }
 
 async function makeGreenfieldClient() {
-  const { createSdkBackend } = await import('../greenfield-testnet/sdk-backend.mjs');
+  const { createSdkBackend } = await import('./greenfield-testnet/sdk-backend.mjs');
   const backend = createSdkBackend({
     rpcUrl: GF_RPC,
     chainId: GF_CHAIN_ID,

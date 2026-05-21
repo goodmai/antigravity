@@ -45,7 +45,7 @@ fi
 # chipotle-real needs 8000, chipotle-anvil needs 8545.
 # Killing these before compose up prevents "port is already allocated" errors.
 echo "==> Checking for conflicting containers on e2e-full ports..."
-CONFLICT_PORTS=("4317" "4318" "16686" "8000" "8545" "8546" "26750" "9033" "1317")
+CONFLICT_PORTS=("4317" "4318" "16686" "8000" "8545" "9545" "7545" "26750" "9033" "1317")
 for port in "${CONFLICT_PORTS[@]}"; do
     # Find containers that have this host port bound
     CONFLICTS=$(docker ps --format '{{.Names}}' --filter "publish=${port}" 2>/dev/null)

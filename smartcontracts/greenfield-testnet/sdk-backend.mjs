@@ -28,7 +28,7 @@ export function createSdkBackend({ rpcUrl, chainId, privateKey, address, sdk }) 
     );
   }
   // `sdk` injectable so the call-shapes are unit-tested with a fake.
-  const { Client, Long, VisibilityType } = sdk || gnfdSdk;
+  const { Client, Long, VisibilityType } = sdk || _require('@bnb-chain/greenfield-js-sdk');
   const client = Client.create(rpcUrl, String(chainId));
 
   const vis = (v) =>

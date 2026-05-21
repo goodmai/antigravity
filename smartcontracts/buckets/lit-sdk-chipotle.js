@@ -29,11 +29,27 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
   async function callLitAction(jsParams) {
     const res = await fetch(`${base}/core/v1/lit_action`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': 'dummy-api-key'
+      },
       body: JSON.stringify({
         // Code stub — real Chipotle executes this in the TEE.
-        // The mock server ignores 'code' and dispatches on js_params.action.
-        code: `async function main(p) { return Lit.Actions[p.action](p); }`,
+        code: `
+          async function main(p) {
+            if (p.action === 'encrypt') {
+              const ciphertext = await LitActions.Encrypt({ pkpId: p.pkpId, message: p.masterKey });
+              const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p.masterKey));
+              const dataToEncryptHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+              LitActions.setResponse({ response: JSON.stringify({ ciphertext, dataToEncryptHash }) });
+            } else if (p.action === 'decrypt') {
+              const decrypted = await LitActions.Decrypt({ pkpId: p.pkpId, ciphertext: p.ciphertext });
+              LitActions.setResponse({ response: JSON.stringify({ decrypted }) });
+            } else {
+              throw new Error('Unknown action: ' + p.action);
+            }
+          }
+        `,
         js_params: { ...jsParams, pkpId },
       }),
     });
@@ -44,7 +60,11 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
     if (data.has_error) {
       throw new Error(data.error ?? data.logs ?? 'Chipotle action failed');
     }
-    return data.response;
+    try {
+      return JSON.parse(data.response);
+    } catch {
+      return data.response;
+    }
   }
 
   return {
@@ -78,6 +98,28 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
       if (!userAddress) {
         throw new Error('Chipotle decrypt requires authContext.userAddress');
       }
+
+      // Simulate ACC check since Chipotle TEE doesn't implement Lit.Actions.checkConditions yet
+      let hasAccess = false;
+      const accAuthor = accessControlConditions.find(c => c.returnValueTest?.value?.toLowerCase() === userAddress.toLowerCase());
+      if (accAuthor) {
+        hasAccess = true;
+      } else {
+        const accContract = accessControlConditions.find(c => c.contractAddress);
+        if (accContract) {
+           const { ethers } = await import('ethers');
+           const rpc = typeof process !== 'undefined' && process.env.ANVIL_RPC ? process.env.ANVIL_RPC : 'http://127.0.0.1:8545';
+           const provider = new ethers.providers.JsonRpcProvider(rpc);
+           const contract = new ethers.Contract(accContract.contractAddress, ["function hasCourseAccess(address,uint256) view returns (bool)"], provider);
+           const courseId = parseInt(accContract.parameters[1], 10);
+           hasAccess = await contract.hasCourseAccess(userAddress, courseId);
+        }
+      }
+      
+      if (!hasAccess) {
+         throw new Error("ACCESS_DENIED");
+      }
+
       const result = await callLitAction({
         action: 'decrypt',
         ciphertext,
