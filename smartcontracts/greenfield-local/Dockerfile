@@ -12,7 +12,7 @@
 # requirement.
 
 # Stage 1: extract the pre-built gnfd binary (matches latest release tag)
-FROM ghcr.io/bnb-chain/greenfield:latest AS gnfd-bin
+FROM ghcr.io/bnb-chain/greenfield:1.10.7 AS gnfd-bin
 FROM ghcr.io/bnb-chain/greenfield-storage-provider:latest AS gnfd-sp-bin
 
 # Stage 2: runtime — same musl base as the gnfd binary (Alpine 3.17)

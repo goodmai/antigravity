@@ -245,4 +245,57 @@ jobs:
           docker compose -f smartcontracts/docker-compose.yml \
             --profile local-real-chipotle down --remove-orphans -v
 
+  e2e-lit-integration:
+    name: E2E Lit Protocol Gating Integration
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout Chipotle Repo
+        uses: actions/checkout@v4
+        with:
+          repository: LIT-Protocol/chipotle
+          path: GitHub/chipotle
+          ref: next
+
+      - name: Checkout dstack Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Dstack-TEE/dstack
+          path: GitHub/dstack
+
+      - name: Setup Rust toolchain (for simulator build)
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build dstack simulator
+        working-directory: GitHub/dstack/sdk/simulator
+        run: |
+          cargo build --release -p dstack-guest-agent-simulator
+          cp ../../target/release/dstack-simulator .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run E2E Lit Integration Tests
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          chmod +x run_e2e_lit.sh
+          ./run_e2e_lit.sh
+
+      - name: Teardown
+        if: always()
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          docker compose -f smartcontracts/docker-compose.lit.yml down --remove-orphans -v
+
+
 

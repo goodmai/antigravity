@@ -110,14 +110,21 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
            const { ethers } = await import('ethers');
            const rpc = typeof process !== 'undefined' && process.env.ANVIL_RPC ? process.env.ANVIL_RPC : 'http://127.0.0.1:8545';
            const provider = new ethers.providers.JsonRpcProvider(rpc);
-           const contract = new ethers.Contract(accContract.contractAddress, ["function hasCourseAccess(address,uint256) view returns (bool)"], provider);
-           const courseId = parseInt(accContract.parameters[1], 10);
-           hasAccess = await contract.hasCourseAccess(userAddress, courseId);
+           if (accContract.standardContractType === 'ERC721') {
+             const contract = new ethers.Contract(accContract.contractAddress, ["function balanceOf(address) view returns (uint256)"], provider);
+             const balance = await contract.balanceOf(userAddress);
+             const minVal = ethers.BigNumber.from(accContract.returnValueTest?.value ?? '1');
+             hasAccess = balance.gte(minVal);
+           } else {
+             const contract = new ethers.Contract(accContract.contractAddress, ["function hasCourseAccess(address,uint256) view returns (bool)"], provider);
+             const courseId = parseInt(accContract.parameters[1], 10);
+             hasAccess = await contract.hasCourseAccess(userAddress, courseId);
+           }
         }
       }
       
       if (!hasAccess) {
-         throw new Error("ACCESS_DENIED");
+         throw new Error("not authorized: access control conditions check failed");
       }
 
       const result = await callLitAction({

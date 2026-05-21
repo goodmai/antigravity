@@ -30,15 +30,17 @@
  export function pickPrimarySp(sps) {
    const list = Array.isArray(sps) ? sps : [];
    const targetEp = (typeof process !== 'undefined' && process.env.GF_SP) || '';
-   const match = list.find(s => s && s.endpoint && s.endpoint.includes(targetEp.replace(/^https?:\/\//, '')));
-   if (match && match.operatorAddress) {
-     return { operatorAddress: match.operatorAddress, endpoint: match.endpoint };
+   if (targetEp) {
+     const match = list.find(s => s && s.endpoint && s.endpoint.includes(targetEp.replace(/^https?:\/\//, '')));
+     if (match && match.operatorAddress) {
+       return { operatorAddress: match.operatorAddress, endpoint: match.endpoint };
+     }
    }
    const usable = [];
    for (const s of list) {
      const addr = s && typeof s.operatorAddress === 'string' ? s.operatorAddress : '';
      const ep = s && typeof s.endpoint === 'string' ? s.endpoint : '';
-     if (addr && /^https?:\/\//i.test(ep) && s.status === 0) {
+     if (addr && /^https?:\/\//i.test(ep) && (s.status === undefined || s.status === null || s.status === 0)) {
        usable.push({ operatorAddress: addr, endpoint: ep });
      }
    }
