@@ -7,6 +7,9 @@ on:
     branches: ["**"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Nightly run picks up the heavy chipotle-real-integration job.
+    - cron: "17 3 * * *"
 
 permissions:
   contents: read
@@ -48,7 +51,13 @@ jobs:
       # ubuntu-latest ships Docker + compose; the Greenfield mock-SP
       # stack comes up in-job. Covers serving, saving, access/retrieval,
       # encrypted-course indexing + decrypt round-trip, negatives, bench.
+      - name: Pre-pull integration images (avoid in-test pull races)
+        env:
+          COMPOSE_PROFILES: local-mock
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml pull --quiet
       - name: Greenfield network integration
+        timeout-minutes: 10
         run: npm run test:integration
 
   chipotle-mock:
@@ -66,8 +75,16 @@ jobs:
       # The test-devnet profile wires chipotle-mock + frontend + a vitest
       # runner container that exercises the DRM encrypt/decrypt flow via
       # Docker service DNS. No funded testnet keys required — only the
-      # local chipotle-mock is used.
+      # local chipotle-mock is used. chipotle-mock's first boot runs
+      # `npm install` (heavy SDK), so we pre-pull images and let
+      # compose's healthcheck start_period (180s) absorb the install
+      # before depends_on:service_healthy gates the runner.
+      - name: Pre-pull images (avoid pull timeouts inside --wait)
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile test-devnet pull --quiet
       - name: Chipotle DRM integration (test-devnet profile)
+        timeout-minutes: 15
         run: |
           docker compose -f smartcontracts/docker-compose.yml \
             --profile test-devnet up \
@@ -155,6 +172,14 @@ jobs:
 
   chipotle-real-integration:
     name: Real Chipotle TEE Integration (docker)
+    # Opt-in: depends on the external LIT-Protocol/chipotle +
+    # Dstack-TEE/dstack repos and a multi-minute Rust build. Running on
+    # every push gives false-red signal whenever those external repos /
+    # tags drift, so this job runs only on manual dispatch or the
+    # scheduled nightly run. Flip back to per-push once the upstream
+    # refs are pinned, the build is cached, and the healthcheck timing
+    # has been hardened end-to-end.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

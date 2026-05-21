@@ -70,9 +70,13 @@ services:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 30
+      # First boot does `npm install` of @bnb-chain/greenfield-js-sdk +
+      # @lit-protocol/* (heavy). Failing healthchecks during the install
+      # don't count until start_period elapses — keeps `up --wait` from
+      # exiting before the server has actually had a chance to start.
+      start_period: 180s
     profiles:
-      - local-mock
       - local
       - testnet
       - mainnet
