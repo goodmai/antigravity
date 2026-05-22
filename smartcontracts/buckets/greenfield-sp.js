@@ -32,7 +32,7 @@
    const targetEp = (typeof process !== 'undefined' && process.env.GF_SP) || '';
    if (targetEp) {
      const match = list.find(s => s && s.endpoint && s.endpoint.includes(targetEp.replace(/^https?:\/\//, '')));
-     if (match && match.operatorAddress) {
+     if (match && match.operatorAddress && match.endpoint) {
        return { operatorAddress: match.operatorAddress, endpoint: match.endpoint };
      }
    }

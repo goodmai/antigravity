@@ -21,6 +21,8 @@ services:
       interval: 3s
       timeout: 5s
       retries: 10
+    networks:
+      - lit-network
 
   chipotle-dstack-sim:
     image: ubuntu:24.04
@@ -46,6 +48,8 @@ services:
       timeout: 3s
       retries: 30
       start_period: 5s
+    networks:
+      - lit-network
 
   chipotle-deployer:
     image: rust:1.88.0-bookworm
@@ -80,6 +84,8 @@ services:
       echo \"Generated NodeConfig.toml:\" &&
       cat /shared-config/NodeConfig.toml
       "
+    networks:
+      - lit-network
 
 
   chipotle-bootstrap:
@@ -105,6 +111,8 @@ services:
       "
     volumes:
       - chipotle-config-lit:/shared-config:ro
+    networks:
+      - lit-network
 
   chipotle-real:
     build:
@@ -152,6 +160,8 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    networks:
+      - lit-network
 
   mock-sp:
     image: node:22-alpine
@@ -169,6 +179,8 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    networks:
+      - lit-network
 
   deploy-nft:
     image: ghcr.io/foundry-rs/foundry:latest
@@ -194,6 +206,8 @@ services:
         && forge script script/Deploy.s.sol:Deploy
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
         --broadcast -vvv
+    networks:
+      - lit-network
 
   e2e-lit:
     build:
@@ -232,7 +246,16 @@ services:
       - ./greenfield-testnet:/app/greenfield-testnet:ro
       - ./contracts:/app/contracts:ro
     command: ["node", "/app/run-e2e-lit-nft.mjs"]
+    networks:
+      - lit-network
 
 volumes:
   dstack-shared-lit:
   chipotle-config-lit:
+
+networks:
+  lit-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
