@@ -191,6 +191,9 @@ services:
         && forge script script/DeployMockNFT.s.sol:DeployMockNFT
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
         --broadcast -vvv
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
 
   e2e-lit:
     build:
@@ -227,7 +230,8 @@ services:
       - ./buckets:/app/buckets:ro
       - ./integration:/app/integration:ro
       - ./greenfield-testnet:/app/greenfield-testnet:ro
-    command: ["node", "/app/run-e2e-lit.mjs"]
+      - ./contracts:/app/contracts:ro
+    command: ["node", "/app/run-e2e-lit-nft.mjs"]
 
 volumes:
   dstack-shared-lit:
