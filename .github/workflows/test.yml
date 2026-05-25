@@ -83,6 +83,7 @@ jobs:
       - name: Patch Chipotle Dockerfile to include git
         run: |
           sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
+          mkdir -p GitHub/chipotle/lit-api-server/static
 
       - name: Checkout dstack Repo
         uses: actions/checkout@v4
@@ -162,6 +163,7 @@ jobs:
       - name: Patch Chipotle Dockerfile to include git
         run: |
           sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
+          mkdir -p GitHub/chipotle/lit-api-server/static
 
       - name: Checkout dstack Repo
         uses: actions/checkout@v4
