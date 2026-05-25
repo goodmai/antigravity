@@ -22,10 +22,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -45,7 +45,7 @@ jobs:
     name: Foundry Smart Contract Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -73,10 +73,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout Chipotle Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: LIT-Protocol/chipotle
           path: GitHub/chipotle
@@ -88,7 +88,7 @@ jobs:
           mkdir -p GitHub/chipotle/lit-api-server/static
 
       - name: Checkout dstack Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Dstack-TEE/dstack
           path: GitHub/dstack
@@ -112,7 +112,7 @@ jobs:
           cp ../../target/release/dstack-simulator .
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -153,10 +153,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Checkout Chipotle Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: LIT-Protocol/chipotle
           path: GitHub/chipotle
@@ -168,7 +168,7 @@ jobs:
           mkdir -p GitHub/chipotle/lit-api-server/static
 
       - name: Checkout dstack Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Dstack-TEE/dstack
           path: GitHub/dstack
@@ -192,7 +192,7 @@ jobs:
           cp ../../target/release/dstack-simulator .
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -216,10 +216,10 @@ jobs:
     name: Integration (Docker) Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -234,10 +234,10 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
