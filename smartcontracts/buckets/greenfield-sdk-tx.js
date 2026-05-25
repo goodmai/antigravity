@@ -28,6 +28,9 @@ import { pickPrimarySp } from './greenfield-sp.js';
  *   creator: string,
  *   visibility: string,
  *   broadcastSigner: BroadcastSigner,
+ *   globalVirtualGroupFamilyId?: number,
+ *   fixedGas?: { gasLimit: number|string, gasPrice: string },
+ *   feePayer?: string,
  * }} args
  * @returns {Promise<{ txHash: string|null }>}
  */
@@ -39,9 +42,16 @@ export async function sdkCreateBucket({
   creator,
   visibility,
   broadcastSigner,
+  globalVirtualGroupFamilyId,
+  fixedGas,
+  feePayer,
 }) {
-  const sp = pickPrimarySp(await client.sp.getStorageProviders());
-  const tx = await client.bucket.createBucket({
+  const sps = await client.sp.getStorageProviders();
+  console.log(`[sdkCreateBucket] Found ${sps.length} Storage Providers`);
+  const sp = pickPrimarySp(sps);
+  console.log(`[sdkCreateBucket] Picked Primary SP: ${sp.operatorAddress} @ ${sp.endpoint}`);
+  
+  const createBucketMsg = {
     bucketName,
     creator,
     visibility:
@@ -51,13 +61,36 @@ export async function sdkCreateBucket({
     chargedReadQuota: Long.fromString('0'),
     primarySpAddress: sp.operatorAddress,
     paymentAddress: creator,
-  });
-  const sim = await tx.simulate({ denom: 'BNB' });
+  };
+  
+  if (typeof globalVirtualGroupFamilyId === 'number') {
+    createBucketMsg.globalVirtualGroupFamilyId = globalVirtualGroupFamilyId;
+  }
+  
+  console.log(`[sdkCreateBucket] Message: bucket=${createBucketMsg.bucketName}, creator=${createBucketMsg.creator}, sp=${createBucketMsg.primarySpAddress}, gvgFamily=${createBucketMsg.globalVirtualGroupFamilyId}`);
+  console.log(`[sdkCreateBucket] Signer: type=${broadcastSigner.type}, pk_len=${broadcastSigner.privateKey ? broadcastSigner.privateKey.length : 'N/A'}`);
+
+  const tx = await client.bucket.createBucket(createBucketMsg);
+  let gasLimit;
+  let gasPrice;
+  if (fixedGas) {
+    gasLimit = fixedGas.gasLimit;
+    gasPrice = fixedGas.gasPrice;
+    console.log(`[sdkCreateBucket] Transaction created, using fixed gas: gasLimit=${gasLimit}, gasPrice=${gasPrice}`);
+  } else {
+    console.log(`[sdkCreateBucket] Transaction created, simulating gas...`);
+    const sim = await tx.simulate({ denom: 'BNB' });
+    gasLimit = sim.gasLimit;
+    gasPrice = sim.gasPrice;
+    console.log(`[sdkCreateBucket] Simulation successful: gasLimit=${gasLimit}, gasPrice=${gasPrice}`);
+  }
+  
+  console.log(`[sdkCreateBucket] Broadcasting...`);
   const res = await tx.broadcast({
     denom: 'BNB',
-    gasLimit: Number(sim.gasLimit),
-    gasPrice: sim.gasPrice,
-    payer: creator,
+    gasLimit,
+    gasPrice,
+    payer: feePayer ?? creator,
     granter: '',
     ...broadcastSigner,
   });

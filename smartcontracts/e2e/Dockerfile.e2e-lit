@@ -5,5 +5,6 @@ WORKDIR /app
 COPY package.json /app/package.json
 RUN npm install --no-audit --no-fund
 COPY run-e2e-lit.mjs /app/run-e2e-lit.mjs
+COPY run-e2e-lit-nft.mjs /app/run-e2e-lit-nft.mjs
 
 CMD ["node", "/app/run-e2e-lit.mjs"]

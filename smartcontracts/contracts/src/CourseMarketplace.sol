@@ -159,6 +159,7 @@ contract CourseMarketplace is ICourseMarketplace {
     {
         // Publisher always decrypts their own content for free.
         if (courses[courseId].author == user) return true;
+        if (address(accessPass) == address(0)) return false;
         return accessPass.hasAccess(user, courseId);
     }
 

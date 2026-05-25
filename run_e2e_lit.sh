@@ -68,7 +68,9 @@ cleanup() {
     for pid in "${LOGGER_PIDS[@]}"; do
         kill "$pid" 2>/dev/null || true
     done
-    docker compose -f "$COMPOSE_FILE" down -v --remove-orphans 2>/dev/null || true
+    if [ "${SKIP_CLEANUP:-0}" != "1" ]; then
+        docker compose -f "$COMPOSE_FILE" down -v --remove-orphans 2>/dev/null || true
+    fi
     echo "==> Cleanup complete."
 }
 trap cleanup EXIT INT TERM
@@ -78,10 +80,21 @@ echo " Starting E2E Lit Integration Stack...   "
 echo "========================================="
 
 # Clean old log files
-SERVICES="mock-sp chipotle-jaeger chipotle-anvil chipotle-dstack-sim chipotle-deployer chipotle-bootstrap chipotle-real deploy-nft e2e-lit"
+SERVICES="greenfield-local chipotle-jaeger chipotle-anvil chipotle-dstack-sim chipotle-deployer chipotle-bootstrap chipotle-real deploy-nft e2e-lit"
 for service in $SERVICES; do
     > "../logs/${service}-lit.log"
 done
+
+# Patch the bind-mounted greenfield-js-sdk copies before bringing the stack up.
+# The e2e and greenfield-testnet node_modules are mounted into the e2e
+# container (read-only), so the patch must be applied on the host first. It
+# fixes EIP-712 signing for the local pre-Altai chain and rewrites the SP
+# object endpoints to path-style against the local gnfd-sp gateway.
+echo "==> Applying greenfield-js-sdk local patches..."
+(cd "$SCRIPT_DIR" && node patch_sdk.cjs) || {
+    echo "ERROR: patch_sdk.cjs failed (is node installed and node_modules present?)"
+    exit 1
+}
 
 # Start building and running containers in detached mode
 if ! docker compose -f "$COMPOSE_FILE" up --build -d; then
@@ -142,7 +155,8 @@ wait_for_service() {
 # Wait for critical infrastructure
 wait_for_service "Jaeger" "chipotle-jaeger-lit" || exit 1
 wait_for_service "Chipotle Anvil" "chipotle-anvil-lit" || exit 1
-wait_for_service "Mock SP" "daskibo-mock-sp-lit" || exit 1
+wait_for_service "Greenfield Local" "greenfield-local-lit" || exit 1
+
 wait_for_service "Chipotle Deployer" "chipotle-deployer-lit" || exit 1
 wait_for_service "Chipotle API" "chipotle-real-lit" || exit 1
 wait_for_service "Deploy NFT" "deploy-nft-lit" || exit 1

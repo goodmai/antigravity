@@ -115,7 +115,9 @@ async function fetchTransport({ method, url, headers, body }) {
 }
 
 async function makeGreenfieldClient() {
-  const isMock = !GF_RPC || GF_RPC.includes('mock-sp') || GF_RPC.includes('9000');
+  // Mock SP is used only when GF_SP explicitly points to a mock or is absent.
+  // A real local chain on greenfield_9000-1 with RPC on :26750 is NOT a mock.
+  const isMock = !GF_RPC || GF_SP.includes('mock-sp');
 
   let backend;
   if (isMock) {
@@ -126,13 +128,14 @@ async function makeGreenfieldClient() {
       endpoint: GF_SP,
     });
   } else {
-    console.log(`  [Greenfield] Using real SDK backend on RPC ${GF_RPC}...`);
+    console.log(`  [Greenfield] Using real SDK backend on RPC ${GF_RPC} (chain ${GF_CHAIN_ID})...`);
     const { createSdkBackend } = await import('./greenfield-testnet/sdk-backend.mjs');
     backend = createSdkBackend({
       rpcUrl: GF_RPC,
       chainId: GF_CHAIN_ID,
       privateKey: GF_PK,
       address: GF_ADDR,
+      spEndpoint: GF_SP,
     });
   }
 

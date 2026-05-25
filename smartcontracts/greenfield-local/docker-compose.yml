@@ -34,8 +34,8 @@ services:
       - "9033:9033"     # sp0 HTTP gateway (confirm via `localup.sh print`)
       - "1317:1317"     # cosmos REST (if enabled by localup)
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:26750/status | grep greenfield_9000-1"]
-      interval: 10s
+      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped"]
+      interval: 5s
       timeout: 5s
-      retries: 30
-      start_period: 240s
+      retries: 40
+      start_period: 120s

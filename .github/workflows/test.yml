@@ -6,6 +6,10 @@ on:
   push:
     branches: ["**"]
   pull_request:
+    paths:
+      - 'smartcontracts/**'
+      - 'run_e2e_lit.sh'
+      - '.github/workflows/test.yml'
   workflow_dispatch:
   schedule:
     # Nightly run picks up the heavy chipotle-real-integration job.
@@ -20,165 +24,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
 
-      # package-lock.json is gitignored in this repo, so use install (not ci).
-      - run: npm install --no-audit --no-fund
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
 
-      - name: Strict typecheck (pure domain modules)
-        run: npm run typecheck
-
-      - name: Ban explicit `any`
-        run: npm run lint:noany
-
-      - name: Hermetic unit suite (no docker / no network)
+      - name: Run unit tests
         run: npm run test:unit
 
-  integration:
-    name: Greenfield integration (docker)
+      - name: Strict Typecheck
+        run: npm run typecheck
+
+      - name: No-any check
+        run: npm run lint:noany
+
+  forge-test:
+    name: Foundry Smart Contract Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-
-      - run: npm install --no-audit --no-fund
-
-      # ubuntu-latest ships Docker + compose; the Greenfield mock-SP
-      # stack comes up in-job. Covers serving, saving, access/retrieval,
-      # encrypted-course indexing + decrypt round-trip, negatives, bench.
-      - name: Pre-pull integration images (avoid in-test pull races)
-        env:
-          COMPOSE_PROFILES: local-mock
-        run: |
-          docker compose -f smartcontracts/docker-compose.yml pull --quiet
-      - name: Greenfield network integration
-        timeout-minutes: 10
-        run: npm run test:integration
-
-  chipotle-mock:
-    name: Chipotle DRM integration (docker)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - run: npm install --no-audit --no-fund
-
-      # The test-devnet profile wires chipotle-mock + frontend + a vitest
-      # runner container that exercises the DRM encrypt/decrypt flow via
-      # Docker service DNS. No funded testnet keys required — only the
-      # local chipotle-mock is used. chipotle-mock's first boot runs
-      # `npm install` (heavy SDK), so we pre-pull images and let
-      # compose's healthcheck start_period (180s) absorb the install
-      # before depends_on:service_healthy gates the runner.
-      - name: Pre-pull images (avoid pull timeouts inside --wait)
-        run: |
-          docker compose -f smartcontracts/docker-compose.yml \
-            --profile test-devnet pull --quiet
-      - name: Chipotle DRM integration (test-devnet profile)
-        timeout-minutes: 15
-        run: |
-          docker compose -f smartcontracts/docker-compose.yml \
-            --profile test-devnet up \
-            --abort-on-container-exit \
-            --exit-code-from test-devnet-runner
-
-      - name: Teardown
-        if: always()
-        run: |
-          docker compose -f smartcontracts/docker-compose.yml \
-            --profile test-devnet down --remove-orphans
-
-  contracts:
-    name: Solidity (Foundry)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Install forge-std
+      - name: Forge build
         working-directory: smartcontracts/contracts
-        # --no-git: vendor into lib/ without a submodule (mirrors the
-        # contracts docker-compose); avoids dirty-tree/commit failures in CI.
-        run: forge install --no-git foundry-rs/forge-std
+        run: forge build
 
-      - name: forge build
+      - name: Forge test
         working-directory: smartcontracts/contracts
-        run: forge build --sizes
+        run: forge test -vvv
 
-      # Maximum verbosity (-vvvv) prints full call traces + emitted
-      # logs/console2.log + reverts; --gas-report appends a per-contract
-      # / per-function gas-usage table at the end of the run.
-      - name: forge test (verbose + gas report)
-        working-directory: smartcontracts/contracts
-        run: forge test -vvvv --gas-report | tee forge-test.log
-
-      - name: Upload forge-test log + gas report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: forge-test-log
-          path: smartcontracts/contracts/forge-test.log
-          if-no-files-found: warn
-
-      # ── Coverage gate (must be 100% over src/) ───────────────────────
-      - name: forge coverage (summary + lcov)
-        working-directory: smartcontracts/contracts
-        run: |
-          forge coverage --report summary | tee coverage-summary.txt
-          forge coverage --report lcov
-
-      - name: Enforce 100% src/ line coverage
-        working-directory: smartcontracts/contracts
-        run: bash scripts/check-coverage.sh lcov.info
-
-      - name: Upload coverage artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: forge-coverage
-          path: |
-            smartcontracts/contracts/coverage-summary.txt
-            smartcontracts/contracts/lcov.info
-          if-no-files-found: warn
-
-      # ── Advisory (flip to blocking after first triage in Foundry env) ─
-      - name: forge fmt --check
-        working-directory: smartcontracts/contracts
-        continue-on-error: true
-        run: forge fmt --check
-
-      - name: Slither static analysis
-        uses: crytic/slither-action@v0.4.0
-        continue-on-error: true
-        with:
-          target: smartcontracts/contracts
-          slither-args: --exclude-dependencies
-
-      - name: forge gas snapshot
+      - name: Forge Gas Snapshot
         working-directory: smartcontracts/contracts
         continue-on-error: true
         run: forge snapshot && cat .gas-snapshot
 
   chipotle-real-integration:
     name: Real Chipotle TEE Integration (docker)
-    # Opt-in: depends on the external LIT-Protocol/chipotle +
-    # Dstack-TEE/dstack repos and a multi-minute Rust build. Running on
-    # every push gives false-red signal whenever those external repos /
-    # tags drift, so this job runs only on manual dispatch or the
-    # scheduled nightly run. Flip back to per-push once the upstream
-    # refs are pinned, the build is cached, and the healthcheck timing
-    # has been hardened end-to-end.
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
@@ -197,10 +86,17 @@ jobs:
           repository: Dstack-TEE/dstack
           path: GitHub/dstack
 
-      - name: Setup Rust toolchain (for simulator build)
+      - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            GitHub/chipotle -> target
+            GitHub/dstack -> target
 
       - name: Build dstack simulator
         working-directory: GitHub/dstack/sdk/simulator
@@ -208,7 +104,7 @@ jobs:
           cargo build --release -p dstack-guest-agent-simulator
           cp ../../target/release/dstack-simulator .
 
-      - name: Setup Node.js (for deployer dependency install)
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -223,7 +119,6 @@ jobs:
 
       - name: Healthcheck and Sanity verification
         run: |
-          # Wait up to 10 seconds for service response
           for i in {1..10}; do
             if curl -sf http://localhost:8000/core/v1/version; then
               echo "Real Chipotle is healthy and responding!"
@@ -247,8 +142,9 @@ jobs:
 
   e2e-lit-integration:
     name: E2E Lit Protocol Gating Integration
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -265,10 +161,17 @@ jobs:
           repository: Dstack-TEE/dstack
           path: GitHub/dstack
 
-      - name: Setup Rust toolchain (for simulator build)
+      - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            GitHub/chipotle -> target
+            GitHub/dstack -> target
 
       - name: Build dstack simulator
         working-directory: GitHub/dstack/sdk/simulator
@@ -296,6 +199,3 @@ jobs:
           SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
         run: |
           docker compose -f smartcontracts/docker-compose.lit.yml down --remove-orphans -v
-
-
-

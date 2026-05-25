@@ -31,7 +31,20 @@
    const list = Array.isArray(sps) ? sps : [];
    const targetEp = (typeof process !== 'undefined' && process.env.GF_SP) || '';
    if (targetEp) {
-     const match = list.find(s => s && s.endpoint && s.endpoint.includes(targetEp.replace(/^https?:\/\//, '')));
+     const host = targetEp.replace(/^https?:\/\//, '');
+     let match = list.find(s => s && s.endpoint && s.endpoint.includes(host));
+     // On the local network the configured GF_SP host ("greenfield-local:9033")
+     // differs from the SP's on-chain endpoint host ("127.0.0.1:9033"), so fall
+     // back to matching by PORT — this deterministically selects the primary SP
+     // serving that gateway (sp0, the GVG family-1 primary) rather than an
+     // arbitrary in-service SP.
+     if (!match) {
+       const portMatch = host.match(/:(\d+)$/);
+       if (portMatch) {
+         const port = portMatch[1];
+         match = list.find(s => s && s.endpoint && new RegExp(`:${port}(/|$)`).test(s.endpoint));
+       }
+     }
      if (match && match.operatorAddress && match.endpoint) {
        return { operatorAddress: match.operatorAddress, endpoint: match.endpoint };
      }

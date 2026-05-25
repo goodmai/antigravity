@@ -163,22 +163,28 @@ services:
     networks:
       - lit-network
 
-  mock-sp:
-    image: node:22-alpine
-    container_name: daskibo-mock-sp-lit
-    working_dir: /app
-    command: ["node", "mock-sp.mjs"]
-    environment:
-      - PORT=9000
+  greenfield-local:
+    build:
+      context: ./greenfield-local
+      dockerfile: Dockerfile
+      args:
+        GREENFIELD_REF: ${GREENFIELD_REF:-v1.10.7}
+        VALIDATORS: ${VALIDATORS:-1}
+        SPS: ${SPS:-7}
+    container_name: greenfield-local-lit
     ports:
-      - "9000:9000"
-    volumes:
-      - ./integration/mock-sp.mjs:/app/mock-sp.mjs:ro
+      - "26750:26750"   # validator0 Tendermint RPC
+      - "7545:8545"     # validator0 EVM RPC
+      - "9033:9033"     # sp0 HTTP gateway
+      - "1317:1317"     # cosmos REST
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9000/healthz"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
+      # Ready only once the GVG exists AND all gnfd-sp gateways are serving,
+      # so object upload/download works (not just bucket creation).
+      test: ["CMD", "sh", "-c", "test -f /tmp/sp_ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 240s
     networks:
       - lit-network
 
@@ -220,7 +226,7 @@ services:
         condition: service_healthy
       deploy-nft:
         condition: service_completed_successfully
-      mock-sp:
+      greenfield-local:
         condition: service_healthy
     environment:
       - CHIPOTLE_RPC=http://chipotle-anvil:8545
@@ -234,11 +240,11 @@ services:
       - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
       - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
       - NFT_CONTRACT_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
-      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
-      - GF_CHAIN_ID=5600
-      - GF_RPC=http://mock-sp:9000
-      - GF_SP=http://mock-sp:9000
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - GREENFIELD_TESTNET_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - GF_CHAIN_ID=greenfield_9000-1
+      - GF_RPC=http://greenfield-local:26750
+      - GF_SP=http://greenfield-local:9033
     volumes:
       - ./e2e:/app
       - ./buckets:/app/buckets:ro

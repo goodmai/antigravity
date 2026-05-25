@@ -89,18 +89,18 @@ services:
       args:
         GREENFIELD_REF: ${GREENFIELD_REF:-master}
         VALIDATORS: ${VALIDATORS:-1}
-        SPS: ${SPS:-1}
+        SPS: ${SPS:-7}
     ports:
       - "26750:26750"   # validator0 Tendermint RPC
       - "7545:8545"     # validator0 EVM RPC
       - "9033:9033"     # sp0 HTTP gateway
       - "1317:1317"     # cosmos REST
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:26750/status | grep greenfield_9000-1"]
-      interval: 10s
+      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped"]
+      interval: 5s
       timeout: 5s
-      retries: 30
-      start_period: 240s
+      retries: 40
+      start_period: 120s
     profiles:
       - local
       - test-local

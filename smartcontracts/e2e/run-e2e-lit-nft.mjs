@@ -47,6 +47,8 @@ const GF_RPC       = env('GF_RPC');
 const GF_SP        = env('GF_SP');
 const GF_CHAIN_ID  = env('GF_CHAIN_ID');
 
+console.log(`[E2E-LIT-NFT] Greenfield Signer: ADDR=${GF_ADDR}, PK=${GF_PK.slice(0, 6)}..., RPC=${GF_RPC}`);
+
 let PKP_ID = null;
 let litClient = null;
 
@@ -121,7 +123,9 @@ async function fetchTransport({ method, url, headers, body }) {
 }
 
 async function makeGreenfieldClient() {
-  const isMock = !GF_RPC || GF_RPC.includes('mock-sp') || GF_RPC.includes('9000');
+  // Mock SP is used only when GF_SP explicitly points to a mock or is absent.
+  // A real local chain on greenfield_9000-1 with RPC on :26750 is NOT a mock.
+  const isMock = !GF_RPC || GF_SP.includes('mock-sp');
 
   let backend;
   if (isMock) {
@@ -132,13 +136,14 @@ async function makeGreenfieldClient() {
       endpoint: GF_SP,
     });
   } else {
-    console.log(`  [Greenfield] Using real SDK backend on RPC ${GF_RPC}...`);
+    console.log(`  [Greenfield] Using real SDK backend on RPC ${GF_RPC} (chain ${GF_CHAIN_ID})...`);
     const { createSdkBackend } = await import('./greenfield-testnet/sdk-backend.mjs');
     backend = createSdkBackend({
       rpcUrl: GF_RPC,
       chainId: GF_CHAIN_ID,
       privateKey: GF_PK,
       address: GF_ADDR,
+      spEndpoint: GF_SP,
     });
   }
 
@@ -292,8 +297,8 @@ async function main() {
   plan = { ...plan, manifest, objects };
   console.log('  ✓ Course encrypted successfully');
 
-  // Upload encrypted course to Mock SP
-  console.log('  Uploading course encrypted payload to Mock SP...');
+  // Upload encrypted course to Greenfield
+  console.log('  Uploading course encrypted payload to Greenfield...');
   const gf = await makeGreenfieldClient();
   await gf.createBucket(plan.bucketName, { visibility: 'public', owner: GF_ADDR });
   for (const o of plan.objects) {
@@ -302,12 +307,34 @@ async function main() {
       owner: GF_ADDR,
     });
   }
-  console.log(`  ✓ Published course to mock-sp bucket: ${plan.bucketName}`);
+  console.log(`  ✓ Published course to Greenfield bucket: ${plan.bucketName}`);
+
+  // A freshly uploaded object is in CREATED state; the SP universal /download
+  // endpoint only serves it once it is SEALED (EC pieces replicated across the
+  // GVG + seal tx committed), which takes a few seconds. Poll until readable.
+  // Sealing (EC replication across the GVG + seal tx commit) is dispatched by
+  // the SP manager and observed ~100s after upload on this single-host stack,
+  // so allow up to ~5 min. The loop exits as soon as the object is downloadable.
+  const readObjectWithRetry = async (key, { tries = 150, delayMs = 2000 } = {}) => {
+    let lastErr;
+    for (let i = 0; i < tries; i++) {
+      try {
+        return await gf.readObject(plan.bucketName, key);
+      } catch (err) {
+        lastErr = err;
+        const msg = err?.message || String(err);
+        if (!/not found|not sealed|no such|ACCESS_DENIED|404/i.test(msg)) throw err;
+        if (i % 10 === 0) console.log(`    waiting for "${key}" to seal... (${i * delayMs / 1000}s)`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    }
+    throw lastErr;
+  };
 
   // Fetch manifest and encrypted payload back
-  const manifestText = await gf.readObject(plan.bucketName, '_lit/manifest.json');
+  const manifestText = await readObjectWithRetry('_lit/manifest.json');
   const parsedManifest = JSON.parse(manifestText);
-  const encText = await gf.readObject(plan.bucketName, 'lessons/01/secret.md.enc');
+  const encText = await readObjectWithRetry('lessons/01/secret.md.enc');
 
   // 6. Verify Bob (pre-purchase) is denied decryption
   console.log('\n[6/10] Verifying Bob (pre-purchase) is DENIED decryption...');

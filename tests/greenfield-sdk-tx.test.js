@@ -75,6 +75,40 @@ describe('sdkCreateBucket', () => {
     expect(opts.gasLimit).toBe(1234);
   });
 
+  it('uses fixed gas when supplied for local-chain workarounds', async () => {
+    const f = fakeSdk();
+    await sdkCreateBucket({
+      client: f.client,
+      Long: f.Long,
+      VisibilityType: f.VisibilityType,
+      bucketName: 'b',
+      creator: '0xC',
+      visibility: 'public',
+      broadcastSigner: { privateKey: '0xpk' },
+      fixedGas: { gasLimit: 500000, gasPrice: '5000000000' },
+    });
+    expect(f._spies.simulate).not.toHaveBeenCalled();
+    const opts = f._spies.broadcast.mock.calls[0][0];
+    expect(opts.gasLimit).toBe(500000);
+    expect(opts.gasPrice).toBe('5000000000');
+  });
+
+  it('allows callers to leave fee payer empty', async () => {
+    const f = fakeSdk();
+    await sdkCreateBucket({
+      client: f.client,
+      Long: f.Long,
+      VisibilityType: f.VisibilityType,
+      bucketName: 'b',
+      creator: '0xC',
+      visibility: 'public',
+      broadcastSigner: { privateKey: '0xpk' },
+      feePayer: '',
+    });
+    const opts = f._spies.broadcast.mock.calls[0][0];
+    expect(opts.payer).toBe('');
+  });
+
   it('maps private visibility correctly', async () => {
     const f = fakeSdk();
     await sdkCreateBucket({

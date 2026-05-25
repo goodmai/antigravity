@@ -1,0 +1,4 @@
+interface:
+  display_name: "Greenfield"
+  short_description: "BNB Greenfield деплой, бакеты и API"
+  default_prompt: "Используй Greenfield skill для работы с локальным, testnet и mainnet режимами BNB Greenfield, bucket publishing, pricing и API ручками."

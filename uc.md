@@ -70,3 +70,15 @@ Only if on-chain Greenfield bucket management is required: official
 `CrossChain`/`BucketHub` wrapper with hub-auth, idempotent sequence,
 refund-on-FailureAck. Default OFF (access is Lit-gated, no per-user
 cross-chain).
+
+### UC-12 — Paid access gating via Base network contracts (Scenario A)
+Our smart contracts (`CourseMarketplace` & `AccessPass`) are deployed on Base network, while the course encrypted content is stored in BNB Greenfield. The Lit access control conditions (ACC) are configured with `chain: "base"`, querying the `hasCourseAccess` view method on Base. The user purchases the course on Base, and Lit verifies this to decrypt content from Greenfield.
+- Pre: CourseMarketplace and AccessPass deployed on Base.
+- Flow: Author registers course on Base -> Encrypts master key under Base custom ACC -> Saves ciphertext in BNB Greenfield. Buyer pays price on Base -> AccessPass NFT minted on Base. Buyer requests decryption -> Lit checks ACC on Base -> Decryption allowed.
+- Post: Access only granted to valid Base NFT holders; Greenfield storage remains secure and fully private-gated.
+
+### UC-13 — Multi-chain gating with BNB smart contracts and Base-based Lit (Scenario B)
+Our smart contracts are deployed on BNB Chain (BSC) for purchases, but Lit gates the Greenfield objects by checking either the BNB purchase state (`chain: "bsc"`) or a Base-based NFT/credential (`chain: "base"`), or simply Lit verifies the BNB contract conditions. This represents a cross-chain setup where Greenfield storage, BNB payments, and Base-based access are bridged via Lit's multi-chain evaluation engine.
+- Pre: CourseMarketplace and AccessPass deployed on BNB Chain.
+- Flow: Author registers course on BNB Chain -> Encrypts master key under BNB Chain ACC -> Saves ciphertext in BNB Greenfield. Lit evaluates the BNB Chain state from its Base-configured environments or nodes. Buyer purchases on BNB Chain. Buyer requests decryption -> Lit checks BNB Chain contract -> Decryption allowed.
+
