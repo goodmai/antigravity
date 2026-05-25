@@ -80,6 +80,10 @@ jobs:
           path: GitHub/chipotle
           ref: next
 
+      - name: Patch Chipotle Dockerfile to include git
+        run: |
+          sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
+
       - name: Checkout dstack Repo
         uses: actions/checkout@v4
         with:
@@ -154,6 +158,10 @@ jobs:
           repository: LIT-Protocol/chipotle
           path: GitHub/chipotle
           ref: next
+
+      - name: Patch Chipotle Dockerfile to include git
+        run: |
+          sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
 
       - name: Checkout dstack Repo
         uses: actions/checkout@v4
