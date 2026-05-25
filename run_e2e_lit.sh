@@ -90,6 +90,10 @@ done
 # container (read-only), so the patch must be applied on the host first. It
 # fixes EIP-712 signing for the local pre-Altai chain and rewrites the SP
 # object endpoints to path-style against the local gnfd-sp gateway.
+echo "==> Installing dependencies in e2e and greenfield-testnet..."
+(cd "$SCRIPT_DIR/smartcontracts/e2e" && npm install --no-audit --no-fund)
+(cd "$SCRIPT_DIR/smartcontracts/greenfield-testnet" && npm install --no-audit --no-fund)
+
 echo "==> Applying greenfield-js-sdk local patches..."
 (cd "$SCRIPT_DIR" && node patch_sdk.cjs) || {
     echo "ERROR: patch_sdk.cjs failed (is node installed and node_modules present?)"
