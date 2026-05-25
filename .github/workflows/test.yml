@@ -52,7 +52,9 @@ jobs:
 
       - name: Install forge dependencies
         working-directory: smartcontracts/contracts
-        run: forge install --no-git foundry-rs/forge-std
+        run: |
+          forge install --no-git foundry-rs/forge-std
+          forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1
 
       - name: Forge build
         working-directory: smartcontracts/contracts

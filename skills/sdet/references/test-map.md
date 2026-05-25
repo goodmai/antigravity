@@ -16,7 +16,7 @@
 | Unit | `npm run test:unit` | `tests/*.test.js` (кроме `*.docker.*`/`*.live.*`) | — |
 | Typecheck | `npm run typecheck` | `tsconfig.json` | — |
 | No-any | `npm run lint:noany` | `scripts/check-no-any.sh` | — |
-| Contracts | `forge test -vvv` (`smartcontracts/contracts`) | `*.t.sol` (AccessPass, CourseMarketplace, Treasury) | Foundry |
+| Contracts | `forge test -vvv` (`smartcontracts/contracts`) | `*.t.sol` (AccessPass, CourseMarketplace, Treasury, AuthorNft, ClientNft) | Foundry |
 | Integration/docker | `npm run test:integration` | `tests/*.docker.test.js` | Docker |
 | Live | `npm run test:live` *(добавить, см. workflow_cicd.md Фаза 1)* | `tests/*.live.test.js` | testnet + ключи |
 | E2E Flow B (local) | `./run_e2e_lit.sh` | `smartcontracts/e2e/run-e2e-lit-nft.mjs` | Docker + dstack/chipotle |

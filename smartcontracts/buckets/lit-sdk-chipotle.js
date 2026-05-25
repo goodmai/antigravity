@@ -19,6 +19,52 @@
  * @module lit-sdk-chipotle
  */
 
+// Transient HTTP statuses the Chipotle TEE (Rocket server) returns while
+// rate-limiting or warming up. They mean the request was NOT processed, so
+// retrying is safe and idempotent.
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * `fetch` with exponential backoff + jitter on transient failures (429/5xx and
+ * network errors). Honors a numeric `Retry-After` header. Returns the final
+ * response (even if still failing) so the caller's own error handling runs.
+ *
+ * @param {string} url
+ * @param {RequestInit} [init]
+ * @param {{ retries?: number, baseMs?: number, maxMs?: number }} [opts]
+ * @returns {Promise<Response>}
+ */
+export async function fetchWithRetry(url, init = {}, { retries = 6, baseMs = 500, maxMs = 8000 } = {}) {
+  /** @type {unknown} */
+  let lastErr;
+  for (let attempt = 0; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, init);
+    } catch (err) {
+      // Network-level failure (connection refused while the node boots, etc.)
+      lastErr = err;
+      if (attempt >= retries) throw err;
+      await sleep(backoffMs(attempt, baseMs, maxMs));
+      continue;
+    }
+    if (!RETRYABLE_STATUS.has(res.status) || attempt >= retries) return res;
+    const retryAfter = Number(res.headers.get('retry-after'));
+    const wait = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(maxMs, retryAfter * 1000)
+      : backoffMs(attempt, baseMs, maxMs);
+    await sleep(wait);
+  }
+}
+
+function backoffMs(attempt, baseMs, maxMs) {
+  return Math.min(maxMs, baseMs * 2 ** attempt) + Math.random() * baseMs;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * @param {{ chipotleUrl?: string, pkpId?: string }} cfg
  * @returns {import('./lit-access.js').LitClient}
@@ -27,7 +73,7 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
   const base = chipotleUrl.replace(/\/$/, '');
 
   async function callLitAction(jsParams) {
-    const res = await fetch(`${base}/core/v1/lit_action`, {
+    const res = await fetchWithRetry(`${base}/core/v1/lit_action`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

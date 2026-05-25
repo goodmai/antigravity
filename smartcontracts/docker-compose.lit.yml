@@ -205,8 +205,9 @@ services:
     command:
       - >
         (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
         && forge build
-        && forge script script/DeployMockNFT.s.sol:DeployMockNFT
+        && forge script script/DeployAccessNfts.s.sol:DeployAccessNfts
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
         --broadcast -vvv
         && forge script script/Deploy.s.sol:Deploy
@@ -239,6 +240,8 @@ services:
       - BOB_ADDR=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
       - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
       - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      # ClientNft is deployed first (nonce 1) so it keeps this well-known
+      # address; AuthorNft follows at nonce 2. Used by run-e2e-lit.mjs.
       - NFT_CONTRACT_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
       - GREENFIELD_TESTNET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
       - GREENFIELD_TESTNET_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8

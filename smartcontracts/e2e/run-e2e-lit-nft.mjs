@@ -22,7 +22,7 @@ import { planCoursePublish } from '/app/buckets/course-publish.js';
 import { decryptCourseObject } from '/app/buckets/course-read.js';
 import { createLitAccess } from '/app/buckets/lit-access.js';
 import { createGreenfieldClient } from '/app/buckets/greenfield-core.js';
-import { createChipotleClient } from '/app/buckets/lit-sdk-chipotle.js';
+import { createChipotleClient, fetchWithRetry } from '/app/buckets/lit-sdk-chipotle.js';
 
 // ── env ──────────────────────────────────────────────────────────────
 const env = (k, required = true) => {
@@ -87,7 +87,8 @@ const ACCESSPASS_ABI = parseAbi([
 // ── Lit / Chipotle Connection ───────────────────────────────────────────
 async function connectLit() {
   console.log(`  Chipotle mode enabled (URL: ${CHIPOTLE_URL})`);
-  const walletRes = await fetch(`${CHIPOTLE_URL}/core/v1/create_wallet`, {
+  // The TEE node (Rocket) may 429/5xx while warming up — retry with backoff.
+  const walletRes = await fetchWithRetry(`${CHIPOTLE_URL}/core/v1/create_wallet`, {
     headers: { 'X-Api-Key': 'dummy-api-key' }
   });
   if (!walletRes.ok) {

@@ -4,12 +4,18 @@ test = "test"
 out = "out"
 libs = ["lib"]
 solc = "0.8.28"
-evm_version = "shanghai"
+# OpenZeppelin v5.6 emits `mcopy`, which requires Cancun. The local Lit/Base
+# anvil and BSC/Base targets all support Cancun.
+evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
-# `src/` is self-contained (no OpenZeppelin) so it builds without network
-# installs. Tests need forge-std:  forge install foundry-rs/forge-std
-remappings = ["forge-std/=lib/forge-std/src/"]
+# Most of `src/` is self-contained; the soulbound access NFTs (AuthorNft /
+# ClientNft, the Lit-gating ERC721s) use OpenZeppelin. Install deps with:
+#   forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+]
 
 [fuzz]
 runs = 256

@@ -92,6 +92,7 @@ services:
     command:
       - >
         (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
         && forge build
         && forge script script/Deploy.s.sol:Deploy
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"

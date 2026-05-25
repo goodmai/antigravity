@@ -22,7 +22,7 @@ import { planCoursePublish } from '/app/buckets/course-publish.js';
 import { decryptCourseObject } from '/app/buckets/course-read.js';
 import { createLitAccess } from '/app/buckets/lit-access.js';
 import { createGreenfieldClient } from '/app/buckets/greenfield-core.js';
-import { createChipotleClient } from '/app/buckets/lit-sdk-chipotle.js';
+import { createChipotleClient, fetchWithRetry } from '/app/buckets/lit-sdk-chipotle.js';
 
 // ── env ──────────────────────────────────────────────────────────────
 const env = (k, required = true) => {
@@ -69,17 +69,20 @@ const eve = privateKeyToAccount(EVE_PK);
 const wDeployer = createWalletClient({ account: deployer, chain, transport: http(CHIPOTLE_RPC) });
 const wAlice    = createWalletClient({ account: alice, chain, transport: http(CHIPOTLE_RPC) });
 
-// ABI for the MockNFT
+// ABI for the soulbound ClientNft (deployed at NFT_CONTRACT_ADDR, nonce 1).
+// `mint(to, expiry)` — expiry 0 = perpetual; Lit gates on `balanceOf >= 1`.
 const NFT_ABI = parseAbi([
-  'function mint(address to) external returns (uint256)',
+  'function mint(address to, uint64 expiry) external returns (uint256)',
   'function balanceOf(address owner) view returns (uint256)',
   'function ownerOf(uint256 tokenId) view returns (address)',
+  'function hasAccess(address user) view returns (bool)',
 ]);
 
 // ── Lit / Chipotle Connection ───────────────────────────────────────────
 async function connectLit() {
   console.log(`  Chipotle mode enabled (URL: ${CHIPOTLE_URL})`);
-  const walletRes = await fetch(`${CHIPOTLE_URL}/core/v1/create_wallet`, {
+  // The TEE node (Rocket) may 429/5xx while warming up — retry with backoff.
+  const walletRes = await fetchWithRetry(`${CHIPOTLE_URL}/core/v1/create_wallet`, {
     headers: { 'X-Api-Key': 'dummy-api-key' }
   });
   if (!walletRes.ok) {
@@ -280,13 +283,13 @@ async function main() {
     /not authorized|access denied|access control conditions|ACCESS_DENIED/i,
   );
 
-  // 6. Print (Mint) the NFT to Bob!
+  // 6. Print (Mint) the soulbound ClientNft to Bob (perpetual: expiry 0).
   console.log('\n[6/7] Printing (minting) the gating NFT to Bob on the same network...');
   const txMint = await wDeployer.writeContract({
     address: NFT_CONTRACT_ADDR,
     abi: NFT_ABI,
     functionName: 'mint',
-    args: [bob.address],
+    args: [bob.address, 0n],
   });
   const rMint = await pub.waitForTransactionReceipt({ hash: txMint });
   eq('  Mint transaction status', rMint.status, 'success');
