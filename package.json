@@ -5,8 +5,8 @@
   "scripts": {
     "test": "vitest run",
     "test:unit": "vitest run --exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'",
-    "test:integration": "vitest run --include '**/*.docker.test.js'",
-    "test:live": "vitest run --include '**/*.live.test.js'",
+    "test:integration": "vitest run docker.test.js",
+    "test:live": "vitest run live.test.js",
     "test:coverage": "vitest run --coverage",
     "test:contracts": "forge test -vvv --root smartcontracts/contracts",
     "test:watch": "vitest",
