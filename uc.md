@@ -63,7 +63,13 @@ unsigned write ⇒ `NO_BACKEND`; owner≠signer ⇒ `OWNER_MISMATCH`.
 
 ### UC-10 — Operate Greenfield (mock / real-private / real-testnet)
 Same client/orchestrator over Flow A (mock SP), Flow B (real private
-chain, clean state), Flow C (real testnet, funded key).
+chain, clean state), Flow C (real testnet, funded key). Flow B runs a
+**real 7-SP `gnfd-sp` stack** (EC 4+2 over a GVG: 1 primary + 6
+secondary), so objects actually seal; readiness gates on `/tmp/sp_ready`
+and reads must retry until seal (~100 s). Validate Flow B only from a
+**fresh genesis** (`run_e2e_lit.sh` does `down -v`), never by syncing a
+stale node. SDK signing/addressing fixes for the local pre-Altai chain
+live in `patch_sdk.cjs`; full RCA in `skills/bughunter/SKILL.md`.
 
 ### UC-11 — Cross-chain bucket lifecycle (optional)
 Only if on-chain Greenfield bucket management is required: official
@@ -81,4 +87,44 @@ Our smart contracts (`CourseMarketplace` & `AccessPass`) are deployed on Base ne
 Our smart contracts are deployed on BNB Chain (BSC) for purchases, but Lit gates the Greenfield objects by checking either the BNB purchase state (`chain: "bsc"`) or a Base-based NFT/credential (`chain: "base"`), or simply Lit verifies the BNB contract conditions. This represents a cross-chain setup where Greenfield storage, BNB payments, and Base-based access are bridged via Lit's multi-chain evaluation engine.
 - Pre: CourseMarketplace and AccessPass deployed on BNB Chain.
 - Flow: Author registers course on BNB Chain -> Encrypts master key under BNB Chain ACC -> Saves ciphertext in BNB Greenfield. Lit evaluates the BNB Chain state from its Base-configured environments or nodes. Buyer purchases on BNB Chain. Buyer requests decryption -> Lit checks BNB Chain contract -> Decryption allowed.
+
+---
+
+## Funding Matrix — where native gas is required (test/devnet scheme)
+
+Reference scheme: **NFT (CourseMarketplace + AccessPass) on BNB · ciphertext in Greenfield
+testnet/devnet · key release via test/local Lit**. Two on-chain networks must be
+funded with **native tBNB** (they are *separate* chains that happen to share the
+BNB token); the Lit layer's funding depends on which flavor you pick. The Lit
+access *check* itself is always a read-only `eth_call` (view) — **never** costs gas.
+
+| Network | Chain id | Native token | Funded for | Source |
+| :-- | :-- | :-- | :-- | :-- |
+| **BSC Testnet** | `97` | **tBNB** | deploy `CourseMarketplace`/`AccessPass`, `registerCourse`, buyer `purchase` (gas + `price`), `withdraw` | BNB Chain testnet faucet → wallet |
+| **Greenfield Testnet** | `greenfield_5600-1` (`5600`) | **tBNB (on Greenfield)** | `MsgCreateBucket`, object upload, storage + read-quota fees, SP settlement | claim tBNB on BSC testnet, **cross-chain transfer** to Greenfield (or Greenfield faucet) |
+| **Lit — Chipotle mock** (`litNetwork: chipotle`, `localhost:8000`) | — | **none** | nothing — TEE simulated locally, free | n/a |
+| **Lit — Chipotle live** (`api.chipotle.litprotocol.com`) | — (PKP on Base) | **credits (USD)**, not native | Lit Action execution; PKP minted on Base, gas paid from credits | Stripe (card / ETH·USDC·SOL via Base) |
+| **Lit — Chipotle ChainSecured** | Base / Base Sepolia | **Base ETH** | wallet-signed admin writes (create group / mint PKP) directly to Base contracts | Base (Sepolia) faucet; credits still cover action exec |
+| **Lit — `datil-dev`** | Chronicle Yellowstone | **none** | free remote testnet (rate-limited), no Capacity Credits | n/a |
+| **Lit — `datil-test` / `datil`** | Chronicle Yellowstone | **tstLPX / LPX** | mint Capacity Credits NFT on Chronicle Yellowstone to lift rate limits / use paid net | Yellowstone faucet (`tstLPX`) / bridge (`LPX`) |
+
+Cheapest path to exercise the **full** scheme end-to-end on public infra: fund one
+wallet with **BSC-testnet tBNB**, bridge some to **Greenfield testnet**, and use
+**`datil-dev`** (free) or **Chipotle mock** for Lit — i.e. only the two BNB-family
+chains actually need native tokens. Paid Lit (`datil`/`datil-test`) or Chipotle
+ChainSecured add a third funded chain (Chronicle Yellowstone or Base). The local
+Flow B stack (`run_e2e_lit.sh`, `greenfield_9000-1` + Anvil + Chipotle mock) needs
+**no real funds at all** — genesis-funded test accounts cover everything.
+
+Env wiring (Flow C / devnet, see `smartcontracts/greenfield-testnet/`):
+```bash
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # author/buyer wallet (also bridge source)
+export GREENFIELD_TESTNET_ADDRESS=0x...
+export GREENFIELD_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+export GREENFIELD_SP=https://gnfd-testnet-sp1.bnbchain.org
+export GREENFIELD_CHAIN_ID=5600
+export CHIPOTLE_URL=http://localhost:8000      # mock; or live/datil via write-testnet-lit.mjs
+```
+Writers: `write-testnet-chipotle.mjs` (Greenfield testnet + Chipotle), `write-testnet-lit.mjs`
+(`datil-dev` free / `datil-test` paid), `write-mainnet.mjs` (`datil` + real funds).
 

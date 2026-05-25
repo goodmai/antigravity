@@ -158,4 +158,15 @@ contract AccessPassTest is Test {
     function test_ownerOf_nonexistentTokenIsZero() public view {
         assertEq(pass.ownerOf(99999), address(0));
     }
+
+    /// The ERC721 `safeTransferFrom(from,to,id,data)` overload is also
+    /// soulbound — the 3-arg paths are covered above; this exercises the
+    /// 4-arg overload explicitly.
+    function test_soulbound_safeTransferWithDataReverts() public {
+        vm.prank(mp);
+        uint256 id = pass.mint(alice, 1, 0);
+        vm.prank(alice);
+        vm.expectRevert(AccessPass.Soulbound.selector);
+        pass.safeTransferFrom(alice, address(0xB0B), id, bytes("data"));
+    }
 }

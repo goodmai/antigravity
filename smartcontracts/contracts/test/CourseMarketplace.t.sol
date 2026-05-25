@@ -321,6 +321,24 @@ contract CourseMarketplaceTest is Test {
         assertFalse(mp.hasCourseAccess(buyer, 999));
     }
 
+    /// Non-author lookup on a marketplace whose AccessPass is not yet wired
+    /// must return false (not revert) — exercises the `accessPass == 0` guard.
+    function test_hasCourseAccess_falseWhenAccessPassUnset() public {
+        CourseMarketplace fresh = new CourseMarketplace(address(treasury), w3ext);
+        vm.prank(author);
+        uint256 id = fresh.registerCourse(1 ether, bytes32("h"), "b", 0);
+        assertFalse(fresh.hasCourseAccess(buyer, id)); // accessPass unset → false
+        assertTrue(fresh.hasCourseAccess(author, id)); // author still free
+    }
+
+    /// Constructor rejects a zero treasury OR a zero w3ext address.
+    function test_constructor_rejectsZeroAddresses() public {
+        vm.expectRevert(CourseMarketplace.ZeroAddress.selector);
+        new CourseMarketplace(address(0), w3ext);
+        vm.expectRevert(CourseMarketplace.ZeroAddress.selector);
+        new CourseMarketplace(address(treasury), address(0));
+    }
+
     function test_expiredClient_losesAccess_thenCanRepurchase() public {
         vm.prank(author);
         uint256 id =

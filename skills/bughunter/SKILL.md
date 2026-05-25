@@ -19,6 +19,13 @@ description: Справочник решенных интеграционных,
 | **BUG-004** | Greenfield JS SDK | `signature verification failed` (несоответствие Msg1 type) | JS SDK помещает в служебное поле `type` сообщения `Msg1` Protobuf Type URL `"/greenfield.storage.MsgCreateBucket"`. Однако Greenfield Go-нода использует Amino-регистрацию и ожидает имя `"storage/CreateBucket"`. | Внедрить хелпер `normalizeTypes` в [index.js](file:///home/g/projects/antigravity/smartcontracts/greenfield-testnet/node_modules/@bnb-chain/greenfield-js-sdk/dist/cjs/index.js), который заменяет значение `type` с Protobuf Type URL на Amino-имя `"storage/CreateBucket"` перед отправкой в подпись. |
 | **BUG-005** | Greenfield JS SDK | `signature verification failed` (несоответствие числовых типов в EIP-712) | Числовые значения (размеры бакетов, лимиты, типы) объявлены в EIP-712 схеме как `uint256`/`uint64`, но JS SDK сериализовал их как строки (например, `"2400"`, `"0"`). Подписчик подписывал строки, а Go-нода парсила их как числа, вызывая несовпадение хэшей. | Внедрить в [index.js](file:///home/g/projects/antigravity/smartcontracts/greenfield-testnet/node_modules/@bnb-chain/greenfield-js-sdk/dist/cjs/index.js) рекурсивный хелпер `normalizeMsgValues` для принудительного приведения строковых представлений чисел к типу `Number` перед хэшированием/подписанием. |
 | **BUG-006** | Greenfield JS SDK ↔ local node EIP-712 | `feePayer's pubkey ... is different from signature's pubkey` (на локальной `greenfield_9000-1`) | **Это корневая причина, проверенная по исходникам ноды.** Локальная нода v1.10.7 НЕ активирует апгрейд `Altai`, поэтому `getSignBytes` использует OLD-схему с `domain.verifyingContract = "greenfield"` (строковый литерал), а НЕ `0x71e835...`. SDK подписывал domain с `0x71e835...` → другой DomainSeparator → ecrecover даёт чужой pubkey. См. Deep Dive ниже. | В `createEIP712` для локальной сети (`chainId == 9000`) задать `domain.verifyingContract = 'greenfield'`. Для testnet/mainnet (Altai активен) — `0x71e835aff094655dEF897fbc85534186DbeaB75d`. Реализовано в [patch_sdk.cjs](file:///home/g/projects/antigravity/patch_sdk.cjs). |
+| **BUG-007** | `gnfd-sp` daemon (старт) | `error while loading shared libraries: libstdc++.so.6: cannot open shared object file` | Бинарь `gnfd-sp` использует cgo для BLS-подписей (`prysmaticlabs/bls`), которому нужен C++ runtime. Базовый образ `alpine` его не содержит. SP падает сразу при старте, GVG не может запечатать объекты. | Установить в [Dockerfile](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/Dockerfile) рантайм: `apk add --no-cache libstdc++ libgcc`. |
+| **BUG-008** | Greenfield seal / GVG | Объект загружается, но навсегда остаётся `OBJECT_STATUS_CREATED` и никогда не переходит в `SEALED`; чтение даёт `not sealed` / 404 | Greenfield запечатывает объекты с erasure coding по Global Virtual Group: **1 primary + 6 secondary SP (4 data + 2 parity)**. С одним запущенным SP кворума для EC-репликации нет — secondary'ы не отвечают, seal-tx не формируется. | Поднимать **все 7** `gnfd-sp` демонов на одном хосте, у каждого свои порты/БД/ключи, общий GVG family (`GVGPreferSPList = [1..7]`). Реализовано в [setup_sp.sh](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/setup_sp.sh). |
+| **BUG-009** | MariaDB (SP metadata/blocksyncer store) | `Can't connect to MySQL server ... (111 Connection refused)`, затем `Access denied for user 'root'@'localhost'` по TCP | (1) Alpine MariaDB по умолчанию `skip-networking` — порт 3306 не слушается. (2) Подключение к `127.0.0.1` обратно резолвится в `localhost`, который привязан к socket-auth аккаунту, а не к паролю. | В [Dockerfile](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/Dockerfile) задать `skip-networking=0`, `port=3306`, `bind-address=127.0.0.1`, `skip-name-resolve`; в [setup_sp.sh](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/setup_sp.sh) создать `root@127.0.0.1` и `root@%` с паролем `sppass`. |
+| **BUG-010** | entrypoint.sh (bash) | Контейнер `greenfield-local` так и не становится `healthy`; sentinel `/tmp/sp_ready` не создаётся, хотя все SP-шлюзы уже слушают | Цикл ожидания шлюзов `up=$(netstat ... | grep -oE ':903[3-9]' | ...)` под `set -euo pipefail` + `pipefail`: пока ни один шлюз не поднялся, `grep` возвращает код 1, что роняет всю подоболочку до строки `touch /tmp/sp_ready`. | Добавить `|| true` в конец пайплайна и `${up:-0}` для дефолта. Реализовано в [entrypoint.sh](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/entrypoint.sh). |
+| **BUG-011** | SDK upload ↔ on-chain SP endpoint | Загрузка объекта из e2e-контейнера падает с `connection refused` / таймаутом, хотя SP жив | On-chain у SP зарегистрирован endpoint `http://127.0.0.1:903x` (все SP делят хост-контейнер). Из контейнера `e2e-lit` этот `127.0.0.1` указывает на сам e2e, а не на SP. SDK берёт endpoint из цепочки → шлёт в пустоту. | (1) Передавать `spEndpoint` (= `GF_SP=http://greenfield-local:9033`) напрямую в `delegateUploadObject`, минуя on-chain lookup — [sdk-backend.mjs](file:///home/g/projects/antigravity/smartcontracts/greenfield-testnet/sdk-backend.mjs). (2) В [greenfield-sp.js](file:///home/g/projects/antigravity/smartcontracts/buckets/greenfield-sp.js) `pickPrimarySp` при несовпадении host'а сопоставляет SP по **порту** (`:9033`). |
+| **BUG-012** | e2e readObject (timing) | `Resource not found` / `ACCESS_DENIED` при чтении только что опубликованного манифеста/`.enc` | Delegated upload асинхронен: SP создаёт объект on-chain, реплицирует EC и запечатывает — на одно-хостовом стеке это ~100–110 с. Чтение сразу после `putObject` приходит до seal'а. | Обернуть чтение в `readObjectWithRetry` (tries=150, delay=2 с, ретрай на `not found|not sealed|no such|ACCESS_DENIED|404`). Реализовано в [run-e2e-lit-nft.mjs](file:///home/g/projects/antigravity/smartcontracts/e2e/run-e2e-lit-nft.mjs). |
+| **BUG-013** | Greenfield JS SDK (SP URL addressing) | Запросы к локальному SP уходят на vhost `<bucket>.gnfd.test-sp.com` (не резолвится) либо подпись GNFD1-ECDSA не сходится | SDK по умолчанию строит **vhost-style** URL (`<bucket>.<domain>`) и подписывает канонический запрос по `hostname` без порта. Локальный `gnfd-sp` доступен только по **path-style** (`<endpoint>/<bucket>`), а подпись должна включать host **с портом**. | В [patch_sdk.cjs](file:///home/g/projects/antigravity/patch_sdk.cjs): `verifyUrl` (принимать любой парсящийся http(s)-URL c hostname), `generateUrlByBucketName` (path-style `<endpoint>/<bucket>`), `getPutObjectMetaInfo` (подписывать полный `url.pathname` и `hostname: url.host` — host с портом). |
 
 > [!CAUTION]
 > **Записи BUG-002, BUG-003, BUG-004 оказались НЕВЕРНЫ для ноды v1.10.7** и привели к регрессии (см. ground truth ниже). Решения этих багов противоречат тому, что реально реконструирует Go-нода в `greenfield-cosmos-sdk/x/auth/tx/eip712.go`:
@@ -120,8 +127,62 @@ description: Справочник решенных интеграционных,
 
 ---
 
+## 2b. Deep Dive: Путь хранения объектов (Upload → Seal → Download)
+
+Подписать `MsgCreateBucket` (BUG-006) — лишь половина дела: чтобы объект реально
+**загрузился, запечатался и читался**, нужен полноценный стек storage-provider'ов.
+Эти баги (BUG-007…BUG-013) образуют одну цепочку и проявляются именно при попытке
+прочитать только что опубликованный курс.
+
+### Почему нужны все 7 SP (BUG-008)
+
+Greenfield не хранит объект целиком на одном SP. При seal'е primary SP режет данные
+на **6 EC-чанков (4 data + 2 parity)** и раскладывает их по Global Virtual Group:
+сам primary + 6 secondary. Если secondary'ев нет, primary не может собрать GVG и
+seal-tx не формируется — объект вечно висит в `OBJECT_STATUS_CREATED`. Поэтому
+[setup_sp.sh](file:///home/g/projects/antigravity/smartcontracts/greenfield-local/setup_sp.sh)
+поднимает 7 демонов в одном контейнере: порты `gRPC = 10000 + 1000*i`,
+`gateway = 9033 + i`, у каждого своя БД `sp_${i}`, общий GVG family
+(`GVGPreferSPList = [1,2,3,4,5,6,7]`), sp0 — P2P-bootstrap-пир.
+
+### Endpoint mismatch: 127.0.0.1 vs docker-hostname (BUG-011)
+
+Все 7 SP делят контейнер `greenfield-local`, поэтому on-chain они регистрируют
+endpoint `http://127.0.0.1:903x` (так они находят друг друга). Но из контейнера
+`e2e-lit` адрес `127.0.0.1` — это сам e2e. Решение двустороннее:
+- **запись**: `delegateUploadObject` получает `endpoint: spEndpoint` напрямую
+  (`GF_SP=http://greenfield-local:9033`), минуя on-chain lookup;
+- **выбор primary**: `pickPrimarySp` сопоставляет SP по **порту** (`:9033`),
+  когда host не совпадает.
+
+### Sealing — асинхронный (BUG-012)
+
+`delegateUploadObject` возвращается, как только SP принял байты; реальная
+EC-репликация + seal на одно-хостовом стеке занимают **~100–110 с**. Любое чтение
+сразу после загрузки придёт до seal'а → `not sealed`/404. Отсюда обязательный
+`readObjectWithRetry` и широкое окно ожидания. На testnet с географически
+распределёнными SP латентность другая, но принцип «читать с ретраем» тот же.
+
+### Path-style vs vhost (BUG-013)
+
+Публичный SP в проде адресуется vhost-style (`<bucket>.<sp-domain>`). Локальный
+`gnfd-sp` за одним IP так не резолвится — нужен path-style (`<endpoint>/<bucket>`),
+а каноническая подпись GNFD1-ECDSA должна включать **host с портом**. Универсальный
+publicly-readable endpoint SP — `GET /download/{bucket}/{object}` (без auth для
+SEALED public-read объектов) — удобен для health-проверок загрузки.
+
+> [!TIP]
+> Диагностика «объект не читается»: (1) `gnfd q storage head-object <bucket> <obj>` —
+> смотреть `object_status`; если `CREATED`, проблема в seal (BUG-008/007); (2) проверить,
+> что все 7 шлюзов слушают (`netstat -tln | grep 903`); (3) `docker logs` SP на предмет
+> `libstdc++`/MariaDB; (4) только потом подозревать подпись/URL (BUG-013).
+
+---
+
 ## 3. Рекомендации по Интеграции в Greenfield и Lit Skills
 Для предотвращения повторного возникновения этих ошибок при модификации Greenfield или Lit-модулей, всегда:
-1.  **Проверяйте EIP-712 Payload**: Убедитесь, что логируемый в консоли `EIP712_PAYLOAD` соответствует типам `Tx` в Go.
-2.  **Запускайте Greenfield-запросы в нижнем регистре**: Адреса должны проходить нормализацию `.toLowerCase()` перед входом в SDK.
-3.  **Сопоставляйте Amino Codec**: Если добавляете новые сообщения (Msg), проверяйте файл `x/[module]/types/codec.go` в Go-ноде для получения точного Amino-имени.
+1.  **Проверяйте EIP-712 Payload**: Убедитесь, что логируемый в консоли `EIP712_PAYLOAD` соответствует типам `Tx` в Go, и помните ground truth по BUG-002…006 (checksum-адреса, numeric `chain_id=9000`, proto Type URL, `verifyingContract="greenfield"` локально).
+2.  **Поднимайте полный SP-стек для путей upload/download**: одиночный SP не запечатает объект — нужны все 7 (BUG-008). Не путайте «подпись прошла» с «объект доступен».
+3.  **Читайте с ретраем**: seal асинхронен (~100 с локально) — оборачивайте `readObject` в retry (BUG-012).
+4.  **Сопоставляйте Amino Codec**: Если добавляете новые сообщения (Msg), проверяйте файл `x/[module]/types/codec.go` в Go-ноде для получения точного Amino-имени.
+5.  **Валидируйте на чистом состоянии**: проверка стека — только из свежего genesis (`run_e2e_lit.sh` c `down -v`), а не синхронизацией устаревшей ноды (см. [Greenfield Skill](../greenfield/SKILL.md)).

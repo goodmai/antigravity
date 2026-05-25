@@ -7,7 +7,10 @@
  * SDK objects are injected, so the orchestration is pure and unit-tested
  * with fakes; only the caller's signer-specific broadcast fields differ.
  *
- * @typedef {{ privateKey: string } | { signTypedDataCallback: (address: string, message: string) => Promise<string> }} BroadcastSigner
+ * @typedef {Object} BroadcastSigner
+ * @property {string} [type]
+ * @property {string} [privateKey]
+ * @property {(address: string, message: string) => Promise<string>} [signTypedDataCallback]
  *
  * @typedef {Object} GreenfieldSdkClient
  * @property {{ getStorageProviders: () => Promise<import('./greenfield-sp.js').SpEntry[]> }} sp
@@ -51,6 +54,7 @@ export async function sdkCreateBucket({
   const sp = pickPrimarySp(sps);
   console.log(`[sdkCreateBucket] Picked Primary SP: ${sp.operatorAddress} @ ${sp.endpoint}`);
   
+  /** @type {Record<string, unknown>} */
   const createBucketMsg = {
     bucketName,
     creator,

@@ -130,13 +130,17 @@ sequenceDiagram
         ```
 
 *   **Подписание транзакции в Greenfield (EIP-712 Структура)**
-    *   *Домен (`EIP712Domain`)*:
+    *   *Домен (`EIP712Domain`)*: на **локальной** `greenfield_9000-1` (нода v1.10.7
+        **без** апгрейда Altai) `verifyingContract` — строковый литерал `"greenfield"`,
+        а НЕ `0x71e835...`. Адрес `0x71e835aff094655dEF897fbc85534186DbeaB75d`
+        используется только на testnet/mainnet, где Altai активен (см. **BUG-006** в
+        [Bug Hunter](../../skills/bughunter/SKILL.md)).
         ```json
         {
           "name": "Greenfield Tx",
           "version": "1.0.0",
           "chainId": 9000,
-          "verifyingContract": "0x71e835aff094655dEF897fbc85534186DbeaB75d",
+          "verifyingContract": "greenfield",
           "salt": "0"
         }
         ```
@@ -190,6 +194,24 @@ sequenceDiagram
           }
         }
         ```
+    > [!CAUTION]
+    > Пример выше отражает раннюю (частично ошибочную) гипотезу о сериализации.
+    > Ground truth, реконструированный из исходников ноды v1.10.7: адреса — в
+    > **checksum**-регистре (не lowercase), `chain_id` — **numeric `9000`** типа
+    > `uint256` (не строка `"greenfield_9000-1"`), `type` остаётся proto Type URL,
+    > пустой `primary_sp_approval.sig` нода **опускает**. Единственная правка для
+    > локальной сети — `verifyingContract = "greenfield"`. Подробности и причины,
+    > почему BUG-002/003/004 оказались неверны — в [Bug Hunter](../../skills/bughunter/SKILL.md).
+
+*   **Загрузка и запечатывание объектов (real 7-SP стек)**
+    *   Bucket подписан — это лишь полдела. Чтобы объект **загрузился, запечатался и
+        читался**, `greenfield-local` поднимает **7 демонов `gnfd-sp`** (EC 4 data + 2
+        parity по GVG: 1 primary + 6 secondary). Меньше — seal не происходит (BUG-008).
+    *   Загрузка: `delegateUploadObject` с `endpoint: GF_SP` (`http://greenfield-local:9033`),
+        чтобы обойти on-chain endpoint `127.0.0.1` (BUG-011); адресация path-style
+        `<endpoint>/<bucket>` (BUG-013).
+    *   Seal асинхронен (~100–110 с локально) — чтение через `readObjectWithRetry` (BUG-012).
+    *   Готовность стека — sentinel `/tmp/sp_ready` (healthcheck, `start_period 240s`).
 
 *   **Публикация метаданных курса (`_lit/manifest.json`) в Greenfield**
     *   *Ручка*: `PUT http://greenfield-local:9033/daskibo-paid-lit-mpi3rc0o/_lit/manifest.json`
@@ -229,10 +251,14 @@ sequenceDiagram
     *   `CourseMarketplace` (`smartcontracts/contracts/src/CourseMarketplace.sol`): Отвечает за маппинг курсов и логику проверки доступов `hasCourseAccess`.
     *   `AccessPass` (`smartcontracts/contracts/src/AccessPass.sol`): Soulbound NFT, подтверждающий факт оплаты. Метод `transferFrom` перегружен для безусловного вызова реверта с ошибкой `Soulbound()`.
 *   **SDK-слой**:
-    *   `createSdkBackend` (`smartcontracts/greenfield-testnet/sdk-backend.mjs`): Инициализирует Greenfield JS-SDK `Client`. Применяет манки-патч для автовыбора GVG Family ID `1` и делегирует вызовы.
+    *   `createSdkBackend` (`smartcontracts/greenfield-testnet/sdk-backend.mjs`): Инициализирует Greenfield JS-SDK `Client`. Применяет манки-патч для автовыбора GVG Family ID `1`; `putObject` грузит через `delegateUploadObject` с явным `spEndpoint`.
     *   `sdkCreateBucket` (`smartcontracts/buckets/greenfield-sdk-tx.js`): Конструирует структуру `MsgCreateBucket` и запускает подписание через EIP-712 транслятор `@bnb-chain/greenfield-js-sdk`.
+    *   `pickPrimarySp` (`smartcontracts/buckets/greenfield-sp.js`): выбор primary SP с fallback по порту, когда host `GF_SP` не совпадает с on-chain endpoint.
+    *   `patch_sdk.cjs` (корень репо): host-side патч обеих копий `greenfield-js-sdk` — EIP-712 (`verifyingContract="greenfield"` локально) + path-style адресация SP. Применяется `run_e2e_lit.sh` до подъёма стека.
+*   **Storage Provider стек**:
+    *   `smartcontracts/greenfield-local/{entrypoint.sh,setup_sp.sh,Dockerfile}`: bootstrap цепочки + GVG + MariaDB + 7 `gnfd-sp`, sentinel `/tmp/sp_ready`.
 *   **Тестовый раннер**:
-    *   `run-e2e-lit-nft.mjs` (`smartcontracts/e2e/run-e2e-lit-nft.mjs`): Координирует Viem (блокчейн-транзакции на Anvil), Lit Access SDK (шифрование симметричных ключей в Chipotle) и Greenfield client (загрузка файлов).
+    *   `run-e2e-lit-nft.mjs` (`smartcontracts/e2e/run-e2e-lit-nft.mjs`): Координирует Viem (блокчейн-транзакции на Anvil), Lit Access SDK (шифрование симметричных ключей в Chipotle) и Greenfield client (загрузка/чтение файлов с `readObjectWithRetry`).
 
 ---
 
@@ -310,12 +336,13 @@ docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm 
 
 Для завершения настройки, отладки и подготовки платформы Daskibo Academy к промышленному запуску определен следующий пошаговый план:
 
-### Шаг 1: Разрешение проблемы с валидацией подписи в Greenfield SDK (Текущая задача)
-*   **Проблема**: Возникает ошибка `signature verification failed` при отправке транзакции `MsgCreateBucket` локальным SDK-клиентом. Node.js клиент подписывает EIP-712 хэш, который восстанавливается нодой в неверный публичный ключ.
-*   **Решение**:
-    1. Проверить регистр букв в адресах (creator/payer) внутри полезной нагрузки EIP-712 — привести их принудительно к нижнему регистру перед подписанием.
-    2. Проверить типы полей в EIP-712. Поле `chain_id` в типе `Tx` имеет тип `uint256`. В JS SDK передается строка `"greenfield_9000-1"`. Необходимо модифицировать SDK так, чтобы значение `chain_id` в сообщении передавалось как строгое числовое значение `9000` (для локальной сети) или преобразовать сериализацию на стороне клиента.
-    3. Синхронизировать конфигурацию газа и лимитов между JS SDK и Go-нодой.
+### Шаг 1: Валидация подписи и пути хранения в Greenfield SDK (✅ РЕШЕНО)
+*   **Проблема (была)**: `signature verification failed` / `feePayer's pubkey ... is different` при `MsgCreateBucket`, затем объекты не запечатывались/не читались.
+*   **Корневая причина и решение** (детали — в [Bug Hunter](../../skills/bughunter/SKILL.md), BUG-006…013):
+    1. EIP-712: на локальной ноде v1.10.7 (без Altai) `verifyingContract = "greenfield"`; адреса — checksum, `chain_id` — numeric `9000`. Реализовано в `patch_sdk.cjs`.
+    2. Путь хранения: поднят полный **7-SP** стек (EC 4+2 по GVG), иначе seal не происходит (BUG-008); загрузка через `delegateUploadObject` с `spEndpoint`; path-style адресация SP.
+    3. Чтение: `readObjectWithRetry` ждёт асинхронный seal (~100 с).
+*   **Статус**: чистый прогон `run_e2e_lit.sh` из genesis проходит все 10 шагов, Exit Code 0.
 
 ### Шаг 2: Реализация Permit-подписей для Сценария B (BNB Chain)
 *   **Задача**: Разработать поддержку EIP-2612 / Permit для `AccessPass.sol` в BNB Chain.
@@ -378,9 +405,13 @@ docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm 
 - Логи и отладка сетевых вызовов
   - Рекомендация: Включать verbose/DEBUG логи для Greenfield SDK, Chipotle client и Lit Actions; сохранять логи контейнеров при неудаче (docker compose logs > artifact).
 
-- Отсутствие скилла BugHunter
-  - Наблюдение: В репозитории не найден документированный "bughunter" скилл/инструкции. Поэтому не добавлены специфичные для него рекомендации.
-  - Рекомендация: Если под BugHunter подразумевается security/fuzz-платформа — добавить отдельный документ с инструкциями по запуску сканеров и fuzzing для smart contracts и Lit Actions; пока использовать существующие тесты в /tests и ручной аудит.
+- Реестр решённых багов (BugHunter)
+  - Наблюдение: Все воспроизводимые сбои интеграции (EIP-712 подпись, путь хранения объектов, MariaDB, seal-латентность, path-style SP) задокументированы как RCA.
+  - Рекомендация: Перед отладкой нового сбоя сверяйтесь с реестром [skills/bughunter/SKILL.md](../../skills/bughunter/SKILL.md) (BUG-001…013) — там симптом, root cause и проверенный путь решения.
+
+- Объект загружен, но не читается (seal / SP-стек)
+  - Проблема: `not sealed`/404 при чтении только что опубликованного объекта.
+  - Рекомендация: убедиться, что слушают все 7 SP-шлюзов (`netstat -tln | grep 903`), проверить `gnfd q storage head-object` (`object_status`), читать с ретраем; seal асинхронен (~100 с). См. BUG-008/011/012.
 
 ---
 

@@ -14,7 +14,8 @@ description: "Работа с BNB Greenfield в проекте Daskibo/Antigravi
 - HTTP-ручки, SDK/backend-адаптеры, обработка ошибок: `references/api-handles.md`.
 - Lit Protocol ACC, metadata объектов Greenfield и схема `manifest` для DRM: `references/lit-greenfield-access-schema.md`.
 - Кроссчейн Lit access control, PKP/Lit Actions и мульти-сетевые условия доступа: `references/lit-crosschain.md`.
-- Root Cause Analysis (RCA) по интеграционным и криптографическим проблемам (EIP-712, регистрация адресов, форматы `chain_id`, несоответствие типов сообщений): см. [Bug Hunter Skill](../bughunter/SKILL.md).
+- Локальный стек storage-provider'ов (7 SP, GVG, seal, delegated upload): раздел «Локальный SP-стек» ниже.
+- Root Cause Analysis (RCA) по интеграционным и криптографическим проблемам (EIP-712, регистрация адресов, форматы `chain_id`, путь хранения объектов): см. [Bug Hunter Skill](../bughunter/SKILL.md).
 
 ## Рабочий подход
 
@@ -37,9 +38,14 @@ description: "Работа с BNB Greenfield в проекте Daskibo/Antigravi
 - `smartcontracts/docker-compose.yml`
 - `smartcontracts/docker-compose.lit.yml`
 - `smartcontracts/greenfield-local/docker-compose.yml`
+- `smartcontracts/greenfield-local/entrypoint.sh` — bootstrap: chain → GVG → MariaDB → 7 SP → `/tmp/sp_ready`
+- `smartcontracts/greenfield-local/setup_sp.sh` — конфигурация и запуск 7 `gnfd-sp` демонов
+- `smartcontracts/greenfield-local/Dockerfile` — `gnfd`/`gnfd-sp` бинари, libstdc++, MariaDB
 - `smartcontracts/greenfield-testnet/docker-compose.yml`
 - `smartcontracts/buckets/greenfield-core.js`
-- `smartcontracts/greenfield-testnet/sdk-backend.mjs`
+- `smartcontracts/buckets/greenfield-sp.js` — `pickPrimarySp` (port-match fallback для локального SP)
+- `smartcontracts/greenfield-testnet/sdk-backend.mjs` — `createSdkBackend`, `putObject` через `spEndpoint`
+- `patch_sdk.cjs` — патчи EIP-712 (BUG-006) и path-style SP-адресации (BUG-013)
 - `smartcontracts/buckets/course-publish.js`
 - `smartcontracts/buckets/course-read.js`
 - `smartcontracts/buckets/lit-access.js`
@@ -49,6 +55,51 @@ description: "Работа с BNB Greenfield в проекте Daskibo/Antigravi
 ## Примечание
 
 При ответах на русском сохранять технические имена (`bucket`, `object`, `SP`, `ACC`, `manifest`, `delegateUploadObject`) без искусственного перевода — это улучшает точность и понятность.
+
+---
+
+## Локальный SP-стек (real gnfd-sp, не mock)
+
+Flow B (`docker-compose.lit.yml`) запускает **настоящий** storage-provider стек, а не
+mock, поэтому объекты реально проходят `upload → EC-replicate → seal → download`.
+Контейнер `greenfield-local` поднимает цепочку + **7 демонов `gnfd-sp` v1.10.1**.
+
+### Почему 7 SP
+
+Greenfield запечатывает объект с erasure coding по Global Virtual Group:
+**1 primary + 6 secondary** (4 data + 2 parity). Одного SP недостаточно — seal-tx не
+сформируется, объект навсегда останется `CREATED`. См. BUG-008.
+
+### Последовательность bootstrap (`entrypoint.sh`)
+
+1. `localup.sh all` → цепочка `greenfield_9000-1` (upgrades сжаты, Prairie=height 12, **без Altai**).
+2. Дождаться height ≥ 12, профинансировать Alice, выполнить `bootstrap_gvg` → `/tmp/gvg_bootstrapped`.
+3. Инициализировать и запустить **MariaDB** (метаданные SP + blocksyncer).
+4. `setup_sp.sh` → сконфигурировать и запустить 7 SP.
+5. Дождаться, пока слушают все шлюзы → `/tmp/sp_ready` (на нём висит healthcheck, `start_period 240s`).
+
+### Карта портов (`setup_sp.sh`)
+
+| SP | gRPC | gateway | БД | P2P |
+| :-- | :-- | :-- | :-- | :-- |
+| sp_i | `10000 + 1000*i` | `9033 + i` | `sp_${i}` | sp0: `9633`; sp_i: `10000+1000*i+1` |
+
+Наружу проброшен только sp0: `:26750` (Tendermint RPC) и `:9033` (gateway).
+`GVGPreferSPList = [1,2,3,4,5,6,7]`, piece store — локальная ФС (`Storage='file'`).
+
+### Загрузка и чтение
+
+- **Upload**: `delegateUploadObject` с явным `endpoint: spEndpoint` (`GF_SP=http://greenfield-local:9033`),
+  чтобы обойти on-chain endpoint `127.0.0.1` (недостижим из e2e-контейнера, BUG-011).
+- **Адресация**: path-style `<endpoint>/<bucket>` + подпись host с портом (`patch_sdk.cjs`, BUG-013).
+- **Seal асинхронен** (~100–110 с локально): читать только через `readObjectWithRetry` (BUG-012).
+- Публичный универсальный endpoint: `GET /download/{bucket}/{object}` (без auth для SEALED public-read).
+
+### Правило валидации
+
+Проверять только из **чистого genesis** (`run_e2e_lit.sh` делает `down -v` → `up --build`),
+а не синхронизацией устаревшей ноды — иначе blocksyncer'ы SP уходят в большой бэклог
+и тест нерепрезентативен.
 
 ---
 
