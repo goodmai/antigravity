@@ -28,7 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -47,11 +46,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install forge dependencies
+        working-directory: smartcontracts/contracts
+        run: forge install --no-git foundry-rs/forge-std
 
       - name: Forge build
         working-directory: smartcontracts/contracts
@@ -209,7 +210,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -228,7 +228,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
