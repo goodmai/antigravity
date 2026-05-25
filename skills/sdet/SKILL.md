@@ -8,7 +8,7 @@ description: "SDET для платформы Daskibo/Antigravity (BNB Greenfield
 Этот скилл превращает Claude в SDET для мультислойной DRM-платформы: запуск, починка,
 дописывание и актуализация тестов на всех уровнях — локально и в devnet/testnet.
 
-**Перед работой прочитать [workflow_cicd.md](../../workflow_cicd.md)** (корень репо) —
+**Перед работой прочитать [workflow_cicd.md](../../spec/workflow_cicd.md)** (корень репо) —
 это точка правды о слоях тестов, CI-гейтах, разрывах (as-is → to-be) и плане
 имплементации. Этот SKILL.md — рабочий процесс; детали по файлам и naming —
 в [references/test-map.md](references/test-map.md).
@@ -46,7 +46,7 @@ RPC `:26750`), `chipotle-anvil` (Base/BNB на Anvil), `chipotle-dstack-sim`,
 Bob (активная подписка) ALLOWED → soulbound transfer revert → после expiry DENIED →
 Eve DENIED. Ожидаемый Exit Code 0. Менять сценарий можно прямо в `run-e2e-lit-nft.mjs`
 (bind-mounted, без пересборки образа); валидировать **только из свежего genesis**
-(`run_e2e_lit.sh` делает `down -v`). Топология и Flow A/C/D — [COMPOSE.md](../../smartcontracts/COMPOSE.md),
+(`run_e2e_lit.sh` делает `down -v`). Топология и Flow A/C/D — [COMPOSE.md](../../spec/COMPOSE.md),
 режимы — [deploy-modes.md](../greenfield/references/deploy-modes.md).
 
 ## Рабочий процесс
@@ -72,7 +72,7 @@ Eve DENIED. Ожидаемый Exit Code 0. Менять сценарий мож
   `readObjectWithRetry`, не сразу после upload. (детали — [greenfield](../greenfield/SKILL.md)).
 - **Live-тесты не должны падать без ключей** — `describe.skip`, если нет
   `GREENFIELD_TESTNET_PRIVATE_KEY`. Реальная нативка тратится только осознанно
-  (nightly/manual). Матрица сетей и токенов — [uc.md → Funding Matrix](../../uc.md).
+  (nightly/manual). Матрица сетей и токенов — [uc.md → Funding Matrix](../../spec/uc.md).
 - **Docker-тесты self-skip** без `docker info` — сохранять этот паттерн в новых файлах.
 - **EIP-712 / путь хранения** — типовые сбои интеграции уже разобраны как RCA; перед
   отладкой «подпись не сходится» / «объект не читается» сверяться с
@@ -81,12 +81,12 @@ Eve DENIED. Ожидаемый Exit Code 0. Менять сценарий мож
 
 ## Опорные документы
 
-- [workflow_cicd.md](../../workflow_cicd.md) — схема тестирования, CI-гейты, план (читать первым).
+- [workflow_cicd.md](../../spec/workflow_cicd.md) — схема тестирования, CI-гейты, план (читать первым).
 - [references/test-map.md](references/test-map.md) — файлы→слои, как дописывать, naming, devnet env.
 - [skills/greenfield/SKILL.md](../greenfield/SKILL.md) — Greenfield, 7-SP стек, seal, clean-state;
   + [deploy-modes.md](../greenfield/references/deploy-modes.md), [lit-crosschain.md](../greenfield/references/lit-crosschain.md).
 - [skills/lit/SKILL.md](../lit/SKILL.md) — Lit/Chipotle, ACC, manifest, seal-латентность ≠ ACCESS_DENIED.
 - [skills/bughunter/SKILL.md](../bughunter/SKILL.md) — реестр RCA (источник регрессионных тестов).
-- [smartcontracts/COMPOSE.md](../../smartcontracts/COMPOSE.md) — топология Compose (Flow A/B/C/D).
-- [uc.md](../../uc.md) — use-cases (UC-01..13) + Funding Matrix (нативка для devnet/testnet).
+- [smartcontracts/COMPOSE.md](../../spec/COMPOSE.md) — топология Compose (Flow A/B/C/D).
+- [uc.md](../../spec/uc.md) — use-cases (UC-01..13) + Funding Matrix (нативка для devnet/testnet).
 - `smartcontracts/contracts/{SPEC.md,AUDIT.md}` — инварианты контрактов для forge-тестов.

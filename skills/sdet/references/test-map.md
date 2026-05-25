@@ -28,7 +28,7 @@
 Docker: `contracts.docker`, `greenfield-integration.docker`, `greenfield-local.docker`.
 Live: `e2e-course-flow.live`, `greenfield-testnet.live`.
 
-Источник правды по схеме/гейтам/планам — [workflow_cicd.md](../../../workflow_cicd.md).
+Источник правды по схеме/гейтам/планам — [workflow_cicd.md](../../../spec/workflow_cicd.md).
 
 ---
 
@@ -89,7 +89,7 @@ Live: `e2e-course-flow.live`, `greenfield-testnet.live`.
 ## 4. Devnet/testnet: окружение и нативка
 
 Live/devnet слои тратят **реальную нативку** — запускать осознанно. Полная матрица
-(какая сеть, какой токен, откуда брать) — [uc.md → Funding Matrix](../../../uc.md).
+(какая сеть, какой токен, откуда брать) — [uc.md → Funding Matrix](../../../spec/uc.md).
 Кратко: BSC testnet **tBNB** (деплой/покупка) + Greenfield testnet **tBNB** (storage),
 Lit `datil-dev` — бесплатно. Env:
 
@@ -108,7 +108,7 @@ export CHIPOTLE_URL=http://localhost:8000   # mock; или datil через writ
 
 ## 5. Привязка к use-cases и багам
 
-- Сценарии доступа (кто и когда decrypt'ит) — [uc.md](../../../uc.md) UC-03..UC-13.
+- Сценарии доступа (кто и когда decrypt'ит) — [uc.md](../../../spec/uc.md) UC-03..UC-13.
 - Каждый `BUG-00x` из [bughunter](../../bughunter/SKILL.md) при фиксе должен получить
   регрессионный тест (unit или forge), помеченный ID бага в названии/комментарии —
   чтобы баг не вернулся. Перед отладкой нового сбоя сверяться с реестром RCA.

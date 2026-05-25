@@ -111,9 +111,10 @@ Then run the same `chipotle-writer` command. No mock needed.
 | `greenfield-testnet/write-testnet-chipotle.mjs` | Publish course with Chipotle DRM |
 | `bucket-builder.html` | Browser course builder (preview + publish via MetaMask) |
 | `bucket-reader.html` | Browser DRM reader (Lit + Chipotle, MetaMask session) |
-| `CHIPOTLE.md` | Full Chipotle DRM technical reference |
-| `TESTING.md` | Test matrix and how to run |
-| `COMPOSE.md` | Docker Compose file reference |
+| [`../spec/CHIPOTLE.md`](../spec/CHIPOTLE.md) | Full Chipotle DRM technical reference |
+| [`../spec/TESTING.md`](../spec/TESTING.md) | Test matrix and how to run |
+| [`../spec/COMPOSE.md`](../spec/COMPOSE.md) | Docker Compose file reference |
+| [`../spec/`](../spec/) | All other specs & design docs (SPEC, AUDIT, sc, GREENFIELD, lit, uc, tc, …) |
 
 ---
 

@@ -40,7 +40,7 @@ mandates, which improves fit.
 ## Application checklist (common across programs)
 
 - [ ] Whitepaper + Yellowpaper links (this repo's `docs/`)
-- [ ] Public roadmap with milestones (`docs/roadmap.md`)
+- [ ] Public roadmap with milestones (`roadmap.md`)
 - [ ] Live testnet deployment + verified contracts (EPIC‑01 Phase 2)
 - [ ] Open‑source repo + license
 - [ ] Team / contributors and prior traction (academy usage metrics)

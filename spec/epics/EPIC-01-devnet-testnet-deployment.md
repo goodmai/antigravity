@@ -56,7 +56,7 @@ applicable.
   **(actualized):** start from the in‑repo `SoulboundAccessNft` base
   (`smartcontracts/contracts/src/SoulboundAccessNft.sol`) — it already implements the OZ‑v5
   `_update` soulbound revert + `approve`/`setApprovalForAll` reverts and an EIP‑712 signed‑mint
-  surface (see [`../../sc.md`](../../sc.md) §4). Add the ERC‑5192 `locked`/`Locked` interface
+  surface (see [`sc.md`](../sc.md) §4). Add the ERC‑5192 `locked`/`Locked` interface
   and the registry‑only mint role + revoke flag on top.
 - **Acceptance:** any transfer attempt reverts; ERC‑5192 interface detected; revoke flips flag
   without burning by default.

@@ -3,15 +3,15 @@
 Документ фиксирует **текущую** и **идеальную** схему тестирования платформы
 (unit · contracts · integration/docker · live devnet/testnet · e2e-стек), разрывы
 между ними и **план имплементации**. Это опорный документ для SDET-скилла
-([skills/sdet/SKILL.md](skills/sdet/SKILL.md)) и точка правды о том, какой слой
+([skills/sdet/SKILL.md](../skills/sdet/SKILL.md)) и точка правды о том, какой слой
 тестов чем запускается и где гейтится.
 
 Связанные документы:
 - [uc.md](uc.md) — use-cases + Funding Matrix (где нужна нативка для devnet/testnet).
-- [smartcontracts/COMPOSE.md](smartcontracts/COMPOSE.md) — топология Compose-стеков (Flow A/B/C/D).
-- [skills/greenfield/SKILL.md](skills/greenfield/SKILL.md) · [references/deploy-modes.md](skills/greenfield/references/deploy-modes.md) — режимы деплоя.
-- [skills/lit/SKILL.md](skills/lit/SKILL.md) — Lit/Chipotle интеграция.
-- [skills/bughunter/SKILL.md](skills/bughunter/SKILL.md) — реестр решённых багов (RCA).
+- [COMPOSE.md](./COMPOSE.md) — топология Compose-стеков (Flow A/B/C/D).
+- [skills/greenfield/SKILL.md](../skills/greenfield/SKILL.md) · [references/deploy-modes.md](../skills/greenfield/references/deploy-modes.md) — режимы деплоя.
+- [skills/lit/SKILL.md](../skills/lit/SKILL.md) — Lit/Chipotle интеграция.
+- [skills/bughunter/SKILL.md](../skills/bughunter/SKILL.md) — реестр решённых багов (RCA).
 
 ---
 
@@ -154,7 +154,7 @@
   `secrets.GREENFIELD_TESTNET_PRIVATE_KEY` (skip, если секрет пуст).
 
 ### Фаза 4 — актуализация и анти-регресс
-- Каждый `BUG-00x` из [bughunter](skills/bughunter/SKILL.md) → регрессионный тест
+- Каждый `BUG-00x` из [bughunter](../skills/bughunter/SKILL.md) → регрессионный тест
   (unit или forge), помеченный ID бага.
 - При изменении контрактов/SDK — обновлять `.gas-snapshot` и `SPEC.md`.
 

@@ -107,8 +107,8 @@ static-web-server --port 8099 --root smartcontracts/
 # → Connect MetaMask → "Sign Proof" → lessons unlock
 ```
 
-See `smartcontracts/COMPOSE.md` for the full service reference and
-`smartcontracts/CHIPOTLE.md` for the Chipotle DRM architecture deep-dive.
+See `COMPOSE.md` for the full service reference and
+`CHIPOTLE.md` for the Chipotle DRM architecture deep-dive.
 
 ---
 

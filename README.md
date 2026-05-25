@@ -15,20 +15,6 @@
 
 ---
 
-## 🛰 Protocol & Docs
-
-We are evolving the laboratory into the **Antigravity Proof‑of‑Skill Protocol** — verifiable,
-on‑chain credentials (soulbound SBTs) and a learn‑to‑earn token (AGT) for the agentic‑coding
-era. Founding documents live in [`docs/`](./docs/):
-
-- [Whitepaper](./docs/whitepaper.md) · [Yellowpaper](./docs/yellowpaper.md)
-- [Roadmap](./docs/roadmap.md) · [Grants matrix](./docs/grants.md)
-- Epics: [Deployment](./docs/epics/EPIC-01-devnet-testnet-deployment.md) ·
-  [Pitch deck](./docs/epics/EPIC-02-pitch-deck.md) ·
-  [Marketing](./docs/epics/EPIC-03-marketing.md)
-
----
-
 ## 📑 Table of Contents
 
 1.  [Prerequisites](#-prerequisites)

@@ -95,4 +95,41 @@ gantt
 
 ---
 
-*Next:* [EPIC‑01 — Devnet/Testnet deployment](./epics/EPIC-01-devnet-testnet-deployment.md)
+## Grant task — BNB Chain Builder Grant (Phase 2 milestone)
+
+Apply to the **BNB Chain Builder Grant** (up to ~$200K) once Phase 2 puts verified
+contracts on BNB testnets. Our angle fits cleanly: an **open‑source AI/agent‑economy
+public good** that already builds on **BSC** (settlement) and **BNB Greenfield**
+(storage). Full program row + links: [grants.md → BNB Chain](./grants.md).
+
+### Eligibility vs. current state (✅ have / ⬜ not yet)
+
+| BNB criterion | Status | Evidence / gap |
+| --- | :--: | --- |
+| Builder team / startup building **for** BNB Chain | ✅ | DRM course platform: BSC settlement contracts + BNB Greenfield storage; Proof‑of‑Skill (AI/agent‑economy) direction. |
+| Category fit (DeFi/GameFi/**AI & DePIN**/DeSoc/**infra/dev tools**) | ✅ | AI/agent‑economy + education infra & dev tooling (Skills, SDET, e2e harness). |
+| Benefits ecosystem — **open‑source public good** *or* dApp adding users/TVL/tx | ⬜ | Open‑source ✅, but **no public BNB deployment yet** → no on‑chain users/TVL/tx metrics. Unlocks at Phase 2. |
+| Uses **BSC / opBNB / Greenfield** | ✅ BSC+GF / ⬜ opBNB | BSC contracts + Greenfield storage working locally; opBNB not targeted yet. |
+| **Clear technical plan & milestones** (architecture, roadmap) | ✅ | This [roadmap](./roadmap.md) + [EPIC‑01](./epics/EPIC-01-devnet-testnet-deployment.md); architecture in [whitepaper](./whitepaper.md)/[yellowpaper](./yellowpaper.md)/[sc.md](./sc.md). |
+| Working code / traction (feasibility for technical review) | ✅ | 6 Solidity contracts, **86 forge tests @ 100% coverage**, Lit + Greenfield **e2e green in CI**, soulbound NFTs (AuthorNft/ClientNft). |
+| **Verified contracts on a public explorer** | ⬜ | Currently local/devnet only. Need BSC‑testnet (+ Greenfield‑testnet) deploy & verify — EPIC‑01 **T8**. |
+| Milestone‑broken **budget** | ⬜ | Not written yet; produce alongside the pitch deck. |
+| **Pitch deck / live plan presentation** (review round 2) | ⬜ | [EPIC‑02](./epics/EPIC-02-pitch-deck.md) — not produced yet. |
+| Relevance + technical assessment (review round 1) | ✅ *ready* | Strong code + spec; mainly needs the public deploy + deck to present. |
+
+### Application steps (action)
+
+1. ⬜ Review the priority wishlist — [bnb-chain/community-contributions](https://github.com/bnb-chain/community-contributions) — and align our pitch to a listed topic.
+2. ⬜ Ship Phase 2: deploy + **verify** contracts on **BSC testnet** (and Greenfield testnet) — EPIC‑01 **T8**; capture explorer links + first usage metrics.
+3. ⬜ Prepare the data room: deck + one‑pager + milestone budget — [EPIC‑02](./epics/EPIC-02-pitch-deck.md).
+4. ⬜ Submit the **"Apply Now"** Builder Grant form — [bnbchain.org/en/grants](https://www.bnbchain.org/en/grants).
+5. ⬜ *(Optional, startup track)* apply to the **MVB accelerator** — [bnbchain.org/en/programs/mvb](https://www.bnbchain.org/en/programs/mvb) (requires contracts deployed on BNB Chain).
+6. ⬜ Pass the two‑round review (relevance+technical → live presentation, milestones & amount Q&A).
+
+**Blocking dependency:** the only hard blockers are a **verified public BNB‑testnet deployment**
+(EPIC‑01 T8) and the **pitch deck + budget** (EPIC‑02). Everything else is already in place.
+
+---
+
+*Next:* [EPIC‑01 — Devnet/Testnet deployment](./epics/EPIC-01-devnet-testnet-deployment.md) ·
+[Grants matrix](./grants.md) · [Pitch deck](./epics/EPIC-02-pitch-deck.md)

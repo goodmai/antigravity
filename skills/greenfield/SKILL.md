@@ -1,244 +1,117 @@
 ---
-name: greenfield
-description: "Работа с BNB Greenfield в проекте Daskibo/Antigravity. Use when Codex needs to explain, audit, implement, or troubleshoot Greenfield local deployment, testnet/mainnet modes, Docker Compose profiles, bucket creation/publishing, storage pricing, Lit/Chipotle course manifests, or HTTP/SDK/API interaction points."
----
+## **name: greenfield description: Работа с BNB Greenfield в проекте Daskibo/Antigravity. Развертывание локального private-chain, интеграция с Devnet/Testnet, управление жизненным циклом bucket/object, расчет стоимости хранения (pricing) и связка с Lit Protocol/Chipotle DRM.**
 
-# Greenfield
+# **Greenfield Integration Architecture**
 
-Этот skill предназначен для задач, связанных с BNB Greenfield в репозитории Daskibo/Antigravity: локальные и сетевые развёртывания, публикация бакетов и курсов, ценообразование, интеграция Greenfield SDK/SP API и связка с Lit/Chipotle для DRM-доступа.
+Используй этот skill для проектирования, развертывания, аудита и отладки подсистемы хранения данных BNB Greenfield внутри монорепозитория Daskibo/Antigravity.
 
-## Быстрый справочник
+## **Быстрый Выбор Справочника**
 
-- Локальный деплой, профили для Docker Compose и режимы: `references/deploy-modes.md`.
-- Работа с бакетами, объектами, манифестами курса и моделью ценообразования: `references/buckets-pricing.md`.
-- HTTP-ручки, SDK/backend-адаптеры, обработка ошибок: `references/api-handles.md`.
-- Lit Protocol ACC, metadata объектов Greenfield и схема `manifest` для DRM: `references/lit-greenfield-access-schema.md`.
-- Кроссчейн Lit access control, PKP/Lit Actions и мульти-сетевые условия доступа: `references/lit-crosschain.md`.
-- Локальный стек storage-provider'ов (7 SP, GVG, seal, delegated upload): раздел «Локальный SP-стек» ниже.
-- Root Cause Analysis (RCA) по интеграционным и криптографическим проблемам (EIP-712, регистрация адресов, форматы `chain_id`, путь хранения объектов): см. [Bug Hunter Skill](../bughunter/SKILL.md).
+* **Инфраструктура и оркестрация:** smartcontracts/greenfield-local/ и smartcontracts/greenfield-testnet/ (Docker Compose профили, конфигурация валидаторов и Storage Providers).  
+* **Бизнес-логика публикации контента:** smartcontracts/buckets/course-publish.js и course-read.js (манифесты Lit/Chipotle DRM, формирование структуры курсов).  
+* **Интеграционный слой SDK:** smartcontracts/greenfield-testnet/sdk-backend.mjs (клиенты Greenfield SDK, обработка криптографических подписей, генерация Off-Chain Auth Tokens).  
+* **Диагностика сбоев:** Справочник известных багов (EIP-712, кейсы несовпадения регистров адресов и несоответствия типов Msg) находится в \[Bug Hunter Skill\].
 
-## Рабочий подход
+## **Рабочий Подход**
 
-1. Определить режим работы: `local-mock`, `local`, `testnet`, `mainnet`, `docker-compose.lit.yml` или standalone `greenfield-local` / `greenfield-testnet`.
-2. Уточнить слой задачи:
-   - Orchestration / Compose
-   - Greenfield chain / SP
-   - Публикация `bucket` / `object`
-   - Lit / Chipotle DRM
-   - Контракты / Payments / Access
-   - Browser UI / API
-3. Для реальных сетей всегда чётко отделять `testnet`/`mainnet` от локальных mock/private-chain; явно указывать используемые ключи, адреса и предполагаемые затраты.
-4. При RCA: сначала проверять `logs/*.log`, затем среду Compose (env), затем путь в backend/SDK.
-5. Не смешивать standalone Compose-файлы между собой, если это не предписано документацией.
+1. **Идентификация окружения:** Перед выполнением операций определи strict-контекст: local-mock, standalone-local, devnet, testnet, или mainnet.  
+2. **Изоляция слоев:** Четко разделяй логику консенсуса (Greenfield Blockchain Node) и логику хранения (Storage Provider API).  
+3. **Криптографическая верификация:** Всегда проверяй соответствие chain\_id при генерации EIP-712 подписей для вызовов delegateUploadObject.  
+4. **Безопасность метаданных:** Документы manifest.json курса должны содержать только зашифрованные CID/симметричные ключи, привязанные к Lit Protocol Access Control Conditions (ACC).
 
-## Репозиторные якоря
+## **Развертывание локальной ноды Greenfield**
 
-Основные файлы и пути, на которые стоит опираться при работе:
+Локальный стек включает в себя саму ноду блокчейна Greenfield (Tendermint \+ Cosmos SDK) и один или несколько локальных сервисов Storage Provider (SP), эмулирующих децентрализованное хранилище.
 
-- `smartcontracts/docker-compose.yml`
-- `smartcontracts/docker-compose.lit.yml`
-- `smartcontracts/greenfield-local/docker-compose.yml`
-- `smartcontracts/greenfield-local/entrypoint.sh` — bootstrap: chain → GVG → MariaDB → 7 SP → `/tmp/sp_ready`
-- `smartcontracts/greenfield-local/setup_sp.sh` — конфигурация и запуск 7 `gnfd-sp` демонов
-- `smartcontracts/greenfield-local/Dockerfile` — `gnfd`/`gnfd-sp` бинари, libstdc++, MariaDB
-- `smartcontracts/greenfield-testnet/docker-compose.yml`
-- `smartcontracts/buckets/greenfield-core.js`
-- `smartcontracts/buckets/greenfield-sp.js` — `pickPrimarySp` (port-match fallback для локального SP)
-- `smartcontracts/greenfield-testnet/sdk-backend.mjs` — `createSdkBackend`, `putObject` через `spEndpoint`
-- `patch_sdk.cjs` — патчи EIP-712 (BUG-006) и path-style SP-адресации (BUG-013)
-- `smartcontracts/buckets/course-publish.js`
-- `smartcontracts/buckets/course-read.js`
-- `smartcontracts/buckets/lit-access.js`
-- `smartcontracts/buckets/lit-sdk-chipotle.js`
-- `uc.md`
+### **Шаг 1: Подготовка (Инициализация конфигурации и переменных окружения)**
 
-## Примечание
+Перейди в рабочую директорию локального деплоя smartcontracts/greenfield-local/. Скопируй шаблон окружения .env.example в .env. Убедись, что порты 26656 (P2P), 26657 (RPC), 9090 (gRPC) и 8080 (SP Gateway) свободны на хост-машине.
 
-При ответах на русском сохранять технические имена (`bucket`, `object`, `SP`, `ACC`, `manifest`, `delegateUploadObject`) без искусственного перевода — это улучшает точность и понятность.
+### **Шаг 2: Оркестрация сети (Запуск локального блокчейна / Genesis Node)**
 
----
+Запусти контейнер валидатора Greenfield. Это сформирует локальный генезис-блок с предустановленным chain\_id (например, greenfield\_9000-1) и распределит тестовые токены на дефолтные адреса разработчиков.
 
-## Локальный SP-стек (real gnfd-sp, не mock)
+docker compose up \-d greenfield-node
 
-Flow B (`docker-compose.lit.yml`) запускает **настоящий** storage-provider стек, а не
-mock, поэтому объекты реально проходят `upload → EC-replicate → seal → download`.
-Контейнер `greenfield-local` поднимает цепочку + **7 демонов `gnfd-sp` v1.10.1**.
+Ожидай лога Executing block для подтверждения старта консенсуса.
 
-### Почему 7 SP
-
-Greenfield запечатывает объект с erasure coding по Global Virtual Group:
-**1 primary + 6 secondary** (4 data + 2 parity). Одного SP недостаточно — seal-tx не
-сформируется, объект навсегда останется `CREATED`. См. BUG-008.
-
-### Последовательность bootstrap (`entrypoint.sh`)
-
-1. `localup.sh all` → цепочка `greenfield_9000-1` (upgrades сжаты, Prairie=height 12, **без Altai**).
-2. Дождаться height ≥ 12, профинансировать Alice, выполнить `bootstrap_gvg` → `/tmp/gvg_bootstrapped`.
-3. Инициализировать и запустить **MariaDB** (метаданные SP + blocksyncer).
-4. `setup_sp.sh` → сконфигурировать и запустить 7 SP.
-5. Дождаться, пока слушают все шлюзы → `/tmp/sp_ready` (на нём висит healthcheck, `start_period 240s`).
+### **Шаг 3: Слой хранения (Инициализация и запуск Storage Provider)**
 
-### Карта портов (`setup_sp.sh`)
+После того как блокчейн начал генерировать блоки, запусти локальный SP. При старте он автоматически выполнит транзакцию регистрации (MsgRegisterSP) в локальной сети Greenfield.
 
-| SP | gRPC | gateway | БД | P2P |
-| :-- | :-- | :-- | :-- | :-- |
-| sp_i | `10000 + 1000*i` | `9033 + i` | `sp_${i}` | sp0: `9633`; sp_i: `10000+1000*i+1` |
+docker compose up \-d greenfield-sp
 
-Наружу проброшен только sp0: `:26750` (Tendermint RPC) и `:9033` (gateway).
-`GVGPreferSPList = [1,2,3,4,5,6,7]`, piece store — локальная ФС (`Storage='file'`).
+SP поднимет HTTP-шлюз на порту 8080 для обработки загрузок объектов.
 
-### Загрузка и чтение
+### **Шаг 4: Тестирование (Верификация работоспособности и фондирование)**
 
-- **Upload**: `delegateUploadObject` с явным `endpoint: spEndpoint` (`GF_SP=http://greenfield-local:9033`),
-  чтобы обойти on-chain endpoint `127.0.0.1` (недостижим из e2e-контейнера, BUG-011).
-- **Адресация**: path-style `<endpoint>/<bucket>` + подпись host с портом (`patch_sdk.cjs`, BUG-013).
-- **Seal асинхронен** (~100–110 с локально): читать только через `readObjectWithRetry` (BUG-012).
-- Публичный универсальный endpoint: `GET /download/{bucket}/{object}` (без auth для SEALED public-read).
+Проверь статус сети через RPC-запрос. Если высота блоков (latest\_block\_height) растет, сеть стабильна. Выполни импорт локального приватного ключа в клиент gnfd-cmd для проверки баланса.
 
-### Правило валидации
+curl \-s http://localhost:26657/status | jq '.result.sync\_info'
 
-Проверять только из **чистого genesis** (`run_e2e_lit.sh` делает `down -v` → `up --build`),
-а не синхронизацией устаревшей ноды — иначе blocksyncer'ы SP уходят в большой бэклог
-и тест нерепрезентативен.
+## **Матрица конфигураций: Local vs Devnet vs Testnet**
 
----
+При переключении режимов в sdk-backend.mjs и конфигурационных файлах docker-compose, используй следующие параметры среды:
 
-## Криптографический справочник
+| Параметр Конфигурации | Local Private-Chain | Greenfield Devnet | Greenfield Testnet |
+| :---- | :---- | :---- | :---- |
+| **Chain ID** | greenfield\_9000-1 (custom) | greenfield\_5600-1 | greenfield\_5600-1 |
+| **Tendermint RPC** | http://localhost:26657 | https://rpc.devnet.greenfield.wtf | https://gnfd-testnet-fullnode-tendermint.bnbchain.org:443 |
+| **gRPC Endpoint** | localhost:9090 | grpc.devnet.greenfield.wtf:9090 | gnfd-testnet-fullnode-tendermint.bnbchain.org:9090 |
+| **Primary SP URL** | http://localhost:8080 | https://sp.devnet.greenfield.wtf | https://gnfd-testnet-sp1.bnbchain.org |
+| **Тип Нативного Токена** | BNB (Локальный минт) | tBNB (Devnet Faucet) | tBNB (Testnet Faucet) |
+| **Cross-Chain Bridge** | Отсутствует | Отключен / Эмуляция | Подключен к BSC Testnet |
 
-Криптографический справочник BNB Greenfield в проекте Daskibo/Antigravity
+## **Критические ручки взаимодействия (API / SDK Handles)**
 
-Данный документ описывает криптографические примитивы, стандарты подписей, генерацию эфемерных ключей и интеграцию с DRM-системами шифрования (Lit Protocol) в рамках экосистемы BNB Greenfield.
+Взаимодействие с Greenfield внутри Antigravity разделено на два уровня: Chain Client (транзакции Cosmos SDK) и SP Client (работа с файлами по протоколу Amazon S3-like).
 
-### 1. Обзор криптографического стека
+### **Ключевые вызовы Greenfield SDK**
 
-BNB Greenfield объединяет две технологические парадигмы:
+Ниже приведены основные программные интерфейсы (handles), используемые в sdk-backend.mjs и course-publish.js:
 
-- Cosmos SDK (консенсус и транзакции): использование адресного пространства Bech32 (greenfield1...), подписи на базе кривой secp256k1 и механизмы сериализации Amino/Protobuf.
-- EVM-совместимость (пользовательский слой): поддержка кошельков MetaMask/Trust Wallet, использование EIP-712 для подписи Cosmos-транзакций в формате JSON-RPC и кроссчейн-мосты с BSC.
+import { Client } from '@bnb-chain/greenfield-js-sdk';
 
-### 2. Стандарт EIP-712 и транзакции Cosmos SDK
+// Инициализация единого клиента взаимодействия  
+const client \= Client.create(GRPC\_ENDPOINT, GREENFIELD\_CHAIN\_ID);
 
-Чтобы пользователь мог подписывать транзакции Greenfield (например, создание bucket, делегирование прав) через EVM-кошельки, транзакции Cosmos инкапсулируются в структуру EIP-712 Typed Data.
+#### **1\. Создание бакета (client.bucket.createBucket)**
 
-#### Структура EIP-712 Domain Separator
+Используется при первичной публикации курса для изоляции контента.
 
-Каждая подпись привязывается к домену во избежание replay-атак.
+* **Параметры:** bucketName, creator (address), visibility (Public/Private), paymentAddress.  
+* **Что под капотом:** Формирует и подписывает транзакцию MsgCreateBucket. Требует оплаты газа в BNB.
 
-DomainSeparator вычисляется как Keccak256(TypeHash + Keccak256(Name) + Keccak256(Version) + ChainID + VerifyingContract), где обычно используются константы:
+#### **2\. Делегированная загрузка объекта (client.object.delegateUploadObject)**
 
-- TypeHash = Keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-- Name = "Greenfield Web3"
-- Version = "1.0.0"
-- ChainID = десятичный идентификатор сети (например, 5600 для testnet, 9000 для локальной сети)
-- VerifyingContract = 0x0000000000000000000000000000000000000000
+Основной эндпоинт для бэкенда Antigravity. Позволяет пользователю загружать файлы курсов напрямую в SP, используя подпись бэкенда (без раскрытия приватного ключа пользователя).
 
-#### Формат Types (Tx)
+* **Параметры:** bucketName, objectName, body (File/Buffer), duration (в секундах), delegatedOpts (EIP-712 signature).
 
-Пример структуры типов (JSON):
+#### **3\. Получение метаданных объекта (client.object.headObject)**
 
-```json
-{
-  "types": {
-    "EIP712Domain": [
-      { "name": "name", "type": "string" },
-      { "name": "version", "type": "string" },
-      { "name": "chainId", "type": "uint256" },
-      { "name": "verifyingContract", "type": "address" }
-    ],
-    "Tx": [
-      { "name": "account_number", "type": "uint256" },
-      { "name": "sequence", "type": "uint256" },
-      { "name": "timeout_height", "type": "uint256" },
-      { "name": "fee", "type": "Fee" },
-      { "name": "msgs", "type": "Msg[]" },
-      { "name": "memo", "type": "string" }
-    ],
-    "Fee": [
-      { "name": "amount", "type": "Coin[]" },
-      { "name": "gas_limit", "type": "uint256" },
-      { "name": "payer", "type": "string" },
-      { "name": "granter", "type": "string" }
-    ],
-    "Coin": [
-      { "name": "denom", "type": "string" },
-      { "name": "amount", "type": "uint256" }
-    ],
-    "Msg": [
-      { "name": "type", "type": "string" },
-      { "name": "value", "type": "string" }
-    ]
-  }
-}
-```
+Используется для проверки существования файлов контента и чтения пользовательских метаданных (X-Gnfd-User-Metadata).
 
-#### Чувствительность к регистру (Casing Bug)
+* **Параметры:** bucketName, objectName.
 
-При верификации подписи адрес, восстановленный из (v,r,s):
+#### **4\. Генерация Off-Chain Auth Token (client.offchainauth.genOffChainAuthKeyPair)**
 
-recoverAddress(v, r, s) ?= Lowercase(Address_msg)
+Необходим для бесшовного скачивания приватных объектов или манифестов курсов без постоянного вызова всплывающего окна MetaMask на фронтенде.
 
-Если генератор транзакций передаёт адрес в checksum-регистре (0xAbCd...), а SP ожидает lowercase (0xabcd...), верификация может провалиться.
+* **Результат:** Пара ключей времени выполнения, сохраняемая в localStorage браузера и верифицируемая на SP.
 
-Рекомендация по решению (в sdk-backend.mjs):
+## **Модель стоимости хранения (Pricing)**
 
-```js
-// перед упаковкой в Msg
-address = address.toLowerCase();
-```
+Расчет стоимости удержания объектов на Greenfield подчиняется строгому алгоритму. Суммарная стоимость хранения TotalCost для бакета вычисляется по следующей формуле:
 
-### 3. Off-Chain Auth Tokens (временные ключи)
+TotalCost \= Sum\_of\_Primary\_SPs(Size\_i \* PrimarySpPrice) \+ Sum\_of\_Secondary\_SPs(Size\_j \* SecondarySpPrice)
 
-Для избежания всплывающих окон MetaMask при каждом доступе к приватным объектам применяется Off-Chain Auth.
+Где:
 
-Алгоритм:
+* Size\_i — размер оригинального объекта в байтах.  
+* PrimarySpPrice — базовая ставка первичного Storage Provider за байт в секунду.  
+* SecondarySpPrice — ставка вторичных провайдеров (реплик) для обеспечения избыточности (обычно резервируется 4 копии контента).
 
-1. Клиент генерирует эфемерную пару ключей (Ed25519 или secp256k1) в памяти: sk_temp / pk_temp.
-2. Пользователь подписывает своим основным кошельком сообщение (Signing Statement), делегирующее права эфемерному ключу на период T (например, 24 часа):
-
-Statement = "Grant access to " + hex(pk_temp) + " until " + T
-Sig_owner = Sign_SK_wallet(Statement)
-
-3. При запросе к SP клиент подписывает запрос временным ключом:
-
-Sig_request = Sign_sk_temp(HTTP_Method + URI + Timestamp)
-
-4. SP получает: pk_temp, Sig_owner (сертификат делегирования), Sig_request. Проверяет срок действия, связь Sig_owner с владельцем ресурса и корректность Sig_request относительно pk_temp.
-
-### 4. Схема шифрования DRM (Lit Protocol + Chipotle)
-
-Контент курсов не должен храниться в открытом виде даже в private bucket: применяется гибридная схема шифрования.
-
-Публокационная цепочка:
-
-[Plaintext] --(AES-256-GCM, ключ K)--> [Ciphertext + Tag + IV] --> загружается на Greenfield
-
-Ключ K шифруется через Lit Protocol с условиями доступа ACC (например, владение NFT):
-
-K_enc = LitEncrypt(K, ACC)
-
-В манифесте сохраняются: K_enc, ACC, IV, Tag и метаданные. Ноды Lit используют threshold-шифрование (Shamir/threshold) и не могут восстановить K без выполнения условий ACC.
-
-Криптографические параметры рекомендуемые:
-
-- Симметричный ключ K: 256 бит
-- Алгоритм шифрования: AES-256-GCM
-- IV: 96 бит (уникальный для каждого шифрования)
-- Tag: 128 бит
-
-### 5. Конвертация адресных пространств (EVM <-> Bech32)
-
-Greenfield конвертирует 20-байтный EVM-адрес в Bech32 с HRP "greenfield" без изменения публичного ключа.
-
-Пример:
-
-```
-Addr_hex = 0x9e80e...b371  // 20 байт
-Addr_bech32 = Bech32Encode("greenfield", Addr_hex)
-// Результат: greenfield1...
-```
-
-Процесс обратим: Bech32 кодирует байты в человекочитаемый формат, не применяя односторонних хэшей.
+**Важный архитектурный нюанс:** При обновлении или удалении объектов (MsgDeleteObject) зарезервированный, но неизрасходованный бюджет списания (Locked Balance) на аккаунте платежного потока (PaymentAccount) возвращается на основной баланс пользователя, за вычетом штрафа за досрочное удаление (если объект хранился меньше минимального лимита времени SP).
 
 ---
-
-Конец раздела «Криптографический справочник».

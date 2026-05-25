@@ -239,7 +239,7 @@ The adapter file `lit-sdk-chipotle.js` implements the `LitClient` interface from
 
 manifest.lit fields for Chipotle: `litNetwork: "chipotle"`, `chipotleUrl`, `pkpId`.
 
-See: `smartcontracts/CHIPOTLE.md`, `crypto_RU.md` §Окружения, `lit.md` §1a.
+See: `spec/CHIPOTLE.md`, `spec/crypto_RU.md` §Окружения, `spec/lit.md` §1a.
 
 ---
 

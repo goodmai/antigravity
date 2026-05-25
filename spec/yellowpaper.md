@@ -78,7 +78,7 @@ stateDiagram-v2
   `locked(tokenId) == true` + emits `Locked` on mint.
   > **Reference (in‑repo):** this exact `_update` soulbound pattern is already implemented and
   > tested in `smartcontracts/contracts/src/SoulboundAccessNft.sol` (base for `AuthorNft` /
-  > `ClientNft`) — see [`../sc.md`](../sc.md) §4. Extract it into `SkillCredential` and add the
+  > `ClientNft`) — see [`sc.md`](./sc.md) §4. Extract it into `SkillCredential` and add the
   > ERC‑5192 `locked`/`Locked` surface (the access NFTs omit it as they aren't credentials).
 - **Revocation** does not burn by default; it flips `revoked = true` so the audit trail
   remains. Burn‑on‑revoke is a governance‑configurable option.
@@ -165,7 +165,7 @@ Extend the existing harness rather than starting over:
 - The repo already ships a **Foundry suite** under `smartcontracts/contracts/` (86 tests at
   **100% line/branch/function coverage** on 6 contracts, `forge snapshot --check` gas gating,
   fuzz `runs = 256`) and a contracts CI gate. Follow its conventions: custom errors, CEI,
-  100%‑coverage bar, gas snapshot. See [`../sc.md`](../sc.md) and [`../workflow_cicd.md`](../workflow_cicd.md).
+  100%‑coverage bar, gas snapshot. See [`sc.md`](./sc.md) and [`workflow_cicd.md`](./workflow_cicd.md).
 - The repo already ships `viem` and `tests/web3-*.test.js` exercising the in‑memory sandbox
   (deploy/transfer/approve/allowance, ERC‑20 completeness, RPC helpers).
 - **Solidity tests (Foundry):** unit tests per contract + invariants (total minted credentials

@@ -134,7 +134,7 @@ sequenceDiagram
         **без** апгрейда Altai) `verifyingContract` — строковый литерал `"greenfield"`,
         а НЕ `0x71e835...`. Адрес `0x71e835aff094655dEF897fbc85534186DbeaB75d`
         используется только на testnet/mainnet, где Altai активен (см. **BUG-006** в
-        [Bug Hunter](../../skills/bughunter/SKILL.md)).
+        [Bug Hunter](../skills/bughunter/SKILL.md)).
         ```json
         {
           "name": "Greenfield Tx",
@@ -201,7 +201,7 @@ sequenceDiagram
     > `uint256` (не строка `"greenfield_9000-1"`), `type` остаётся proto Type URL,
     > пустой `primary_sp_approval.sig` нода **опускает**. Единственная правка для
     > локальной сети — `verifyingContract = "greenfield"`. Подробности и причины,
-    > почему BUG-002/003/004 оказались неверны — в [Bug Hunter](../../skills/bughunter/SKILL.md).
+    > почему BUG-002/003/004 оказались неверны — в [Bug Hunter](../skills/bughunter/SKILL.md).
 
 *   **Загрузка и запечатывание объектов (real 7-SP стек)**
     *   Bucket подписан — это лишь полдела. Чтобы объект **загрузился, запечатался и
@@ -338,7 +338,7 @@ docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm 
 
 ### Шаг 1: Валидация подписи и пути хранения в Greenfield SDK (✅ РЕШЕНО)
 *   **Проблема (была)**: `signature verification failed` / `feePayer's pubkey ... is different` при `MsgCreateBucket`, затем объекты не запечатывались/не читались.
-*   **Корневая причина и решение** (детали — в [Bug Hunter](../../skills/bughunter/SKILL.md), BUG-006…013):
+*   **Корневая причина и решение** (детали — в [Bug Hunter](../skills/bughunter/SKILL.md), BUG-006…013):
     1. EIP-712: на локальной ноде v1.10.7 (без Altai) `verifyingContract = "greenfield"`; адреса — checksum, `chain_id` — numeric `9000`. Реализовано в `patch_sdk.cjs`.
     2. Путь хранения: поднят полный **7-SP** стек (EC 4+2 по GVG), иначе seal не происходит (BUG-008); загрузка через `delegateUploadObject` с `spEndpoint`; path-style адресация SP.
     3. Чтение: `readObjectWithRetry` ждёт асинхронный seal (~100 с).
@@ -407,7 +407,7 @@ docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm 
 
 - Реестр решённых багов (BugHunter)
   - Наблюдение: Все воспроизводимые сбои интеграции (EIP-712 подпись, путь хранения объектов, MariaDB, seal-латентность, path-style SP) задокументированы как RCA.
-  - Рекомендация: Перед отладкой нового сбоя сверяйтесь с реестром [skills/bughunter/SKILL.md](../../skills/bughunter/SKILL.md) (BUG-001…013) — там симптом, root cause и проверенный путь решения.
+  - Рекомендация: Перед отладкой нового сбоя сверяйтесь с реестром [skills/bughunter/SKILL.md](../skills/bughunter/SKILL.md) (BUG-001…013) — там симптом, root cause и проверенный путь решения.
 
 - Объект загружен, но не читается (seal / SP-стек)
   - Проблема: `not sealed`/404 при чтении только что опубликованного объекта.
