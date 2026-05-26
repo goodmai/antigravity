@@ -135,7 +135,7 @@ threshold/ACC-слоем. Наш [crypto-envelope.js](../smartcontracts/buckets/
 
 | # | Точка роста | Откуда | Что даёт нам |
 | --- | --- | --- | --- |
-| G-01 | **High-level SDK-обёртка** `publishEncryptedCourse(file, acc)` / `grantAccess()` | Keypo `upload/share`, 4EVERLAND S3-SDK | сейчас у нас только low-level `buckets/*`; обёртка ускорит интеграторов и demо |
+| G-01 | ✅ **сделано** — high-level фасад [`buckets/daskibo-drm.js`](../smartcontracts/buckets/daskibo-drm.js): `createDaskiboDRM().publishCourse({spec, accessControlConditions})` (encrypt+upload в одну строку) + `getCourseKey({bucket, authContext})`. Инъектируемый (client/litClient) → unit-тесты `tests/daskibo-drm.test.js`. | Keypo `upload/share`, 4EVERLAND S3-SDK | было только low-level `buckets/*` |
 | G-02 | **Gasless onboarding (AA)** через ZeroDev/4337 | Keypo (ZeroDev) | убирает «сначала пополни кошелёк»; совпадает с roadmap G2/G3 |
 | G-03 | **AI / VectorDB слой** поверх Greenfield | Glacier DeVector/GlacierAI | даёт направление в AI/agent-economy (наш Proof-of-Skill) — хранение/поиск эмбеддингов курсов |
 | G-04 | **Data-marketplace модель** (продажа датасетов/моделей с авто-раскрытием ключа) | BNB GF data-marketplace, Glacier | расширение `CourseMarketplace` на продажу любых зашифрованных ассетов |
@@ -150,7 +150,7 @@ threshold/ACC-слоем. Наш [crypto-envelope.js](../smartcontracts/buckets/
 | # | Недостаток / риск | Где | Митигация |
 | --- | --- | --- | --- |
 | R-01 | **ACC проверяется app-side** (Chipotle убрал `checkConditions`) — гейтинг вне TEE | наш `lit-sdk-chipotle.js` | вынести проверку в Lit Action (`requireLitAction`), либо строго доверять серверу-издателю; задокументировано в [lit §7.4](../skills/lit/SKILL.md) |
-| R-02 | **Нет one-call SDK** → высокий порог входа | наш `buckets/*` | G-01 |
+| R-02 | ✅ ~~Нет one-call SDK~~ → закрыто фасадом `daskibo-drm.js` (G-01) | наш `buckets/*` | done |
 | R-03 | **Нет gasless** → UX-барьер | наш стек | G-02 |
 | R-04 | **Greenfield-only** (нет fallback storage) | наш стек | G-06 |
 | R-05 | **Cross-chain рассинхрон**: Chipotle на Base 8453, контракты на BSC testnet 97 | наш devnet/mainnet-lit | ACC-RPC явно на BSC; либо деплой на Base; cross-ref [lit-crosschain.md](../skills/greenfield/references/lit-crosschain.md) |
