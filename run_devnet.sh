@@ -50,7 +50,7 @@ fi
 echo "========================================="
 echo " Starting Daskibo DEVNET (real testnets) "
 echo "========================================="
-echo "  Contracts → BSC testnet 97   (${BSC_TESTNET_RPC:-data-seed-prebsc-1-s1.bnbchain.org:8545})"
+echo "  Contracts → BSC testnet 97   (${BSC_TESTNET_RPC:-data-seed-prebsc-1-s1.binance.org:8545})"
 echo "  Storage   → Greenfield testnet 5600"
 echo "  Lit       → datil-dev (free)"
 echo ""

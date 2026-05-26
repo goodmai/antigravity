@@ -41,7 +41,7 @@ services:
     environment:
       - PRIVATE_KEY=${DEVNET_DEPLOYER_KEY:?set DEVNET_DEPLOYER_KEY (funded tBNB on BSC testnet)}
       - DEPLOYER_ADDR=${DEVNET_DEPLOYER_ADDR:?set DEVNET_DEPLOYER_ADDR}
-      - RPC_URL=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.bnbchain.org:8545}
+      - RPC_URL=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
       - BSCSCAN_API_KEY=${BSCSCAN_API_KEY:-}
     volumes:
       - ./contracts:/work
@@ -85,6 +85,28 @@ services:
         cat /shared/devnet-addresses.env &&
         echo "═══════════════════════════════════════════════════════════"
 
+  # Local Chipotle mock — the devnet DRM layer (Lit has no testnets; local build
+  # is the dev default). For the real Chipotle (Base mainnet) variant use
+  # docker-compose.mainnet-lit.yml instead.
+  chipotle-mock:
+    image: node:22-bookworm
+    container_name: daskibo-devnet-chipotle-mock
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - CHIPOTLE_PKP_KEY=${CHIPOTLE_PKP_KEY:-}
+      - CHIPOTLE_PORT=8000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 180s
+
   devnet-writer:
     image: node:22-bookworm
     container_name: daskibo-devnet-writer
@@ -92,13 +114,16 @@ services:
     depends_on:
       devnet-deploy:
         condition: service_completed_successfully
+      chipotle-mock:
+        condition: service_healthy
     environment:
       - GREENFIELD_TESTNET_PRIVATE_KEY=${GREENFIELD_TESTNET_PRIVATE_KEY:?set GREENFIELD_TESTNET_PRIVATE_KEY (funded tBNB on Greenfield testnet 5600)}
       - GREENFIELD_TESTNET_ADDRESS=${GREENFIELD_TESTNET_ADDRESS:?set GREENFIELD_TESTNET_ADDRESS}
+      # DRM via LOCAL Chipotle mock (no real funds). Real Chipotle → mainnet-lit compose.
+      - CHIPOTLE_URL=http://chipotle-mock:8000
       - GF_BUCKET=${GF_BUCKET:-}
       - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
       - NFT_MIN_BALANCE=${NFT_MIN_BALANCE:-1}
-      - LIT_CAPACITY_DELEGATION_AUTH_SIG=${LIT_CAPACITY_DELEGATION_AUTH_SIG:-}
     volumes:
       - ../:/app
       - devnet-shared:/shared:ro
@@ -108,7 +133,7 @@ services:
       - >
         npm install --no-audit --no-fund &&
         . /shared/devnet-addresses.env &&
-        echo "→ Gating bucket on ClientNft $$CLIENT_NFT_ADDR ($$NFT_GATING_CHAIN)" &&
+        echo "→ Gating bucket on ClientNft $$CLIENT_NFT_ADDR ($$NFT_GATING_CHAIN) via local Chipotle mock" &&
         NFT_GATING_CONTRACT=$$CLIENT_NFT_ADDR node write-devnet.mjs
 
   frontend:

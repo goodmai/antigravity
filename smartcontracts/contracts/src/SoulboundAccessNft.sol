@@ -25,15 +25,33 @@ abstract contract SoulboundAccessNft is ERC721, EIP712, Ownable {
     error Soulbound();
     error ClaimExpired();
     error InvalidClaimSignature();
+    error NotAuthorized();
 
     /// Off-chain signer (e.g. a Lit PKP) authorized to mint via a subclass's
     /// `claimWithSig`.
     address public claimSigner;
 
+    /// Delegated issuers — addresses (e.g. {CourseMarketplace} or an operator)
+    /// allowed to mint/revoke passes besides the owner. Closes G-08 (on-chain
+    /// per-recipient grant without giving away ownership).
+    mapping(address account => bool) public isGranter;
+
     uint256 internal _nextTokenId = 1;
 
     /// Per-recipient claim nonces (replay protection for signed mints).
     mapping(address account => uint256) private _claimNonces;
+
+    /// Emitted when a delegated granter is enabled/disabled.
+    event GranterSet(address indexed account, bool allowed);
+    /// Emitted on explicit revocation (burn) of a pass — the on-chain signal a
+    /// Lit Action / indexer watches (R-09).
+    event AccessRevoked(address indexed holder, uint256 indexed tokenId);
+
+    /// Owner or an authorized granter (delegated issuance/revocation).
+    modifier onlyOwnerOrGranter() {
+        if (msg.sender != owner() && !isGranter[msg.sender]) revert NotAuthorized();
+        _;
+    }
 
     constructor(
         string memory name_,
@@ -47,6 +65,27 @@ abstract contract SoulboundAccessNft is ERC721, EIP712, Ownable {
     function setClaimSigner(address signer) external onlyOwner {
         claimSigner = signer;
     }
+
+    /// Enable/disable a delegated granter (G-08). Owner only.
+    function setGranter(address account, bool allowed) external onlyOwner {
+        isGranter[account] = allowed;
+        emit GranterSet(account, allowed);
+    }
+
+    /// Explicitly revoke (burn) a pass — closes R-09 (revocation, incl. of a
+    /// perpetual pass; previously access could only lapse via expiry). Callable
+    /// by the owner or an authorized granter. Clears any subclass access-state
+    /// via {_onRevoke}, so the on-chain predicate a Lit Action reads
+    /// (`hasAccess`/`balanceOf`) flips to false immediately (R-10).
+    function revoke(uint256 tokenId) external onlyOwnerOrGranter {
+        address holder = ownerOf(tokenId); // reverts ERC721NonexistentToken if unminted/burned
+        _burn(tokenId);
+        _onRevoke(holder, tokenId);
+        emit AccessRevoked(holder, tokenId);
+    }
+
+    /// Hook: subclasses clear their per-account access-state on revoke.
+    function _onRevoke(address holder, uint256 tokenId) internal virtual {}
 
     function claimNonces(address account) external view returns (uint256) {
         return _claimNonces[account];

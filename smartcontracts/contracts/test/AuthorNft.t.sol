@@ -44,10 +44,60 @@ contract AuthorNftTest is Test {
         assertEq(nft.ownerOf(id), author);
     }
 
-    function test_mint_onlyOwner() public {
-        vm.prank(author);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, author));
+    function test_mint_unauthorizedReverts() public {
+        vm.prank(author); // neither owner nor granter
+        vm.expectRevert(SoulboundAccessNft.NotAuthorized.selector);
         nft.mint(author);
+    }
+
+    // ── Delegated granter (G-08) ──────────────────────────────────────────
+    event GranterSet(address indexed account, bool allowed);
+    event AccessRevoked(address indexed holder, uint256 indexed tokenId);
+
+    function test_setGranter_ownerOnly_andEffect() public {
+        address op = makeAddr("op");
+        vm.prank(op);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, op));
+        nft.setGranter(op, true);
+        nft.setGranter(op, true);
+        assertTrue(nft.isGranter(op));
+    }
+
+    function test_granter_canMint() public {
+        address op = makeAddr("op");
+        nft.setGranter(op, true);
+        vm.prank(op);
+        uint256 id = nft.mint(author);
+        assertEq(nft.balanceOf(author), 1);
+        assertEq(nft.ownerOf(id), author);
+    }
+
+    // ── Revoke (R-09): burn flips the balanceOf gate (R-10) ───────────────
+    function test_revoke_burnsAndClearsBalance() public {
+        uint256 id = nft.mint(author);
+        assertEq(nft.balanceOf(author), 1);
+        vm.expectEmit(true, true, false, false);
+        emit AccessRevoked(author, id);
+        nft.revoke(id);
+        assertEq(nft.balanceOf(author), 0); // Lit `balanceOf >= 1` gate now fails
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, id));
+        nft.ownerOf(id);
+    }
+
+    function test_revoke_byGranter() public {
+        address op = makeAddr("op");
+        nft.setGranter(op, true);
+        uint256 id = nft.mint(author);
+        vm.prank(op);
+        nft.revoke(id);
+        assertEq(nft.balanceOf(author), 0);
+    }
+
+    function test_revoke_unauthorizedReverts() public {
+        uint256 id = nft.mint(author);
+        vm.prank(author);
+        vm.expectRevert(SoulboundAccessNft.NotAuthorized.selector);
+        nft.revoke(id);
     }
 
     // ── Soulbound (base) ──────────────────────────────────────────────────

@@ -23,10 +23,19 @@ contract ClientNft is SoulboundAccessNft {
         SoulboundAccessNft("Daskibo Client Pass", "DASK-CLI", initialOwner, initialClaimSigner)
     {}
 
-    /// Owner mint of a (possibly time-limited) client pass. `expiry` is a unix
-    /// timestamp; 0 = perpetual.
-    function mint(address to, uint64 expiry) external onlyOwner returns (uint256) {
+    /// Mint a (possibly time-limited) client pass. Owner or a delegated granter
+    /// (G-08). `expiry` is a unix timestamp; 0 = perpetual.
+    function mint(address to, uint64 expiry) external onlyOwnerOrGranter returns (uint256) {
         return _mintWithExpiry(to, expiry);
+    }
+
+    /// On revoke (R-09): clear the holder's grant so `hasAccess` returns false
+    /// immediately — even for a perpetual (expiry==0) pass that could never
+    /// lapse before.
+    function _onRevoke(address holder, uint256 tokenId) internal override {
+        _granted[holder] = false;
+        accessExpiryOf[holder] = 0;
+        delete expiryOf[tokenId];
     }
 
     function _mintWithExpiry(address to, uint64 expiry) internal returns (uint256 tokenId) {

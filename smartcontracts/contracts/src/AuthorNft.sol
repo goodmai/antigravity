@@ -17,8 +17,9 @@ contract AuthorNft is SoulboundAccessNft {
         SoulboundAccessNft("Daskibo Author Pass", "DASK-AUTH", initialOwner, initialClaimSigner)
     {}
 
-    /// Owner mint of a perpetual author credential.
-    function mint(address to) external onlyOwner returns (uint256) {
+    /// Mint a perpetual author credential. Owner or a delegated granter (G-08).
+    /// Revocation: base {revoke} burns the token → `balanceOf` gate flips false.
+    function mint(address to) external onlyOwnerOrGranter returns (uint256) {
         return _mintNext(to);
     }
 

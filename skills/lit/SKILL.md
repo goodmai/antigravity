@@ -21,15 +21,35 @@ description: Интеграция Lit Protocol и Chipotle DRM в проекте
 
 > [!IMPORTANT]
 > **Проект использует Chipotle (Lit v3).** Старые P2P-сети Lit (`datil`/`datil-test`/
-> `datil-dev`) **отключены 2026-02-25**, сеть **Naga тоже сворачивается** — Chipotle
+> `datil-dev`) **отключены 2026-02-25**, сеть **Naga тоже свёрнута** — Chipotle
 > заменяет обе. Везде, где в доках упоминается `datil*`, это **исторический/устаревший**
-> контекст. Подробности и тестовая среда — §7.
+> контекст.
+>
+> ⚠️ **У Lit БОЛЬШЕ НЕТ ТЕСТНЕТОВ.** Публичных тестовых сетей не осталось (Datil
+> закрыт, Naga-faucet/доки 503, Chipotle живёт только на **Base mainnet**). Доступны
+> ровно **два режима**:
+> 1. **Локальная сборка** (дефолт для dev/devnet/CI, без реальных средств) — два варианта:
+>    - **полный локальный TEE** — реальный Chipotle (dstack-sim + `chipotle-real`) +
+>      локальный Greenfield + деплой NFT: наш композ
+>      [`smartcontracts/docker-compose.lit.yml`](file:///home/g/projects/antigravity/smartcontracts/docker-compose.lit.yml),
+>      запуск [`./run_e2e_lit.sh`](file:///home/g/projects/antigravity/run_e2e_lit.sh) (Flow C, чистый genesis);
+>    - **лёгкий mock** — `chipotle-mock` (`:8000`) из
+>      [`smartcontracts/docker-compose.yml`](file:///home/g/projects/antigravity/smartcontracts/docker-compose.yml)
+>      (профили `local`/`testnet`) / [`greenfield-testnet/chipotle-mock.mjs`](file:///home/g/projects/antigravity/smartcontracts/greenfield-testnet/chipotle-mock.mjs).
+> 2. **Mainnet** — реальный Chipotle REST (`api.chipotle.litprotocol.com`, Base 8453) +
+>    нативная Lit Chain **175200**. Для прода. **Фондирование аккаунта — только Stripe**
+>    (`/billing/create_payment_intent` → `confirm_payment`, мин **$5.00**; баланс
+>    `/billing/balance`). Токен **$LITKEY API НЕ оплачивает** (это токен протокола;
+>    «litkeys»-баланс был у мёртвого Naga). Ключ из `POST /new_account` → `CHIPOTLE_API_KEY`.
+>
+> Промежуточного «тестнета Lit» больше не существует — см. §7.
 
-| Параметр | Chipotle (Lit v3) — **выбран** | Chipotle Mock (локально) | ~~Lit Datil~~ (отключён 2026-02-25) |
+| Параметр | Chipotle **mainnet** (Lit v3) | Chipotle **локально** (mock / dstack-sim) | ~~Lit Datil / тестнеты~~ |
 | :--- | :--- | :--- | :--- |
-| **Среда выполнения** | REST/HTTP поверх **TEE на Phala** | Node.js `crypto.subtle` | ~~децентрализованная P2P~~ |
-| **Порты / endpoint** | HTTPS, `api.dev.litprotocol.com` (test) | локальный `8000` | ~~порт 7470 P2P~~ |
-| **Режим** | Staging / Production | Local Development / E2E / CI | ~~deprecated~~ |
+| **Среда выполнения** | REST/HTTP поверх **TEE на Phala** | mock: Node.js `crypto.subtle` · dstack-sim: локальный TEE | ~~децентрализованная P2P~~ |
+| **Порты / endpoint** | HTTPS, `api.chipotle.litprotocol.com/core/v1/` | локальный `:8000` | ~~порт 7470 P2P~~ |
+| **Режим** | **Production** (Base 8453) | **Dev / CI / e2e** | ~~больше не существует~~ |
+| **Compose / запуск** | [`docker-compose.mainnet-lit.yml`](file:///home/g/projects/antigravity/smartcontracts/docker-compose.mainnet-lit.yml) (real Chipotle@Base + BSC/GF testnets) · `write-*.mjs` | [`docker-compose.lit.yml`](file:///home/g/projects/antigravity/smartcontracts/docker-compose.lit.yml)→`./run_e2e_lit.sh` · [`docker-compose.devnet.yml`](file:///home/g/projects/antigravity/smartcontracts/docker-compose.devnet.yml) (BSC+GF testnets + Chipotle mock) | — |
 | **Конфигурация** | `lit-sdk-chipotle.js` | `lit-sdk-chipotle.js` | ~~`lit-sdk.js`~~ |
 
 ---
@@ -211,15 +231,21 @@ Protection*, *Video/Livestream Gating*). 💡 Для платных вебина
 
 | Что | URL | Примечание |
 | :--- | :--- | :--- |
-| **Chipotle dev/test API** | https://api.dev.litprotocol.com | REST `/core/v1/version`, `/create_wallet`, `/lit_action`; dev chain id **1315** |
-| **Chipotle Swagger** | `…dstack-pha-prod5.phala.network/core/v1/swagger-ui/index.html` | живая схема HTTP API (на инстансе Phala) |
-| **Chipotle / dev доки** | https://docs.dev.litprotocol.com/ · https://naga.developer.litprotocol.com/ | dev-доки + actions-референс |
+| **Chipotle REST API** ✅ верифиц. | `https://api.chipotle.litprotocol.com/core/v1/` | каноничный base-URL; 42 пути; публичные ручки отдают 200 |
+| Chipotle Swagger / OpenAPI | `…/core/v1/swagger-ui` · `…/core/v1/openapi.json` | `lit-api-server` 0.1.0 |
+| Chipotle chain config | `GET …/core/v1/get_node_chain_config` | `{chain:"Base", chain_id:8453, testnet:false, contract:0xaAaAA9120fE271F653cfDb6bf400dB93D2DEa7Aa}` — ChainSecured Diamond (EIP-2535) на **Base mainnet** |
+| **Lit mainnet chain** (Chronicle) | RPC `https://lit-chain-rpc.litprotocol.com` · explorer `https://lit-chain-explorer.litprotocol.com` | **chain id 175200**; нативная L2-цепь Lit (PKP/контракты Lit) |
+| Документация | https://docs.dev.litprotocol.com/ ✅ | актуальные доки Chain-Secured TEE |
 | Phala TEE chain-of-trust | https://docs.phala.com/phala-cloud/attestation/chain-of-trust | модель доверия Chipotle prod |
-| ~~Кран Yellowstone~~ | ~~chronicle-yellowstone-faucet.getlit.dev~~ (tstLPX) | для Datil/Naga — **deprecated** |
+| ❌ `api.dev.litprotocol.com` | — | **мёртв** (TLS altname mismatch) — НЕ использовать |
+| ❌ Naga docs / Yellowstone faucet | naga.developer… / chronicle-yellowstone-faucet… | **503** — P2P-тестнеты Lit неактивны (Datil закрыт) |
 
-> URL/auth Chipotle (API key или x402) подтверждать по Swagger/доке выше со своей
-> машины. Для devnet (`run_devnet.sh`) нужен **только** tBNB на BSC testnet +
-> Greenfield testnet — Lit-краны не нужны (Chipotle — REST, не P2P-сеть).
+> Auth Chipotle: `X-Api-Key`/`Bearer` (managed-аккаунт) **или** wallet-подпись
+> (ChainSecured, `*_with_signature`). Оплата — Stripe-кредиты (`/billing/*`) / x402;
+> **бесплатного тестнета у Chipotle нет** (он на Base mainnet). Две разные цепи:
+> **Base 8453** (реестр аккаунтов/PKP Chipotle) и **Lit Chain 175200** (нативная L2 Lit).
+> Для devnet (`run_devnet.sh`) нужен tBNB на BSC testnet + Greenfield testnet; DRM —
+> Chipotle REST (не P2P).
 
 ### 7.2 Discord-сервер Lit через MCP (`lit-discord`)
 
@@ -269,14 +295,154 @@ Protection*, *Video/Livestream Gating*). 💡 Для платных вебина
 > - **Chipotle (Lit v3)** — *«live on production»* (анонс 2026-04-07): ground-up
 >   rebuild, REST/HTTP поверх TEE на Phala, **SDK не требуется**. В проекте уже есть
 >   адаптер [lit-sdk-chipotle.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk-chipotle.js) (`/core/v1/lit_action`).
-> - Тестовая среда — `https://api.dev.litprotocol.com` (dev chain **1315**); Swagger
->   на Phala prod5; доки `docs.dev.litprotocol.com`. См. таблицу §7.1.
+> - Base-URL (✅ верифицирован 2026-05-26) — `https://api.chipotle.litprotocol.com/core/v1/`
+>   (42 пути, Swagger/OpenAPI там же). ⚠️ `api.dev.litprotocol.com` мёртв (TLS). Chipotle
+>   на **Base mainnet 8453** (отдельного тестнета нет); нативная Lit Chain — **175200**
+>   (RPC `lit-chain-rpc`, explorer `lit-chain-explorer`). См. таблицу §7.1.
 > - В Chipotle **`checkConditions` удалён** из Lit Actions → ACC проверяется на
 >   стороне приложения (адаптер уже делает: ethers → RPC сети контракта).
 > - `signAsAction` **deprecated** (`#dev-support` 2026-03-10) → создать wallet в
 >   Chipotle и привязать к одному action.
 >
 > **Вывод для devnet:** в `write-devnet.mjs` Lit-слой надо перевести с `datil-dev`
-> на Chipotle (`createChipotleClient`, `CHIPOTLE_URL=https://api.dev.litprotocol.com`),
+> на Chipotle (`createChipotleClient`, `CHIPOTLE_URL=https://api.chipotle.litprotocol.com`),
 > а ACC-проверку при decrypt направить на **RPC BSC testnet** (не anvil). Сверять
 > актуальное состояние через `search_messages` по `#announcements`/`#dev-support`.
+
+### 7.4 Авторизация Chipotle: **ChainSecured** (on-chain) + usage API key + Stripe
+
+Модель доступа Chipotle гибридная (по офиц. описанию ChainSecured):
+
+| Слой | Чем авторизуется |
+| :--- | :--- |
+| **Идентичность аккаунта** | **кошелёк = identity** (ChainSecured). Аккаунт — **ончейн-сущность** на Base (наш INIT_TX `0x0ffe…` создал её на Diamond `0xaAaAA9…`). |
+| **Управляющие writes** (создание аккаунта/PKP/usage-ключей) | **on-chain транзакции, подписанные кошельком** — `*_with_signature` (`create_wallet_with_signature`, `add_usage_api_key_with_signature`, `convert_to_chain_secured_account`). |
+| **Action runs** (`/lit_action`, encrypt/decrypt) | **usage API key** из аккаунта → заголовок `X-Api-Key`. ⚠️ Это ключ **для теста/исполнения**, не для управления. (Тест-ключ владельца лежит в gitignored `.env` → `CHIPOTLE_API_KEY`.) |
+| **Фондирование** | по-прежнему **billing аккаунта = Stripe** (мин $5), независимо от ChainSecured. |
+
+> [!IMPORTANT]
+> **TODO — ChainSecured on-chain identity.** Сейчас `write-devnet.mjs` /
+> `docker-compose.mainnet-lit.yml` используют только **usage API key**
+> (`X-Api-Key`) для всех вызовов — этого хватает для **action runs** (тест), но
+> **управляющие writes должны идти ончейн-подписью кошелька** (`*_with_signature`),
+> где кошелёк = identity аккаунта. Нужно:
+> 1. развести в writer два пути: PKP/wallet provisioning → `create_wallet_with_signature`
+>    (подпись кошельком), `/lit_action` → usage `X-Api-Key`;
+> 2. использовать существующую ончейн-сущность владельца (Base `0xaAaAA9…`), а не
+>    создавать managed-аккаунт;
+> 3. usage API key трактовать как тест-credential (ротация), не как identity.
+
+---
+
+## 8. Построение ACC: `createAccBuilder` (EVM / не-EVM / Lit Actions)
+
+Официальный типобезопасный fluent-builder из **`@lit-protocol/access-control-conditions`**
+собирает **унифицированные ACC** для гетерогенных сетей (EVM, Solana, Cosmos) и
+Lit Actions. Это рекомендуемая альтернатива ручной сборке JSON и более мощная, чем
+in-repo [lit-acc.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-acc.js)
+(тот покрывает только простые EVM-кейсы: `addressAllowlistAcc`/`tokenBalanceAcc`/`anyOf`/`allOf`).
+
+```bash
+npm install @lit-protocol/access-control-conditions
+```
+
+**Правила сборки:**
+- После каждого EVM-хелпера **обязателен `.on(chain)`** (`'ethereum'`, `'polygon'`,
+  `'bsc'`, `'bscTestnet'`, `'base'`…). Исключение — `requireLitAction()` (исполняется
+  на нодах Lit, цепь не нужна).
+- Логику комбинируют `.and()` / `.or()`; терминальный `.build()` → сырой массив ACC.
+- `validate()` — статическая проверка цепочки (двойные операторы, забытый `.on()`,
+  пустой билдер) на этапе разработки; `humanize()` → человекочитаемое описание для UI.
+
+### 8.1 Методы по экосистемам
+
+| Группа | Методы |
+| :--- | :--- |
+| **EVM** (далее `.on(chain)`) | `requireEthBalance(amount,cmp?)`, `requireTokenBalance(addr,amount,cmp?)` (ERC-20), `requireNftOwnership(addr,tokenId?)` (ERC-721/1155), `requireWalletOwnership(addr)`, `requireTimestamp(ts,cmp?)`, `requireDAOMembership(dao)` (MolochDAOv2.1), `requirePOAPOwnership(eventId)` |
+| **Solana** | `requireSolBalance(amount,cmp?)`, `requireSolNftOwnership(collection)`, `requireSolWalletOwnership(addr)` |
+| **Cosmos** | `requireCosmosBalance(amount,cmp?)`, `requireCosmosWalletOwnership(addr)`, `requireCosmosCustom(path,key,value,cmp?)` |
+| **Lit Action** | `requireLitAction(ipfsCid, method, params[], expectedValue, cmp?)` — кастомная/внечейн-валидация на нодах Lit |
+| **Raw / unified** | `unifiedAccs(obj)`, `evmBasic(p)`, `evmContract(p)`, `solRpc(p)`, `cosmos(p)` |
+| **Логика / терминал** | `and()`, `or()`, `build()`, `validate()`, `humanize()` |
+
+### 8.2 Применение в Daskibo
+
+```ts
+import { createAccBuilder } from '@lit-protocol/access-control-conditions';
+
+// (A) Доступ по soulbound ClientNft на BSC testnet — owner-bound, не флэш-лоанится
+const acc = createAccBuilder()
+  .requireNftOwnership(CLIENT_NFT_ADDR).on('bscTestnet')
+  .build();
+
+// (B) Кросс-чейн OR: курс куплен на BSC (NFT) ИЛИ комьюнити-коллекция на Base
+const acc = createAccBuilder()
+  .requireNftOwnership(CLIENT_NFT_ADDR).on('bscTestnet')
+  .or()
+  .requireNftOwnership(COMMUNITY_NFT_ADDR).on('base')
+  .build();
+
+// (C) Кросс-чейн не-EVM: NFT на BSC testnet ИЛИ коллекция на Solana
+const acc = createAccBuilder()
+  .requireNftOwnership(CLIENT_NFT_ADDR).on('bscTestnet')
+  .or()
+  .requireSolNftOwnership(SOL_COLLECTION_ADDR)
+  .build();
+```
+
+### 8.3 Оговорки для нашего стека
+
+- **Flash-loan (Audit 3.2 / [lit-acc.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-acc.js) header).** Для платного контента предпочитать `requireWalletOwnership` (равенство адреса — не флэш-лоанится) или **soulbound** NFT (`AuthorNft`/`ClientNft`), а не спот-`requireTokenBalance`/`requireNftOwnership` на **трансферимых** токенах.
+- **Chipotle (Lit v3): `checkConditions` удалён** — ACC внутри TEE не проверяется. Поэтому в нашем флоу builder используется для **конструирования/`validate`/`humanize`** ACC, попадающих в `manifest.lit`, а фактический гейтинг делает наш адаптер app-side (ethers → RPC сети контракта; см. [lit-sdk-chipotle.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk-chipotle.js)). Программируемый кросс-чейн-путь, исполняемый именно на нодах Lit, — через `requireLitAction` (CID + метод).
+- **Совпадение chain id.** `.on('bscTestnet')` должен соответствовать сети, где реально задеплоен контракт (наши `ClientNft`/`CourseMarketplace` — BSC testnet 97); cross-ref [lit-crosschain.md](../greenfield/references/lit-crosschain.md).
+- **Связь с in-repo.** `lit-acc.js` остаётся лёгким путём для простых EVM-ACC; `createAccBuilder` берём, когда нужны **Solana/Cosmos/Lit Actions/мульти-чейн** или `humanize()` для UI.
+
+---
+
+## 9. Ceramic + Lit — приватная децентрализованная БД
+
+Источник: **[LIT-Protocol/CeramicIntegration](https://github.com/LIT-Protocol/CeramicIntegration)**.
+Паттерн (тот же envelope, что у нас в Greenfield, но носитель — Ceramic).
+
+**Зачем.** Ceramic — публичная децентрализованная БД потоков (streams), но **без
+read-permissions: всё содержимое публично**. Lit добавляет слой шифрования/доступа:
+данные шифруются под ACC, расшифровать может только тот, кто условиям удовлетворяет.
+Каноничный кейс из репо — *«БД для DAO, где расшифровать данные могут только члены
+DAO»*.
+
+**Архитектура (три слоя):**
+
+```text
+encryptAndWrite(data, ACC) ──► Lit threshold-encrypt под ACC
+                           ──► ciphertext кладётся в Ceramic stream → streamID
+readAndDecrypt(streamID)   ──► читает stream → Lit отдаёт ключ, если ACC выполнен
+                           ──► plaintext
+```
+
+**API (TypeScript, браузерный — нужен `window`):**
+
+| Метод | Сигнатура | Возврат |
+| :--- | :--- | :--- |
+| конструктор | `new Integration(ceramicRpcUrl, chain)` | экземпляр |
+| init | `startLitClient(window)` | — |
+| запись | `encryptAndWrite(stringToEncrypt, accessControlConditions, conditionType?)` | Ceramic `streamID` |
+| чтение | `readAndDecrypt(streamID)` | расшифрованная строка |
+
+`conditionType` поддерживает `'evmContractConditions'` — т.е. гейтинг по нашему
+`CourseMarketplace.hasCourseAccess` / soulbound NFT кладётся напрямую.
+
+**Применение в Daskibo.** Ceramic как **serverless-БД приватных данных студента**
+(прогресс, оценки, приватный профиль), где `readAndDecrypt` доступен только держателю
+`AccessPass`/`ClientNft` или роли — тем же `accessControlConditions`, что и в
+Greenfield-манифесте (ACC переиспользуются между Greenfield и Ceramic). См.
+[LIT-UC-05](#62-юзеркейсы-lit-js-sdk-examples--ceramicintegration).
+
+> [!WARNING]
+> Репозиторий **легаси**: использует старый **браузерный Lit JS SDK** (init через
+> `window`) и Ceramic **Clay testnet** (`ceramic-clay.3boxlabs.com`). Оба устарели:
+> у Lit тестнетов больше нет (см. §1), Clay-testnet тоже свёрнут. Брать оттуда —
+> **паттерн** (encrypt→Ceramic→gated-decrypt + форму ACC), а не код как есть. Для
+> нашего стека:
+> - шифрование/выдача ключа — через **Chipotle** ([lit-sdk-chipotle.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk-chipotle.js)) / `createLitAccess`, не через легаси-SDK;
+> - ACC — через `createAccBuilder` (§8) или [lit-acc.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-acc.js); `conditionType: 'evmContractConditions'` для `hasCourseAccess`;
+> - Ceramic-узел — актуальный mainnet/ composeDB endpoint, не Clay.

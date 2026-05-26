@@ -169,6 +169,10 @@ Local helper interface `IWithdrawable { withdraw() }`.
 
 ## 4. Soulbound role NFTs (Lit gating) — replaces `MockNFT`
 
+> ✅ **Current / applied.** Implemented, deployed by `DeployAccessNfts.s.sol`, and
+> covered by forge tests at 100% (104 tests total). Includes **revoke** (R-09),
+> **delegated granter role** (G-08), and the [`ManifestRegistry`](#4d-manifestregistry--on-chain-acc-anchor-g-09) anchor (G-09) — see [osint.md §3.1](./osint.md).
+
 The old `MockNFT` (a transferable ERC721 stub, then a transferable real ERC721)
 is replaced by **two soulbound, role-specific access NFTs** sharing an abstract
 base. They are real OpenZeppelin ERC721s (so Lit's `standardContractType:
@@ -180,12 +184,23 @@ transferable spot balance.
 
 `src/SoulboundAccessNft.sol`. Inherits `ERC721, EIP712(name,"1"), Ownable`.
 
-**State:** `claimSigner` (off-chain signer, e.g. a Lit PKP); `_nextTokenId`
-(internal, starts at 1); `_claimNonces[account]` (replay protection).
+**State:** `claimSigner` (off-chain signer, e.g. a Lit PKP); `isGranter[account]`
+(delegated issuers — G-08); `_nextTokenId` (internal, starts at 1);
+`_claimNonces[account]` (replay protection).
 
 **Functions / behavior**
 - `constructor(name, symbol, initialOwner, initialClaimSigner)`.
 - `setClaimSigner(address)` — `onlyOwner`.
+- `setGranter(address account, bool allowed)` — `onlyOwner`; enables a delegated
+  issuer (e.g. `CourseMarketplace`/operator) to mint & revoke without owning the
+  contract (**G-08**). Modifier `onlyOwnerOrGranter` gates `mint`/`revoke`.
+- **`revoke(uint256 tokenId)`** — `onlyOwnerOrGranter`; burns the pass, calls
+  `_onRevoke(holder, tokenId)` hook, emits `AccessRevoked`. Closes **R-09** —
+  works even for a perpetual pass (previously access could only lapse via
+  expiry). The on-chain predicate a Lit Action reads (`hasAccess`/`balanceOf`)
+  flips to `false` immediately (**R-10** SC-part).
+- `_onRevoke(holder, tokenId)` *(internal virtual)* — subclasses clear their
+  per-account access-state on revoke.
 - `claimNonces(address) → uint256`; `DOMAIN_SEPARATOR() → bytes32`.
 - `_mintNext(to)` *(internal)* — `_safeMint` of the next id (checks
   `onERC721Received`).
@@ -197,7 +212,8 @@ transferable spot balance.
   `setApprovalForAll` revert `Soulbound()`. `balanceOf`, `ownerOf`,
   `tokenURI`, `supportsInterface` (ERC721/ERC165) remain functional for Lit.
 
-**Errors:** `Soulbound, ClaimExpired, InvalidClaimSignature`.
+**Errors:** `Soulbound, ClaimExpired, InvalidClaimSignature, NotAuthorized`.
+**Events:** `GranterSet(account, allowed)`, `AccessRevoked(holder, tokenId)`.
 
 ### 4b. `AuthorNft` — perpetual author credential
 
@@ -205,9 +221,10 @@ transferable spot balance.
 symbol `DASK-AUTH`. Held by a course author; grants the right to **UPDATE and
 READ** the course's Greenfield bucket (Lit gates on `balanceOf(author) >= 1`).
 **Perpetual** — never expires.
-- `mint(address to) → uint256` — `onlyOwner`, perpetual.
+- `mint(address to) → uint256` — `onlyOwnerOrGranter`, perpetual.
 - `claimWithSig(address to, uint256 deadline, bytes signature) → uint256` —
   redeem an EIP-712 `Claim(to,nonce,deadline)` signed by `claimSigner`.
+- Revocation: base `revoke(tokenId)` burns the token → `balanceOf` gate → 0.
 
 ### 4c. `ClientNft` — time-limited client subscription
 
@@ -216,10 +233,12 @@ symbol `DASK-CLI`. Held by a buyer; grants **READ-only** bucket access while
 valid. Lit gates on `hasAccess(user)`.
 - State: `expiryOf[tokenId]` (per-token), `accessExpiryOf[account]`,
   `_granted[account]` — unix ts; `0` = perpetual.
-- `mint(address to, uint64 expiry) → uint256` — `onlyOwner`; `expiry` is a unix
-  ts (`0` = perpetual). Re-mint after expiry renews.
+- `mint(address to, uint64 expiry) → uint256` — `onlyOwnerOrGranter`; `expiry`
+  is a unix ts (`0` = perpetual). Re-mint after expiry renews.
 - `hasAccess(address user) → bool` — `true` iff granted and (`expiry==0 ||
   now <= expiry`). **The predicate Lit's `evmContractConditions` calls.**
+- `_onRevoke(holder, tokenId)` *(override)* — clears `_granted`/`accessExpiryOf`
+  so `revoke` makes `hasAccess` `false` immediately, even for a perpetual pass.
 - `claimWithSig(address to, uint64 expiry, uint256 deadline, bytes signature)
   → uint256` — redeem an EIP-712 `Claim(to,expiry,nonce,deadline)` signed by
   `claimSigner`.
@@ -227,6 +246,23 @@ valid. Lit gates on `hasAccess(user)`.
 > `block.timestamp` deadline/expiry comparisons and OZ-internal
 > `unsafe-typecast` are forge-lint *warnings* only — standard practice; not
 > gated by CI (`forge build` / `test` / `snapshot --check`).
+
+### 4d. `ManifestRegistry` — on-chain ACC anchor (G-09)
+
+`src/ManifestRegistry.sol`. ✅ Current. On-chain integrity anchor for the Lit
+`manifest.lit` `conditionsHash`, so a reader can detect a swapped ACC instead of
+trusting the manifest blob alone (closes **G-09**). Self-contained ACL (minimal
+registry/validation — partial G-08): the **first writer of a `key` becomes its
+author**; only that author may update it.
+
+- State: `mapping(bytes32 key → Anchor{author, conditionsHash, updatedAt})`.
+  `key` is caller-defined (e.g. `keccak256(bucket, "/", objectPath)` or courseId).
+- `anchor(bytes32 key, bytes32 conditionsHash)` — set/update (author-only after
+  first write); reverts `ZeroHash` on empty hash, `NotKeyAuthor` for non-author.
+- `anchorOf(key) → (author, conditionsHash, updatedAt)`.
+- `verify(key, conditionsHash) → bool` — the reader's tamper gate: `true` iff
+  `key` is anchored to exactly that hash (false for unanchored).
+- **Errors:** `NotKeyAuthor, ZeroHash`. **Event:** `ManifestAnchored`.
 
 ---
 
@@ -255,8 +291,9 @@ valid. Lit gates on `hasAccess(user)`.
   to the deployer unless `W3EXT` is set.
 - **`script/DeployAccessNfts.s.sol`** — deploys `new ClientNft(deployer,
   deployer)` **first** (so it keeps the well-known nonce-1 address used by
-  `NFT_CONTRACT_ADDR`), then `new AuthorNft(deployer, deployer)`. Deployer is
-  both owner (can mint) and EIP-712 claim signer.
+  `NFT_CONTRACT_ADDR`), then `new AuthorNft(deployer, deployer)`, then
+  `new ManifestRegistry()` (appended last so it does not shift the NFT nonces).
+  Deployer is both owner (can mint/revoke) and EIP-712 claim signer.
 
 **Dependencies:** `lib/` is gitignored and fetched fresh (repo convention).
 CI (`.github/workflows/test.yml`) and every compose service that compiles

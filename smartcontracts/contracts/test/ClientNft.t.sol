@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {ClientNft} from "../src/ClientNft.sol";
 import {SoulboundAccessNft} from "../src/SoulboundAccessNft.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC721Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 /// ClientNft is the time-limited, soulbound client subscription. Lit gates
 /// client reads on hasAccess(user). These tests cover mint+expiry semantics,
@@ -28,9 +29,9 @@ contract ClientNftTest is Test {
         assertEq(nft.symbol(), "DASK-CLI");
     }
 
-    function test_mint_onlyOwner() public {
-        vm.prank(client);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, client));
+    function test_mint_unauthorizedReverts() public {
+        vm.prank(client); // neither owner nor granter
+        vm.expectRevert(SoulboundAccessNft.NotAuthorized.selector);
         nft.mint(client, 0);
     }
 
@@ -124,5 +125,72 @@ contract ClientNftTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(evePk, digest);
         vm.expectRevert(SoulboundAccessNft.InvalidClaimSignature.selector);
         nft.claimWithSig(client, expiry, deadline, abi.encodePacked(r, s, v));
+    }
+
+    // ── Delegated granter (G-08) ──────────────────────────────────────────
+    event GranterSet(address indexed account, bool allowed);
+    event AccessRevoked(address indexed holder, uint256 indexed tokenId);
+
+    function test_setGranter_ownerOnly_andEffect() public {
+        address op = makeAddr("op");
+        vm.prank(op);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, op));
+        nft.setGranter(op, true);
+        vm.expectEmit(true, false, false, true);
+        emit GranterSet(op, true);
+        nft.setGranter(op, true);
+        assertTrue(nft.isGranter(op));
+    }
+
+    function test_granter_canMint() public {
+        address op = makeAddr("op");
+        nft.setGranter(op, true);
+        vm.prank(op);
+        uint256 id = nft.mint(client, 0);
+        assertEq(nft.ownerOf(id), client);
+        assertTrue(nft.hasAccess(client));
+    }
+
+    // ── Revoke (R-09) — incl. a perpetual pass, with predicate flip (R-10) ──
+    function test_revoke_perpetual_clearsAccess() public {
+        uint256 id = nft.mint(client, 0); // perpetual — previously un-revocable
+        assertTrue(nft.hasAccess(client));
+        vm.expectEmit(true, true, false, false);
+        emit AccessRevoked(client, id);
+        nft.revoke(id);
+        assertFalse(nft.hasAccess(client)); // predicate a Lit Action reads flips
+        assertEq(nft.balanceOf(client), 0);
+        assertEq(nft.accessExpiryOf(client), 0);
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, id));
+        nft.ownerOf(id);
+    }
+
+    function test_revoke_byGranter() public {
+        address op = makeAddr("op");
+        nft.setGranter(op, true);
+        uint256 id = nft.mint(client, 0);
+        vm.prank(op);
+        nft.revoke(id);
+        assertFalse(nft.hasAccess(client));
+    }
+
+    function test_revoke_unauthorizedReverts() public {
+        uint256 id = nft.mint(client, 0);
+        vm.prank(client);
+        vm.expectRevert(SoulboundAccessNft.NotAuthorized.selector);
+        nft.revoke(id);
+    }
+
+    function test_revoke_nonexistentReverts() public {
+        vm.expectRevert(abi.encodeWithSelector(IERC721Errors.ERC721NonexistentToken.selector, uint256(99)));
+        nft.revoke(99);
+    }
+
+    function test_revoke_thenRemint_restoresAccess() public {
+        uint256 id = nft.mint(client, 0);
+        nft.revoke(id);
+        assertFalse(nft.hasAccess(client));
+        nft.mint(client, 0); // re-grant after revocation
+        assertTrue(nft.hasAccess(client));
     }
 }

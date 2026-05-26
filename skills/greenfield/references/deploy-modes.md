@@ -139,50 +139,48 @@ docker compose -f smartcontracts/docker-compose.yml --profile testnet run --rm t
 
 Testnet spends real testnet gas. Не запускать как default path без явного согласия пользователя.
 
-## Devnet (real testnets, без локальных узлов)
+## Devnet (BSC + Greenfield testnets + ЛОКАЛЬНЫЙ Chipotle)
 
-Назначение: рабочий dev-стек целиком на ПУБЛИЧНЫХ тестнетах — контракты в BSC
-testnet, бакеты в Greenfield testnet, ключ через **Chipotle (Lit v3)** REST API
-(`api.dev.litprotocol.com`). Никаких локальных anvil/greenfield-узлов. Файл —
-`docker-compose.devnet.yml`. (Старые P2P-сети Lit `datil*` отключены 2026-02-25.)
+Назначение: рабочий dev-стек — контракты в BSC testnet, бакеты в Greenfield
+testnet, DRM через **локальный Chipotle mock** (у Lit тестнетов нет → для dev
+используем локальную сборку). Файл — `docker-compose.devnet.yml`.
 
 Состав:
 
 - `devnet-deploy`: Foundry. Деплоит `DeployAccessNfts` + `Deploy` в BSC testnet
   (chain 97), минтит один `ClientNft` деплоеру, пишет адреса в
   `devnet-addresses.env` (shared volume). One-shot.
+- `chipotle-mock`: локальный Chipotle REST (`:8000`) — DRM без реальных средств.
 - `devnet-writer`: Node. Шифрует курс, грузит в Greenfield testnet 5600,
-  оборачивает мастер-ключ через Chipotle с ACC `ClientNft.balanceOf >= 1` на
-  `bscTestnet` (soulbound ⇒ не флэш-лоанится; ACC проверяется на стороне
-  приложения — в Chipotle `checkConditions` удалён). One-shot. Скрипт —
-  `greenfield-testnet/write-devnet.mjs`.
-- `frontend`: nginx, отдаёт `bucket-reader.html`/`bucket-builder.html` на
-  `:8099`. Long-running — фронт «живёт», on-chain состояние держится на
-  тестнетах независимо от контейнеров.
-
-Нужны переменные (один фандженный кошелёк обычно покрывает обе сети):
+  оборачивает мастер-ключ через Chipotle (`CHIPOTLE_URL=http://chipotle-mock:8000`)
+  с ACC `ClientNft.balanceOf >= 1` на `bscTestnet` (soulbound ⇒ не флэш-лоанится;
+  ACC проверяется app-side — в Chipotle `checkConditions` удалён). One-shot.
+  Скрипт — `greenfield-testnet/write-devnet.mjs`.
+- `frontend`: nginx, reader/builder на `:8099`. Long-running.
 
 ```bash
 export DEVNET_DEPLOYER_KEY=0x...   # tBNB на BSC testnet 97 (по умолчанию = GF key)
 export DEVNET_DEPLOYER_ADDR=0x...
 export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # tBNB на Greenfield testnet 5600
 export GREENFIELD_TESTNET_ADDRESS=0x...
-export CHIPOTLE_URL=https://api.dev.litprotocol.com   # Chipotle (Lit v3) dev API
-export BSCSCAN_API_KEY=...          # опционально: верификация в обозревателе
+./run_devnet.sh            # либо: docker compose -f smartcontracts/docker-compose.devnet.yml up --build -d
 ```
 
-Запуск:
+## Mainnet-Lit (BSC + Greenfield testnets + РЕАЛЬНЫЙ Chipotle на Base mainnet)
+
+Назначение: тот же стек, но DRM на **Lit mainnet** (Chipotle на Base 8453,
+`api.chipotle.litprotocol.com`). Контракты/storage остаются на тестнетах. Файл —
+`docker-compose.mainnet-lit.yml` (сервисы `deploy` / `writer` / `frontend`).
 
 ```bash
-./run_devnet.sh            # валидирует, поднимает, ждёт deploy+publish
-./run_devnet.sh down       # остановить frontend
-# или вручную:
-docker compose -f smartcontracts/docker-compose.devnet.yml up --build -d
+export DEVNET_DEPLOYER_KEY=0x... DEVNET_DEPLOYER_ADDR=0x...
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x... GREENFIELD_TESTNET_ADDRESS=0x...
+export CHIPOTLE_API_KEY=...   # из POST /core/v1/new_account; аккаунт пополнен через Stripe (мин $5)
+docker compose -f smartcontracts/docker-compose.mainnet-lit.yml up --build -d
 ```
 
-Требования: исходящий HTTPS к `api.dev.litprotocol.com` (Chipotle REST). Базовый
-URL/auth (API key / x402) сверять по Swagger (см. [lit skill §7.1](../../lit/SKILL.md)).
-Для локального оффлайн-варианта — Chipotle mock (`:8000`) или dstack-sim (Flow C).
+> Фондирование Chipotle — **только Stripe** (`/billing/*`, мин $5.00); токен
+> `$LITKEY` API не оплачивает. Детали — [lit skill §1/§7](../../lit/SKILL.md).
 
 ## Mainnet
 
@@ -215,7 +213,8 @@ Mainnet использует реальные средства и production SP.
 | File | Назначение |
 |---|---|
 | `smartcontracts/docker-compose.yml` | unified profile stack |
-| `smartcontracts/docker-compose.devnet.yml` | devnet: real testnets (BSC + Greenfield + Chipotle/Lit v3), persistent frontend |
+| `smartcontracts/docker-compose.devnet.yml` | devnet: BSC + Greenfield testnets + **локальный** Chipotle mock, persistent frontend |
+| `smartcontracts/docker-compose.mainnet-lit.yml` | BSC + Greenfield testnets + **реальный** Chipotle (Lit mainnet, Base 8453) |
 | `smartcontracts/docker-compose.lit.yml` | same-network paid Lit NFT E2E |
 | `smartcontracts/greenfield-local/docker-compose.yml` | standalone local Greenfield private chain |
 | `smartcontracts/greenfield-testnet/docker-compose.yml` | standalone public testnet writer + Chipotle mock |

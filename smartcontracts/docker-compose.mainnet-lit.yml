@@ -1,0 +1,117 @@
+# Daskibo Academy — MAINNET-LIT stack
+#
+# DRM on Lit MAINNET (Chipotle / Lit v3 on Base mainnet) + app chains on TESTNETS.
+# Lit has no testnets anymore, so the only "real" DRM is mainnet Chipotle; the
+# course-sale contracts and storage stay on cheap public testnets.
+#
+#   deploy   Foundry → deploys course-sale + access-NFT contracts to BSC testnet
+#            (chain 97), mints one ClientNft to the deployer, writes addresses to
+#            a shared volume. One-shot.
+#
+#   writer   Node → encrypts a course, uploads to BNB Greenfield testnet (5600),
+#            and wraps the master key with REAL Chipotle (Lit v3) at
+#            api.chipotle.litprotocol.com (Base mainnet 8453). ACC gates on
+#            ClientNft.balanceOf @ bscTestnet (enforced app-side; Chipotle has
+#            no checkConditions). One-shot.
+#
+#   frontend nginx → DRM reader/builder on :8099. Long-running.
+#
+# Funding / config you must provide (see lit skill §1/§7):
+#   • DEVNET_DEPLOYER_KEY/_ADDR            tBNB on BSC testnet 97 (deploy gas)
+#   • GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS  tBNB on Greenfield testnet 5600
+#   • CHIPOTLE_API_KEY                     account API key from POST /core/v1/new_account,
+#                                          **funded via Stripe** (min $5 credits;
+#                                          $LITKEY does NOT pay for API usage).
+#
+# Run:
+#   docker compose -f docker-compose.mainnet-lit.yml up --build -d
+#   docker compose -f docker-compose.mainnet-lit.yml down
+
+services:
+  deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-mlit-deploy
+    user: root
+    working_dir: /work
+    environment:
+      - PRIVATE_KEY=${DEVNET_DEPLOYER_KEY:?set DEVNET_DEPLOYER_KEY (funded tBNB on BSC testnet)}
+      - DEPLOYER_ADDR=${DEVNET_DEPLOYER_ADDR:?set DEVNET_DEPLOYER_ADDR}
+      - RPC_URL=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
+      - BSCSCAN_API_KEY=${BSCSCAN_API_KEY:-}
+    volumes:
+      - ./contracts:/work
+      - mlit-shared:/shared
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        set -e &&
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std) &&
+        (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1) &&
+        forge build &&
+        VERIFY="" &&
+        if [ -n "$$BSCSCAN_API_KEY" ]; then
+          VERIFY="--verify --etherscan-api-key $$BSCSCAN_API_KEY --verifier-url https://api-testnet.bscscan.com/api";
+        fi &&
+        NFT_OUT=$$(forge script script/DeployAccessNfts.s.sol:DeployAccessNfts
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
+        echo "$$NFT_OUT" &&
+        CLIENT_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i ClientNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        AUTHOR_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i AuthorNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        MP_OUT=$$(forge script script/Deploy.s.sol:Deploy
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
+        echo "$$MP_OUT" &&
+        MARKETPLACE=$$(printf '%s' "$$MP_OUT" | grep -i CourseMarketplace | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        if [ -z "$$CLIENT_NFT" ] || [ -z "$$MARKETPLACE" ]; then echo "ERROR: address parse failed"; exit 1; fi &&
+        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+          "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0 &&
+        { echo "CLIENT_NFT_ADDR=$$CLIENT_NFT"; echo "AUTHOR_NFT_ADDR=$$AUTHOR_NFT"; echo "MARKETPLACE_ADDR=$$MARKETPLACE"; } > /shared/mlit-addresses.env &&
+        echo "DEPLOYED (BSC testnet):" && cat /shared/mlit-addresses.env
+
+  writer:
+    image: node:22-bookworm
+    container_name: daskibo-mlit-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      deploy:
+        condition: service_completed_successfully
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY=${GREENFIELD_TESTNET_PRIVATE_KEY:?set GREENFIELD_TESTNET_PRIVATE_KEY (funded tBNB on Greenfield 5600)}
+      - GREENFIELD_TESTNET_ADDRESS=${GREENFIELD_TESTNET_ADDRESS:?set GREENFIELD_TESTNET_ADDRESS}
+      # REAL Chipotle on Lit mainnet (Base 8453).
+      # CHIPOTLE_API_KEY is a USAGE key for action runs (encrypt/decrypt) — test
+      # credential, Stripe-funded account. TODO (ChainSecured): account identity
+      # is the WALLET, and management writes (wallet/PKP/usage-key) should be
+      # on-chain *_with_signature calls, not X-Api-Key. Use the owner's existing
+      # on-chain entity (Base 0xaAaAA9…). See lit skill §7.4.
+      - CHIPOTLE_URL=https://api.chipotle.litprotocol.com
+      - CHIPOTLE_API_KEY=${CHIPOTLE_API_KEY:?set CHIPOTLE_API_KEY (usage key from /core/v1/new_account; account Stripe-funded)}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
+      - NFT_MIN_BALANCE=${NFT_MIN_BALANCE:-1}
+      - GF_BUCKET=${GF_BUCKET:-}
+    volumes:
+      - ../:/app
+      - mlit-shared:/shared:ro
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/mlit-addresses.env &&
+        echo "→ Gating bucket on ClientNft $$CLIENT_NFT_ADDR ($$NFT_GATING_CHAIN) via REAL Chipotle" &&
+        NFT_GATING_CONTRACT=$$CLIENT_NFT_ADDR node write-devnet.mjs
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: daskibo-mlit-frontend
+    ports:
+      - "8099:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/bucket-reader.html"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mlit-shared:

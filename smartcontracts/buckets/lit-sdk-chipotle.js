@@ -66,10 +66,10 @@ function sleep(ms) {
 }
 
 /**
- * @param {{ chipotleUrl?: string, pkpId?: string }} cfg
+ * @param {{ chipotleUrl?: string, pkpId?: string, apiKey?: string }} cfg
  * @returns {import('./lit-access.js').LitClient}
  */
-export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pkpId } = {}) {
+export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pkpId, apiKey = 'dummy-api-key' } = {}) {
   const base = chipotleUrl.replace(/\/$/, '');
 
   async function callLitAction(jsParams) {
@@ -77,7 +77,9 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Api-Key': 'dummy-api-key'
+        // mock accepts any key; real Chipotle (api.chipotle.litprotocol.com)
+        // requires the account's API key (Stripe-funded) — pass via apiKey.
+        'X-Api-Key': apiKey
       },
       body: JSON.stringify({
         // Code stub — real Chipotle executes this in the TEE.

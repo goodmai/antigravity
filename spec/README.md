@@ -31,6 +31,7 @@ Central home for all specifications and design docs. (Lecture & lab texts stay u
 | [CHIPOTLE.md](./CHIPOTLE.md) | Chipotle DRM (mock TEE) implementation overview |
 | [COMPOSE.md](./COMPOSE.md) | Docker Compose & multi‑chain gating architecture |
 | [COMPOSE_AUDIT.md](./COMPOSE_AUDIT.md) | Compose‑stack audit |
+| [osint.md](./osint.md) | OSINT — competitive analysis (Glacier, Keypo, 4EVERLAND, CyberConnect) vs our stack; growth points & risks |
 
 ### Testing & process
 

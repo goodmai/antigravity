@@ -158,14 +158,18 @@ courses + Solidity settlement layer**.
 
 **📚 Documentation map** (single source of truth per topic):
 
+> All specs live under [`spec/`](./spec/) (index: [`spec/README.md`](./spec/README.md)).
+
 | Doc | Topic |
 |-----|-------|
-| [`GREENFIELD.md`](./GREENFIELD.md) | Bucket console, the 3 Greenfield flows (mock / private / testnet), backends, CI layout |
-| [`lit.md`](./lit.md) | Lit Protocol access-control design (encrypt → store → gated decrypt) |
-| [`crypto.md`](./crypto.md) | Full crypto map — protocols, encrypt/decrypt, Alice/Bob/Charlie, diagrams |
-| [`smartcontracts/contracts/SPEC.md`](./smartcontracts/contracts/SPEC.md) | On-chain settlement ТЗ (marketplace / access pass / treasury) |
-| [`smartcontracts/contracts/AUDIT.md`](./smartcontracts/contracts/AUDIT.md) | Contracts audit — logic / deploy / mint, findings & status |
-| [`uc.md`](./uc.md) / [`tc.md`](./tc.md) | Use cases / test cases mapped to suites |
+| [`spec/GREENFIELD.md`](./spec/GREENFIELD.md) | Bucket console, the 3 Greenfield flows (mock / private / testnet), backends, CI layout |
+| [`spec/lit.md`](./spec/lit.md) | Lit Protocol access-control design (encrypt → store → gated decrypt) |
+| [`spec/crypto.md`](./spec/crypto.md) · [`spec/crypto_RU.md`](./spec/crypto_RU.md) | Full crypto map — protocols, encrypt/decrypt, Alice/Bob/Charlie, diagrams (EN/RU) |
+| [`spec/SPEC.md`](./spec/SPEC.md) | On-chain settlement ТЗ (marketplace / access pass / treasury) |
+| [`spec/AUDIT.md`](./spec/AUDIT.md) | Contracts audit — logic / deploy / mint, findings & status |
+| [`spec/sc.md`](./spec/sc.md) | Smart-contract reference (AccessPass, CourseMarketplace, Treasury, AuthorNft, ClientNft) |
+| [`spec/osint.md`](./spec/osint.md) | OSINT — competitive analysis (Glacier, Keypo, 4EVERLAND, CyberConnect) vs our stack; growth points & risks |
+| [`spec/uc.md`](./spec/uc.md) / [`spec/tc.md`](./spec/tc.md) | Use cases / test cases mapped to suites |
 | [`smartcontracts/e2e/`](./smartcontracts/e2e/) | **THE main check** — real-network E2E (anvil-BNB + Greenfield testnet + Chipotle/Lit v3 DRM); see §1 below |
 
 > **Counts are not embedded in docs** — they rot. The authoritative test
