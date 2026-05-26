@@ -214,12 +214,21 @@ Greenfield атомарно; access-токены становятся Greenfield
 
 ### Рекомендация
 
-**Не** пытаться «деплоить в Greenfield» (невозможно). Вместо этого — **PoC «Greenfield
-Group-gated курс»**: расширить `CourseMarketplace` вызовами `GroupHub`/`PermissionHub`
+**Не** пытаться «деплоить в Greenfield» (невозможно). Вместо этого — **Greenfield
+Group-gated курс**: расширить `CourseMarketplace` вызовами `GroupHub`/`PermissionHub`
 (contract-as-bucket-owner), заменить `ClientNft` на членство в Group (ERC-1155), и гейтить
-Lit/Chipotle на это членство. Это даёт нативный **revoke (R-09)**, soulbound-из-коробки и
-атомарную связку «оплата → доступ», сокращая кастомный NFT-слой. Внести как growth-задачу
-**G-10** и таск в [EPIC-01](./epics/EPIC-01-devnet-testnet-deployment.md).
+Lit/Chipotle на это членство. Это даёт нативный **revoke**, soulbound-из-коробки и
+атомарную связку «оплата → доступ», сокращая кастомный NFT-слой.
+
+> **G-10 — ✅ спайк готов.** [`GreenfieldGroupGate`](../smartcontracts/contracts/src/GreenfieldGroupGate.sol)
+> + [`IGreenfieldGroupHub`](../smartcontracts/contracts/src/interfaces/IGreenfieldGroupHub.sol):
+> `grantAccess`/`revokeAccess(courseId, member)` гонят членство в Greenfield-группе
+> cross-chain (AddMembers/RemoveMembers) через GroupHub; `revokeAccess` = нативный
+> отзыв. Делегированная выдача — роль `granter` (G-08). Forge-тест с `MockGroupHub`,
+> 100% покрытие (10 тестов). ⚠️ **Спайк, не wired в `CourseMarketplace`**: прод-версия
+> требует реального `bnb-chain/greenfield-contracts` GroupHub, валидации
+> `srcChainId`/sequence, учёта relayer-fee и `FailureAck`-рефандов. Следующий шаг —
+> таск в [EPIC-01](./epics/EPIC-01-devnet-testnet-deployment.md).
 
 ---
 

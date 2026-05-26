@@ -269,6 +269,20 @@ author**; only that author may update it.
   `key` is anchored to exactly that hash (false for unanchored).
 - **Errors:** `NotKeyAuthor, ZeroHash`. **Event:** `ManifestAnchored`.
 
+### 4e. `GreenfieldGroupGate` — Greenfield Group access spike (G-10)
+
+`src/GreenfieldGroupGate.sol` + `interfaces/IGreenfieldGroupHub.sol`. ⚠️ **Spike /
+PoC, not production, not wired into `CourseMarketplace`.** Demonstrates using
+**native Greenfield Groups** as the access primitive instead of bespoke access
+NFTs (osint.md §5а / G-10): `grantAccess(courseId, member, expiry)` /
+`revokeAccess(courseId, member)` drive Greenfield group membership **cross-chain**
+via `GroupHub.updateGroup` (AddMembers / RemoveMembers). Membership mirrors on BSC
+as a non-transferable ERC-1155 that Lit gates the key on; `revokeAccess` is native
+revocation. Delegated issuance via a `granter` role (G-08). State: `groupOf[courseId]`.
+Forge-tested with a `MockGroupHub` (100% coverage). Production needs the real
+`bnb-chain/greenfield-contracts` GroupHub + `srcChainId`/sequence validation +
+relayer-fee/`FailureAck` accounting.
+
 ---
 
 ## 5. Interfaces (`src/interfaces/`)
