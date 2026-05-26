@@ -184,7 +184,9 @@ transferable spot balance.
 
 `src/SoulboundAccessNft.sol`. Inherits `ERC721, EIP712(name,"1"), Ownable`.
 
-**State:** `claimSigner` (off-chain signer, e.g. a Lit PKP); `isGranter[account]`
+**State:** `claimSigner` (off-chain signer; for the **decentralized** flow set it
+to a **PKP** address driven by the claim-signer Lit Action — P3, see
+`lit-actions/claim-signer.action.js` + `buckets/claim-eip712.js`); `isGranter[account]`
 (delegated issuers — G-08); `_nextTokenId` (internal, starts at 1);
 `_claimNonces[account]` (replay protection).
 

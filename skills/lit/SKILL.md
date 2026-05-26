@@ -332,6 +332,23 @@ Protection*, *Video/Livestream Gating*). 💡 Для платных вебина
 >    создавать managed-аккаунт;
 > 3. usage API key трактовать как тест-credential (ротация), не как identity.
 
+### 7.5 Децентрализованный claimSigner через Lit Action + PKP (P3)
+
+Вместо доверенного сервера, держащего `claimSigner`-ключ, подпись EIP-712 `Claim`
+для минта `ClientNft`/`AuthorNft` делает **Lit Action** с **PKP**:
+
+- Action ([`lit-actions/claim-signer.action.js`](file:///home/g/projects/antigravity/smartcontracts/lit-actions/claim-signer.action.js))
+  исполняется в Lit/Chipotle, читает `CourseMarketplace.hasCourseAccess(to, courseId)`
+  на BSC и подписывает клейм **только если покупатель реально оплатил**.
+- PKP-ключ не существует off-chain; action запинен по **IPFS CID**, PKP привязан к
+  этому CID → подписать может только этот код. `nft.setClaimSigner(pkpAddress)`
+  делает action единственным минтером.
+- EIP-712 digest строится одинаково в action и в [`buckets/claim-eip712.js`](file:///home/g/projects/antigravity/smartcontracts/buckets/claim-eip712.js)
+  (байт-в-байт с `_CLAIM_TYPEHASH` контрактов). Юнит-тест sign→recover —
+  [`tests/claim-eip712.test.js`](file:///home/g/projects/antigravity/tests/claim-eip712.test.js).
+  Сам action проверяется только в Chipotle-рантайме (`run_e2e_lit.sh`).
+- Детали и сетап — [`lit-actions/README.md`](file:///home/g/projects/antigravity/smartcontracts/lit-actions/README.md).
+
 ---
 
 ## 8. Построение ACC: `createAccBuilder` (EVM / не-EVM / Lit Actions)
