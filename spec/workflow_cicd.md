@@ -26,9 +26,9 @@
 | **No-any lint** | запрет `any` | `npm run lint:noany` | `scripts/check-no-any.sh` | нет |
 | **Contracts** | Solidity: AccessPass, CourseMarketplace, Treasury | `forge test -vvv` (в `smartcontracts/contracts`) | `*.t.sol` | Foundry |
 | **Integration (docker)** | bucket round-trip, contracts, local Greenfield против реального Compose | `npm run test:integration` | `tests/*.docker.test.js` | Docker |
-| **Live (devnet/testnet)** | публичный Greenfield testnet + datil-dev Lit | *(нет npm-скрипта)* | `tests/*.live.test.js` | testnet + ключи |
+| **Live (devnet/testnet)** | публичный Greenfield testnet + Chipotle (Lit v3) | *(нет npm-скрипта)* | `tests/*.live.test.js` | testnet + ключи |
 | **E2E Flow B (local)** | paid soulbound NFT + Lit gating на чистом genesis | `./run_e2e_lit.sh` | `e2e/run-e2e-lit-nft.mjs` | Docker + dstack/chipotle |
-| **E2E Flow C (real)** | anvil-97 + Greenfield testnet 5600 + datil-dev | `node e2e/run-e2e.mjs` | `e2e/run-e2e.mjs` | testnet + ключи |
+| **E2E Flow C (real)** | anvil-97 + Greenfield testnet 5600 + Chipotle | `node e2e/run-e2e.mjs` | `e2e/run-e2e.mjs` | testnet + ключи |
 
 `*.docker.test.js` сами себя `describe.skip`, если `docker compose version`/`docker info`
 недоступны (см. `dockerAvailable()`), поэтому безопасны в окружении без Docker.
@@ -111,10 +111,11 @@
 
 ### Live / devnet-testnet (`test:live` + `run-e2e.mjs`)
 - `*.live.test.js` и `run-e2e.mjs` бьют по **реальным** сетям: anvil-97, Greenfield
-  testnet `5600` (`gnfd-testnet-*.bnbchain.org`), Lit `datil-dev`.
-- Требуют `GREENFIELD_TESTNET_PRIVATE_KEY`/`_ADDRESS` (+ опц. `CHIPOTLE_URL`, `LIT_*`).
-- **Нативка**: BSC testnet tBNB (деплой/покупка) + Greenfield testnet tBNB (storage),
-  `datil-dev` бесплатна. Полная матрица — [uc.md → Funding Matrix](uc.md).
+  testnet `5600` (`gnfd-testnet-*.bnbchain.org`), DRM — **Chipotle (Lit v3)**
+  (`api.dev.litprotocol.com`; старые `datil*` отключены 2026-02-25).
+- Требуют `GREENFIELD_TESTNET_PRIVATE_KEY`/`_ADDRESS` (+ опц. `CHIPOTLE_URL`).
+- **Нативка**: BSC testnet tBNB (деплой/покупка) + Greenfield testnet tBNB (storage);
+  Chipotle — REST (API key / x402), не требует нативки. Матрица — [uc.md → Funding Matrix](uc.md).
 - Правило: без ключей — `describe.skip` (не падать). Тратят реальные средства → только
   осознанно (nightly/manual).
 

@@ -234,8 +234,8 @@ The adapter file `lit-sdk-chipotle.js` implements the `LitClient` interface from
 | Tier | Adapter | Server |
 |------|---------|--------|
 | devnet (Flow B/C) | `createChipotleClient({ chipotleUrl: 'http://localhost:8000' })` | chipotle-mock |
-| testnet (Flow D) | `createChipotleClient({ chipotleUrl: 'https://api.chipotle.litprotocol.com' })` | Chipotle live |
-| mainnet (Flow E) | `createLitClient({ litNetwork: 'datil' })` | Lit Network |
+| testnet/dev (Chipotle v3) | `createChipotleClient({ chipotleUrl: 'https://api.dev.litprotocol.com' })` | Chipotle (Lit v3) REST |
+| ~~mainnet (datil)~~ | ~~`createLitClient({ litNetwork: 'datil' })`~~ | ⚠️ **deprecated** — Lit P2P shut down 2026-02-25; use Chipotle |
 
 manifest.lit fields for Chipotle: `litNetwork: "chipotle"`, `chipotleUrl`, `pkpId`.
 

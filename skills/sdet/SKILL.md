@@ -77,7 +77,7 @@ Eve DENIED. Ожидаемый Exit Code 0. Менять сценарий мож
 - **EIP-712 / путь хранения** — типовые сбои интеграции уже разобраны как RCA; перед
   отладкой «подпись не сходится» / «объект не читается» сверяться с
   [bughunter](../bughunter/SKILL.md) (BUG-001…013), а не угадывать.
-- **Lit/Chipotle** — режимы (mock/chipotle/datil), ACC и manifest: [lit](../lit/SKILL.md).
+- **Lit/Chipotle** — режимы (Chipotle mock/Chipotle Lit v3; `datil*` deprecated), ACC и manifest: [lit](../lit/SKILL.md).
 
 ## Опорные документы
 

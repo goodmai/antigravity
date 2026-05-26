@@ -90,8 +90,8 @@ Live: `e2e-course-flow.live`, `greenfield-testnet.live`.
 
 Live/devnet слои тратят **реальную нативку** — запускать осознанно. Полная матрица
 (какая сеть, какой токен, откуда брать) — [uc.md → Funding Matrix](../../../spec/uc.md).
-Кратко: BSC testnet **tBNB** (деплой/покупка) + Greenfield testnet **tBNB** (storage),
-Lit `datil-dev` — бесплатно. Env:
+Кратко: BSC testnet **tBNB** (деплой/покупка) + Greenfield testnet **tBNB** (storage);
+DRM — **Chipotle (Lit v3)** REST (старые `datil*` отключены 2026-02-25). Env:
 
 ```bash
 export GREENFIELD_TESTNET_PRIVATE_KEY=0x...
@@ -99,7 +99,7 @@ export GREENFIELD_TESTNET_ADDRESS=0x...
 export GREENFIELD_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
 export GREENFIELD_SP=https://gnfd-testnet-sp1.bnbchain.org
 export GREENFIELD_CHAIN_ID=5600
-export CHIPOTLE_URL=http://localhost:8000   # mock; или datil через write-testnet-lit.mjs
+export CHIPOTLE_URL=http://localhost:8000   # mock; или Chipotle dev: https://api.dev.litprotocol.com
 ```
 
 Режимы и Compose-карта — [deploy-modes.md](../../greenfield/references/deploy-modes.md).

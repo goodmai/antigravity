@@ -330,6 +330,31 @@ CHIPOTLE_URL=https://api.litprotocol.com \
 docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm -e CHIPOTLE_URL testnet-writer node write-testnet-chipotle.mjs
 ```
 
+### Единый devnet-стек: `docker-compose.devnet.yml`
+
+Для воспроизводимого devnet'а «в одну команду» есть отдельный файл
+`smartcontracts/docker-compose.devnet.yml` — он связывает все три реальных
+тестнета без локальных узлов и моков:
+
+| Сервис | Роль | Жизненный цикл |
+|---|---|---|
+| `devnet-deploy` | деплой `DeployAccessNfts` + `Deploy` в **BSC testnet 97**, минт `ClientNft` деплоеру, запись адресов в `devnet-addresses.env` | one-shot |
+| `devnet-writer` | публикация зашифрованного курса в **Greenfield testnet 5600**, обёртка ключа через **Chipotle (Lit v3)** с ACC `ClientNft.balanceOf >= 1` на `bscTestnet` | one-shot |
+| `frontend` | nginx, отдаёт DRM-reader/builder на `:8099` | long-running |
+
+```bash
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # tBNB на BSC + Greenfield
+export GREENFIELD_TESTNET_ADDRESS=0x...
+./run_devnet.sh            # поднять (ждёт deploy+publish, фронт остаётся)
+./run_devnet.sh down       # остановить
+```
+
+Гейтинг — по **soulbound NFT** (`ClientNft`/`AuthorNft`), поэтому спот-`balanceOf`
+безопасен (не флэш-лоанится). DRM-слой — **Chipotle (Lit v3)** REST
+(`api.dev.litprotocol.com`); старые P2P-сети `datil*` отключены 2026-02-25.
+Подробности режима — в скилле
+[`greenfield/references/deploy-modes.md`](../skills/greenfield/references/deploy-modes.md).
+
 ---
 
 ## 5. План Действий (Action Plan)

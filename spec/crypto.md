@@ -6,6 +6,12 @@
 `smartcontracts/buckets/*` и `smartcontracts/contracts/*`. Где привязка к
 внешним SDK не верифицируется юнит-тестами — отмечено `⚠︎ integration`.
 
+> ⚠️ **Депрекейшн (2026-05).** P2P-сети Lit `datil`/`datil-test`/`datil-dev`
+> **отключены 2026-02-25** (Naga тоже сворачивается). DRM-слой проекта —
+> **Chipotle (Lit v3)**, REST/TEE, тестовая среда `api.dev.litprotocol.com`.
+> Упоминания `datil*` ниже — **исторические** (staging/mainnet-планы на Lit);
+> каноничный справочник по сетям — [lit skill §7](../skills/lit/SKILL.md).
+
 ---
 
 ## Легенда

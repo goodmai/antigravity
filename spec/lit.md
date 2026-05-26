@@ -10,10 +10,12 @@ This builds directly on the bucket console in
 *public JSON*, so the encrypted objects look the same regardless of which
 storage tier they land on.
 
-> **Implementation note**: Lit P2P nodes (datil-dev) at port 7470 are
-> blocked at the server firewall. For local and testnet development we use
-> **Chipotle** as a drop-in Lit replacement — same REST API surface, TEE
-> instead of P2P, no port-7470 dependency. See [§1a](#1a-drm-per-development-flow) below.
+> ⚠️ **Deprecation note (2026-05).** The old Lit P2P networks — `datil`,
+> `datil-test`, `datil-dev` — were **shut down on 2026-02-25** (Naga is winding
+> down too). The project's DRM layer is **Chipotle (Lit v3)**: REST/HTTP over a
+> Phala TEE, no SDK / no port-7470 dependency. Test env: `api.dev.litprotocol.com`.
+> Any `datil*` mention below is **historical**; the canonical, up-to-date network
+> reference lives in the **[lit skill §7](../skills/lit/SKILL.md)**.
 
 ---
 

@@ -1,0 +1,128 @@
+# Daskibo Academy — DEVNET stack (real testnets, no local nodes / no mocks)
+#
+# A working development network wired entirely against PUBLIC testnets:
+#
+#   devnet-deploy   Foundry container. Deploys the course-sale + access-NFT
+#                   contracts to the REAL BSC testnet (chain 97) with your
+#                   funded key, mints one ClientNft to the deployer (so the
+#                   reader works out-of-the-box), and writes the resulting
+#                   addresses to a shared volume (devnet-addresses.env).
+#                   One-shot: runs, then exits.
+#
+#   devnet-writer   Node container. Encrypts a course, uploads it to the REAL
+#                   BNB Greenfield testnet (chain 5600), and Lit-wraps the
+#                   master key behind a soulbound-NFT balance gate on BSC
+#                   testnet (ClientNft.balanceOf >= 1) via Lit datil-dev
+#                   (free — no capacity credits). One-shot: runs, then exits.
+#
+#   frontend        nginx serving the bucket reader/builder on :8099. LONG-
+#                   RUNNING — connect MetaMask + Lit and decrypt against the
+#                   real Lit network. The devnet "lives" here; the on-chain
+#                   state (BSC contracts + GF bucket) persists on the testnets
+#                   independently of the containers.
+#
+# Native funds / config needed (one funded testnet wallet usually covers both):
+#   • DEVNET_DEPLOYER_KEY / _ADDR        tBNB on BSC testnet (chain 97) for gas
+#   • GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS  tBNB on Greenfield testnet 5600
+#   • Lit datil-dev is free; outbound port 7470 to Lit nodes must be open.
+#   • BSCSCAN_API_KEY (optional) to verify contracts on the explorer.
+#
+# Run (persistent):
+#   ../run_devnet.sh                       # recommended (validates + waits)
+#   docker compose -f docker-compose.devnet.yml up --build -d
+#   docker compose -f docker-compose.devnet.yml down            # stop frontend
+
+services:
+  devnet-deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-devnet-deploy
+    user: root
+    working_dir: /work
+    environment:
+      - PRIVATE_KEY=${DEVNET_DEPLOYER_KEY:?set DEVNET_DEPLOYER_KEY (funded tBNB on BSC testnet)}
+      - DEPLOYER_ADDR=${DEVNET_DEPLOYER_ADDR:?set DEVNET_DEPLOYER_ADDR}
+      - RPC_URL=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.bnbchain.org:8545}
+      - BSCSCAN_API_KEY=${BSCSCAN_API_KEY:-}
+    volumes:
+      - ./contracts:/work
+      - devnet-shared:/shared
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        set -e &&
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std) &&
+        (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1) &&
+        forge build &&
+        VERIFY="" &&
+        if [ -n "$$BSCSCAN_API_KEY" ]; then
+          VERIFY="--verify --etherscan-api-key $$BSCSCAN_API_KEY --verifier-url https://api-testnet.bscscan.com/api";
+          echo "→ Explorer verification ENABLED (BscScan testnet)";
+        fi &&
+        echo "→ Deploying soulbound role NFTs to BSC testnet (chain 97)…" &&
+        NFT_OUT=$$(forge script script/DeployAccessNfts.s.sol:DeployAccessNfts
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
+        echo "$$NFT_OUT" &&
+        CLIENT_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i ClientNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        AUTHOR_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i AuthorNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        echo "→ Deploying settlement (Treasury/AccessPass/CourseMarketplace)…" &&
+        MP_OUT=$$(forge script script/Deploy.s.sol:Deploy
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
+        echo "$$MP_OUT" &&
+        MARKETPLACE=$$(printf '%s' "$$MP_OUT" | grep -i CourseMarketplace | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+        if [ -z "$$CLIENT_NFT" ] || [ -z "$$MARKETPLACE" ]; then
+          echo "ERROR: could not parse deployed addresses from forge output"; exit 1;
+        fi &&
+        echo "→ Minting one ClientNft (perpetual) to the deployer so the reader works…" &&
+        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+          "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0 &&
+        {
+          echo "CLIENT_NFT_ADDR=$$CLIENT_NFT";
+          echo "AUTHOR_NFT_ADDR=$$AUTHOR_NFT";
+          echo "MARKETPLACE_ADDR=$$MARKETPLACE";
+        } > /shared/devnet-addresses.env &&
+        echo "═══════════════════════════════════════════════════════════" &&
+        echo "DEVNET CONTRACTS DEPLOYED (BSC testnet, chain 97)" &&
+        cat /shared/devnet-addresses.env &&
+        echo "═══════════════════════════════════════════════════════════"
+
+  devnet-writer:
+    image: node:22-bookworm
+    container_name: daskibo-devnet-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      devnet-deploy:
+        condition: service_completed_successfully
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY=${GREENFIELD_TESTNET_PRIVATE_KEY:?set GREENFIELD_TESTNET_PRIVATE_KEY (funded tBNB on Greenfield testnet 5600)}
+      - GREENFIELD_TESTNET_ADDRESS=${GREENFIELD_TESTNET_ADDRESS:?set GREENFIELD_TESTNET_ADDRESS}
+      - GF_BUCKET=${GF_BUCKET:-}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
+      - NFT_MIN_BALANCE=${NFT_MIN_BALANCE:-1}
+      - LIT_CAPACITY_DELEGATION_AUTH_SIG=${LIT_CAPACITY_DELEGATION_AUTH_SIG:-}
+    volumes:
+      - ../:/app
+      - devnet-shared:/shared:ro
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/devnet-addresses.env &&
+        echo "→ Gating bucket on ClientNft $$CLIENT_NFT_ADDR ($$NFT_GATING_CHAIN)" &&
+        NFT_GATING_CONTRACT=$$CLIENT_NFT_ADDR node write-devnet.mjs
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: daskibo-devnet-frontend
+    ports:
+      - "8099:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/bucket-reader.html"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  devnet-shared:

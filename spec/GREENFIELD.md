@@ -390,10 +390,10 @@ The lit.md §12 compose is now real code, not design-only:
 - `course-publish.planCoursePublish({ …, lit })` Lit-wraps the master
   and records it in `manifest.lit` — the raw master is **never written
   into any stored object**. TDD'd in `tests/course-publish.test.js`.
-- `smartcontracts/buckets/lit-sdk.js` — real `LitClient` adapter:
-  CDN-loaded `@lit-protocol/lit-node-client` + `@lit-protocol/encryption`
-  on the Datil network (`datil-test` paired with Greenfield testnet).
-  Integration glue, outside the strict core like the other SDK adapters.
+- `smartcontracts/buckets/lit-sdk.js` — ⚠️ legacy `LitClient` adapter for the
+  **Datil** P2P network (`datil-test`), **shut down 2026-02-25**. The project's
+  DRM layer is now **Chipotle (Lit v3)** via `lit-sdk-chipotle.js` (REST/TEE,
+  `api.dev.litprotocol.com`). Kept as reference. See [lit skill §7](../skills/lit/SKILL.md).
 
 ### Round-trip closed — protected course reader (TDD)
 
@@ -452,7 +452,7 @@ orchestration layer — there is **no Solidity in the tree**):
   Trade-off: `style-src` keeps `'unsafe-inline'` for the inline
   `<style>`/`style=` attrs (CSS-injection is materially lower risk than
   script injection); `connect-src https:` rather than an allowlist
-  because Lit's Datil node set is dynamic.
+  because the Chipotle/Lit TEE endpoint set is dynamic.
 - **3.2 / 4.1 flash-loan-aware ACC.** ACC builders centralised in the
   pure, strict, zero-`any` `smartcontracts/buckets/lit-acc.js`
   (`addressAllowlistAcc`, `tokenBalanceAcc`, `anyOf`/`allOf`) with the

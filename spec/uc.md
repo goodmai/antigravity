@@ -105,14 +105,13 @@ access *check* itself is always a read-only `eth_call` (view) — **never** cost
 | **Lit — Chipotle mock** (`litNetwork: chipotle`, `localhost:8000`) | — | **none** | nothing — TEE simulated locally, free | n/a |
 | **Lit — Chipotle live** (`api.chipotle.litprotocol.com`) | — (PKP on Base) | **credits (USD)**, not native | Lit Action execution; PKP minted on Base, gas paid from credits | Stripe (card / ETH·USDC·SOL via Base) |
 | **Lit — Chipotle ChainSecured** | Base / Base Sepolia | **Base ETH** | wallet-signed admin writes (create group / mint PKP) directly to Base contracts | Base (Sepolia) faucet; credits still cover action exec |
-| **Lit — `datil-dev`** | Chronicle Yellowstone | **none** | free remote testnet (rate-limited), no Capacity Credits | n/a |
-| **Lit — `datil-test` / `datil`** | Chronicle Yellowstone | **tstLPX / LPX** | mint Capacity Credits NFT on Chronicle Yellowstone to lift rate limits / use paid net | Yellowstone faucet (`tstLPX`) / bridge (`LPX`) |
+| ~~**Lit — `datil-dev` / `datil-test` / `datil`**~~ | ~~Chronicle Yellowstone~~ | — | ⚠️ **deprecated** — P2P Lit nets shut down 2026-02-25; use Chipotle | — |
 
 Cheapest path to exercise the **full** scheme end-to-end on public infra: fund one
 wallet with **BSC-testnet tBNB**, bridge some to **Greenfield testnet**, and use
-**`datil-dev`** (free) or **Chipotle mock** for Lit — i.e. only the two BNB-family
-chains actually need native tokens. Paid Lit (`datil`/`datil-test`) or Chipotle
-ChainSecured add a third funded chain (Chronicle Yellowstone or Base). The local
+**Chipotle** (`api.dev.litprotocol.com`) or the **Chipotle mock** for the DRM layer
+— i.e. only the two BNB-family chains actually need native tokens. Chipotle
+ChainSecured adds a third funded chain (Base). The local
 Flow B stack (`run_e2e_lit.sh`, `greenfield_9000-1` + Anvil + Chipotle mock) needs
 **no real funds at all** — genesis-funded test accounts cover everything.
 
@@ -123,8 +122,9 @@ export GREENFIELD_TESTNET_ADDRESS=0x...
 export GREENFIELD_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
 export GREENFIELD_SP=https://gnfd-testnet-sp1.bnbchain.org
 export GREENFIELD_CHAIN_ID=5600
-export CHIPOTLE_URL=http://localhost:8000      # mock; or live/datil via write-testnet-lit.mjs
+export CHIPOTLE_URL=http://localhost:8000      # mock; or Chipotle dev: https://api.dev.litprotocol.com
 ```
-Writers: `write-testnet-chipotle.mjs` (Greenfield testnet + Chipotle), `write-testnet-lit.mjs`
-(`datil-dev` free / `datil-test` paid), `write-mainnet.mjs` (`datil` + real funds).
+Writers: `write-testnet-chipotle.mjs` / `write-devnet.mjs` (Greenfield testnet +
+Chipotle). ⚠️ `write-testnet-lit.mjs` / `write-mainnet.mjs` target the **deprecated**
+Lit `datil*` P2P nets (shut down 2026-02-25) — migrate to Chipotle.
 

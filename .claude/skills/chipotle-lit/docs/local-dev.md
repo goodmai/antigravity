@@ -120,9 +120,8 @@ const litAccess = createLitAccess({
 | Tier | `CHIPOTLE_URL` | Server |
 |------|----------------|--------|
 | devnet (Flow B/C) | `http://localhost:8000` | chipotle-mock (docker) |
-| testnet-Ch (Flow D) | `https://api.chipotle.litprotocol.com` | Chipotle live |
-| testnet-Lit (Flow D alt) | Lit datil-test network | Lit SDK |
-| mainnet (Flow E) | Lit datil network | Lit datil |
+| testnet/dev (Chipotle v3) | `https://api.dev.litprotocol.com` | Chipotle (Lit v3) REST |
+| ~~testnet-Lit / mainnet (datil)~~ | ~~Lit datil-test / datil~~ | ⚠️ **deprecated** — P2P nets shut down 2026-02-25 |
 
 ---
 

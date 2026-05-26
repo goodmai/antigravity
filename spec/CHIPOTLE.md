@@ -15,9 +15,15 @@
 | `datil-test` → localhost | Оказалось, эта сеть поднимает Lit-ноды на `127.0.0.1:7470` — только для локальных нод |
 | `datil-dev` → заблокирован | Реальные ноды на `15.235.83.220:7470` (OVH France) — порт `7470` закрыт на нашем сервере |
 | `datil` (mainnet) | Требует Capacity Credits NFT на Chronicle Yellowstone |
-| Chipotle live API | `https://api.chipotle.litprotocol.com` — требует оплату ($5+, `402 Payment Required`) |
+| Chipotle live API | оплата через API key / x402 |
 
-Решение — **локальный мок-сервер** с тем же REST API, что у Chipotle. Он работает без P2P, без блокчейн-транзакций, без оплаты. Когда понадобится перейти на реальный Chipotle (или когда порт откроют), меняется только URL.
+> **Статус (2026-05).** P2P-сети Lit `datil*` **отключены 2026-02-25**, Naga
+> сворачивается — Chipotle стал основным путём. **Chipotle (Lit v3)** *«live on
+> production»* (2026-04-07): ground-up rebuild, REST/HTTP поверх TEE на Phala,
+> SDK не нужен. Тестовая среда — `https://api.dev.litprotocol.com` (dev chain
+> **1315**), Swagger на Phala prod5. Канон по сетям — [lit skill §7](../skills/lit/SKILL.md).
+
+Решение — **локальный мок-сервер** с тем же REST API, что у Chipotle. Он работает без P2P, без блокчейн-транзакций, без оплаты. Для реального Chipotle меняется только `CHIPOTLE_URL` (на `api.dev.litprotocol.com` или dstack-sim Flow C).
 
 ---
 
