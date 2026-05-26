@@ -231,10 +231,15 @@ READ** the course's Greenfield bucket (Lit gates on `balanceOf(author) >= 1`).
 `src/ClientNft.sol` (`is SoulboundAccessNft`). Name `Daskibo Client Pass`,
 symbol `DASK-CLI`. Held by a buyer; grants **READ-only** bucket access while
 valid. Lit gates on `hasAccess(user)`.
-- State: `expiryOf[tokenId]` (per-token), `accessExpiryOf[account]`,
-  `_granted[account]` — unix ts; `0` = perpetual.
+- State: `expiryOf[tokenId]` (per-token, exact), `accessExpiryOf[account]`
+  (the holder's effective window), `_granted[account]` — unix ts; `0` =
+  perpetual (longest).
 - `mint(address to, uint64 expiry) → uint256` — `onlyOwnerOrGranter`; `expiry`
   is a unix ts (`0` = perpetual). Re-mint after expiry renews.
+- **`accessExpiryOf` never shrinks** (audit §2.B): minting a shorter pass to a
+  holder of a longer/perpetual one keeps the longer window (`expiry==0` upgrades
+  a finite window to perpetual; a finite only extends if later). `expiryOf` per
+  token stays exact. After `revoke` the window resets (next mint sets it fresh).
 - `hasAccess(address user) → bool` — `true` iff granted and (`expiry==0 ||
   now <= expiry`). **The predicate Lit's `evmContractConditions` calls.**
 - `_onRevoke(holder, tokenId)` *(override)* — clears `_granted`/`accessExpiryOf`

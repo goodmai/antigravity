@@ -124,6 +124,10 @@ threshold/ACC-слоем. Наш [crypto-envelope.js](../smartcontracts/buckets/
      ончейн-якорь `conditionsHash` (`anchor`/`verify`/`anchorOf`, self-contained ACL —
      первый писатель ключа = автор). Ридер сверяет ACC манифеста с `verify(key,hash)`.
      Тесты `ManifestRegistry.t.sol`.
+   - **R-11 (audit §2.B) — ✅ решено.** `ClientNft._mintWithExpiry` сделан
+     **монотонным**: повторный минт более короткого пропуска не сокращает уже
+     активное окно (`accessExpiryOf` never-shrink; `expiry==0`=perpetual=longest).
+     Тесты `test_mint_shorterDoesNotShrinkActiveWindow`/`_perpetualNotShrunkByFinite`/`_finiteUpgradedToPerpetual`.
 
 ---
 

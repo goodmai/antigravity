@@ -69,6 +69,37 @@ contract ClientNftTest is Test {
         assertTrue(nft.hasAccess(client));
     }
 
+    // ── Per-account window never shrinks (audit §2.B) ─────────────────────
+    function test_mint_shorterDoesNotShrinkActiveWindow() public {
+        uint64 long_ = uint64(block.timestamp + 30 days);
+        uint256 id1 = nft.mint(client, long_);
+        uint64 short_ = uint64(block.timestamp + 1 days);
+        uint256 id2 = nft.mint(client, short_); // shorter, second token
+        // per-account window keeps the longer one…
+        assertEq(nft.accessExpiryOf(client), long_);
+        // …but each token records its own exact expiry
+        assertEq(nft.expiryOf(id1), long_);
+        assertEq(nft.expiryOf(id2), short_);
+        vm.warp(uint256(short_) + 1); // past the short pass, before the long
+        assertTrue(nft.hasAccess(client)); // still has access via the longer window
+    }
+
+    function test_mint_perpetualNotShrunkByFinite() public {
+        nft.mint(client, 0); // perpetual
+        nft.mint(client, uint64(block.timestamp + 1 days)); // finite, must NOT downgrade
+        assertEq(nft.accessExpiryOf(client), 0);
+        vm.warp(block.timestamp + 3650 days);
+        assertTrue(nft.hasAccess(client)); // perpetual preserved
+    }
+
+    function test_mint_finiteUpgradedToPerpetual() public {
+        nft.mint(client, uint64(block.timestamp + 1 days));
+        nft.mint(client, 0); // perpetual upgrade
+        assertEq(nft.accessExpiryOf(client), 0);
+        vm.warp(block.timestamp + 3650 days);
+        assertTrue(nft.hasAccess(client));
+    }
+
     // ── Soulbound ─────────────────────────────────────────────────────────
     function test_transferReverts_soulbound() public {
         uint256 id = nft.mint(client, 0);

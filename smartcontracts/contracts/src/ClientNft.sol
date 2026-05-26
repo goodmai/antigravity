@@ -40,8 +40,16 @@ contract ClientNft is SoulboundAccessNft {
 
     function _mintWithExpiry(address to, uint64 expiry) internal returns (uint256 tokenId) {
         tokenId = _mintNext(to);
-        expiryOf[tokenId] = expiry;
-        accessExpiryOf[to] = expiry;
+        expiryOf[tokenId] = expiry; // per-token: the exact window of THIS token
+        // Per-account window must never SHRINK on a new grant (audit §2.B): a
+        // shorter pass minted to a holder of a longer/perpetual one must not cut
+        // their active access. `expiry == 0` = perpetual = the longest window.
+        if (!_granted[to]) {
+            accessExpiryOf[to] = expiry; // first/fresh grant (also after revoke)
+        } else if (accessExpiryOf[to] != 0 && (expiry == 0 || expiry > accessExpiryOf[to])) {
+            accessExpiryOf[to] = expiry; // current finite → extend (to later, or to perpetual)
+        }
+        // else: current already perpetual, or new grant is shorter → keep current
         _granted[to] = true;
     }
 
