@@ -80,6 +80,33 @@ export function tokenBalanceAcc({
 }
 
 /**
+ * Course-access gate — releases the key iff `CourseMarketplace.hasCourseAccess(
+ * userAddress, courseId) == true`. This is the same on-chain condition the demo
+ * uses: the author has free access, and a buyer gains it by purchasing (which
+ * mints a soulbound AccessPass). Not flash-loanable (the pass is soulbound).
+ * @param {{ contractAddress?: string, chain?: string, courseId?: string|number }} opts
+ * @returns {AccSet}
+ */
+export function courseAccessAcc({ contractAddress, chain = 'ethereum', courseId } = {}) {
+  if (typeof contractAddress !== 'string' || contractAddress.length === 0) {
+    throw accError('A CourseMarketplace address is required', 'INVALID_CONTRACT');
+  }
+  if (courseId === undefined || courseId === null || `${courseId}`.length === 0) {
+    throw accError('A courseId is required', 'INVALID_COURSE_ID');
+  }
+  return [
+    {
+      contractAddress,
+      standardContractType: 'customContract',
+      chain,
+      method: 'hasCourseAccess',
+      parameters: [':userAddress', String(courseId)],
+      returnValueTest: { comparator: '==', value: 'true' },
+    },
+  ];
+}
+
+/**
  * @param {AccSet[]} sets
  * @param {'or'|'and'} operator
  * @returns {AccSet}

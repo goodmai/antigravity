@@ -18,6 +18,11 @@ COMPOSE_FILE="$SCRIPT_DIR/smartcontracts/docker-compose.devnet.yml"
 cd "$SCRIPT_DIR/smartcontracts"
 mkdir -p ../logs
 
+# Load the repo-root .env so GREENFIELD_TESTNET_* (and any DEVNET_*/BSC_TESTNET_RPC)
+# are available to both this script's checks and compose interpolation — no need
+# to `export` them by hand. (The compose also env_file's ../.env into containers.)
+if [ -f "$SCRIPT_DIR/.env" ]; then set -a; . "$SCRIPT_DIR/.env"; set +a; fi
+
 dc() { docker compose -f "$COMPOSE_FILE" "$@"; }
 
 if [ "${1:-up}" = "down" ]; then

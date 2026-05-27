@@ -38,11 +38,18 @@ services:
     container_name: daskibo-devnet-deploy
     user: root
     working_dir: /work
+    # Keys come from the repo-root .env (env_file), NOT from `${VAR}` under
+    # environment: (a ${VAR:-} there resolves to empty and overrides env_file).
+    # The deployer defaults to the Greenfield key (same funded account).
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      - PRIVATE_KEY=${DEVNET_DEPLOYER_KEY:?set DEVNET_DEPLOYER_KEY (funded tBNB on BSC testnet)}
-      - DEPLOYER_ADDR=${DEVNET_DEPLOYER_ADDR:?set DEVNET_DEPLOYER_ADDR}
       - RPC_URL=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
       - BSCSCAN_API_KEY=${BSCSCAN_API_KEY:-}
+      # Sale price of the seeded course (wei). Client pays this to purchase →
+      # gains access. Default 0.001 tBNB. Keep small (testnet gas).
+      - COURSE_PRICE=${COURSE_PRICE:-1000000000000000}
     volumes:
       - ./contracts:/work
       - devnet-shared:/shared
@@ -50,6 +57,9 @@ services:
     command:
       - >
         set -e &&
+        PRIVATE_KEY="$${DEVNET_DEPLOYER_KEY:-$$GREENFIELD_TESTNET_PRIVATE_KEY}" &&
+        DEPLOYER_ADDR="$${DEVNET_DEPLOYER_ADDR:-$$GREENFIELD_TESTNET_ADDRESS}" &&
+        if [ -z "$$PRIVATE_KEY" ] || [ -z "$$DEPLOYER_ADDR" ]; then echo "ERROR: set GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS (or DEVNET_DEPLOYER_KEY/_ADDR) in .env"; exit 2; fi &&
         (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std) &&
         (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1) &&
         forge build &&
@@ -73,12 +83,16 @@ services:
           echo "ERROR: could not parse deployed addresses from forge output"; exit 1;
         fi &&
         echo "→ Minting one ClientNft (perpetual) to the deployer so the reader works…" &&
-        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
-          "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0 &&
+        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0 &&
+        echo "→ Registering a course on the marketplace (author = deployer, courseId 1)…" &&
+        CHASH=$$(cast keccak "daskibo-devnet-course") &&
+        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" "$$MARKETPLACE" "registerCourse(uint96,bytes32,string,uint64)" "$${COURSE_PRICE}" "$$CHASH" "daskibo-devnet-course" 0 &&
         {
           echo "CLIENT_NFT_ADDR=$$CLIENT_NFT";
           echo "AUTHOR_NFT_ADDR=$$AUTHOR_NFT";
           echo "MARKETPLACE_ADDR=$$MARKETPLACE";
+          echo "COURSE_ID=1";
+          echo "COURSE_PRICE=$${COURSE_PRICE}";
         } > /shared/devnet-addresses.env &&
         echo "═══════════════════════════════════════════════════════════" &&
         echo "DEVNET CONTRACTS DEPLOYED (BSC testnet, chain 97)" &&
@@ -99,6 +113,11 @@ services:
     environment:
       - CHIPOTLE_PKP_KEY=${CHIPOTLE_PKP_KEY:-}
       - CHIPOTLE_PORT=8000
+      # CRITICAL: the mock evaluates the on-chain ACC (hasCourseAccess /
+      # balanceOf) against THIS RPC. For the devnet gate it must point at BSC
+      # testnet (chain 97) — otherwise it can't see the purchase/NFT and denies
+      # everyone. (Reader → mock → BSC testnet read.)
+      - EVM_RPC=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
     command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
@@ -116,11 +135,14 @@ services:
         condition: service_completed_successfully
       chipotle-mock:
         condition: service_healthy
+    # GREENFIELD_TESTNET_* come from env_file (../.env), not environment.
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      - GREENFIELD_TESTNET_PRIVATE_KEY=${GREENFIELD_TESTNET_PRIVATE_KEY:?set GREENFIELD_TESTNET_PRIVATE_KEY (funded tBNB on Greenfield testnet 5600)}
-      - GREENFIELD_TESTNET_ADDRESS=${GREENFIELD_TESTNET_ADDRESS:?set GREENFIELD_TESTNET_ADDRESS}
       # DRM via LOCAL Chipotle mock (no real funds). Real Chipotle → mainnet-lit compose.
-      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - CHIPOTLE_URL=http://chipotle-mock:8000        # writer → mock (in Docker)
+      - CHIPOTLE_PUBLIC_URL=http://localhost:8000     # baked into manifest for the host browser
       - GF_BUCKET=${GF_BUCKET:-}
       - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
       - NFT_MIN_BALANCE=${NFT_MIN_BALANCE:-1}
@@ -133,8 +155,8 @@ services:
       - >
         npm install --no-audit --no-fund &&
         . /shared/devnet-addresses.env &&
-        echo "→ Gating bucket on ClientNft $$CLIENT_NFT_ADDR ($$NFT_GATING_CHAIN) via local Chipotle mock" &&
-        NFT_GATING_CONTRACT=$$CLIENT_NFT_ADDR node write-devnet.mjs
+        echo "→ Gating bucket on CourseMarketplace.hasCourseAccess($$MARKETPLACE_ADDR, course $$COURSE_ID) — buy to gain access (demo-style)" &&
+        MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-devnet.mjs
 
   frontend:
     image: nginx:1.27-alpine

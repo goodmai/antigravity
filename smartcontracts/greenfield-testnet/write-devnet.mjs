@@ -38,8 +38,14 @@ import { createGreenfieldClient } from '../buckets/greenfield-core.js';
 import { planCoursePublish } from '../buckets/course-publish.js';
 import { createLitAccess } from '../buckets/lit-access.js';
 import { createChipotleClient } from '../buckets/lit-sdk-chipotle.js';
-import { tokenBalanceAcc } from '../buckets/lit-acc.js';
+import { tokenBalanceAcc, courseAccessAcc } from '../buckets/lit-acc.js';
 import { createSdkBackend } from './sdk-backend.mjs';
+import { loadCourse, buildPublishSpec, humanBytes } from './course-loader.mjs';
+
+// Which real course to publish (same content as goodmai.github.io):
+//   COURSE=lessons               (default — the flat lessons/ course)
+//   COURSE=academy/web3-genesis  (a named academy course)
+const COURSE = process.env.COURSE || 'lessons';
 
 const PK   = process.env.GREENFIELD_TESTNET_PRIVATE_KEY;
 const ADDR = process.env.GREENFIELD_TESTNET_ADDRESS;
@@ -48,9 +54,17 @@ if (!PK || !ADDR) {
   process.exit(2);
 }
 
-const NFT_CONTRACT = process.env.NFT_GATING_CONTRACT;
-if (!NFT_CONTRACT) {
-  console.error('Set NFT_GATING_CONTRACT (deployed ClientNft/AuthorNft on BSC testnet)');
+// Gate selection — two modes:
+//   • course (demo-style): release iff CourseMarketplace.hasCourseAccess(user,
+//     courseId) — a buyer gains access by PURCHASING (soulbound AccessPass).
+//     Enabled when MARKETPLACE_ADDR + COURSE_ID are set.
+//   • nft: release iff NFT_GATING_CONTRACT.balanceOf(user) >= N (fallback).
+const MARKETPLACE_ADDR = process.env.MARKETPLACE_ADDR;
+const COURSE_ID        = process.env.COURSE_ID;
+const NFT_CONTRACT     = process.env.NFT_GATING_CONTRACT;
+const GATE_COURSE      = Boolean(MARKETPLACE_ADDR && COURSE_ID);
+if (!GATE_COURSE && !NFT_CONTRACT) {
+  console.error('Set MARKETPLACE_ADDR + COURSE_ID (purchase-gated, demo-style) OR NFT_GATING_CONTRACT (balanceOf-gated).');
   console.error('  → written to devnet-addresses.env by the deploy step');
   process.exit(2);
 }
@@ -86,41 +100,25 @@ async function main() {
   const PKP_ID = wallet.wallet_address;
   console.log(`  PKP address: ${PKP_ID}`);
 
-  // ── 2. ACC — soulbound NFT balance gate on BSC testnet ────────────────────
-  const acc = tokenBalanceAcc({
-    contractAddress: NFT_CONTRACT,
-    standardContractType: NFT_STANDARD,
-    chain: NFT_CHAIN,
-    min: NFT_MIN,
-  });
-  console.log(`→ ACC: ${NFT_STANDARD}.balanceOf(:userAddress) >= ${NFT_MIN} @ ${NFT_CHAIN} (${NFT_CONTRACT})`);
+  // ── 2. ACC — purchase-gated (demo-style) or NFT-balance gate on BSC testnet ─
+  const acc = GATE_COURSE
+    ? courseAccessAcc({ contractAddress: MARKETPLACE_ADDR, chain: NFT_CHAIN, courseId: COURSE_ID })
+    : tokenBalanceAcc({ contractAddress: NFT_CONTRACT, standardContractType: NFT_STANDARD, chain: NFT_CHAIN, min: NFT_MIN });
+  console.log(GATE_COURSE
+    ? `→ ACC: CourseMarketplace.hasCourseAccess(:userAddress, ${COURSE_ID}) == true @ ${NFT_CHAIN} (${MARKETPLACE_ADDR})`
+    : `→ ACC: ${NFT_STANDARD}.balanceOf(:userAddress) >= ${NFT_MIN} @ ${NFT_CHAIN} (${NFT_CONTRACT})`);
 
   // ── 3. Chipotle litClient + litAccess ─────────────────────────────────────
   const chipotleClient = createChipotleClient({ chipotleUrl: CHIPOTLE_URL, pkpId: PKP_ID, apiKey: CHIPOTLE_API_KEY });
   const litAccess      = createLitAccess({ litClient: chipotleClient, chain: NFT_CHAIN });
 
-  // ── 4. Course spec ────────────────────────────────────────────────────────
-  const spec = {
-    slug: GF_BUCKET,
-    title: 'Daskibo Academy — NFT-gated course (Chipotle DRM)',
-    litNetwork: 'chipotle',
-    lessons: [{
-      key: 'lessons/01/intro.md',
-      title: 'Урок 1 — DRM: BSC testnet + Greenfield + Chipotle (Lit v3)',
-      contentType: 'text/markdown',
-      body: [
-        `# Daskibo Academy`, ``,
-        `Контент зашифрован (AES-256-GCM), мастер-ключ обёрнут Chipotle PKP.`,
-        `Доступ — только держателям soulbound NFT.`, ``,
-        `Bucket:   ${GF_BUCKET}`,
-        `Storage:  BNB Greenfield testnet 5600`,
-        `Gate:     ${NFT_STANDARD}.balanceOf >= ${NFT_MIN} @ ${NFT_CHAIN}`,
-        `NFT:      ${NFT_CONTRACT}`,
-        `Chipotle: ${CHIPOTLE_URL}`,
-        `PKP:      ${PKP_ID}`,
-      ].join('\n'),
-    }],
-  };
+  // ── 4. Course spec — the REAL course (repo lessons/ or academy/<name>) ────
+  const course = loadCourse({ id: COURSE });
+  const spec = buildPublishSpec(course, { slug: GF_BUCKET, litNetwork: 'chipotle' });
+  console.log(
+    `→ Course "${course.id}" — ${course.title}: ${spec.lessons.length} text lessons ` +
+    `(${humanBytes(course.totalBytes)} total incl. ${course.files.length - spec.lessons.length} assets)`,
+  );
 
   // ── 5. Plan (encrypt + Chipotle-wrap master key) ──────────────────────────
   console.log(`→ Planning publish for bucket "${GF_BUCKET}"…`);
@@ -131,8 +129,13 @@ async function main() {
   });
   if (!plan.manifest.lit) throw new Error('planCoursePublish did not produce a lit envelope');
 
-  // Augment manifest with Chipotle routing (reader needs url + pkp)
-  const litEnv  = { ...plan.manifest.lit, litNetwork: 'chipotle', chipotleUrl: CHIPOTLE_URL, pkpId: PKP_ID };
+  // Augment manifest with Chipotle routing (reader needs url + pkp). NB: the
+  // manifest URL must be reachable from the BROWSER, not from inside Docker —
+  // the writer talks to http://chipotle-mock:8000, but the reader runs on the
+  // host, so store the published URL (http://localhost:8000) instead.
+  const CHIPOTLE_PUBLIC_URL = process.env.CHIPOTLE_PUBLIC_URL
+    || (isMainnetLit ? CHIPOTLE_URL : 'http://localhost:8000');
+  const litEnv  = { ...plan.manifest.lit, litNetwork: 'chipotle', chipotleUrl: CHIPOTLE_PUBLIC_URL, pkpId: PKP_ID };
   const manifest = { ...plan.manifest, lit: litEnv };
   const objects  = plan.objects.map(o => o.kind === 'manifest' ? { ...o, body: JSON.stringify(manifest) } : o);
   console.log(`✓ Master key Chipotle-wrapped (pkp ${PKP_ID}, hash ${litEnv.dataToEncryptHash})`);
@@ -160,9 +163,11 @@ async function main() {
   console.log('✓ Manifest round-trip verified');
 
   console.log('\n═══════════════════════════════════════════════════════════');
-  console.log(`DONE — NFT-gated course on Greenfield testnet (Chipotle ${isMainnetLit ? 'mainnet' : 'local'})`);
+  console.log(`DONE — gated course on Greenfield testnet (Chipotle ${isMainnetLit ? 'mainnet' : 'local'})`);
   console.log(`Bucket:   ${plan.bucketName}`);
-  console.log(`Gate:     ${NFT_STANDARD}.balanceOf >= ${NFT_MIN} @ ${NFT_CHAIN} (${NFT_CONTRACT})`);
+  console.log(GATE_COURSE
+    ? `Gate:     buy CourseMarketplace.purchase(${COURSE_ID}) @ ${NFT_CHAIN} (${MARKETPLACE_ADDR}) → access`
+    : `Gate:     ${NFT_STANDARD}.balanceOf >= ${NFT_MIN} @ ${NFT_CHAIN} (${NFT_CONTRACT})`);
   console.log(`Reader:   http://localhost:8099/bucket-reader.html?bucket=${plan.bucketName}&owner=${ADDR}`);
   console.log('═══════════════════════════════════════════════════════════');
 }

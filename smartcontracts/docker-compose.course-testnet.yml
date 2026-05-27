@@ -1,0 +1,46 @@
+# Daskibo Academy — COURSE → Greenfield testnet (size + gas measurement)
+#
+# Publishes the REAL course (repo `lessons/` — the same tree served at
+# https://goodmai.github.io/antigravity/lessons/) to the BNB Greenfield public
+# testnet (chain 5600) and reports: total course size, per-lesson breakdown,
+# the createBucket gas, and the account's BNB balance delta.
+#
+# ⚠️ Real testnet transactions, real (test) BNB. Fund the account first:
+#   https://gnfd-testnet-faucet.bnbchain.org
+#
+# Requires a funded testnet wallet — put these in the repo-root .env:
+#   GREENFIELD_TESTNET_PRIVATE_KEY=0x...
+#   GREENFIELD_TESTNET_ADDRESS=0x...
+#   GREENFIELD_REST=https://gnfd-testnet-fullnode-cosmos-us.bnbchain.org  # OPTIONAL,
+#       a TESTNET cosmos LCD → only to display the BNB Δ. Funding is NOT gated on
+#       this (createBucket uses the RPC). Do NOT use a mainnet LCD — it reports 0.
+#
+# Run (from the repo root, so it picks up ./.env):
+#   docker compose -f smartcontracts/docker-compose.course-testnet.yml run --rm course-measure
+#
+# One-shot: runs, prints the REPORT, exits.
+
+services:
+  course-measure:
+    image: node:22-bookworm
+    container_name: daskibo-course-measure
+    working_dir: /app/smartcontracts/greenfield-testnet
+    env_file:
+      - path: ../.env
+        required: false
+    # NOTE: GREENFIELD_TESTNET_PRIVATE_KEY / _ADDRESS come from env_file (../.env).
+    # They are deliberately NOT listed under `environment:` — a `${VAR:-}`
+    # interpolation there resolves to an EMPTY string and OVERRIDES the env_file
+    # value, which is what made the script refuse to run. RPC/SP/CHAIN_ID have
+    # sane in-script defaults; the keys below only carry optional overrides
+    # (interpolated from your shell or the project .env at the CWD).
+    environment:
+      - GREENFIELD_RPC=${GREENFIELD_RPC:-https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org}
+      - GREENFIELD_SP=${GREENFIELD_SP:-https://gnfd-testnet-sp1.bnbchain.org}
+      - GREENFIELD_CHAIN_ID=${GREENFIELD_CHAIN_ID:-5600}
+      # Which real course to publish: "lessons" (default) or "academy/<name>"
+      # (web3-genesis, rust-android, cicd-devsecops, dapp-architecture, …).
+      - COURSE=${COURSE:-lessons}
+    volumes:
+      - ../:/app
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node measure-course-testnet.mjs"]
