@@ -38,3 +38,7 @@ logs/
 ehthumbs.db
 Thumbs.db
 
+
+# Local demo deploy output (run_demo.sh)
+smartcontracts/demo/addresses.json
+smartcontracts/demo/manifest-*.json

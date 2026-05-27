@@ -105,6 +105,48 @@ async function decryptMasterKey(ciphertext) {
   return new TextDecoder().decode(plain);
 }
 
+// ── Access-control evaluation ─────────────────────────────────────────────────
+// Returns true if `userAddress` satisfies ANY condition: an address allowlist
+// (returnValueTest.value == the address) OR an on-chain contract condition
+// (ERC721 balanceOf >= N, or CourseMarketplace.hasCourseAccess). The on-chain
+// path is what ties key release to NFT ownership.
+async function accSatisfied(conditions, userAddress) {
+  const user = userAddress.toLowerCase();
+  for (const c of conditions) {
+    const litVal = c.returnValueTest?.value;
+    // Address allowlist (e.g. the author's own address baked into the ACC).
+    if (typeof litVal === 'string' && /^0x[0-9a-fA-F]{40}$/.test(litVal)
+        && litVal.toLowerCase() === user) {
+      return true;
+    }
+    // Contract condition — evaluate against the chain.
+    if (c.contractAddress) {
+      const rpc = process.env.EVM_RPC || process.env.ANVIL_RPC || 'http://127.0.0.1:8545';
+      const provider = new ethers.providers.JsonRpcProvider(rpc);
+      try {
+        if (c.standardContractType === 'ERC721') {
+          const ct = new ethers.Contract(
+            c.contractAddress, ['function balanceOf(address) view returns (uint256)'], provider,
+          );
+          const bal = await ct.balanceOf(userAddress);
+          const min = ethers.BigNumber.from(String(litVal ?? '1'));
+          if (bal.gte(min)) return true;
+        } else {
+          const ct = new ethers.Contract(
+            c.contractAddress,
+            ['function hasCourseAccess(address,uint256) view returns (bool)'], provider,
+          );
+          const courseId = parseInt(c.parameters?.[1] ?? '0', 10);
+          if (await ct.hasCourseAccess(userAddress, courseId)) return true;
+        }
+      } catch (e) {
+        console.error(`[acc] on-chain check failed (${rpc}): ${e.message}`);
+      }
+    }
+  }
+  return false;
+}
+
 // ── lit_action handler ──────────────────────────────────────────────────────
 
 async function handleLitAction({ js_params = {} }) {
@@ -132,17 +174,18 @@ async function handleLitAction({ js_params = {} }) {
       }
     }
 
-    // Check ACC
+    // Check ACC — supports both an address allowlist (returnValueTest.value is
+    // the user's address) AND contract conditions (NFT balanceOf /
+    // CourseMarketplace.hasCourseAccess) evaluated on-chain. The latter is what
+    // makes key release genuinely gated by NFT ownership.
     const conditions = (accessControlConditions || []).filter(c => !c.operator);
     if (conditions.length === 0) {
       throw new Error('No access control conditions provided');
     }
-    const allowed = conditions.some(
-      c => c.returnValueTest?.value?.toLowerCase() === userAddress.toLowerCase(),
-    );
+    const allowed = await accSatisfied(conditions, userAddress);
     if (!allowed) {
       throw new Error(
-        `Address ${userAddress} is not in the access control conditions`,
+        `Access denied: ${userAddress} does not satisfy the access control conditions`,
       );
     }
 

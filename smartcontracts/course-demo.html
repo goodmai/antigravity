@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Local demo CSP: scripts from self + pinned esm.sh (ethers). All chain
+       I/O goes through MetaMask (window.ethereum) — the page never fetches the
+       RPC directly — so connect-src only needs self (for ./demo/addresses.json)
+       and esm.sh. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://esm.sh;
+    connect-src 'self' https://esm.sh http://127.0.0.1:8545 http://localhost:8545;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data:;
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+    frame-ancestors 'none'" />
+  <title>Daskibo Academy — Local Course Demo (Anvil)</title>
+  <style>
+    :root {
+      --bg:#0b0d12; --panel:#141821; --line:#232a38; --fg:#e8ecf4;
+      --muted:#94a3b8; --accent:#f0b90b; --accent-2:#57c0ff;
+      --ok:#34d399; --err:#f87171;
+      --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);}
+    a{color:var(--accent-2);text-decoration:none;}
+    .container{max-width:1100px;margin:0 auto;padding:0 1.25rem;}
+    .hero{padding:2.5rem 0 1.5rem;text-align:center;
+      background:radial-gradient(ellipse at top,#1a2030,var(--bg));}
+    .hero h1{font-size:2rem;margin:0 0 .4rem;}
+    .hero p{color:var(--muted);max-width:680px;margin:.25rem auto;}
+    .badge{display:inline-block;font-size:.7rem;padding:.15rem .55rem;border-radius:999px;
+      background:#1f2937;color:var(--accent);margin-left:.5rem;}
+    .section{padding:1.75rem 0;}
+    .section-title{font-size:1.25rem;margin:0 0 1rem;border-left:3px solid var(--accent);padding-left:.75rem;}
+    .grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.25rem;}
+    .card h3{margin:0 0 .75rem;font-size:1.05rem;}
+    label{display:block;font-size:.8rem;color:var(--muted);margin:.6rem 0 .25rem;}
+    input,select,textarea{width:100%;background:#0e131b;border:1px solid var(--line);
+      color:var(--fg);border-radius:8px;padding:.55rem .7rem;font:inherit;}
+    button{margin-top:.9rem;background:var(--accent);color:#1a1300;border:0;border-radius:8px;
+      padding:.55rem 1rem;font-weight:700;cursor:pointer;}
+    button.ghost{background:transparent;color:var(--accent-2);border:1px solid var(--line);}
+    button:hover{filter:brightness(1.08);}
+    a.open{display:inline-block;margin-top:.9rem;background:var(--ok);color:#06281c;
+      border-radius:8px;padding:.55rem 1rem;font-weight:700;}
+    a.open:hover{filter:brightness(1.08);}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    .row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;}
+    #status{margin:1rem 0;padding:.7rem 1rem;border-radius:8px;background:#11161f;
+      border:1px solid var(--line);font-size:.9rem;min-height:1.2rem;white-space:pre-wrap;}
+    #status[data-state="error"]{border-color:var(--err);color:var(--err);}
+    #status[data-state="ok"]{border-color:var(--ok);color:var(--ok);}
+    .pill{display:inline-block;padding:.1rem .5rem;border-radius:999px;font-size:.75rem;
+      border:1px solid var(--line);color:var(--muted);}
+    .pill.me{border-color:var(--accent);color:var(--accent);}
+    table{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.88rem;}
+    th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);}
+    th{color:var(--muted);font-weight:600;}
+    .yes{color:var(--ok);font-weight:700;}
+    .no{color:var(--err);font-weight:700;}
+    .who{display:grid;gap:.4rem;}
+    .who .line{display:flex;justify-content:space-between;gap:.5rem;align-items:center;}
+    footer{padding:1.5rem 0;text-align:center;color:var(--muted);font-size:.85rem;
+      border-top:1px solid var(--line);margin-top:1.5rem;}
+    .hint{color:var(--muted);font-size:.8rem;margin:.3rem 0 0;}
+    .courseItem{border:1px solid var(--line);border-radius:10px;padding:.8rem;margin-bottom:.6rem;}
+    .courseItem .meta{color:var(--muted);font-size:.8rem;margin:.2rem 0;}
+  </style>
+</head>
+<body>
+  <section class="hero">
+    <div class="container">
+      <h1>Daskibo Academy <span class="badge">Local Anvil Demo</span></h1>
+      <p>Register a course as the <strong>author</strong>, buy it as a <strong>client</strong>,
+         and watch <strong>Eve</strong> get locked out — all on a local Anvil chain,
+         driven by MetaMask. Switch the MetaMask account to play each role.</p>
+      <p class="hint" id="net-line"></p>
+    </div>
+  </section>
+
+  <main class="container">
+    <div id="status" data-state="ok">Loading deployed addresses…</div>
+
+    <section class="section">
+      <h2 class="section-title">1 · Connect</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Wallet</h3>
+          <div class="row">
+            <button id="btn-connect">Connect MetaMask</button>
+            <button id="btn-network" class="ghost">Add / switch Anvil network</button>
+          </div>
+          <p class="hint">Connected: <span id="acct" class="mono">—</span></p>
+          <p class="hint">Detected role: <span id="role" class="pill">—</span></p>
+          <p class="hint">Balance: <span id="bal" class="mono">—</span>
+             · AccessPass NFTs: <span id="passes" class="mono">—</span></p>
+          <p class="hint" id="access-list">Access to: —</p>
+        </div>
+        <div class="card">
+          <h3>Demo identities</h3>
+          <div class="who" id="who"></div>
+          <p class="hint">Import these Anvil keys into MetaMask (see README) and switch
+             account to act as each role.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">2 · Author — register a course</h2>
+      <div class="card">
+        <div class="row" style="align-items:flex-end;">
+          <div style="flex:2;min-width:200px;">
+            <label for="c-title">Title</label>
+            <input id="c-title" placeholder="Intro to Greenfield" value="Intro to Greenfield" />
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <label for="c-price">Price (ETH)</label>
+            <input id="c-price" value="0.01" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label for="c-duration">Access</label>
+            <select id="c-duration">
+              <option value="0">Perpetual</option>
+              <option value="3600">1 hour</option>
+              <option value="604800">1 week</option>
+              <option value="2592000">30 days</option>
+            </select>
+          </div>
+        </div>
+        <label for="c-bucket">Bucket slug (Greenfield object prefix)</label>
+        <input id="c-bucket" placeholder="daskibo-demo-101" value="daskibo-demo-101" />
+        <button id="btn-register" disabled>Register course (as author)</button>
+        <p class="hint">Anyone can register; <code>msg.sender</code> becomes the author and
+           always has free access to their own course.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">3 · Catalog — view template &amp; buy</h2>
+      <div class="card">
+        <div class="row">
+          <button id="btn-refresh" class="ghost" disabled>Refresh catalog</button>
+        </div>
+        <div id="catalog" style="margin-top:.8rem;">No courses yet.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">4 · Access matrix — verify all three</h2>
+      <div class="card">
+        <div class="row">
+          <button id="btn-access" class="ghost" disabled>Check access for Author / Client / Eve</button>
+        </div>
+        <div id="matrix" style="margin-top:.6rem;">Connect &amp; register a course first.</div>
+        <p class="hint"><code>hasCourseAccess(addr, courseId)</code> is a read call —
+           it reports the truth for any address regardless of who is connected.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">5 · Author — withdraw proceeds</h2>
+      <div class="card">
+        <p class="hint">Pending balance for connected account:
+           <span id="pending" class="mono">—</span> ETH</p>
+        <button id="btn-withdraw" disabled>Withdraw</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>Daskibo Academy · local Anvil demo · CourseMarketplace + AccessPass (soulbound)</footer>
+
+  <script type="module" src="./course-demo.js"></script>
+</body>
+</html>
