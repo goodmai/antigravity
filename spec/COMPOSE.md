@@ -1,6 +1,91 @@
 # Daskibo Academy — Docker Compose & Multi-Chain Gating Architecture
 
-Этот документ описывает инфраструктуру оркестрации контейнеров для интеграционного тестирования, автоматизированных пайплайнов (CI/CD) и девнет-окружений. Вся система спроектирована с учетом поддержки двух ключевых архитектурных сценариев защиты контента (Lit Gating) при работе с BNB Greenfield.
+Этот документ описывает инфраструктуру оркестрации контейнеров для интеграционного тестирования, автоматизированных пайплайнов (CI/CD) и девнет-окружений. Вся система спроектирована с учетом поддержки двух ключевых архитектурных сценариев защиты контента ([Lit Gating](wiki.md#litkey)) при работе с [BNB Greenfield](wiki.md#greenfield).
+
+---
+
+## 0. Карта композов — что за что отвечает и как запускать
+
+В репозитории **9** compose-файлов. Ниже — карта «файл → назначение → как
+запустить». Колонка **build?** означает, есть ли у композа сервисы со своим
+`Dockerfile` (`build:`): если **да** — первый запуск нужно делать со сборкой
+образов (`--build`); если **нет** — используются готовые публичные образы
+(foundry / node / nginx / jaeger), и `--build` будет no-op.
+
+> Сборка образов (`--build`) ≠ сборка контрактов/JS. `forge build`, `npm install`
+> и т.п. выполняются **внутри** контейнеров при каждом запуске независимо от
+> `--build`; флаг управляет только пересборкой Docker-образов из `Dockerfile`.
+
+| Файл | Назначение | Цепочки / DRM | build? | Lifecycle |
+|---|---|---|:--:|---|
+| `smartcontracts/docker-compose.yml` | **Главный** мульти-профильный композ (Flow A mock + local/testnet/mainnet writer'ы + локальный real-Chipotle + e2e). Уже на профилях. | mock SP / GF testnet / GF mainnet / local Anvil+TEE | да (3) | смешанный (по профилю) |
+| `smartcontracts/docker-compose.demo.yml` | **Демо продажи курса + DRM**: локальный Anvil + деплой/сид + Chipotle-mock + шифрование урока + фронт; MetaMask за автора/клиента/Еву. Открытие курса гейтится `hasCourseAccess` (ключ отдаёт mock только владельцу). | Anvil 31337 + Chipotle mock (DRM) | нет | `frontend`/`chipotle-mock` long, deploy/encrypt one-shot |
+| `smartcontracts/docker-compose.lit.yml` | **Полный локальный E2E**: Anvil + 7-SP Greenfield + Chipotle TEE (dstack-sim) + e2e-раннер. Канон CI `e2e-lit-integration`. | local Anvil + `greenfield_9000-1` + Chipotle | да (3) | one-shot e2e |
+| `smartcontracts/docker-compose.devnet.yml` | **Девнет на реальных тестнетах**: деплой в BSC 97, публикация в GF 5600, DRM через Chipotle mock; фронт. | BSC testnet 97 + GF testnet 5600 + Chipotle mock | нет | deploy/writer one-shot, `frontend` long |
+| `smartcontracts/docker-compose.mainnet-lit.yml` | **Mainnet-DRM**: контракты/сторадж на тестнетах, ключ заворачивается реальным Chipotle на Base mainnet. | BSC 97 + GF 5600 + Chipotle Base mainnet 8453 | нет | deploy/writer one-shot, `frontend` long |
+| `smartcontracts/docker-compose.course-testnet.yml` | **Замер курса в GF testnet**: заливает РЕАЛЬНЫЙ курс (`lessons/`, тот же, что на goodmai.github.io) в Greenfield testnet и печатает размер + gas (`createBucket`) + Δ BNB. Требует funded `GREENFIELD_TESTNET_*`. | GF testnet 5600 + SP1 | нет | one-shot (измерение) |
+| `smartcontracts/greenfield-local/docker-compose.yml` | Только **локальная Greenfield-нода** (Flow B): чейн + 7 SP + MariaDB. | `greenfield_9000-1` | да (1) | long-running |
+| `smartcontracts/greenfield-testnet/docker-compose.yml` | **Writer'ы для тестнета** + chipotle-mock (Flow C/D). | GF testnet 5600 + Chipotle (mock/live) | нет | writer one-shot |
+| `smartcontracts/e2e/docker-compose.yml` | Ранний/автономный e2e (greenfield-validator + anvil + deploy + e2e). Legacy относительно `lit.yml`. | local validator + Anvil | да (1) | one-shot |
+| `smartcontracts/contracts/docker-compose.yml` | Foundry-хелпер: `anvil` / `forge` / `deploy` для работы с контрактами. | Anvil | нет | утилита |
+
+### Команды запуска (со сборкой / без)
+
+```bash
+# ── ДЕМО продажи курса (локальный Anvil, MetaMask) ─────────────────────────
+./run_demo.sh                                                  # рекоменд. (ждёт деплой, печатает URL)
+docker compose -f smartcontracts/docker-compose.demo.yml up --build -d   # со сборкой
+docker compose -f smartcontracts/docker-compose.demo.yml up -d           # без сборки (образы из кэша)
+docker compose -f smartcontracts/docker-compose.demo.yml down -v         # стоп + стереть чейн
+# открыть: http://localhost:8099/course-demo.html
+
+# ── Полный локальный E2E (Greenfield + Chipotle TEE) ───────────────────────
+./run_e2e_lit.sh               # канон: чистый genesis, patch_sdk.cjs, --build, ждёт e2e
+# (эквивалент вручную, со сборкой образов chipotle-real/greenfield-local:)
+docker compose -f smartcontracts/docker-compose.lit.yml up --build -d
+docker compose -f smartcontracts/docker-compose.lit.yml up -d            # без пересборки образов
+docker compose -f smartcontracts/docker-compose.lit.yml down -v
+
+# ── Девнет на реальных тестнетах ───────────────────────────────────────────
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # tBNB на BSC + Greenfield
+export GREENFIELD_TESTNET_ADDRESS=0x...
+./run_devnet.sh                                                 # поднять (фронт остаётся)
+docker compose -f smartcontracts/docker-compose.devnet.yml up -d         # без сборки (Dockerfile'ов нет)
+./run_devnet.sh down
+
+# ── Mainnet-DRM (Chipotle на Base mainnet, контракты на тестнетах) ─────────
+export DEVNET_DEPLOYER_KEY=0x... DEVNET_DEPLOYER_ADDR=0x...
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x... GREENFIELD_TESTNET_ADDRESS=0x...
+export CHIPOTLE_API_KEY=...     # usage-ключ Chipotle (Stripe-funded)
+docker compose -f smartcontracts/docker-compose.mainnet-lit.yml up -d
+
+# ── Главный композ через профили (mock / testnet / mainnet / local-TEE) ────
+docker compose -f smartcontracts/docker-compose.yml --profile local-mock      up -d            # Flow A (mock SP)
+docker compose -f smartcontracts/docker-compose.yml --profile local-real-chipotle up --build -d # local TEE (CI nightly)
+docker compose -f smartcontracts/docker-compose.yml --profile testnet         run --rm testnet-writer
+docker compose -f smartcontracts/docker-compose.yml --profile mainnet         run --rm mainnet-writer
+
+# ── Замер РЕАЛЬНОГО курса (lessons/) в Greenfield testnet: размер + gas ─────
+# .env (в корне репо): GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS (funded tBNB),
+# опц. GREENFIELD_REST (cosmos LCD) для Δ BNB. Запуск из корня репо:
+docker compose -f smartcontracts/docker-compose.course-testnet.yml run --rm course-measure
+# → preflight (RPC + funding), затем: размер курса (76 файлов ~2.85 MB),
+#   createBucket gasUsed/gasWanted, Δ BNB (gas + сторадж-стрим), разбивку по
+#   урокам. Объекты грузятся SP-delegated (сторадж — поток BNB, не per-object gas).
+# Курс выбирается через COURSE: lessons (деф.) | academy/web3-genesis | …
+COURSE=academy/web3-genesis docker compose -f smartcontracts/docker-compose.course-testnet.yml run --rm course-measure
+# Загрузчик: smartcontracts/greenfield-testnet/course-loader.mjs (читает РЕАЛЬНЫЙ
+# курс из lessons/ и academy/courses/*). Его же использует write-devnet.mjs
+# (DRM-публикация) вместо прежней мок-спеки.
+
+# ── Только локальная Greenfield-нода (Flow B) ──────────────────────────────
+docker compose -f smartcontracts/greenfield-local/docker-compose.yml up --build -d   # первый раз — сборка Go-ноды
+docker compose -f smartcontracts/greenfield-local/docker-compose.yml up -d           # потом — из кэша
+```
+
+Сводка обязательных переменных окружения — в таблице раздела
+[§7 «Унификация»](#7-задача-rfc--унификация-всех-композов-в-один-через-профили-и-env)
+и в [`smartcontracts/README.md` → Environment variables](../smartcontracts/README.md#environment-variables).
 
 ---
 
@@ -441,3 +526,101 @@ export GREENFIELD_TESTNET_ADDRESS=0x...
 ---
 
 (Короткая проверка после изменений: запустить `docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml up --build --detach` и прогнать `npm run test:integration`.)
+
+---
+
+## 7. Задача (RFC) — Унификация всех композов в один через профили и env
+
+> **Цель.** Свести 9 разрозненных compose-файлов к **одному**
+> `smartcontracts/docker-compose.yml`, где окружение выбирается **профилями**
+> (`--profile`), а различия сетей/ключей/URL вынесены в **переменные среды**
+> (`.env` + `.env.<tier>`). Один и тот же файл обслуживает локальный тест,
+> тестовый Greenfield и прод — без копипасты сервисов.
+
+### 7.1. Проблема (зачем)
+
+- Сервисы дублируются между файлами: `frontend`, `chipotle-mock`,
+  `chipotle-anvil`/`anvil`, `greenfield-local`, `deploy*`, `*-writer` живут в
+  3–5 копиях с расходящимися дефолтами (RPC, порты, адреса, healthcheck'и).
+- Дрейф конфигурации: фикс (напр. 429-load-shedding `CPU_PSI_THRESHOLD`, BSC RPC,
+  path-style SP) приходится вносить в несколько файлов → один забывается.
+- Разные точки входа (`run_demo.sh` / `run_devnet.sh` / `run_e2e_lit.sh` +
+  ручные `-f`-команды) усложняют доставку и онбординг.
+
+### 7.2. Целевая модель
+
+**Один файл + матрица профилей.** Сервис объявляется один раз; его «среда»
+задаётся через `${VAR:-default}`. Профиль включает нужный набор сервисов.
+
+| Профиль | Состав | Назначение | Эквивалент сегодня |
+|---|---|---|---|
+| `mock` | `mock-sp`, `frontend` | Flow A, быстрый фронт | `docker-compose.yml` (local-mock) |
+| `demo` | `anvil`, `demo-deploy`, `frontend` | локальная демо-продажа (MetaMask) | `docker-compose.demo.yml` |
+| `local-e2e` | `anvil`, `dstack-sim`, `chipotle-*`, `greenfield-local`, `deploy-nft`, `e2e` | полный TEE E2E | `docker-compose.lit.yml` |
+| `gf-local` | `greenfield-local` | только локальная нода | `greenfield-local/...` |
+| `devnet` | `deploy`, `chipotle-mock`, `writer`, `frontend` | реальные тестнеты + mock DRM | `docker-compose.devnet.yml` |
+| `mainnet-drm` | `deploy`, `writer`, `frontend` | контракты на тестнетах + Chipotle Base mainnet | `docker-compose.mainnet-lit.yml` |
+
+**Tier через env-файлы** (одни и те же сервисы, разные значения):
+
+| Переменная | local-e2e | devnet (testnet) | prod / mainnet-drm |
+|---|---|---|---|
+| `EVM_RPC` | `http://anvil:8545` | `https://data-seed-prebsc-1-s1.binance.org:8545` (BSC 97) | BSC mainnet 56 |
+| `EVM_CHAIN_ID` | `31337` | `97` | `56` |
+| `GF_RPC` | `http://greenfield-local:26750` | `https://gnfd-testnet-fullnode-tendermint.bnbchain.org` | mainnet fullnode |
+| `GF_SP` | `http://greenfield-local:9033` | `https://gnfd-testnet-sp1.bnbchain.org` | mainnet SP |
+| `GF_CHAIN_ID` | `greenfield_9000-1` | `greenfield_5600-1` | `greenfield_1017-1` |
+| `CHIPOTLE_URL` | `http://chipotle-real:8000` | `http://chipotle-mock:8000` | `https://api.chipotle.litprotocol.com` |
+| `CHIPOTLE_API_KEY` | `dummy-api-key` | `dummy-api-key` | `<usage key>` (Stripe-funded) |
+| `DEPLOYER_PK` / `_ADDR` | anvil #0 (публичный) | `${DEVNET_DEPLOYER_KEY}` | секрет из vault/CI |
+| `CPU_PSI_THRESHOLD`, `CPU_OVERLOAD_MULTIPLIER` | `1000.0` (выкл. load-shedding на тест-ноде) | — | — |
+
+Запуск становится единообразным:
+
+```bash
+docker compose --profile demo up -d
+docker compose --env-file .env.testnet --profile devnet up -d
+docker compose --env-file .env.prod    --profile mainnet-drm up -d
+docker compose --profile local-e2e up --build -d        # = текущий run_e2e_lit.sh
+```
+
+### 7.3. Объём работ
+
+1. **Инвентаризация и дедуп** сервисов: свести `frontend`/`anvil`/`chipotle-*`/
+   `greenfield-local`/`deploy*`/`writer` к одному определению с `${VAR:-...}`.
+2. **Параметризация** всех хардкодов (RPC, chainId, SP, адреса, ключи, пороги
+   CPU-guard) через env; вынести дефолты для каждого tier в `.env.local-e2e` /
+   `.env.testnet` / `.env.prod` (последний — только имена, значения из CI/секретов).
+3. **Профили** проставить на сервисах (`profiles: [..]`); собрать наборы из §7.2.
+4. **`extends` / YAML-anchors** для общих healthcheck/volume/logging блоков.
+5. **Лаунчеры → тонкие обёртки**: `run_demo.sh`/`run_devnet.sh`/`run_e2e_lit.sh`
+   оставить как алиасы (`docker compose --profile … --env-file …`), сохранив
+   спец-логику e2e (clean genesis, `patch_sdk.cjs`, потоковые логи).
+6. **CI**: `test.yml` перевести на профили (`--profile local-e2e` вместо
+   отдельного `-f docker-compose.lit.yml`); проверить, что `e2e-lit-integration`
+   и `chipotle-real-integration` зелёные.
+7. **Документация**: обновить §0-карту и `smartcontracts/README.md` (flows →
+   профили), пометить старые файлы как deprecated → удалить после миграции.
+
+### 7.4. Критерии приёмки
+
+- `docker compose config --profile <p>` валиден для всех 6 профилей.
+- `run_e2e_lit.sh` (через `--profile local-e2e`) проходит из чистого genesis,
+  Exit 0; CI `e2e-lit-integration` зелёный.
+- Демо (`--profile demo`) и devnet (`--profile devnet`) поднимаются одной
+  командой; фронт отвечает 200.
+- Ни один параметр сети/ключа не захардкожен в YAML — всё через `${VAR:-...}`.
+- Старые `docker-compose.{demo,devnet,lit,mainnet-lit}.yml` удалены (или
+  оставлены тонкими `include:`-шими на период миграции).
+
+### 7.5. Риски / заметки
+
+- `network_mode: "service:chipotle-anvil"` (chipotle-real делит сетевой
+  namespace с anvil) и общие тома dstack-sim — переносить аккуратно, это часть
+  работающей TEE-схемы.
+- Prod-секреты **никогда** не в `.env.prod` в репозитории — только имена; значения
+  через CI-secrets / vault. Анвиловые ключи в `.env`/демо — публичные, ок.
+- Compose `--env-file` не подставляется внутрь `${VAR}` в самом YAML так же, как
+  shell-export; проверить интерполяцию (Compose читает `.env` из CWD автоматически,
+  доп. tier-файлы — через `--env-file`).
+- Объём YAML-рефактора большой → дробить на PR по профилям, держа CI зелёным.
