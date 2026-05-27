@@ -135,6 +135,16 @@ services:
       - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
       - ROCKET_ADDRESS=0.0.0.0
       - ROCKET_PORT=8000
+      # Disable the CpuOverloadMonitor 429 load-shedding on this single-tenant
+      # TEE node. On a 2-core CI runner the CPU-heavy create_wallet (PKP gen) +
+      # concurrent cargo/docker spike CPU PSI past the 50% default, so the very
+      # next request (encrypt) is shed with HTTP 429 and the e2e flakes. This is
+      # a test node, not real traffic — we want it to process our handful of
+      # sequential calls under load. Thresholds the guard never trips on:
+      #   PSI is a 0–100% figure → 1000 can't be exceeded.
+      #   Load avg threshold = num_cpus * multiplier → 1000 is effectively ∞.
+      - CPU_PSI_THRESHOLD=1000.0
+      - CPU_OVERLOAD_MULTIPLIER=1000.0
       - BASE_CHAIN_RPC=http://chipotle-anvil:8545
       - DSTACK_SOCKET=/var/run/dstack.sock
       - LIT_TELEMETRY_ENDPOINT=http://chipotle-jaeger:4317

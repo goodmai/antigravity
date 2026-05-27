@@ -296,6 +296,13 @@ services:
       - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
       - ROCKET_ADDRESS=0.0.0.0
       - ROCKET_PORT=8000
+      # Disable the CpuOverloadMonitor 429 load-shedding on this single-tenant
+      # TEE node (see docker-compose.lit.yml for the full rationale): on a weak
+      # CI runner the CPU-heavy create_wallet spikes CPU PSI past the 50%
+      # default and the next request is shed with 429, flaking the e2e. These
+      # thresholds (PSI is 0–100%; load = num_cpus * multiplier) never trip.
+      - CPU_PSI_THRESHOLD=1000.0
+      - CPU_OVERLOAD_MULTIPLIER=1000.0
       - BASE_CHAIN_RPC=http://chipotle-anvil:8545
       - DSTACK_SOCKET=/var/run/dstack.sock
       - LIT_TELEMETRY_ENDPOINT=http://chipotle-jaeger:4317
