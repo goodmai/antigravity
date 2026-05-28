@@ -381,6 +381,10 @@ services:
       anvil:
         condition: service_healthy
     environment:
+      # ⚠️ LOCAL ANVIL ONLY — this is the PUBLIC, well-known anvil dev key.
+      # NEVER deploy to a real network with it (anyone would own the contracts).
+      # For testnet/mainnet, override PRIVATE_KEY + RPC_URL with real values;
+      # the command below hard-refuses this key against a non-local RPC.
       - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
       - RPC_URL=http://anvil:8545
       - W3EXT=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
@@ -389,7 +393,8 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - >
-        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        if echo "$$RPC_URL" | grep -qvE 'anvil|127\.0\.0\.1|localhost' && [ "$$PRIVATE_KEY" = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" ]; then echo "REFUSING: well-known anvil dev key against non-local RPC ($$RPC_URL). Pass a real PRIVATE_KEY for testnet/mainnet."; exit 1; fi
+        && (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
         && forge build
         && forge script script/Deploy.s.sol:Deploy
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"

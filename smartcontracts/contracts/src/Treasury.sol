@@ -18,9 +18,14 @@ contract Treasury is ITreasury {
     error ZeroAddress();
     error InsufficientBalance();
     error TransferFailed();
+    error NotPendingOwner();
 
     address public owner;
+    address public pendingOwner;
     uint256 public totalReceived;
+
+    event OwnershipTransferStarted(address indexed previous, address indexed pending);
+    event OwnershipTransferred(address indexed previous, address indexed current);
 
     constructor(address _owner) {
         if (_owner == address(0)) revert ZeroAddress();
@@ -30,6 +35,23 @@ contract Treasury is ITreasury {
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
         _;
+    }
+
+    // ── Ownable2Step ─────────────────────────────────────────────────────
+    // Audit §2.3: the Treasury holds protocol funds, so a single-step owner
+    // change risks locking control on a mistyped address. Two steps (propose
+    // + accept) are also the safe handover path to a multisig/timelock for
+    // mainnet — matching CourseMarketplace.
+    function transferOwnership(address to) external onlyOwner {
+        pendingOwner = to;
+        emit OwnershipTransferStarted(owner, to);
+    }
+
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert NotPendingOwner();
+        emit OwnershipTransferred(owner, pendingOwner);
+        owner = pendingOwner;
+        pendingOwner = address(0);
     }
 
     receive() external payable {

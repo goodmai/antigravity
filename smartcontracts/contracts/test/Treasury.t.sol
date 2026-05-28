@@ -108,4 +108,40 @@ contract TreasuryTest is Test {
         vm.expectRevert(Treasury.ZeroAddress.selector);
         treasury.collectFrom(address(0));
     }
+
+    // ── Ownable2Step (audit §2.3) ─────────────────────────────────────────
+    function test_transferOwnership_isTwoStep() public {
+        address newOwner = makeAddr("newGov");
+        vm.prank(gov);
+        treasury.transferOwnership(newOwner);
+        // Ownership does NOT change until accepted.
+        assertEq(treasury.owner(), gov);
+        assertEq(treasury.pendingOwner(), newOwner);
+
+        vm.prank(newOwner);
+        treasury.acceptOwnership();
+        assertEq(treasury.owner(), newOwner);
+        assertEq(treasury.pendingOwner(), address(0));
+
+        // Old owner can no longer withdraw; new owner can.
+        treasury.fund{value: 1 ether}();
+        vm.prank(gov);
+        vm.expectRevert(Treasury.NotOwner.selector);
+        treasury.withdraw(sink, 1 ether);
+        vm.prank(newOwner);
+        treasury.withdraw(sink, 1 ether);
+        assertEq(sink.balance, 1 ether);
+    }
+
+    function test_transferOwnership_isOwnerOnly() public {
+        vm.expectRevert(Treasury.NotOwner.selector);
+        treasury.transferOwnership(makeAddr("attacker")); // caller != gov
+    }
+
+    function test_acceptOwnership_onlyPendingOwner() public {
+        vm.prank(gov);
+        treasury.transferOwnership(makeAddr("newGov"));
+        vm.expectRevert(Treasury.NotPendingOwner.selector);
+        treasury.acceptOwnership(); // caller is neither gov nor pending
+    }
 }
