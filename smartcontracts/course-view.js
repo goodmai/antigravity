@@ -61,6 +61,7 @@ const LESSONS = [
   { id: 24, title: 'Большие кодовые базы',             desc: '.antigravityignore, чанкинг, инкрементальный рефакторинг и управление 2M-токенным окном.' },
   { id: 30, title: 'Web3 — Основы Solidity',           desc: 'Типы данных, функции, видимость, версии pragma, вызов других контрактов.' },
   { id: 31, title: 'Docker Best Practices',            desc: 'Multi-stage builds, безопасность образов и оптимизация размеров.' },
+  { id: 32, title: 'Хостинг сайта на BNB Greenfield',  desc: 'Bucket / object / SP, URL-формат, грабля с --contentType, hello-world скрипт на Node.js, нюансы immutable-хранилища.' },
 ];
 
 const $ = (id) => document.getElementById(id);
