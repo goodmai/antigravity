@@ -53,50 +53,104 @@ services:
     volumes:
       - ./contracts:/work
       - devnet-shared:/shared
-    entrypoint: ["sh", "-c"]
+      # Frontend bind-mounts smartcontracts/, so writing here lands at
+      # http://localhost:8099/demo/addresses.json — read by course-demo.html.
+      - ./demo:/host-demo
+    # Use `|` literal block + `set -e`: one statement per line. The previous
+    # `>` folded form failed silently inside `NFT_OUT=$(forge script ...)` when
+    # docker compose's `up` path passed the multi-line script to dash — `compose
+    # run` worked but `compose up` exited 127. Literal block is unambiguous.
+    # bash (not dash) — we need `set -o pipefail` so a failing forge in
+    # `forge … | tee /tmp/out` propagates the exit code through the pipeline.
+    entrypoint: ["bash", "-c"]
     command:
-      - >
-        set -e &&
-        PRIVATE_KEY="$${DEVNET_DEPLOYER_KEY:-$$GREENFIELD_TESTNET_PRIVATE_KEY}" &&
-        DEPLOYER_ADDR="$${DEVNET_DEPLOYER_ADDR:-$$GREENFIELD_TESTNET_ADDRESS}" &&
-        if [ -z "$$PRIVATE_KEY" ] || [ -z "$$DEPLOYER_ADDR" ]; then echo "ERROR: set GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS (or DEVNET_DEPLOYER_KEY/_ADDR) in .env"; exit 2; fi &&
-        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std) &&
-        (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1) &&
-        forge build &&
-        VERIFY="" &&
-        if [ -n "$$BSCSCAN_API_KEY" ]; then
-          VERIFY="--verify --etherscan-api-key $$BSCSCAN_API_KEY --verifier-url https://api-testnet.bscscan.com/api";
-          echo "→ Explorer verification ENABLED (BscScan testnet)";
-        fi &&
-        echo "→ Deploying soulbound role NFTs to BSC testnet (chain 97)…" &&
-        NFT_OUT=$$(forge script script/DeployAccessNfts.s.sol:DeployAccessNfts
-          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
-        echo "$$NFT_OUT" &&
-        CLIENT_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i ClientNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
-        AUTHOR_NFT=$$(printf '%s' "$$NFT_OUT" | grep -i AuthorNft | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
-        echo "→ Deploying settlement (Treasury/AccessPass/CourseMarketplace)…" &&
-        MP_OUT=$$(forge script script/Deploy.s.sol:Deploy
-          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1) &&
-        echo "$$MP_OUT" &&
-        MARKETPLACE=$$(printf '%s' "$$MP_OUT" | grep -i CourseMarketplace | grep -oiE '0x[0-9a-f]{40}' | tail -1) &&
+      - |
+        set -euo pipefail
+        export PRIVATE_KEY="$${DEVNET_DEPLOYER_KEY:-$$GREENFIELD_TESTNET_PRIVATE_KEY}"
+        export DEPLOYER_ADDR="$${DEVNET_DEPLOYER_ADDR:-$$GREENFIELD_TESTNET_ADDRESS}"
+        if [ -z "$$PRIVATE_KEY" ] || [ -z "$$DEPLOYER_ADDR" ]; then
+          echo "ERROR: set GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS (or DEVNET_DEPLOYER_KEY/_ADDR) in .env"
+          exit 2
+        fi
+        test -d lib/forge-std || forge install --no-git foundry-rs/forge-std
+        test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1
+        forge build
+        VERIFY=""
+        if [ -n "$${BSCSCAN_API_KEY:-}" ]; then
+          VERIFY="--verify --etherscan-api-key $$BSCSCAN_API_KEY --verifier-url https://api-testnet.bscscan.com/api"
+          echo "→ Explorer verification ENABLED (BscScan testnet)"
+        fi
+        echo "→ Deploying soulbound role NFTs to BSC testnet (chain 97)…"
+        # Stream forge output AND capture it (tee through a file). Capturing
+        # solely via $() hides forge stderr from docker logs until the chain
+        # ends — and on failure the chain short-circuits before we ever echo.
+        forge script script/DeployAccessNfts.s.sol:DeployAccessNfts \
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1 | tee /tmp/nft.out
+        CLIENT_NFT=$$(grep -i ClientNft /tmp/nft.out | grep -oiE '0x[0-9a-f]{40}' | tail -1)
+        AUTHOR_NFT=$$(grep -i AuthorNft /tmp/nft.out | grep -oiE '0x[0-9a-f]{40}' | tail -1)
+        echo "→ Deploying settlement (Treasury/AccessPass/CourseMarketplace)…"
+        forge script script/Deploy.s.sol:Deploy \
+          --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" --broadcast $$VERIFY -vvv 2>&1 | tee /tmp/mp.out
+        MARKETPLACE=$$(grep -i CourseMarketplace /tmp/mp.out | grep -oiE '0x[0-9a-f]{40}' | tail -1)
         if [ -z "$$CLIENT_NFT" ] || [ -z "$$MARKETPLACE" ]; then
-          echo "ERROR: could not parse deployed addresses from forge output"; exit 1;
-        fi &&
-        echo "→ Minting one ClientNft (perpetual) to the deployer so the reader works…" &&
-        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0 &&
-        echo "→ Registering a course on the marketplace (author = deployer, courseId 1)…" &&
-        CHASH=$$(cast keccak "daskibo-devnet-course") &&
-        cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" "$$MARKETPLACE" "registerCourse(uint96,bytes32,string,uint64)" "$${COURSE_PRICE}" "$$CHASH" "daskibo-devnet-course" 0 &&
+          echo "ERROR: could not parse deployed addresses from forge output"
+          exit 1
+        fi
+        # Helper: cast send with retry. BSC testnet's public RPC sometimes
+        # serves a stale nonce right after a confirmation ("nonce too low: next
+        # nonce N+1, tx nonce N"). Refetch and retry up to 3 times.
+        cast_send_retry() {
+          local i=0
+          while [ $$i -lt 3 ]; do
+            if cast send --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY" "$$@"; then
+              return 0
+            fi
+            i=$$((i+1))
+            echo "  cast send failed (attempt $$i/3) — refetching nonce in 4s…" >&2
+            sleep 4
+          done
+          return 1
+        }
+        echo "→ Minting one ClientNft (perpetual) to the deployer so the reader works…"
+        cast_send_retry "$$CLIENT_NFT" "mint(address,uint64)" "$$DEPLOYER_ADDR" 0
+        echo "→ Registering a course on the marketplace (author = deployer, courseId 1)…"
+        CHASH=$$(cast keccak "daskibo-devnet-course")
+        cast_send_retry "$$MARKETPLACE" "registerCourse(uint96,bytes32,string,uint64)" "$$COURSE_PRICE" "$$CHASH" "daskibo-devnet-course" 0
         {
-          echo "CLIENT_NFT_ADDR=$$CLIENT_NFT";
-          echo "AUTHOR_NFT_ADDR=$$AUTHOR_NFT";
-          echo "MARKETPLACE_ADDR=$$MARKETPLACE";
-          echo "COURSE_ID=1";
-          echo "COURSE_PRICE=$${COURSE_PRICE}";
-        } > /shared/devnet-addresses.env &&
-        echo "═══════════════════════════════════════════════════════════" &&
-        echo "DEVNET CONTRACTS DEPLOYED (BSC testnet, chain 97)" &&
-        cat /shared/devnet-addresses.env &&
+          echo "CLIENT_NFT_ADDR=$$CLIENT_NFT"
+          echo "AUTHOR_NFT_ADDR=$$AUTHOR_NFT"
+          echo "MARKETPLACE_ADDR=$$MARKETPLACE"
+          echo "COURSE_ID=1"
+          echo "COURSE_PRICE=$$COURSE_PRICE"
+        } > /shared/devnet-addresses.env
+        # Also publish a frontend-shaped addresses.json so course-demo.html
+        # (same UX as the local demo) drives BSC testnet — MetaMask will be
+        # auto-switched to chain 97 by ensureChain() in course-demo.js.
+        # Treasury/AccessPass aren't needed by the page on devnet (gating uses
+        # CourseMarketplace.hasCourseAccess), so leave them empty placeholders.
+        # Heredoc closing marker can't be safely indented inside the YAML
+        # literal block, so use printf instead.
+        printf '%s\n' \
+          '{' \
+          '  "chainId": 97,' \
+          '  "chainIdHex": "0x61",' \
+          '  "chainName": "BNB Smart Chain Testnet",' \
+          "  \"rpcUrl\": \"$$RPC_URL\"," \
+          '  "treasury": "",' \
+          '  "accessPass": "",' \
+          "  \"marketplace\": \"$$MARKETPLACE\"," \
+          "  \"clientNft\": \"$$CLIENT_NFT\"," \
+          "  \"authorNft\": \"$$AUTHOR_NFT\"," \
+          '  "courseId": 1,' \
+          '  "explorer": "https://testnet.bscscan.com"' \
+          '}' > /host-demo/addresses.json
+        # Bookkeeping: stale demo manifest from a prior Anvil run confuses the
+        # gated reader (course-content.html), so wipe it.
+        rm -f /host-demo/manifest-*.json
+        echo "═══════════════════════════════════════════════════════════"
+        echo "DEVNET CONTRACTS DEPLOYED (BSC testnet, chain 97)"
+        cat /shared/devnet-addresses.env
+        echo "Frontend addresses.json → http://localhost:8099/demo/addresses.json"
         echo "═══════════════════════════════════════════════════════════"
 
   # Local Chipotle mock — the devnet DRM layer (Lit has no testnets; local build
@@ -126,6 +180,31 @@ services:
       retries: 30
       start_period: 180s
 
+  # One-shot: AES-encrypt the demo lesson + wrap its key behind the BSC-testnet
+  # ACC (CourseMarketplace.hasCourseAccess) → smartcontracts/demo/manifest-1.json.
+  # This is what http://localhost:8099/course-content.html?id=1 reads. Without
+  # it the gated reader 404s on manifest-1.json (the Greenfield bucket from
+  # devnet-writer is a separate index — bucket-reader.html consumes that).
+  devnet-encrypt:
+    image: node:22-bookworm
+    container_name: daskibo-devnet-encrypt
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      devnet-deploy:
+        condition: service_completed_successfully
+      chipotle-mock:
+        condition: service_healthy
+    environment:
+      - SHARED_DIR=/shared
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - CHIPOTLE_PUBLIC_URL=http://localhost:8000
+      - DEMO_COURSE_ID=1
+      - DEMO_COURSE_TITLE=Daskibo devnet course (BSC testnet)
+    volumes:
+      - ../:/app
+      - ./demo:/shared
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node demo-encrypt.mjs"]
+
   devnet-writer:
     image: node:22-bookworm
     container_name: daskibo-devnet-writer
@@ -149,6 +228,11 @@ services:
     volumes:
       - ../:/app
       - devnet-shared:/shared:ro
+      # Frontend bind-mount target — after the SP-side upload completes we
+      # patch ./demo/addresses.json with the real bucket name + owner so the
+      # course-demo.html catalog can link "Open course →" to bucket-reader.html
+      # (the real-course reader) instead of the stub course-content.html.
+      - ./demo:/host-demo
     command:
       - "sh"
       - "-c"
@@ -156,7 +240,10 @@ services:
         npm install --no-audit --no-fund &&
         . /shared/devnet-addresses.env &&
         echo "→ Gating bucket on CourseMarketplace.hasCourseAccess($$MARKETPLACE_ADDR, course $$COURSE_ID) — buy to gain access (demo-style)" &&
-        MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-devnet.mjs
+        BUCKET=$$(MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-devnet.mjs | tee /dev/stderr | grep -oE 'daskibo-[a-z0-9]+' | tail -1) &&
+        if [ -n "$$BUCKET" ]; then
+          node -e "const fs=require('fs');const p='/host-demo/addresses.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.bucket='$$BUCKET';j.bucketOwner=process.env.GREENFIELD_TESTNET_ADDRESS;fs.writeFileSync(p,JSON.stringify(j,null,2));console.log('  → patched addresses.json with bucket='+j.bucket+' owner='+j.bucketOwner);"
+        fi
 
   frontend:
     image: nginx:1.27-alpine

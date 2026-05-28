@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- DRM-gated mirror of antigravity/lessons/index.html. Same card grid; each
+       card resolves to the matching N/README.md.enc in Greenfield, decrypted
+       in-browser once Chipotle releases the bucket master key (gated by
+       hasCourseAccess on BSC testnet). connect-src lists every backend the
+       page must reach: BSC testnet RPC (on-chain access check), Greenfield SP
+       (encrypted lesson bytes), Chipotle mock (master key release). -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://esm.sh;
+    connect-src 'self' https://esm.sh
+      http://127.0.0.1:8545 http://localhost:8545
+      http://127.0.0.1:8000 http://localhost:8000
+      https://data-seed-prebsc-1-s1.binance.org:8545
+      https://data-seed-prebsc-2-s1.binance.org:8545
+      https://bsc-testnet.publicnode.com
+      https://bsc-testnet.bnbchain.org
+      https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+      https://gnfd-testnet-sp1.bnbchain.org;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    base-uri 'self'; object-src 'none'; frame-ancestors 'none'" />
+  <title>Anti-Gravity Academy · Уроки (gated)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#020617; --card:rgba(30,41,59,.55); --border:rgba(255,255,255,.08);
+      --primary:#38bdf8; --secondary:#818cf8; --muted:#94a3b8;
+      --fg:#e2e8f0; --ok:#34d399; --err:#f87171; --warn:#fbbf24;
+      --radius:20px; --transition:.25s cubic-bezier(.4,0,.2,1);
+      --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);min-height:100vh}
+    body::before{
+      content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+      background:
+        radial-gradient(ellipse 600px 400px at 20% 0%, rgba(56,189,248,.12), transparent 60%),
+        radial-gradient(ellipse 500px 300px at 80% 100%, rgba(129,140,248,.08), transparent 60%);
+    }
+    a{color:var(--primary);text-decoration:none}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(255,255,255,.06);padding:.1em .35em;border-radius:6px;font-size:.9em}
+
+    /* ── top bar ─────────────────────────────────────────────────────────── */
+    .topbar{
+      position:sticky; top:0; z-index:10; backdrop-filter:blur(12px);
+      background:rgba(2,6,23,.7); border-bottom:1px solid var(--border);
+      padding:14px 24px; display:flex; gap:16px; align-items:center; flex-wrap:wrap;
+    }
+    .brand{font-weight:800; font-size:1.05rem; letter-spacing:-.02em;
+      background:linear-gradient(to right,var(--primary),var(--secondary));
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;}
+    .spacer{flex:1}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:999px;
+      background:rgba(148,163,184,.1);border:1px solid var(--border);color:var(--muted);font-size:.85rem}
+    .chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+    .chip.ok{color:var(--ok);border-color:rgba(52,211,153,.3)} .chip.ok .dot{background:var(--ok)}
+    .chip.err{color:var(--err);border-color:rgba(248,113,113,.3)} .chip.err .dot{background:var(--err)}
+    .chip.warn{color:var(--warn);border-color:rgba(251,191,36,.3)} .chip.warn .dot{background:var(--warn)}
+    .btn{cursor:pointer;border:none;border-radius:10px;padding:9px 18px;font-weight:600;font-family:var(--font);
+      font-size:.92rem;background:linear-gradient(135deg,var(--primary),var(--secondary));color:white;
+      transition:all var(--transition)}
+    .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 18px -8px var(--primary)}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn.ghost{background:rgba(148,163,184,.1);color:var(--fg);border:1px solid var(--border)}
+
+    /* ── page ────────────────────────────────────────────────────────────── */
+    .wrap{max-width:1200px;margin:0 auto;padding:40px 24px 80px}
+    .hero{text-align:center;margin-bottom:40px;padding-top:24px}
+    .hero h1{font-size:3rem;font-weight:800;letter-spacing:-.025em;margin:0 0 12px;
+      background:linear-gradient(to right,var(--primary),var(--secondary));
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .hero p{font-size:1.1rem;color:var(--muted);max-width:640px;margin:0 auto}
+    .hero .meta{margin-top:18px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+    .card{
+      background:var(--card); backdrop-filter:blur(12px); border:1px solid var(--border);
+      border-radius:var(--radius); padding:24px; transition:all var(--transition); cursor:pointer;
+      display:flex; flex-direction:column; position:relative; overflow:hidden; min-height:200px;
+    }
+    .card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;opacity:0;
+      background:linear-gradient(to right,var(--primary),var(--secondary));transition:opacity var(--transition)}
+    .card:hover{transform:translateY(-8px);border-color:var(--primary);
+      box-shadow:0 20px 25px -5px rgba(0,0,0,.2),0 10px 10px -5px rgba(56,189,248,.1)}
+    .card:hover::before{opacity:1}
+    .num{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--muted);margin-bottom:14px;font-weight:600}
+    .num svg{width:18px;height:18px;color:var(--primary)}
+    .card h2{font-size:1.25rem;font-weight:600;margin:0 0 10px;color:var(--fg);line-height:1.3}
+    .card p{font-size:.92rem;color:var(--muted);margin:0 0 14px;line-height:1.5;flex:1}
+    .card .lock{margin-top:auto;display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.85rem;font-weight:600}
+    .card.unlocked .lock{color:var(--ok)}
+    .card.denied{opacity:.55}
+    .card.denied .lock{color:var(--err)}
+
+    /* ── reader ──────────────────────────────────────────────────────────── */
+    .reader{display:none;animation:fade .25s ease}
+    .reader.on{display:block}
+    @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    .reader-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+    .reader-bar h2{margin:0;font-size:1.6rem;flex:1}
+    .lesson{background:var(--card);backdrop-filter:blur(12px);border:1px solid var(--border);
+      border-radius:var(--radius);padding:32px 36px;line-height:1.7;font-size:1rem}
+    .lesson h1{font-size:2rem;font-weight:800;margin:0 0 18px;letter-spacing:-.02em;
+      background:linear-gradient(to right,var(--primary),var(--secondary));
+      -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .lesson h2{font-size:1.4rem;font-weight:700;margin:28px 0 12px;color:var(--fg)}
+    .lesson h3{font-size:1.15rem;font-weight:600;margin:22px 0 10px;color:var(--primary)}
+    .lesson p{margin:.6em 0;color:var(--fg)}
+    .lesson ul,.lesson ol{padding-left:1.4em;margin:.6em 0}
+    .lesson li{margin:.3em 0}
+    .lesson pre{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:12px;padding:16px;overflow:auto;font-size:.88rem}
+    .lesson pre code{background:none;padding:0}
+    .lesson blockquote{border-left:3px solid var(--primary);padding:.4em 1em;margin:1em 0;color:var(--muted);background:rgba(56,189,248,.04)}
+    .lesson hr{border:none;border-top:1px solid var(--border);margin:2em 0}
+    .lesson a{color:var(--primary);border-bottom:1px solid rgba(56,189,248,.3)}
+    .lesson img{max-width:100%;border-radius:12px}
+
+    /* ── status banner ───────────────────────────────────────────────────── */
+    .banner{margin-bottom:24px;padding:14px 18px;border-radius:12px;
+      background:rgba(56,189,248,.06);border:1px solid rgba(56,189,248,.2);color:var(--fg);font-size:.95rem}
+    .banner.err{background:rgba(248,113,113,.06);border-color:rgba(248,113,113,.3);color:var(--err)}
+    .banner.warn{background:rgba(251,191,36,.06);border-color:rgba(251,191,36,.3);color:var(--warn)}
+    .banner.ok{background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.3);color:var(--ok)}
+
+    .spin{display:inline-block;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚡ Anti-Gravity Academy · DRM</div>
+    <span id="chip-chain" class="chip"><span class="dot"></span> chain ?</span>
+    <span id="chip-wallet" class="chip"><span class="dot"></span> wallet —</span>
+    <span id="chip-access" class="chip"><span class="dot"></span> access ?</span>
+    <span class="spacer"></span>
+    <button id="btn-connect" class="btn">Connect MetaMask</button>
+  </header>
+
+  <main class="wrap">
+    <div id="banner" class="banner"><span class="spin">⟳</span> Loading course metadata…</div>
+
+    <section id="catalog">
+      <div class="hero">
+        <h1>Уроки</h1>
+        <p id="hero-desc">Курс зашифрован в BNB Greenfield. Подключи кошелёк — если он удовлетворяет on-chain access, Chipotle отдаст ключ и уроки расшифруются прямо в браузере.</p>
+        <div class="meta">
+          <span class="chip" id="chip-bucket">bucket —</span>
+          <span class="chip" id="chip-marketplace">marketplace —</span>
+        </div>
+      </div>
+      <div id="grid" class="grid"></div>
+    </section>
+
+    <section id="reader" class="reader">
+      <div class="reader-bar">
+        <button class="btn ghost" id="btn-back">← Назад к урокам</button>
+        <h2 id="reader-title"></h2>
+      </div>
+      <article id="lesson" class="lesson"></article>
+    </section>
+  </main>
+
+  <script type="module" src="./course-view.js"></script>
+</body>
+</html>

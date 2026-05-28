@@ -9,7 +9,13 @@
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' https://esm.sh;
-    connect-src 'self' https://esm.sh http://127.0.0.1:8545 http://localhost:8545 http://127.0.0.1:8000 http://localhost:8000;
+    connect-src 'self' https://esm.sh
+      http://127.0.0.1:8545 http://localhost:8545
+      http://127.0.0.1:8000 http://localhost:8000
+      https://data-seed-prebsc-1-s1.binance.org:8545
+      https://data-seed-prebsc-2-s1.binance.org:8545
+      https://bsc-testnet.publicnode.com
+      https://bsc-testnet.bnbchain.org;
     style-src 'self' 'unsafe-inline';
     img-src 'self' data:; base-uri 'self'; object-src 'none'; frame-ancestors 'none'" />
   <title>Daskibo — Course content (gated)</title>

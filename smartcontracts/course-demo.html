@@ -3,14 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Local demo CSP: scripts from self + pinned esm.sh (ethers). All chain
-       I/O goes through MetaMask (window.ethereum) — the page never fetches the
-       RPC directly — so connect-src only needs self (for ./demo/addresses.json)
-       and esm.sh. -->
+  <!-- Page works for both local Anvil (demo) AND BNB testnets (devnet/mainnet)
+       — connect-src must allow the public BSC + Greenfield testnet RPCs since
+       course-demo.js opens a JsonRpcProvider against cfg.rpcUrl for reads,
+       and course-content.js may need the Chipotle mock. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
     script-src 'self' https://esm.sh;
-    connect-src 'self' https://esm.sh http://127.0.0.1:8545 http://localhost:8545;
+    connect-src 'self' https://esm.sh
+      http://127.0.0.1:8545 http://localhost:8545
+      http://127.0.0.1:8000 http://localhost:8000
+      https://data-seed-prebsc-1-s1.binance.org:8545
+      https://data-seed-prebsc-2-s1.binance.org:8545
+      https://bsc-testnet.publicnode.com
+      https://bsc-testnet.bnbchain.org
+      https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+      https://gnfd-testnet-sp1.bnbchain.org;
     style-src 'self' 'unsafe-inline';
     img-src 'self' data:;
     base-uri 'self';

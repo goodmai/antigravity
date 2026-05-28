@@ -21,7 +21,7 @@
 | `smartcontracts/docker-compose.yml` | **Главный** мульти-профильный композ (Flow A mock + local/testnet/mainnet writer'ы + локальный real-Chipotle + e2e). Уже на профилях. | mock SP / GF testnet / GF mainnet / local Anvil+TEE | да (3) | смешанный (по профилю) |
 | `smartcontracts/docker-compose.demo.yml` | **Демо продажи курса + DRM**: локальный Anvil + деплой/сид + Chipotle-mock + шифрование урока + фронт; MetaMask за автора/клиента/Еву. Открытие курса гейтится `hasCourseAccess` (ключ отдаёт mock только владельцу). | Anvil 31337 + Chipotle mock (DRM) | нет | `frontend`/`chipotle-mock` long, deploy/encrypt one-shot |
 | `smartcontracts/docker-compose.lit.yml` | **Полный локальный E2E**: Anvil + 7-SP Greenfield + Chipotle TEE (dstack-sim) + e2e-раннер. Канон CI `e2e-lit-integration`. | local Anvil + `greenfield_9000-1` + Chipotle | да (3) | one-shot e2e |
-| `smartcontracts/docker-compose.devnet.yml` | **Девнет на реальных тестнетах**: деплой в BSC 97, публикация в GF 5600, DRM через Chipotle mock; фронт. | BSC testnet 97 + GF testnet 5600 + Chipotle mock | нет | deploy/writer one-shot, `frontend` long |
+| `smartcontracts/docker-compose.devnet.yml` | **Девнет на реальных тестнетах** (та же UX, что и `demo`): деплой в BSC 97, шифр+публикация реального курса из `lessons/` в GF 5600, DRM через Chipotle mock с `EVM_RPC=BSC testnet`; фронт даёт `course-demo.html` (каталог + buy) и `course-view.html` (gated lessons grid). Гейт — `hasCourseAccess`. | BSC testnet 97 + GF testnet 5600 + Chipotle mock | нет | deploy/encrypt/writer one-shot, `chipotle-mock`/`frontend` long |
 | `smartcontracts/docker-compose.mainnet-lit.yml` | **Mainnet-DRM**: контракты/сторадж на тестнетах, ключ заворачивается реальным Chipotle на Base mainnet. | BSC 97 + GF 5600 + Chipotle Base mainnet 8453 | нет | deploy/writer one-shot, `frontend` long |
 | `smartcontracts/docker-compose.course-testnet.yml` | **Замер курса в GF testnet**: заливает РЕАЛЬНЫЙ курс (`lessons/`, тот же, что на goodmai.github.io) в Greenfield testnet и печатает размер + gas (`createBucket`) + Δ BNB. Требует funded `GREENFIELD_TESTNET_*`. | GF testnet 5600 + SP1 | нет | one-shot (измерение) |
 | `smartcontracts/greenfield-local/docker-compose.yml` | Только **локальная Greenfield-нода** (Flow B): чейн + 7 SP + MariaDB. | `greenfield_9000-1` | да (1) | long-running |
@@ -47,11 +47,15 @@ docker compose -f smartcontracts/docker-compose.lit.yml up -d            # бе�
 docker compose -f smartcontracts/docker-compose.lit.yml down -v
 
 # ── Девнет на реальных тестнетах ───────────────────────────────────────────
-export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # tBNB на BSC + Greenfield
-export GREENFIELD_TESTNET_ADDRESS=0x...
-./run_devnet.sh                                                 # поднять (фронт остаётся)
+# .env (gitignored) с GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS (деплоер) +
+# CLIENT_PK/_ADDRESS + EVA_PK/_ADDRESS (НЕ-публичные ключи — DEMO_*_PK
+# свипают боты на BSC testnet за секунды).
+./fund_devnet.sh                                                # засылает Client/Eve tBNB с деплоера
+./run_devnet.sh                                                 # deploy → encrypt → publish → frontend
 docker compose -f smartcontracts/docker-compose.devnet.yml up -d         # без сборки (Dockerfile'ов нет)
-./run_devnet.sh down
+./run_devnet.sh down                                            # стоп (стейт тестнетов сохраняется)
+# открыть: http://localhost:8099/course-demo.html  (каталог + buy)
+#          http://localhost:8099/course-view.html   (gated lessons grid)
 
 # ── Mainnet-DRM (Chipotle на Base mainnet, контракты на тестнетах) ─────────
 export DEVNET_DEPLOYER_KEY=0x... DEVNET_DEPLOYER_ADDR=0x...
@@ -418,27 +422,40 @@ docker compose -f smartcontracts/greenfield-testnet/docker-compose.yml run --rm 
 ### Единый devnet-стек: `docker-compose.devnet.yml`
 
 Для воспроизводимого devnet'а «в одну команду» есть отдельный файл
-`smartcontracts/docker-compose.devnet.yml` — он связывает все три реальных
-тестнета без локальных узлов и моков:
+`smartcontracts/docker-compose.devnet.yml`. Это та же UX, что и локальное
+демо (`run_demo.sh`), но на **реальных BSC testnet 97** + **Greenfield
+testnet 5600**; DRM-слой по-прежнему через **локальный Chipotle mock** (у Lit
+нет публичных тестнетов: Datil закрыт 2026-02-25, остался только
+build-режим + платный Base-mainnet).
 
 | Сервис | Роль | Жизненный цикл |
 |---|---|---|
-| `devnet-deploy` | деплой `DeployAccessNfts` + `Deploy` в **BSC testnet 97**, минт `ClientNft` деплоеру, запись адресов в `devnet-addresses.env` | one-shot |
-| `devnet-writer` | публикация зашифрованного курса в **Greenfield testnet 5600**, обёртка ключа через **Chipotle (Lit v3)** с ACC `ClientNft.balanceOf >= 1` на `bscTestnet` | one-shot |
-| `frontend` | nginx, отдаёт DRM-reader/builder на `:8099` | long-running |
+| `devnet-deploy` | Foundry one-shot: деплой `ClientNft`/`AuthorNft` + Treasury/AccessPass/CourseMarketplace в BSC testnet 97, минт `ClientNft` деплоеру, регистрация курса #1 на маркетплейсе (`daskibo-devnet-course`, 0.001 tBNB), запись `demo/addresses.json` для фронта | one-shot |
+| `chipotle-mock` | Chipotle mock `:8000` с `EVM_RPC=https://data-seed-prebsc-1-s1.binance.org:8545` — ACC `hasCourseAccess(:userAddress, 1) == true` проверяется на BSC testnet | long-running (long-period healthcheck) |
+| `devnet-encrypt` | Node one-shot: AES-GCM шифрует урок-заглушку и оборачивает ключ ACC `hasCourseAccess` → `demo/manifest-1.json` (для `course-content.html`) | one-shot |
+| `devnet-writer` | Node one-shot: AES-шифрует **реальный курс из `lessons/`** (76 файлов, ~2.85 MB), заливает все объекты в Greenfield testnet SP1, патчит `demo/addresses.json` именем созданного бакета и адресом владельца — фронт сам подхватит для `course-view.html` | one-shot |
+| `frontend` | nginx раздаёт всю статику на `:8099` (`course-demo.html` — каталог, `course-view.html` — DRM-обёртка над `lessons/index.html`, `bucket-reader.html` — низкоуровневый просмотр объектов) | long-running |
 
 ```bash
-export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # tBNB на BSC + Greenfield
-export GREENFIELD_TESTNET_ADDRESS=0x...
-./run_devnet.sh            # поднять (ждёт deploy+publish, фронт остаётся)
-./run_devnet.sh down       # остановить
+# Подготовка .env (gitignored):
+#   GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS  деплоер с tBNB на BSC + Greenfield
+#   CLIENT_PK/_ADDRESS                       НЕ-публичный Client (для покупки)
+#   EVA_PK/_ADDRESS                          НЕ-публичный Eve (для denied)
+# (DEMO_*_PK НЕ годятся: это публичные Anvil-ключи, на BSC testnet их свипят
+# боты-снайперы — у тех адресов по 1800+ исходящих транзакций.)
+
+./fund_devnet.sh            # засылает Client/Eve tBNB с деплоера (с защитой
+                            # от заправки публичных ключей)
+./run_devnet.sh             # deploy → encrypt → publish → frontend
+# Открой: http://localhost:8099/course-demo.html (каталог)
+#         http://localhost:8099/course-view.html  (gated lessons/index.html)
+./run_devnet.sh down        # остановить (стейт в тестнетах сохраняется)
 ```
 
-Гейтинг — по **soulbound NFT** (`ClientNft`/`AuthorNft`), поэтому спот-`balanceOf`
-безопасен (не флэш-лоанится). DRM-слой — **Chipotle (Lit v3)** REST
-(`api.dev.litprotocol.com`); старые P2P-сети `datil*` отключены 2026-02-25.
-Подробности режима — в скилле
-[`greenfield/references/deploy-modes.md`](../skills/greenfield/references/deploy-modes.md).
+Гейтинг — `CourseMarketplace.hasCourseAccess(user, courseId)` (author всегда
+✓; buyer ✓ после `purchase()` через soulbound `AccessPass`). Chipotle-mock
+переоценивает то же условие у себя через `EVM_RPC`, поэтому фронт + DRM
+смотрят на один источник истины.
 
 ---
 

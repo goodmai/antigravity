@@ -242,10 +242,14 @@ function durLabel(d) {
   return d + 's';
 }
 
-// Link to the course content — a hello-world lesson page keyed by a per-course
-// token (ts = the course's contentHash, which bakes in a registration
-// timestamp), so each course opens a distinct page.
+// Link to the course content.
+//   • On devnet/mainnet (addresses.json has a real Greenfield `bucket`) the
+//     course lives in Greenfield → open course-view.html, the gated mirror of
+//     antigravity/lessons/index.html (lesson-card grid + in-browser decrypt).
+//   • On the local Anvil demo (no Greenfield bucket — just a stub lesson)
+//     fall back to course-content.html which reads ./demo/manifest-<id>.json.
 function courseLink(r) {
+  if (cfg && cfg.bucket) return `./course-view.html`;
   const p = new URLSearchParams({ id: String(r.id), bucket: r.bucket, ts: r.contentHash });
   return `./course-content.html?${p.toString()}`;
 }

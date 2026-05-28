@@ -32,7 +32,8 @@ receives the master key, derives DEKs, and decrypts lessons in-browser.
 | **C** — Local DRM | testnet 5600 _or_ local | Testnet SP or mock | **Chipotle mock** on `localhost:8000` | `greenfield-testnet/docker-compose.yml` | Full DRM without paying credits |
 | **D** — Testnet DRM | testnet 5600 | `gnfd-testnet-sp1.bnbchain.org` | Chipotle live API | same compose, `CHIPOTLE_URL=https://api.chipotle.litprotocol.com` | Pre-prod integration |
 | **E** — Mainnet | `greenfield_1017-1` | Production SP | Lit mainnet / Chipotle funded | — | Production |
-| **Demo** — Local Anvil | `31337` (local) | none | none | `smartcontracts/docker-compose.demo.yml` · `run_demo.sh` | MetaMask course-sale demo (author/client/Eve) → [Local course demo](#local-course-demo-anvil--metamask) |
+| **Demo** — Local Anvil | `31337` (local) | none | Chipotle mock | `smartcontracts/docker-compose.demo.yml` · `run_demo.sh` | MetaMask course-sale demo (author/client/Eve) → [Local course demo](#local-course-demo-anvil--metamask) |
+| **Devnet** — BSC + GF testnets | BSC 97 + GF 5600 | `gnfd-testnet-sp1.bnbchain.org` | Chipotle mock (BSC-aware) | `smartcontracts/docker-compose.devnet.yml` · `run_devnet.sh` · `fund_devnet.sh` | Real testnets, same demo UX → [DEVNET](#devnet-real-testnets-metamask-driven-like-the-demo) |
 
 ---
 
@@ -201,6 +202,130 @@ reader reports "manifest not found" for them.
 
 ---
 
+## DEVNET (real testnets, MetaMask-driven, like the demo)
+
+Same UX as the local Anvil demo above — but the **contracts live on BSC
+testnet** (chain 97), the **course is encrypted into BNB Greenfield testnet**
+(chain 5600), and the master key is gated by the same `hasCourseAccess` ACC
+the marketplace exposes. Lit Protocol has no testnets (Datil shut down
+2026-02-25), so the DRM step still uses the **local Chipotle mock** — the
+only difference from production-Chipotle is who issues the key.
+
+```bash
+./run_devnet.sh                 # deploy → encrypt → publish → frontend
+# → open  http://localhost:8099/course-demo.html   (catalog + buy)
+# → open  http://localhost:8099/course-view.html    (the DRM-gated lessons grid)
+./run_devnet.sh down            # stop (testnet state persists)
+```
+
+`run_devnet.sh` (compose: [`docker-compose.devnet.yml`](docker-compose.devnet.yml)) brings up:
+
+- **devnet-deploy** — one-shot Foundry: deploys `ClientNft` / `AuthorNft` +
+  the settlement (`Treasury` / `AccessPass` / `CourseMarketplace`) to **BSC
+  testnet 97**, mints a perpetual `ClientNft` to the deployer, registers
+  course #1 (`daskibo-devnet-course`, 0.001 tBNB) and writes
+  `demo/addresses.json` (with chain 97 + the marketplace address) so the
+  frontend drives the real testnet.
+- **chipotle-mock** — local Chipotle key server on `:8000` with
+  `EVM_RPC=https://data-seed-prebsc-1-s1.binance.org:8545` so the ACC is
+  re-evaluated against the same BSC testnet contracts.
+- **devnet-encrypt** — one-shot: AES-encrypts a single lesson and wraps its
+  key behind `hasCourseAccess(:userAddress, 1) == true` → `demo/manifest-1.json`
+  (used by the stub gated reader `course-content.html`).
+- **devnet-writer** — one-shot: AES-encrypts the REAL `lessons/` course (76
+  files / ~2.85 MB), uploads every object to **Greenfield testnet** SP1, and
+  patches `demo/addresses.json` with the resulting bucket name + owner so
+  `course-view.html` knows what to read.
+- **frontend** — nginx serving every static page on `:8099`.
+
+### Two test wallets — DO NOT reuse the local demo's DEMO_*_PK
+
+The local Anvil demo personas (`DEMO_AUTHOR_PK`, `DEMO_CLIENT_PK`,
+`DEMO_EVE_PK` in `.env`) are the **public Anvil dev keys** from the standard
+mnemonic. Every sweep-bot on every public testnet knows them — we've seen
+those addresses with **1800+ outgoing txs** on BSC testnet, draining anything
+that lands within seconds. **They only work on the throwaway local chain.**
+
+For devnet you need separate, NON-public keys. Add to your gitignored `.env`:
+
+```bash
+# Author / Deployer (already there — same key has tBNB on BSC + Greenfield)
+GREENFIELD_TESTNET_PRIVATE_KEY=0x...
+GREENFIELD_TESTNET_ADDRESS=0x...
+
+# Client persona (buys the course)
+CLIENT_PK=0x...
+CLIENT_ADDRESS=0x...
+
+# Eva persona (gets denied access)
+EVA_PK=0x...
+EVA_ADDRESS=0x...
+```
+
+Generate fresh ones if you don't have any:
+
+```bash
+docker run --rm --entrypoint sh ghcr.io/foundry-rs/foundry:latest -c \
+  'cast wallet new && cast wallet new'
+```
+
+### Fund the devnet wallets
+
+The deployer (`GREENFIELD_TESTNET_ADDRESS`) needs tBNB on **BSC testnet** for
+contract deploys + a few cast sends, and on **Greenfield testnet** for the
+storage payment. One funded wallet usually covers both:
+
+- BSC testnet faucet: <https://www.bnbchain.org/en/testnet-faucet>
+- Greenfield testnet faucet: <https://gnfd-testnet-faucet.bnbchain.org>
+
+Client + Eva need tBNB on BSC testnet only (gas + the 0.001 purchase price).
+Fund them from the deployer with the included helper:
+
+```bash
+./fund_devnet.sh                          # tops them up to ≥ 0.01 / 0.005 tBNB
+CLIENT_AMOUNT=0.05 ./fund_devnet.sh       # override targets
+DRY_RUN=1 ./fund_devnet.sh                # show what would be sent
+```
+
+The script refuses to fund the public Anvil addresses — that protection is
+there to stop you accidentally sending real testnet funds to sweep-bot bait.
+
+### Walk-through
+
+1. `./run_devnet.sh` — wait for deploy + writer to finish (a few minutes;
+   `daskibo-devnet-writer` uploads 70+ encrypted objects to Greenfield).
+2. Open <http://localhost:8099/course-demo.html>. MetaMask auto-switches to
+   **BNB Smart Chain Testnet** (`wallet_addEthereumChain` if needed).
+3. Connect as the **Author** (the deployer key) — you'll see course #1 with
+   *access ✓* (authors always have access) and a working **"Open course →"**
+   link that drops you on `course-view.html`.
+4. Switch MetaMask to the **Client** account → catalog row shows ✗ access +
+   "Buy for 0.001 ETH". Click → MetaMask opens (because the wallet actually
+   has tBNB on BSC testnet) → confirm → soulbound `AccessPass` is minted.
+5. Switch to **Eva** → still ✗; the "Open course" attempt is rejected by the
+   on-chain check **and** by the Chipotle mock (which re-evaluates the ACC).
+6. `course-view.html` — gated mirror of <https://goodmai.github.io/antigravity/lessons/index.html>.
+   The 26-card lessons grid is public; clicking a card requires a connected
+   wallet that satisfies `hasCourseAccess(you, 1)`. The master key is
+   released by the Chipotle mock **once per session** after a `personal_sign`
+   proof; subsequent lesson clicks only cost the AES-GCM decrypt.
+
+### Common pitfalls
+
+- **MetaMask "Catalog read failed: could not decode result data"** — the
+  page is auto-switching MetaMask to BSC testnet but the network call landed
+  before the switch. Reload the tab.
+- **"Buy" doesn't open MetaMask** — the wallet has 0 tBNB on BSC testnet, so
+  `eth_estimateGas` reverts client-side. Run `./fund_devnet.sh`.
+- **`course-view.html` says "addresses.json has no bucket"** — the writer
+  hasn't finished yet (it patches the bucket name in after upload). Tail
+  `docker logs -f daskibo-devnet-writer` and wait for `DONE — gated course`.
+- **`hasCourseAccess` returns false right after a buy** — BSC testnet's
+  public RPC sometimes lags one block. Click the catalog **Refresh** button
+  or wait ~3 s.
+
+---
+
 ## Key files
 
 | File | Purpose |
@@ -232,7 +357,11 @@ reader reports "manifest not found" for them.
 | `CHIPOTLE_URL` | Flow C/D | Key server URL (default: `http://localhost:8000`) |
 | `CHIPOTLE_PKP_KEY` | optional | Hex private key for mock PKP (persists across restarts) |
 | `RUN_GREENFIELD_LOCAL` | Flow B test | Set to `1` to run local-chain docker test |
-| `DEMO_AUTHOR_PK` / `DEMO_CLIENT_PK` / `DEMO_EVE_PK` | Local demo | Public Anvil keys for the demo personas (import into MetaMask). No real value. |
+| `DEMO_AUTHOR_PK` / `DEMO_CLIENT_PK` / `DEMO_EVE_PK` | Local demo | Public Anvil keys for the demo personas (import into MetaMask). **No real value — public; will be swept on any public network. Local Anvil only.** |
+| `CLIENT_PK` / `CLIENT_ADDRESS` | Devnet (BSC testnet) | Non-public test wallet for the Client persona on BSC testnet. Funded by `fund_devnet.sh`. |
+| `EVA_PK` / `EVA_ADDRESS` | Devnet (BSC testnet) | Same idea for the Eve persona. |
+| `BSC_TESTNET_RPC` | Devnet | Override BSC testnet RPC (default: `data-seed-prebsc-1-s1.binance.org:8545`). |
+| `COURSE_PRICE` | Devnet | Price (wei) of the seeded course on BSC testnet. Default `1000000000000000` (0.001 tBNB). |
 
 Never commit private keys. Use a `.env` file (gitignored).
 
