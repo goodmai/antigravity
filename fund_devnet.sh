@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Daskibo DEVNET — fund the Client + Eva test wallets on BSC testnet 97.
+# Daskibo DEVNET — fund the Bob + Eva test wallets on BSC testnet 97.
 #
 # Why this exists: the local Anvil demo uses the standard PUBLIC Anvil dev
 # keys (DEMO_*_PK in .env) — those work fine on a throwaway local chain but
@@ -10,7 +10,7 @@ set -euo pipefail
 # (we've seen the Anvil #2/#3 addresses with 1800+ outgoing txs each).
 #
 # For devnet (real BSC testnet) the personas are separate, NON-public keys
-# you generate yourself and put in .env as CLIENT_PK / EVA_PK / CLIENT_ADDRESS
+# you generate yourself and put in .env as BOB_PK / EVA_PK / BOB_ADDRESS
 # / EVA_ADDRESS. This script:
 #   1. checks their balances,
 #   2. funds them from GREENFIELD_TESTNET_PRIVATE_KEY (the deployer, same key
@@ -43,16 +43,15 @@ need GREENFIELD_TESTNET_ADDRESS
 DEPLOYER_ADDR="$GREENFIELD_TESTNET_ADDRESS"
 DEPLOYER_PK="$GREENFIELD_TESTNET_PRIVATE_KEY"
 
-# Personas. Falls back to CLIENT_ADDRESS / CLIENT_PK + EVA_ADDRESS / EVA_PK
-# from .env. Refuses to operate on the public Anvil DEMO_* keys (those are
-# the weaponized ones — funding them on a public testnet is throwing tBNB
-# at sweep-bots).
-CLIENT_ADDR="${CLIENT_ADDRESS:-}"
+# Personas. BOB_ADDRESS is required (paying client). EVA_ADDRESS is optional —
+# Eva's role is "no purchase → no access"; she never sends transactions on
+# devnet so she doesn't need tBNB. Refuse public Anvil DEMO_* keys — those
+# are sweep-bot targets on every public testnet.
+CLIENT_ADDR="${BOB_ADDRESS:-${CLIENT_ADDRESS:-}}"
 EVA_ADDR="${EVA_ADDRESS:-}"
-if [ -z "$CLIENT_ADDR" ] || [ -z "$EVA_ADDR" ]; then
-  echo "ERROR: set CLIENT_ADDRESS + EVA_ADDRESS in .env (must be NON-public keys)."
-  echo "       Do NOT reuse DEMO_CLIENT_ADDR / DEMO_EVE_ADDR for this — those are"
-  echo "       public Anvil dev keys, sweep-bots drain them on BSC testnet."
+if [ -z "$CLIENT_ADDR" ]; then
+  echo "ERROR: set BOB_ADDRESS in .env (must be a NON-public key)."
+  echo "       Do NOT reuse DEMO_CLIENT_ADDR — sweep-bots drain it on BSC testnet."
   exit 1
 fi
 if [ "${CLIENT_ADDR,,}" = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc" ] \
@@ -82,8 +81,8 @@ echo "════════════════════════�
 echo " Daskibo DEVNET funding · BSC testnet 97"
 echo "   RPC:       $RPC"
 echo "   Deployer:  $DEPLOYER_ADDR"
-echo "   Client:    $CLIENT_ADDR  (target ${CLIENT_AMOUNT} tBNB)"
-echo "   Eva:       $EVA_ADDR  (target ${EVA_AMOUNT} tBNB)"
+echo "   Bob:       $CLIENT_ADDR  (target ${CLIENT_AMOUNT} tBNB)"
+echo "   Eva:       ${EVA_ADDR:-(skipped — EVA_ADDRESS not set)}  ${EVA_ADDR:+(target ${EVA_AMOUNT} tBNB)}"
 echo "════════════════════════════════════════════════════════════"
 
 deployer_bal=$(bal_wei "$DEPLOYER_ADDR")
@@ -92,7 +91,9 @@ if [ "$deployer_bal" -lt 1000000000000000 ]; then  # < 0.001 tBNB
   echo "WARN: deployer is almost empty. Refill it at https://www.bnbchain.org/en/testnet-faucet"
 fi
 
-for name_addr_amt in "Client:$CLIENT_ADDR:$CLIENT_AMOUNT" "Eva:$EVA_ADDR:$EVA_AMOUNT"; do
+FUND_LIST="Bob:$CLIENT_ADDR:$CLIENT_AMOUNT"
+[ -n "$EVA_ADDR" ] && FUND_LIST="$FUND_LIST Eva:$EVA_ADDR:$EVA_AMOUNT"
+for name_addr_amt in $FUND_LIST; do
   name="${name_addr_amt%%:*}"; rest="${name_addr_amt#*:}"
   addr="${rest%%:*}"; amt="${rest#*:}"
   curr_wei=$(bal_wei "$addr")
@@ -111,9 +112,12 @@ echo ""
 echo "Waiting 6s for propagation…"
 sleep 6
 echo "── final balances ─────────────────────────────────────────"
-for name_addr in "Deployer:$DEPLOYER_ADDR" "Client:$CLIENT_ADDR" "Eva:$EVA_ADDR"; do
+BAL_LIST="Deployer:$DEPLOYER_ADDR Bob:$CLIENT_ADDR"
+[ -n "$EVA_ADDR" ] && BAL_LIST="$BAL_LIST Eva:$EVA_ADDR"
+for name_addr in $BAL_LIST; do
   name="${name_addr%%:*}"; addr="${name_addr#*:}"
   echo "  ${name}  $addr  $(to_eth $(bal_wei $addr)) tBNB"
 done
 echo "════════════════════════════════════════════════════════════"
-echo "Done. Import CLIENT_PK / EVA_PK into MetaMask (NOT the DEMO_*_PK)."
+echo "Done. Import BOB_PK into MetaMask (NOT the DEMO_*_PK)."
+echo "      Eva needs no funds on devnet — she only fails the access check."

@@ -106,13 +106,33 @@ async function decryptMasterKey(ciphertext) {
 }
 
 // ── Access-control evaluation ─────────────────────────────────────────────────
-// Returns true if `userAddress` satisfies ANY condition: an address allowlist
-// (returnValueTest.value == the address) OR an on-chain contract condition
-// (ERC721 balanceOf >= N, or CourseMarketplace.hasCourseAccess). The on-chain
-// path is what ties key release to NFT ownership.
+// Two-pass evaluation:
+//   Pass 1 — timestamp conditions (standardContractType === 'timestamp') are
+//            enforced as AND: ALL must pass or the whole check fails. A value
+//            of 0 means perpetual (no expiry), always passes.
+//   Pass 2 — address / contract conditions are enforced as OR: at least one
+//            must pass. This is the standard Lit ACC semantics.
 async function accSatisfied(conditions, userAddress) {
   const user = userAddress.toLowerCase();
+
+  // Pass 1: all timestamp conditions must pass (expiry enforcement).
   for (const c of conditions) {
+    if (c.standardContractType !== 'timestamp') continue;
+    const nowTs  = Math.floor(Date.now() / 1000);
+    const maxTs  = Number(c.returnValueTest?.value ?? 0);
+    if (maxTs === 0) continue; // 0 = perpetual, skip
+    const cmp    = c.returnValueTest?.comparator ?? '<=';
+    const passes = (cmp === '<=' && nowTs <= maxTs) || (cmp === '<' && nowTs < maxTs);
+    if (!passes) {
+      const err = new Error(`subscription expired — timestamp ${nowTs} > expiry ${maxTs}`);
+      err.code = 'EXPIRED';
+      throw err;
+    }
+  }
+
+  // Pass 2: at least one address / contract condition must pass.
+  for (const c of conditions) {
+    if (c.standardContractType === 'timestamp') continue;
     const litVal = c.returnValueTest?.value;
     // Address allowlist (e.g. the author's own address baked into the ACC).
     if (typeof litVal === 'string' && /^0x[0-9a-fA-F]{40}$/.test(litVal)
@@ -158,6 +178,97 @@ async function handleLitAction({ js_params = {} }) {
     return await encryptMasterKey(masterKey);
   }
 
+  // ── wrap_for_buyer: re-encrypt vault MK under buyer's address ─────────────
+  // Anti-drain: reads wrapNonce[buyer][courseId] on-chain before spending any
+  // crypto. If nonce is zero (already consumed) or encryptedKey already set →
+  // refuses without touching the PKP key.
+  if (action === 'wrap_for_buyer') {
+    const { buyer, courseId, nonce, vaultCiphertext, accessPassAddress, signedProof } = js_params;
+    if (!buyer)           throw new Error('js_params.buyer required');
+    if (!vaultCiphertext) throw new Error('js_params.vaultCiphertext required');
+
+    // 1. Verify buyer's MetaMask signature (prevents drain from other addresses)
+    if (signedProof) {
+      const { message, signature } = signedProof;
+      const recovered = ethers.utils.verifyMessage(message, signature);
+      if (recovered.toLowerCase() !== buyer.toLowerCase()) {
+        throw new Error(`wrap_for_buyer: signature mismatch — recovered ${recovered}, expected ${buyer}`);
+      }
+    }
+
+    // 2. On-chain guards: wrapNonce must be non-zero; encryptedKey must be empty.
+    //    Also read expiryOf so we can embed it in the buyer ACC (step 3).
+    let expiryTs = 0;
+    if (accessPassAddress) {
+      const rpc = process.env.ANVIL_RPC || process.env.BSC_TESTNET_RPC || 'http://127.0.0.1:8545';
+      const provider = new ethers.providers.JsonRpcProvider(rpc);
+      const apAbi = [
+        'function wrapNonce(address,uint256) view returns (uint256)',
+        'function encryptedKey(uint256) view returns (bytes)',
+        'function tokenIdOf(address,uint256) view returns (uint256)',
+        'function expiryOf(address,uint256) view returns (uint64)',
+      ];
+      const ap = new ethers.Contract(accessPassAddress, apAbi, provider);
+
+      const onchainNonce = await ap.wrapNonce(buyer, courseId);
+      if (onchainNonce.isZero()) {
+        throw new Error('wrap_for_buyer: wrapNonce is zero — already wrapped or not purchased');
+      }
+      if (nonce !== undefined && !onchainNonce.eq(ethers.BigNumber.from(String(nonce)))) {
+        throw new Error(`wrap_for_buyer: nonce mismatch — on-chain ${onchainNonce}, provided ${nonce}`);
+      }
+
+      const tokenId = await ap.tokenIdOf(buyer, courseId);
+      if (!tokenId.isZero()) {
+        const storedKey = await ap.encryptedKey(tokenId);
+        if (storedKey && storedKey !== '0x') {
+          throw new Error('wrap_for_buyer: already_wrapped — encryptedKey already set for this token');
+        }
+      }
+
+      expiryTs = (await ap.expiryOf(buyer, courseId)).toNumber(); // 0 = perpetual
+    }
+
+    // Build buyer ACC: address-bound + optional expiry timestamp (AND-combined).
+    // This ACC is embedded in the returned ciphertext metadata so that Chipotle
+    // enforces BOTH conditions on every subsequent decrypt call.
+    const buyerAcc = [
+      {
+        contractAddress: '',
+        standardContractType: '',
+        chain: 'bscTestnet',
+        method: '',
+        parameters: [':userAddress'],
+        returnValueTest: { comparator: '=', value: buyer },
+      },
+    ];
+    if (expiryTs > 0) {
+      buyerAcc.push({ operator: 'and' });
+      buyerAcc.push({
+        contractAddress: '',
+        standardContractType: 'timestamp',
+        chain: 'bscTestnet',
+        method: 'eth_getBlockByNumber',
+        parameters: ['latest'],
+        returnValueTest: { comparator: '<=', value: String(expiryTs) },
+      });
+    }
+
+    // 3. Decrypt vault → MK, then re-encrypt bound to buyer address
+    const mk = await decryptMasterKey(vaultCiphertext);
+    const wrapped = await encryptMasterKey(mk);
+
+    console.log(`[wrap_for_buyer] wrapped MK for ${buyer} (courseId=${courseId}, expiry=${expiryTs || 'perpetual'})`);
+    return {
+      ciphertext:        wrapped.ciphertext,
+      dataToEncryptHash: wrapped.dataToEncryptHash,
+      acc:               buyerAcc,
+      buyer,
+      courseId:          String(courseId),
+      expiryTs,
+    };
+  }
+
   if (action === 'decrypt') {
     const { ciphertext, accessControlConditions, userAddress, signedProof } = js_params;
     if (!ciphertext)   throw new Error('js_params.ciphertext required for decrypt action');
@@ -182,7 +293,15 @@ async function handleLitAction({ js_params = {} }) {
     if (conditions.length === 0) {
       throw new Error('No access control conditions provided');
     }
-    const allowed = await accSatisfied(conditions, userAddress);
+    let allowed;
+    try {
+      allowed = await accSatisfied(conditions, userAddress);
+    } catch (e) {
+      if (e.code === 'EXPIRED') {
+        throw new Error(`Access denied: ${userAddress} — ${e.message}`);
+      }
+      throw e;
+    }
     if (!allowed) {
       throw new Error(
         `Access denied: ${userAddress} does not satisfy the access control conditions`,

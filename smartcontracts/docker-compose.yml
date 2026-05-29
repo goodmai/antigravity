@@ -13,6 +13,9 @@
 # 4. mainnet (Real BNB Greenfield Mainnet + Lit datil network + Capacity Credits):
 #    docker compose --profile mainnet run --rm mainnet-writer
 #
+# 5. devnet-pa (Devnet P-A scheme — Anvil + chipotle-mock + mock-sp, no real net):
+#    docker compose --profile devnet-pa up --abort-on-container-exit --exit-code-from devnet-pa-e2e
+#
 # Static frontend Nginx is served on port 8085 across all profiles to preserve
 # complete backward compatibility with vitest integration tests.
 
@@ -65,6 +68,7 @@ services:
     environment:
       - CHIPOTLE_PKP_KEY
       - CHIPOTLE_PORT=8000
+      - ANVIL_RPC=http://anvil:8545
     command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
@@ -81,6 +85,61 @@ services:
       - testnet
       - mainnet
       - test-devnet
+      - devnet-pa
+
+  mock-sp-devnet:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "mock-sp.mjs"]
+    environment:
+      - PORT=9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./integration/mock-sp.mjs:/app/mock-sp.mjs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9000/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - devnet-pa
+
+  devnet-pa-e2e:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+      - ./integration:/app/integration:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      chipotle-mock:
+        condition: service_healthy
+      mock-sp-devnet:
+        condition: service_healthy
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=97
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - GF_SP=http://mock-sp-devnet:9000
+      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - COURSE_PRICE_WEI=10000000000000000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node /app/run-devnet-pa.mjs"]
+    profiles:
+      - devnet-pa
 
   greenfield-local:
     build:
@@ -356,7 +415,7 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - >
-        anvil --host 0.0.0.0 --chain-id 97 --hardfork shanghai
+        anvil --host 0.0.0.0 --chain-id 97 --hardfork cancun
         $${BSC_TESTNET_RPC:+--fork-url "$$BSC_TESTNET_RPC"}
         --silent
     environment:
@@ -371,6 +430,7 @@ services:
       retries: 20
     profiles:
       - e2e-full
+      - devnet-pa
 
   deploy:
     image: ghcr.io/foundry-rs/foundry:latest
@@ -395,12 +455,13 @@ services:
       - >
         if echo "$$RPC_URL" | grep -qvE 'anvil|127\.0\.0\.1|localhost' && [ "$$PRIVATE_KEY" = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" ]; then echo "REFUSING: well-known anvil dev key against non-local RPC ($$RPC_URL). Pass a real PRIVATE_KEY for testnet/mainnet."; exit 1; fi
         && (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
-        && forge build
+        && forge clean && forge build
         && forge script script/Deploy.s.sol:Deploy
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
         --broadcast -vvv
     profiles:
       - e2e-full
+      - devnet-pa
 
   e2e:
     build:

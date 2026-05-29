@@ -32,6 +32,14 @@
  * @typedef {import('./lit-access.js').LitEnvelope} LitEnvelope
  * @typedef {import('./lit-access.js').AccessControlConditions} AccessControlConditions
  *
+ * @typedef {Object} BucketMeta
+ * @property {string} [platform]      Platform identifier, e.g. "prosol"
+ * @property {string} [author]        Human-readable author name or address
+ * @property {string} [authorAddress] On-chain EVM address of the author (0x…)
+ * @property {string} [title]         Course title
+ * @property {string} [publishedAt]   ISO-8601 timestamp of first publication
+ * @property {string} [updatedAt]     ISO-8601 timestamp of last update
+ *
  * @typedef {Object} LitOption
  * @property {{ encryptMasterKey: (master: string, acc: AccessControlConditions) => Promise<LitEnvelope> }} access
  * @property {AccessControlConditions} [accessControlConditions]
@@ -67,6 +75,7 @@ export async function planCoursePublish({
   crypto,
   masterKey,
   lit,
+  meta,
 }) {
   const plain = buildCourseBucket(spec);
   const enc = await encryptCourseBucket(plain, { crypto, masterKey });
@@ -95,10 +104,13 @@ export async function planCoursePublish({
       : acc;
     litMaster = await lit.access.encryptMasterKey(enc.masterKey, effectiveAcc);
     manifest = { ...enc.manifest, lit: litMaster };
+    if (meta) manifest = { ...manifest, meta };
     const body = JSON.stringify(manifest);
     objects = enc.objects.map((o) =>
       o.kind === 'manifest' ? { ...o, body } : o,
     );
+  } else if (meta) {
+    manifest = { ...manifest, meta };
   }
 
   return {

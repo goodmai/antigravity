@@ -121,11 +121,21 @@ async function main() {
   );
 
   // ── 5. Plan (encrypt + Chipotle-wrap master key) ──────────────────────────
+  const now = new Date().toISOString();
+  const meta = {
+    platform:      process.env.PLATFORM      || 'prosol',
+    author:        process.env.AUTHOR_NAME   || ADDR,
+    authorAddress: process.env.AUTHOR_ADDRESS || ADDR,
+    title:         course.title,
+    publishedAt:   now,
+    updatedAt:     now,
+  };
   console.log(`→ Planning publish for bucket "${GF_BUCKET}"…`);
   const plan = await planCoursePublish({
     spec,
     pricing: { litSaveCost: 800n, storageCost: 200n },
     lit: { access: litAccess, accessControlConditions: acc },
+    meta,
   });
   if (!plan.manifest.lit) throw new Error('planCoursePublish did not produce a lit envelope');
 

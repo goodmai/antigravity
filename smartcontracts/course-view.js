@@ -31,7 +31,17 @@ import { BrowserProvider, JsonRpcProvider, Contract, getAddress } from 'https://
 import { decryptObject } from './buckets/crypto-envelope.js';
 
 const SP = 'https://gnfd-testnet-sp1.bnbchain.org';
-const MP_ABI = ['function hasCourseAccess(address,uint256) view returns (bool)'];
+const MP_ABI = [
+  'function hasCourseAccess(address,uint256) view returns (bool)',
+  'function accessPass() view returns (address)',
+];
+const AP_ABI = [
+  'function wrapNonce(address,uint256) view returns (uint256)',
+  'function encryptedKey(uint256) view returns (bytes)',
+  'function tokenIdOf(address,uint256) view returns (uint256)',
+  'function expiryOf(address,uint256) view returns (uint64)',
+  'function setEncryptedKey(uint256,bytes)',
+];
 
 // ── canonical lesson catalog (mirrors antigravity/lessons/index.html) ────────
 const LESSONS = [
@@ -181,39 +191,137 @@ async function connect() {
   }
 }
 
-// Master-key release. Cached for the rest of the session so each new lesson
-// click only costs the fetch + AES-GCM (one personal_sign + one Chipotle round
-// trip per session).
+// Master-key release (scheme P-A, spec/crypto.md).
+//
+// First call (after purchase): calls wrap_for_buyer → stores address-bound
+// ciphertext in the AccessPass NFT via setEncryptedKey (consumes wrapNonce).
+// Subsequent calls (same or future sessions): reads ciphertext from NFT,
+// decrypts with address proof — no platform API key needed.
+//
+// Cached for the session so each lesson click after the first costs only
+// AES-GCM (no MetaMask prompt, no Chipotle call).
 async function ensureMasterKey() {
   if (masterKey) return masterKey;
   if (!account) throw new Error('Connect MetaMask first');
   const lit = manifest.lit;
-  if (!lit) throw new Error('manifest.lit missing — bucket was not encrypted by write-devnet.mjs');
+  if (!lit) throw new Error('manifest.lit missing — bucket was not encrypted');
+
+  const courseId = cfg.courseId || 1;
+  const chipotleUrl = (lit.chipotleUrl || 'http://localhost:8000').replace(/\/$/, '');
+  const read = new JsonRpcProvider(cfg.rpcUrl, cfg.chainId, { staticNetwork: true });
+  const mp   = new Contract(cfg.marketplace, MP_ABI, read);
+
+  // Resolve AccessPass contract (address lives in marketplace)
+  const apAddr = await mp.accessPass();
+  const ap     = new Contract(apAddr, AP_ABI, read);
+
+  // Look up buyer's token
+  const tokenId = await ap.tokenIdOf(account, courseId);
+
+  let buyerCiphertext = null;
+  let buyerAcc = null; // address + optional timestamp ACC; captured from wrap or reconstructed
+
+  if (tokenId !== 0n) {
+    const stored = await ap.encryptedKey(tokenId);
+    if (stored && stored !== '0x') {
+      buyerCiphertext = stored; // key already in NFT — skip wrap step
+    }
+  }
+
+  if (!buyerCiphertext) {
+    // ── First login after purchase: wrap vault MK for this address ──────
+    if (tokenId === 0n) {
+      throw new Error('AccessPass not found — buy the course first');
+    }
+    const nonce = await ap.wrapNonce(account, courseId);
+    if (nonce === 0n) {
+      throw new Error('wrapNonce is zero — already wrapped or access expired');
+    }
+
+    banner('<span class="spin">⟳</span> Первый вход — создаю персональный ключ доступа (подпись MetaMask)…');
+    const wrapMsg = `Daskibo wrap-for-buyer\nCourse: ${courseId}\nWallet: ${account}\nNonce: ${Date.now()}`;
+    const wrapSig = await window.ethereum.request({ method: 'personal_sign', params: [wrapMsg, account] });
+
+    const wrapRes = await fetch(`${chipotleUrl}/core/v1/lit_action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // No X-Api-Key — authenticated by buyer's MetaMask signature + on-chain nonce
+      body: JSON.stringify({
+        js_params: {
+          action:            'wrap_for_buyer',
+          buyer:             account,
+          courseId:          String(courseId),
+          nonce:             nonce.toString(),
+          vaultCiphertext:   lit.ciphertext,
+          accessPassAddress: apAddr,
+          signedProof: { message: wrapMsg, signature: wrapSig },
+        },
+      }),
+    });
+    const wrapData = await wrapRes.json();
+    if (wrapData.has_error) throw new Error('Chipotle wrap failed: ' + (wrapData.logs || wrapData.error));
+    buyerCiphertext = wrapData.response?.ciphertext;
+    if (!buyerCiphertext) throw new Error('wrap_for_buyer did not return ciphertext');
+    buyerAcc = wrapData.response?.acc || null; // includes timestamp condition if expiry > 0
+
+    // Store in NFT — consumes wrapNonce atomically (one MetaMask tx)
+    banner('<span class="spin">⟳</span> Записываю ключ в NFT — подтверди транзакцию в MetaMask…');
+    const signer  = await (new BrowserProvider(window.ethereum)).getSigner();
+    const apWrite = new Contract(apAddr, AP_ABI, signer);
+    const tx = await apWrite.setEncryptedKey(tokenId, buyerCiphertext);
+    await tx.wait();
+    banner('✓ Ключ записан в NFT — расшифровываю контент…', 'ok');
+  }
+
+  // ── Decrypt buyer-specific ciphertext with address proof ────────────────
+  // Reconstruct ACC if this is a repeat session (ciphertext was already in NFT).
+  // ACC = { address == account } AND optionally { block.timestamp <= expiryTs }.
+  if (!buyerAcc) {
+    const expiry   = await ap.expiryOf(account, courseId);
+    const expiryTs = Number(expiry);
+    buyerAcc = [{
+      contractAddress: '',
+      standardContractType: '',
+      chain: lit.chain || 'bscTestnet',
+      method: '',
+      parameters: [':userAddress'],
+      returnValueTest: { comparator: '=', value: account },
+    }];
+    if (expiryTs > 0) {
+      buyerAcc.push({ operator: 'and' });
+      buyerAcc.push({
+        contractAddress: '',
+        standardContractType: 'timestamp',
+        chain: lit.chain || 'bscTestnet',
+        method: 'eth_getBlockByNumber',
+        parameters: ['latest'],
+        returnValueTest: { comparator: '<=', value: String(expiryTs) },
+      });
+    }
+  }
 
   banner('<span class="spin">⟳</span> Подписываю proof of ownership…');
-  const message = `Daskibo course access\nCourse: ${cfg.courseId || 1}\nWallet: ${account}\nNonce: ${Date.now()}`;
+  const message = `Daskibo course access\nCourse: ${courseId}\nWallet: ${account}\nNonce: ${Date.now()}`;
   const signature = await window.ethereum.request({ method: 'personal_sign', params: [message, account] });
 
-  banner('<span class="spin">⟳</span> Прошу Chipotle проверить ACC и отдать мастер-ключ…');
-  const chipotleUrl = (lit.chipotleUrl || 'http://localhost:8000').replace(/\/$/, '');
   const r = await fetch(`${chipotleUrl}/core/v1/lit_action`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Api-Key': 'dummy-api-key' },
+    headers: { 'Content-Type': 'application/json' },
+    // No X-Api-Key: ciphertext is address-bound → only this address can decrypt
     body: JSON.stringify({
       js_params: {
-        action: 'decrypt',
-        ciphertext: lit.ciphertext,
-        dataToEncryptHash: lit.dataToEncryptHash,
-        accessControlConditions: lit.accessControlConditions,
-        chain: lit.chain || 'bscTestnet',
-        pkpId: lit.pkpId,
-        userAddress: account,
+        action:                  'decrypt',
+        ciphertext:              buyerCiphertext,
+        accessControlConditions: buyerAcc,
+        chain:                   lit.chain || 'bscTestnet',
+        pkpId:                   lit.pkpId,
+        userAddress:             account,
         signedProof: { message, signature },
       },
     }),
   });
   const data = await r.json();
-  if (data.has_error) throw new Error(data.error || 'Chipotle отказал');
+  if (data.has_error) throw new Error(data.error || data.logs || 'Chipotle отказал');
   masterKey = data.response?.decrypted;
   if (!masterKey) throw new Error('Chipotle не вернул ключ');
   banner('✓ Мастер-ключ получен — расшифровываю урок…', 'ok');
