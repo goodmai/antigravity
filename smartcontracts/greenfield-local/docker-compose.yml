@@ -34,8 +34,8 @@ services:
       - "9033:9033"     # sp0 HTTP gateway (confirm via `localup.sh print`)
       - "1317:1317"     # cosmos REST (if enabled by localup)
     healthcheck:
-      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped"]
+      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped && curl -sf http://127.0.0.1:9033/status"]
       interval: 5s
       timeout: 5s
-      retries: 40
+      retries: 80
       start_period: 120s

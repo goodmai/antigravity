@@ -43,7 +43,7 @@ import { webcrypto } from 'node:crypto';
 
 import { planCoursePublish } from '/app/buckets/course-publish.js';
 import { decryptCourseObject } from '/app/buckets/course-read.js';
-import { addressAllowlistAcc, anyOf } from '/app/buckets/lit-acc.js';
+import { addressAllowlistAcc, anyOf, courseAccessAcc } from '/app/buckets/lit-acc.js';
 import { createLitAccess } from '/app/buckets/lit-access.js';
 import { createGreenfieldClient } from '/app/buckets/greenfield-core.js';
 import { createChipotleClient } from '/app/buckets/lit-sdk-chipotle.js';
@@ -227,6 +227,10 @@ async function makeGreenfieldClient() {
     chainId: GF_CHAIN_ID,
     privateKey: GF_PK,
     address: GF_ADDR,
+    // spEndpoint ensures the local SP URL (docker-resolvable) is used for
+    // object uploads instead of the on-chain lookup, which returns
+    // http://127.0.0.1:903x — only reachable inside the Greenfield container.
+    spEndpoint: GF_SP,
   });
   return createGreenfieldClient({
     transport: fetchTransport,
@@ -237,6 +241,22 @@ async function makeGreenfieldClient() {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────
+
+// Greenfield objects are sealed asynchronously after upload; on a local
+// chain the SP may not yet serve the object immediately after creation.
+// Retry with linear back-off before giving up.
+async function readObjectWithRetry(gf, bucket, key, { retries = 60, delayMs = 5000 } = {}) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await gf.readObject(bucket, key);
+    } catch (err) {
+      if (i === retries) throw err;
+      console.log(`    [retry ${i + 1}/${retries}] ${key} not ready (${err?.message?.slice(0, 60)}), waiting ${delayMs}ms…`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
+}
+
 const eq = (label, actual, expected) => {
   const ok = actual === expected;
   console.log(`${ok ? '✓' : '✗'} ${label}: ${actual} ${ok ? '==' : '!='} ${expected}`);
@@ -250,8 +270,11 @@ async function expectRejected(label, p, codeOrMatch) {
   } catch (err) {
     const msg = err?.message || String(err);
     const code = err?.code;
-    const matched =
-      codeOrMatch instanceof RegExp ? codeOrMatch.test(msg) : code === codeOrMatch || msg.includes(codeOrMatch);
+    // Match against both message AND code — Chipotle errors use err.code ('ACCESS_DENIED')
+    // while their message may not contain the keyword.
+    const matched = codeOrMatch instanceof RegExp
+      ? codeOrMatch.test(msg) || codeOrMatch.test(code || '')
+      : code === codeOrMatch || msg.includes(codeOrMatch);
     console.log(`${matched ? '✓' : '✗'} ${label}: rejected (${code || msg.slice(0, 80)})`);
     if (!matched) throw new Error(`assert failed: ${label} — expected ${codeOrMatch}, got ${code || msg}`);
     return;
@@ -294,8 +317,15 @@ async function main() {
       },
     ],
   };
-  // initial ACC: Alice-only (the operator OR-s buyers in on Purchase)
-  const initialAcc = addressAllowlistAcc(alice.address);
+  // Chipotle-mock mode uses a contract-based ACC (courseAccessAcc) so that Bob's
+  // access is evaluated on-chain after purchase — no manifest re-wrap needed.
+  // The mock supports contract conditions via ANVIL_RPC. CourseId=1 is deterministic
+  // on a fresh Anvil chain (first registerCourse call). Datil-dev mode uses the
+  // address-allowlist approach (re-wrap on purchase) because Lit nodes can't reach
+  // the private Anvil RPC.
+  const initialAcc = isChipotle
+    ? courseAccessAcc({ contractAddress: MARKETPLACE_ADDR, chain: 'bscTestnet', courseId: '1' })
+    : addressAllowlistAcc(alice.address);
   let plan = await planCoursePublish({
     spec,
     pricing: { litSaveCost: 800n, storageCost: 200n, w3extPayee: W3EXT_ADDR },
@@ -374,9 +404,9 @@ async function main() {
   });
   eq('  Bob hasCourseAccess (pre-buy)', bobBefore, false);
   // Lit decrypt also denies Bob (his address isn't in the ACC yet).
-  const manifestText = await gf.readObject(plan.bucketName, '_lit/manifest.json');
+  const manifestText = await readObjectWithRetry(gf, plan.bucketName, '_lit/manifest.json');
   const manifest = JSON.parse(manifestText);
-  const encText = await gf.readObject(plan.bucketName, 'lessons/01/secret.md.enc');
+  const encText = await readObjectWithRetry(gf, plan.bucketName, 'lessons/01/secret.md.enc');
   const bobAuth0 = await getAuthContext(BOB_PK, bob.address);
   await expectRejected(
     '  Bob Lit decrypt (pre-buy)',
@@ -434,31 +464,40 @@ async function main() {
   eq('  AccessPass.hasAccess(Bob)', bobPass, true);
 
   // ── 6. Operator re-wraps Lit envelope on Purchase. ────────────────
-  console.log('\n[6/9] Operator re-wraps Lit master with (Alice OR Bob)…');
-  const newAcc = anyOf(addressAllowlistAcc(alice.address), addressAllowlistAcc(bob.address));
-  let newLitEnv = await lit.encryptMasterKey(plan.masterKey, newAcc);
-  if (isChipotle) {
-    newLitEnv = {
-      ...newLitEnv,
-      litNetwork: 'chipotle',
-      chipotleUrl: CHIPOTLE_URL,
-      pkpId: PKP_ID,
-    };
+  // Chipotle mode: ACC is courseAccessAcc (contract-based) — no re-wrap needed;
+  // hasCourseAccess(bob) is now true after purchase, so Chipotle evaluates it
+  // on-chain and grants access. Greenfield objects are immutable, so we keep
+  // the manifest as-is.
+  //
+  // Datil mode: re-wrap with extended address-allowlist (Lit nodes can't reach
+  // the private Anvil RPC, so contract conditions don't work there).
+  let currentManifest = manifest;
+  if (!isChipotle) {
+    console.log('\n[6/9] Operator re-wraps Lit master with (Alice OR Bob)…');
+    const newAcc = anyOf(addressAllowlistAcc(alice.address), addressAllowlistAcc(bob.address));
+    const newLitEnv = await lit.encryptMasterKey(plan.masterKey, newAcc);
+    currentManifest = { ...manifest, lit: newLitEnv };
+    await gf.saveObject(
+      plan.bucketName,
+      '_lit/manifest.json',
+      JSON.stringify(currentManifest),
+      { contentType: 'application/json', owner: GF_ADDR },
+    );
+    console.log('  ✓ manifest re-uploaded with extended ACC');
+  } else {
+    console.log('\n[6/9] Chipotle mode: contract ACC includes Bob post-purchase (no re-wrap needed)…');
+    console.log('  ✓ hasCourseAccess(Bob) == true → courseAccessAcc will pass');
   }
-  const newManifest = { ...manifest, lit: newLitEnv };
-  await gf.saveObject(
-    plan.bucketName,
-    '_lit/manifest.json',
-    JSON.stringify(newManifest),
-    { contentType: 'application/json', owner: GF_ADDR },
-  );
-  console.log('  ✓ manifest re-uploaded with extended ACC');
 
   // ── 7. Bob now decrypts and asserts plaintext equality. ───────────
   console.log('\n[7/9] Bob decrypts — Lit + AES round-trip…');
-  const bobManifestText = await gf.readObject(plan.bucketName, '_lit/manifest.json');
+  // In chipotle mode the manifest is unchanged (contract-based ACC); in datil
+  // mode it was re-uploaded with extended address-allowlist in step 6.
+  const bobManifestText = isChipotle
+    ? JSON.stringify(currentManifest)
+    : await readObjectWithRetry(gf, plan.bucketName, '_lit/manifest.json');
   const bobManifest = JSON.parse(bobManifestText);
-  const bobEnc = await gf.readObject(plan.bucketName, 'lessons/01/secret.md.enc');
+  const bobEnc = await readObjectWithRetry(gf, plan.bucketName, 'lessons/01/secret.md.enc');
   const bobAuth = await getAuthContext(BOB_PK, bob.address);
   const bobRead = await decryptCourseObject(bobManifest, bobEnc, {
     access: lit,
