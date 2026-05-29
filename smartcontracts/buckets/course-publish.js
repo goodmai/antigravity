@@ -32,13 +32,7 @@
  * @typedef {import('./lit-access.js').LitEnvelope} LitEnvelope
  * @typedef {import('./lit-access.js').AccessControlConditions} AccessControlConditions
  *
- * @typedef {Object} BucketMeta
- * @property {string} [platform]      Platform identifier, e.g. "prosol"
- * @property {string} [author]        Human-readable author name or address
- * @property {string} [authorAddress] On-chain EVM address of the author (0x…)
- * @property {string} [title]         Course title
- * @property {string} [publishedAt]   ISO-8601 timestamp of first publication
- * @property {string} [updatedAt]     ISO-8601 timestamp of last update
+ * @typedef {import('./course-template.js').BucketMeta} BucketMeta
  *
  * @typedef {Object} LitOption
  * @property {{ encryptMasterKey: (master: string, acc: AccessControlConditions) => Promise<LitEnvelope> }} access
@@ -66,7 +60,7 @@ import { addressAllowlistAcc, anyOf } from './lit-acc.js';
  * When `lit` is given, the AES bucket master key is Lit-wrapped under the
  * access control conditions and recorded in the manifest (`manifest.lit`)
  * — the raw master is never written into any stored object.
- * @param {{ spec: CourseSpec, pricing: SavePricing, crypto?: WebCryptoLike, masterKey?: string, lit?: LitOption }} args
+ * @param {{ spec: CourseSpec, pricing: SavePricing, crypto?: WebCryptoLike, masterKey?: string, lit?: LitOption, meta?: BucketMeta }} args
  * @returns {Promise<PublishPlan>}
  */
 export async function planCoursePublish({

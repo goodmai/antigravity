@@ -35,6 +35,14 @@
  * @property {string} [sidecar]           `.lit.json` sidecar key (encrypted only).
  * @property {string} [dataToEncryptHash] Hash binding the ciphertext (encrypted only).
  *
+ * @typedef {Object} BucketMeta
+ * @property {string} [platform]      Platform identifier, e.g. "prosol"
+ * @property {string} [author]        Human-readable author name or address
+ * @property {string} [authorAddress] On-chain EVM address of the author (0x…)
+ * @property {string} [title]         Course title
+ * @property {string} [publishedAt]   ISO-8601 timestamp of first publication
+ * @property {string} [updatedAt]     ISO-8601 timestamp of last update
+ *
  * @typedef {Object} CourseManifest
  * @property {string}          schema
  * @property {string}          bucket
@@ -42,6 +50,7 @@
  * @property {string}          litNetwork
  * @property {string}          updatedAt
  * @property {ManifestEntry[]} objects
+ * @property {BucketMeta}     [meta]   Optional bucket/course metadata
  *
  * @typedef {Object} CourseBucket
  * @property {string}         bucketName

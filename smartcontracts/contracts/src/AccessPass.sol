@@ -23,6 +23,7 @@ contract AccessPass is IAccessPass {
     error NonceConsumed();  // wrapNonce is zero — already used or never minted
     error NotTokenOwner();  // caller is not ownerOf(tokenId)
     error NotGranted();     // no active pass for this buyer+course
+    error EmptyCiphertext(); // ciphertext must be non-empty (0-length would corrupt the write-once slot)
 
     address public owner;
     address public marketplace;
@@ -93,6 +94,11 @@ contract AccessPass is IAccessPass {
     ///         Consumes `wrapNonce` atomically — subsequent calls revert.
     function setEncryptedKey(uint256 tokenId, bytes calldata ct) external {
         if (ownerOf[tokenId] != msg.sender) revert NotTokenOwner();
+        // Empty ciphertext would silently consume the wrapNonce while leaving
+        // the write-once slot in an unusable state (AlreadySet would NOT fire
+        // on a second call because length == 0, but NonceConsumed would).
+        // Require non-empty to keep the slot semantics well-defined.
+        if (ct.length == 0) revert EmptyCiphertext();
         if (encryptedKey[tokenId].length != 0) revert AlreadySet();
 
         uint256 courseId = courseOf[tokenId];

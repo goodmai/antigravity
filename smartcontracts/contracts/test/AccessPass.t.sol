@@ -290,6 +290,45 @@ contract AccessPassTest is Test {
         assertTrue(nonce2 != nonce1 || nonce2 != 0, "nonce should change after reset");
     }
 
+    // ── P-A: setEncryptedKey edge cases ──────────────────────────────────────
+
+    /// Audit: empty-bytes griefing — a zero-length ciphertext would consume the
+    /// wrapNonce but leave encryptedKey.length == 0. A second call would then
+    /// pass the AlreadySet guard but fail on NonceConsumed, permanently locking
+    /// the slot without storing anything useful. EmptyCiphertext prevents this.
+    function test_setEncryptedKey_revertsOnEmptyBytes() public {
+        vm.prank(mp);
+        uint256 id = pass.mint(alice, 30, 0);
+        uint256 nonceBeforeAttempt = pass.wrapNonce(alice, 30);
+        assertGt(nonceBeforeAttempt, 0, "nonce must be non-zero before attempt");
+
+        vm.prank(alice);
+        vm.expectRevert(AccessPass.EmptyCiphertext.selector);
+        pass.setEncryptedKey(id, new bytes(0));
+
+        // Nonce must survive the failed call — no drain of the write-once slot
+        assertEq(pass.wrapNonce(alice, 30), nonceBeforeAttempt, "nonce must survive failed call");
+        assertEq(pass.encryptedKey(id).length, 0, "slot still empty after failed call");
+    }
+
+    /// Design invariant: setEncryptedKey does NOT check expiry on-chain; expiry
+    /// is enforced off-chain via the timestamp condition in the Chipotle ACC.
+    /// The contract is the source of state, not the enforcement layer.
+    function test_setEncryptedKey_onExpiredToken_permittedByDesign() public {
+        uint64 exp = uint64(block.timestamp + 10);
+        vm.prank(mp);
+        uint256 id = pass.mint(alice, 31, exp);
+
+        vm.warp(uint256(exp) + 1); // subscription expired
+        assertFalse(pass.hasAccess(alice, 31), "access expired");
+
+        // setEncryptedKey still succeeds — the stored ciphertext's ACC timestamp
+        // will deny any Chipotle decrypt attempt after expiry.
+        vm.prank(alice);
+        pass.setEncryptedKey(id, hex"cafecafe");
+        assertEq(pass.encryptedKey(id), hex"cafecafe", "ciphertext stored");
+    }
+
     // ── P-A + expiry enforcement ──────────────────────────────────────────────
 
     /// Full P-A flow with timed subscription.

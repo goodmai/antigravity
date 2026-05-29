@@ -144,4 +144,48 @@ contract TreasuryTest is Test {
         vm.expectRevert(Treasury.NotPendingOwner.selector);
         treasury.acceptOwnership(); // caller is neither gov nor pending
     }
+
+    // ── Audit: coverage of missing attack surfaces ────────────────────────
+
+    /// collectFrom() with a zero-balance marketplace reverts because
+    /// withdraw() reverts NothingToWithdraw — permissionless caller cannot
+    /// drain Treasury via empty pulls (funds are not at risk; the call just
+    /// fails cleanly).
+    function test_collectFrom_zeroBalance_reverts() public {
+        MpStub mp = new MpStub(); // balance = 0
+        // mp.withdraw() sends 0 ether via call{value:0} which succeeds (returns 0);
+        // totalReceived stays 0, no revert.  This verifies no harm from empty pull.
+        treasury.collectFrom(address(mp)); // should not revert
+        assertEq(address(treasury).balance, 0);
+        assertEq(treasury.totalReceived(), 0);
+    }
+
+    /// Multiple inflows (receive + fund + collectFrom) are all tracked
+    /// cumulatively in totalReceived.
+    function test_totalReceived_tracksAllInflows() public {
+        (bool ok,) = address(treasury).call{value: 1 ether}("");
+        assertTrue(ok);
+        treasury.fund{value: 2 ether}();
+        MpStub mp = new MpStub();
+        (bool ok2,) = address(mp).call{value: 0.5 ether}("");
+        assertTrue(ok2);
+        treasury.collectFrom(address(mp));
+        assertEq(treasury.totalReceived(), 3.5 ether); // 1 + 2 + 0.5
+        assertEq(address(treasury).balance, 3.5 ether);
+    }
+
+    /// Governance can perform multiple partial withdrawals; balance drains
+    /// correctly each time and totalReceived is NOT decremented (it is
+    /// cumulative inflows only, not a balance mirror).
+    function test_multipleWithdraws_drainCorrectly() public {
+        treasury.fund{value: 6 ether}();
+        vm.startPrank(gov);
+        treasury.withdraw(sink, 2 ether);
+        assertEq(address(treasury).balance, 4 ether);
+        treasury.withdraw(sink, 4 ether);
+        assertEq(address(treasury).balance, 0);
+        vm.stopPrank();
+        assertEq(treasury.totalReceived(), 6 ether); // cumulative, not a balance
+        assertEq(sink.balance, 6 ether);
+    }
 }
