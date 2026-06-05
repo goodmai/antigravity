@@ -130,7 +130,7 @@ services:
         condition: service_healthy
     environment:
       - ANVIL_RPC=http://anvil:8545
-      - CHAIN_ID=97
+      - CHAIN_ID=31337
       - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
       - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
       - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
@@ -169,7 +169,7 @@ services:
         condition: service_healthy
     environment:
       - ANVIL_RPC=http://anvil:8545
-      - CHAIN_ID=97
+      - CHAIN_ID=31337
       - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
       - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
       - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
@@ -470,7 +470,7 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - >
-        anvil --host 0.0.0.0 --chain-id 97 --hardfork cancun
+        anvil --host 0.0.0.0 --chain-id 31337 --hardfork cancun
         $${BSC_TESTNET_RPC:+--fork-url "$$BSC_TESTNET_RPC"}
         --silent
     environment:
@@ -537,7 +537,7 @@ services:
         condition: service_healthy
     environment:
       - ANVIL_RPC=http://anvil:8545
-      - CHAIN_ID=97
+      - CHAIN_ID=31337
       - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
       - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
       - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0

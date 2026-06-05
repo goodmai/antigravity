@@ -376,6 +376,90 @@ contract AccessPassTest is Test {
         pass.setEncryptedKey(id, hex"deadbeef");
     }
 
+    // ── H-1: stale-token nonce drain (post-renewal protection) ───────────────
+
+    /// After renewal, the old token's ownerOf still points to the buyer. Without
+    /// the StaleToken guard a holder could call setEncryptedKey(oldId, …) and
+    /// consume the fresh wrapNonce that was issued for the NEW token, bricking
+    /// the new token's key-set flow until governance resets it.
+    function test_setEncryptedKey_revertsOnStaleToken() public {
+        vm.prank(mp);
+        uint256 id1 = pass.mint(alice, 50, uint64(block.timestamp + 100));
+
+        vm.warp(block.timestamp + 101); // id1 expires
+        vm.roll(block.number + 1);
+        vm.prank(mp);
+        uint256 id2 = pass.mint(alice, 50, uint64(block.timestamp + 200));
+        // _tokenIdOf[alice][50] now points to id2; id1 is stale.
+
+        vm.prank(alice);
+        vm.expectRevert(AccessPass.StaleToken.selector);
+        pass.setEncryptedKey(id1, hex"deadbeef"); // must revert — would drain id2's nonce
+
+        // Fresh nonce for id2 is still intact
+        assertGt(pass.wrapNonce(alice, 50), 0, "new token nonce must survive");
+
+        // Setting the key on the current token works normally
+        vm.prank(alice);
+        pass.setEncryptedKey(id2, hex"cafecafe");
+        assertEq(pass.encryptedKey(id2), hex"cafecafe");
+    }
+
+    /// resetForRewrap on a stale tokenId would overwrite the wrapNonce for the
+    /// current active token — the same H-1 surface, governance-side variant.
+    function test_resetForRewrap_revertsOnStaleToken() public {
+        vm.prank(mp);
+        uint256 id1 = pass.mint(alice, 51, uint64(block.timestamp + 100));
+
+        vm.warp(block.timestamp + 101);
+        vm.roll(block.number + 1);
+        vm.prank(mp);
+        uint256 id2 = pass.mint(alice, 51, uint64(block.timestamp + 200));
+
+        // Governance must not be able to reset via the old token.
+        vm.expectRevert(AccessPass.StaleToken.selector);
+        pass.resetForRewrap(id1);
+
+        // But the current token is fine.
+        pass.resetForRewrap(id2); // should not revert
+    }
+
+    // ── Ownable2Step (M-5) ───────────────────────────────────────────────────
+
+    function test_ownable2step_handover() public {
+        address newOwner = makeAddr("newOwner");
+        pass.transferOwnership(newOwner);
+        assertEq(pass.pendingOwner(), newOwner);
+        assertEq(pass.owner(), address(this)); // ownership not yet transferred
+
+        vm.prank(newOwner);
+        pass.acceptOwnership();
+        assertEq(pass.owner(), newOwner);
+        assertEq(pass.pendingOwner(), address(0));
+
+        // Old owner (address(this)) can no longer call resetForRewrap.
+        vm.prank(mp);
+        uint256 id = pass.mint(alice, 1, 0);
+        vm.expectRevert(AccessPass.NotOwner.selector);
+        pass.resetForRewrap(id);
+
+        // New owner can.
+        vm.prank(newOwner);
+        pass.resetForRewrap(id); // should not revert
+    }
+
+    function test_ownable2step_negatives() public {
+        address eve = makeAddr("eve");
+        vm.prank(eve);
+        vm.expectRevert(AccessPass.NotOwner.selector);
+        pass.transferOwnership(eve);
+
+        pass.transferOwnership(makeAddr("pending"));
+        vm.prank(eve);
+        vm.expectRevert(AccessPass.NotPendingOwner.selector);
+        pass.acceptOwnership();
+    }
+
     /// After expiry, renewal (second purchase) issues a new tokenId + fresh
     /// wrapNonce. Old ciphertext is orphaned on-chain; its ACC timestamp denies
     /// any decrypt attempt. New token starts with an empty encryptedKey slot.

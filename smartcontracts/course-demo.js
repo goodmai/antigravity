@@ -158,7 +158,9 @@ async function addNetwork() {
       params: [{
         chainId: cfg.chainIdHex,
         chainName: cfg.chainName || 'Daskibo Anvil',
-        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        nativeCurrency: Number(cfg.chainId) === 31337
+          ? { name: 'ETH', symbol: 'ETH', decimals: 18 }
+          : { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
         rpcUrls: [cfg.rpcUrl],
       }],
     });

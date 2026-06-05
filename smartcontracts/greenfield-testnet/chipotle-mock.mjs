@@ -34,6 +34,7 @@
 
 import http from 'node:http';
 import { createRequire } from 'node:module';
+import { evaluateAcc, makeFetchEthCall } from '../buckets/lit-acc-eval.js';
 
 const _require = createRequire(import.meta.url);
 const ethers = _require('ethers');
@@ -106,66 +107,9 @@ async function decryptMasterKey(ciphertext) {
 }
 
 // ── Access-control evaluation ─────────────────────────────────────────────────
-// Two-pass evaluation:
-//   Pass 1 — timestamp conditions (standardContractType === 'timestamp') are
-//            enforced as AND: ALL must pass or the whole check fails. A value
-//            of 0 means perpetual (no expiry), always passes.
-//   Pass 2 — address / contract conditions are enforced as OR: at least one
-//            must pass. This is the standard Lit ACC semantics.
-async function accSatisfied(conditions, userAddress) {
-  const user = userAddress.toLowerCase();
-
-  // Pass 1: all timestamp conditions must pass (expiry enforcement).
-  for (const c of conditions) {
-    if (c.standardContractType !== 'timestamp') continue;
-    const nowTs  = Math.floor(Date.now() / 1000);
-    const maxTs  = Number(c.returnValueTest?.value ?? 0);
-    if (maxTs === 0) continue; // 0 = perpetual, skip
-    const cmp    = c.returnValueTest?.comparator ?? '<=';
-    const passes = (cmp === '<=' && nowTs <= maxTs) || (cmp === '<' && nowTs < maxTs);
-    if (!passes) {
-      const err = new Error(`subscription expired — timestamp ${nowTs} > expiry ${maxTs}`);
-      err.code = 'EXPIRED';
-      throw err;
-    }
-  }
-
-  // Pass 2: at least one address / contract condition must pass.
-  for (const c of conditions) {
-    if (c.standardContractType === 'timestamp') continue;
-    const litVal = c.returnValueTest?.value;
-    // Address allowlist (e.g. the author's own address baked into the ACC).
-    if (typeof litVal === 'string' && /^0x[0-9a-fA-F]{40}$/.test(litVal)
-        && litVal.toLowerCase() === user) {
-      return true;
-    }
-    // Contract condition — evaluate against the chain.
-    if (c.contractAddress) {
-      const rpc = process.env.EVM_RPC || process.env.ANVIL_RPC || 'http://127.0.0.1:8545';
-      const provider = new ethers.providers.JsonRpcProvider(rpc);
-      try {
-        if (c.standardContractType === 'ERC721') {
-          const ct = new ethers.Contract(
-            c.contractAddress, ['function balanceOf(address) view returns (uint256)'], provider,
-          );
-          const bal = await ct.balanceOf(userAddress);
-          const min = ethers.BigNumber.from(String(litVal ?? '1'));
-          if (bal.gte(min)) return true;
-        } else {
-          const ct = new ethers.Contract(
-            c.contractAddress,
-            ['function hasCourseAccess(address,uint256) view returns (bool)'], provider,
-          );
-          const courseId = parseInt(c.parameters?.[1] ?? '0', 10);
-          if (await ct.hasCourseAccess(userAddress, courseId)) return true;
-        }
-      } catch (e) {
-        console.error(`[acc] on-chain check failed (${rpc}): ${e.message}`);
-      }
-    }
-  }
-  return false;
-}
+// Delegated to the canonical evaluator (buckets/lit-acc-eval.js) — the SAME
+// two-pass logic used by the real-Chipotle adapter and the browser readers, so
+// the mock can never diverge from production enforcement again.
 
 // ── lit_action handler ──────────────────────────────────────────────────────
 
@@ -289,23 +233,14 @@ async function handleLitAction({ js_params = {} }) {
     // the user's address) AND contract conditions (NFT balanceOf /
     // CourseMarketplace.hasCourseAccess) evaluated on-chain. The latter is what
     // makes key release genuinely gated by NFT ownership.
-    const conditions = (accessControlConditions || []).filter(c => !c.operator);
-    if (conditions.length === 0) {
-      throw new Error('No access control conditions provided');
-    }
-    let allowed;
-    try {
-      allowed = await accSatisfied(conditions, userAddress);
-    } catch (e) {
-      if (e.code === 'EXPIRED') {
-        throw new Error(`Access denied: ${userAddress} — ${e.message}`);
-      }
-      throw e;
-    }
-    if (!allowed) {
-      throw new Error(
-        `Access denied: ${userAddress} does not satisfy the access control conditions`,
-      );
+    const rpc = process.env.EVM_RPC || process.env.ANVIL_RPC || 'http://127.0.0.1:8545';
+    const verdict = await evaluateAcc({
+      accessControlConditions,
+      userAddress,
+      ethCall: makeFetchEthCall(rpc),
+    });
+    if (!verdict.ok) {
+      throw new Error(`Access denied: ${userAddress} — ${verdict.reason}`);
     }
 
     const decrypted = await decryptMasterKey(ciphertext);

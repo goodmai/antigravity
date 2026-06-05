@@ -210,6 +210,7 @@ import {
   buildDownloadUrl,
 } from './buckets/greenfield-core.js';
 import { decryptObject } from './buckets/crypto-envelope.js';
+import { evaluateAcc, makeFetchEthCall, rpcForChain } from './buckets/lit-acc-eval.js';
 
 const SP = GREENFIELD_TESTNET.spEndpoint;
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -513,6 +514,28 @@ async function decryptViaChipotle(entry, btnEl) {
   }
 
   const chipotleUrl = lit.chipotleUrl || 'http://localhost:8000';
+
+  // App-side ACC enforcement. The local mock checks the ACC server-side, but
+  // the REAL Chipotle TEE does NOT run checkConditions — so against mainnet we
+  // MUST verify the conditions here before trusting the returned master key,
+  // otherwise any authenticated wallet could decrypt. Canonical evaluator,
+  // shared with the adapter and the mock (buckets/lit-acc-eval.js).
+  const isRealChipotle = /api\.chipotle\.litprotocol\.com/.test(chipotleUrl);
+  if (isRealChipotle) {
+    const accChain = lit.chain || 'ethereum';
+    const rpcUrl = rpcForChain(accChain);
+    addLog(`→ Enforcing ACC app-side on ${accChain} (real Chipotle)…`);
+    const verdict = await evaluateAcc({
+      accessControlConditions: lit.accessControlConditions,
+      userAddress: chipotleSession.userAddress,
+      ethCall: rpcUrl ? makeFetchEthCall(rpcUrl) : undefined,
+    });
+    if (!verdict.ok) {
+      throw new Error(`Access denied (ACC not satisfied): ${verdict.reason}`);
+    }
+    addLog('✓ ACC satisfied app-side');
+  }
+
   addLog(`→ Calling Chipotle at ${chipotleUrl} (ACC check)…`);
   btnEl.textContent = '⟳ Requesting master key…';
 

@@ -26,6 +26,7 @@ contract GreenfieldGroupGate {
     error NotAuthorized();
     error GroupNotSet();
     error ZeroAddress();
+    error ZeroGroupId(); // group 0 is the "not set" sentinel — reject it explicitly
 
     IGreenfieldGroupHub public immutable groupHub;
     address public owner;
@@ -63,6 +64,7 @@ contract GreenfieldGroupGate {
 
     /// Map a course to the Greenfield group whose membership gates it.
     function setGroup(uint256 courseId, uint256 groupId) external onlyOwner {
+        if (groupId == 0) revert ZeroGroupId();
         groupOf[courseId] = groupId;
         emit GroupSet(courseId, groupId);
     }

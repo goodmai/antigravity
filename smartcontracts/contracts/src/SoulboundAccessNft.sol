@@ -26,6 +26,7 @@ abstract contract SoulboundAccessNft is ERC721, EIP712, Ownable {
     error ClaimExpired();
     error InvalidClaimSignature();
     error NotAuthorized();
+    error ZeroAddress();
 
     /// Off-chain signer (e.g. a Lit PKP) authorized to mint via a subclass's
     /// `claimWithSig`.
@@ -63,6 +64,7 @@ abstract contract SoulboundAccessNft is ERC721, EIP712, Ownable {
     }
 
     function setClaimSigner(address signer) external onlyOwner {
+        if (signer == address(0)) revert ZeroAddress();
         claimSigner = signer;
     }
 

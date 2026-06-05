@@ -29,6 +29,7 @@
 
 import { BrowserProvider, JsonRpcProvider, Contract, getAddress } from 'https://esm.sh/ethers@6.13.4';
 import { decryptObject } from './buckets/crypto-envelope.js';
+import { evaluateAcc, makeFetchEthCall } from './buckets/lit-acc-eval.js';
 
 const SP = 'https://gnfd-testnet-sp1.bnbchain.org';
 const MP_ABI = [
@@ -152,7 +153,9 @@ async function ensureChain() {
           chainId: cfg.chainIdHex,
           chainName: cfg.chainName || 'BNB Smart Chain Testnet',
           rpcUrls: [cfg.rpcUrl],
-          nativeCurrency: { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
+          nativeCurrency: Number(cfg.chainId) === 31337
+            ? { name: 'ETH', symbol: 'ETH', decimals: 18 }
+            : { name: 'tBNB', symbol: 'tBNB', decimals: 18 },
           blockExplorerUrls: cfg.explorer ? [cfg.explorer] : undefined,
         }],
       });
@@ -298,6 +301,21 @@ async function ensureMasterKey() {
         returnValueTest: { comparator: '<=', value: String(expiryTs) },
       });
     }
+  }
+
+  // Defence-in-depth: enforce the ACC client-side (canonical evaluator) before
+  // even asking Chipotle. The mock enforces it server-side, but the real
+  // Chipotle TEE does NOT run checkConditions, so without this an expired
+  // subscription (or a wrong address) would still recover the key.
+  const accVerdict = await evaluateAcc({
+    accessControlConditions: buyerAcc,
+    userAddress: account,
+    ethCall: makeFetchEthCall(cfg.rpcUrl),
+  });
+  if (!accVerdict.ok) {
+    throw new Error(/expired/.test(accVerdict.reason)
+      ? 'Подписка истекла. Продли доступ, чтобы открыть урок.'
+      : `Нет доступа: ${accVerdict.reason}`);
   }
 
   banner('<span class="spin">⟳</span> Подписываю proof of ownership…');

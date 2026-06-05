@@ -221,6 +221,62 @@ describe('Chipotle DRM — decrypt', () => {
   });
 });
 
+describe('Chipotle DRM — P-A subscription expiry (app-side ACC)', () => {
+  // P-A buyer ACC = address binding AND a timestamp <= expiry condition. The
+  // real Chipotle TEE does not enforce ACC, so lit-sdk-chipotle.js must reject
+  // an expired timestamp itself — otherwise an expired buyer (whose address
+  // condition always matches) would still recover the master key on mainnet.
+  const buyerAcc = (expiryTs) => [
+    {
+      contractAddress: '', standardContractType: '', chain: 'bscTestnet',
+      method: '', parameters: [':userAddress'],
+      returnValueTest: { comparator: '=', value: ALLOWED },
+    },
+    { operator: 'and' },
+    {
+      contractAddress: '', standardContractType: 'timestamp', chain: 'bscTestnet',
+      method: 'eth_getBlockByNumber', parameters: ['latest'],
+      returnValueTest: { comparator: '<=', value: String(expiryTs) },
+    },
+  ];
+
+  it('allows decrypt before expiry for the bound address', async () => {
+    const client = createChipotleClient({ chipotleUrl });
+    const MASTER = 'timed-master-key';
+    const acc = buyerAcc(Math.floor(Date.now() / 1000) + 3600); // +1h
+    const enc = await client.encrypt({ accessControlConditions: acc, dataToEncrypt: MASTER });
+    const dec = await client.decrypt(
+      { accessControlConditions: acc, ciphertext: enc.ciphertext, dataToEncryptHash: enc.dataToEncryptHash, chain: 'bscTestnet' },
+      { userAddress: ALLOWED },
+    );
+    expect(dec).toBe(MASTER);
+  });
+
+  it('denies decrypt after expiry even for the bound address', async () => {
+    const client = createChipotleClient({ chipotleUrl });
+    const acc = buyerAcc(Math.floor(Date.now() / 1000) - 1); // already expired
+    const enc = await client.encrypt({ accessControlConditions: acc, dataToEncrypt: 'expired-key' });
+    await expect(
+      client.decrypt(
+        { accessControlConditions: acc, ciphertext: enc.ciphertext, dataToEncryptHash: enc.dataToEncryptHash, chain: 'bscTestnet' },
+        { userAddress: ALLOWED },
+      ),
+    ).rejects.toThrow(/expired|not authorized/i);
+  });
+
+  it('perpetual (expiry 0) imposes no time limit', async () => {
+    const client = createChipotleClient({ chipotleUrl });
+    const MASTER = 'perpetual-master-key';
+    const acc = buyerAcc(0); // 0 = perpetual
+    const enc = await client.encrypt({ accessControlConditions: acc, dataToEncrypt: MASTER });
+    const dec = await client.decrypt(
+      { accessControlConditions: acc, ciphertext: enc.ciphertext, dataToEncryptHash: enc.dataToEncryptHash, chain: 'bscTestnet' },
+      { userAddress: ALLOWED },
+    );
+    expect(dec).toBe(MASTER);
+  });
+});
+
 describe('Chipotle DRM — classify() via createLitAccess', () => {
   it('maps wrong-address error to ACCESS_DENIED code', async () => {
     const client = createChipotleClient({ chipotleUrl });

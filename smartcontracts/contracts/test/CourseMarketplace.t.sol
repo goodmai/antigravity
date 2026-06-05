@@ -587,6 +587,49 @@ contract CourseMarketplaceTest is Test {
         mp.purchase{value: 1 ether}(id); // old price → BadPrice; ETH refunded
     }
 
+    // ── Duration presets: week + month (coverage gap) ───────────────────────
+
+    function test_preset_week_expiresAfterSevenDays() public {
+        uint256 id = _buyWith(mp.DURATION_WEEK());
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 7 days);
+        assertTrue(mp.hasCourseAccess(buyer, id)); // exactly at boundary → still valid
+        vm.warp(block.timestamp + 1);
+        assertFalse(mp.hasCourseAccess(buyer, id));
+    }
+
+    function test_preset_month_expiresAfterThirtyDays() public {
+        uint256 id = _buyWith(mp.DURATION_MONTH());
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 30 days);
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        vm.warp(block.timestamp + 1);
+        assertFalse(mp.hasCourseAccess(buyer, id));
+    }
+
+    // ── Multiple buyers, single course ──────────────────────────────────────
+
+    function test_multipleBuyers_singleCourse_isolatedPendingAndAccess() public {
+        uint96 price = 1 ether;
+        uint256 id = _register(price);
+        address buyer2 = makeAddr("buyer2");
+        vm.deal(buyer2, 10 ether);
+
+        vm.prank(buyer);
+        mp.purchase{value: price}(id);
+        vm.prank(buyer2);
+        mp.purchase{value: price}(id);
+
+        assertTrue(mp.hasCourseAccess(buyer, id));
+        assertTrue(mp.hasCourseAccess(buyer2, id));
+
+        (uint256 p, uint256 w, uint256 a) = mp.quote(price);
+        assertEq(mp.pendingWithdrawals(address(treasury)), p * 2);
+        assertEq(mp.pendingWithdrawals(w3ext), w * 2);
+        assertEq(mp.pendingWithdrawals(author), a * 2);
+        assertEq(p * 2 + w * 2 + a * 2, uint256(price) * 2);
+    }
+
     /// quote() is consistent with pendingWithdrawals credited in purchase().
     function test_purchase_pendingMatchesQuote() public {
         uint96 price = 3 ether;

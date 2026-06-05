@@ -189,4 +189,13 @@ contract AuthorNftTest is Test {
         nft.setClaimSigner(newSigner);
         assertEq(nft.claimSigner(), newSigner);
     }
+
+    /// M-2: setClaimSigner(address(0)) would permanently disable claimWithSig.
+    /// The zero-address guard in SoulboundAccessNft must reject this.
+    function test_setClaimSigner_rejectsZeroAddress() public {
+        vm.expectRevert(SoulboundAccessNft.ZeroAddress.selector);
+        nft.setClaimSigner(address(0));
+        // Existing signer unchanged
+        assertEq(nft.claimSigner(), signer);
+    }
 }

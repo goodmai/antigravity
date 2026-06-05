@@ -14,6 +14,7 @@ import {IAccessPass} from "./interfaces/IAccessPass.sol";
 ///         impossible without a governance `resetForRewrap` call.
 contract AccessPass is IAccessPass {
     error NotOwner();
+    error NotPendingOwner();
     error NotMarketplace();
     error MarketplaceAlreadySet();
     error ZeroAddress();
@@ -24,9 +25,14 @@ contract AccessPass is IAccessPass {
     error NotTokenOwner();  // caller is not ownerOf(tokenId)
     error NotGranted();     // no active pass for this buyer+course
     error EmptyCiphertext(); // ciphertext must be non-empty (0-length would corrupt the write-once slot)
+    error StaleToken();     // tokenId is not the current active token for this buyer+course
 
     address public owner;
+    address public pendingOwner;
     address public marketplace;
+
+    event OwnershipTransferStarted(address indexed previous, address indexed pending);
+    event OwnershipTransferred(address indexed previous, address indexed current);
 
     uint256 private _nextId = 1;
     mapping(uint256 => address) public ownerOf;
@@ -53,6 +59,18 @@ contract AccessPass is IAccessPass {
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
         _;
+    }
+
+    function transferOwnership(address to) external onlyOwner {
+        pendingOwner = to;
+        emit OwnershipTransferStarted(owner, to);
+    }
+
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert NotPendingOwner();
+        emit OwnershipTransferred(owner, pendingOwner);
+        owner = pendingOwner;
+        pendingOwner = address(0);
     }
 
     function setMarketplace(address mp) external onlyOwner {
@@ -102,6 +120,9 @@ contract AccessPass is IAccessPass {
         if (encryptedKey[tokenId].length != 0) revert AlreadySet();
 
         uint256 courseId = courseOf[tokenId];
+        // Prevent a stale (e.g., expired+renewed) tokenId from consuming the
+        // wrapNonce that was issued for the current active token.
+        if (_tokenIdOf[msg.sender][courseId] != tokenId) revert StaleToken();
         if (wrapNonce[msg.sender][courseId] == 0) revert NonceConsumed();
 
         // Consume nonce atomically — no second wrap possible after this point.
@@ -121,6 +142,9 @@ contract AccessPass is IAccessPass {
         if (buyer == address(0)) revert NotGranted();
 
         uint256 courseId = courseOf[tokenId];
+        // Same stale-token guard: prevents governance from accidentally
+        // resetting the wrapNonce via an old tokenId after a renewal.
+        if (_tokenIdOf[buyer][courseId] != tokenId) revert StaleToken();
         delete encryptedKey[tokenId];
 
         uint256 newNonce = _freshNonce(buyer, courseId, tokenId);

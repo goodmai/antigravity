@@ -224,4 +224,11 @@ contract ClientNftTest is Test {
         nft.mint(client, 0); // re-grant after revocation
         assertTrue(nft.hasAccess(client));
     }
+
+    /// M-2: setClaimSigner(address(0)) would permanently disable claimWithSig.
+    function test_setClaimSigner_rejectsZeroAddress() public {
+        vm.expectRevert(SoulboundAccessNft.ZeroAddress.selector);
+        nft.setClaimSigner(address(0));
+        assertEq(nft.claimSigner(), signer);
+    }
 }

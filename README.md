@@ -92,6 +92,8 @@ Each lesson is available as a high-quality interactive HTML page and a local Mar
 | 22  | Custom MCP Servers     | [Web](https://goodmai.github.io/antigravity/lessons/22/) / [MD](./lessons/22/README.md) |
 | 23  | Multi-Agent Orchestration | [Web](https://goodmai.github.io/antigravity/lessons/23/) / [MD](./lessons/23/README.md) |
 | 24  | Large Codebases        | [Web](https://goodmai.github.io/antigravity/lessons/24/) / [MD](./lessons/24/README.md) |
+| 33  | CLI Migration & MCP    | [Web](https://goodmai.github.io/antigravity/lessons/33/) / [MD](./lessons/33/README.md) |
+| 34  | Android CLI 1.0        | [Web](https://goodmai.github.io/antigravity/lessons/34/) / [MD](./lessons/34/README.md) |
 
 ---
 
@@ -123,6 +125,8 @@ Shell, StackBlitz, CodeSandbox, Replit, github.dev).
 | [13](./labs/13/) | Облако: Firebase и GCP | [28](./labs/28/) | Память и контекстное окно |
 | [14](./labs/14/) | Микросервисы и Docker | [29](./labs/29/) | Данные и границы песочницы |
 | [15](./labs/15/) | CI/CD пайплайны | [30](./labs/30/) | Web3 / Solidity |
+| [33](./labs/33/) | Migration & MCP Setup | [34](./labs/34/) | Android CLI Dev |
+| | | | |
 
 ---
 

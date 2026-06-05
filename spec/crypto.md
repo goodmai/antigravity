@@ -16,40 +16,40 @@
 
 ## Легенда
 
-| Символ | Значение |
-|--------|----------|
-| 👩 **Alice** | Владелец протокола / governance. Ключ ECDSA в MetaMask. Owner `CourseMarketplace`/`Treasury`/`AccessPass` (Ownable2Step). Контент не шифрует — управляет параметрами и условиями лицензирования. |
-| 🏢 **Deployer** | Лицензиат / оператор экземпляра платформы. Платит Alice единоразово или процентом от транзакций. Деплоит свои экземпляры контрактов (или встраивается в существующие). Управляет своим PKP/Chipotle-ключом. Контент не шифрует — только получает комиссию. |
-| 👨 **Bob** | Владелец курса / издатель. Ключ ECDSA в MetaMask. Генерирует AES-ключи, шифрует контент, публикует. Имеет **бесплатный** доступ к своему контенту. |
-| 🧑 **Charlie** | Клиент. Ключ ECDSA в MetaMask. Покупает доступ on-chain, расшифровывает контент в браузере. |
-| 🦊 **MetaMask** | Хранит приватные ключи secp256k1. Подписывает: EVM-tx, EIP-712 (`eth_signTypedData_v4`), `personal_sign` (SIWE). Приватник **никогда** не покидает кошелёк. |
-| 🌐 **Browser** | Исполняет WebCrypto (AES/PBKDF2/SHA-256). Plaintext и DEK существуют только здесь, в памяти вкладки. |
-| 📦 **Greenfield SP** | HTTPS-эндпоинт хранилища. Хранит **только ciphertext** + публичный манифест/сайдкары. Bucket = `public-read`. |
-| ⛓ **Контракты (BSC)** | `CourseMarketplace` / `AccessPass` (soulbound) / `Treasury`. Крипты не делают; хранят состояние прав, читаемое Lit. |
-| 🔑 **Lit Network** | Децентрализованный MPC/threshold-KMS. Хранит долю ключа; реассемблирует ключ расшифровки только при выполнении ACC. Используется только в mainnet (Flow E). |
-| 🌶 **Chipotle** | REST-замена Lit Network для Flows B–D. Запускает JS-действие в TEE (production) или in-process mock (devnet). Одна AES-256-GCM мастер-пара — производится из `CHIPOTLE_PKP_KEY`. |
-| `DEK` | Data Encryption Key — случайный 256-бит ключ **на объект**. |
-| `MK` | Bucket **Master Key** — один 256-бит ключ на бакет; оборачивает все DEK. |
-| `KEK` | Key Encryption Key — производный из пароля (PBKDF2) ключ-обёртка `MK`. |
-| `ACC` | Lit Access Control Conditions — on-chain предикат, кого пускать. |
-| `AAD` | AEAD additionalData — аутентифицируемые, но не шифруемые данные. |
+| Символ                         | Значение                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 👩**Alice**                    | Владелец протокола / governance. Ключ ECDSA в MetaMask. Owner `CourseMarketplace`/`Treasury`/`AccessPass` (Ownable2Step). Контент не шифрует — управляет параметрами и условиями лицензирования.                                                                                                                                                                     |
+| 🏢**Deployer**                 | Лицензиат / оператор экземпляра платформы. Платит Alice единоразово или процентом от транзакций. Деплоит свои экземпляры контрактов (или встраивается в существующие). Управляет своим PKP/Chipotle-ключом. Контент не шифрует — только получает комиссию. |
+| 👨**Bob**                      | Владелец курса / издатель. Ключ ECDSA в MetaMask. Генерирует AES-ключи, шифрует контент, публикует. Имеет**бесплатный** доступ к своему контенту.                                                                                                                                                                                                   |
+| 🧑**Charlie**                  | Клиент. Ключ ECDSA в MetaMask. Покупает доступ on-chain, расшифровывает контент в браузере.                                                                                                                                                                                                                                                                                                            |
+| 🦊**MetaMask**                 | Хранит приватные ключи secp256k1. Подписывает: EVM-tx, EIP-712 (`eth_signTypedData_v4`), `personal_sign` (SIWE). Приватник **никогда** не покидает кошелёк.                                                                                                                                                                                                                         |
+| 🌐**Browser**                  | Исполняет WebCrypto (AES/PBKDF2/SHA-256). Plaintext и DEK существуют только здесь, в памяти вкладки.                                                                                                                                                                                                                                                                                                             |
+| 📦**Greenfield SP**            | HTTPS-эндпоинт хранилища. Хранит**только ciphertext** + публичный манифест/сайдкары. Bucket = `public-read`.                                                                                                                                                                                                                                                                                    |
+| ⛓**Контракты (BSC)** | `CourseMarketplace` / `AccessPass` (soulbound) / `Treasury`. Крипты не делают; хранят состояние прав, читаемое Lit.                                                                                                                                                                                                                                                                                            |
+| 🔑**Lit Network**              | Децентрализованный MPC/threshold-KMS. Хранит долю ключа; реассемблирует ключ расшифровки только при выполнении ACC. Используется только в mainnet (Flow E).                                                                                                                                                                                               |
+| 🌶**Chipotle**                 | REST-замена Lit Network для Flows B–D. Запускает JS-действие в TEE (production) или in-process mock (devnet). Одна AES-256-GCM мастер-пара — производится из `CHIPOTLE_PKP_KEY`.                                                                                                                                                                                                                |
+| `DEK`                              | Data Encryption Key — случайный 256-бит ключ**на объект**.                                                                                                                                                                                                                                                                                                                                                                     |
+| `MK`                               | Bucket**Master Key** — один 256-бит ключ на бакет; оборачивает все DEK.                                                                                                                                                                                                                                                                                                                                                |
+| `KEK`                              | Key Encryption Key — производный из пароля (PBKDF2) ключ-обёртка `MK`.                                                                                                                                                                                                                                                                                                                                                       |
+| `ACC`                              | Lit Access Control Conditions — on-chain предикат, кого пускать.                                                                                                                                                                                                                                                                                                                                                                          |
+| `AAD`                              | AEAD additionalData — аутентифицируемые, но не шифруемые данные.                                                                                                                                                                                                                                                                                                                                                         |
 
 ---
 
 ## Инвентарь протоколов
 
-| # | Протокол | Где (модуль) | Назначение |
-|---|----------|--------------|------------|
-| P1 | **AES-256-GCM** (AEAD) | `crypto-envelope.js` | Объёмное шифрование контента + key-wrap DEK под MK |
-| P2 | **PBKDF2-SHA-256** (210k) | `crypto-envelope.js` | Опц. парольная обёртка MK (портативный бэкап, без Lit) |
-| P3-Lit | **Lit threshold encryption** (BLS12-381, MPC) | `lit-access.js` + `lit-sdk.js` ⚠︎ | Обёртка `MK` под `ACC`; mainnet (Flow E) |
-| P3-Ch | **Chipotle AES-256-GCM** (TEE / mock) | `lit-access.js` + `lit-sdk-chipotle.js` | Обёртка `MK` под `ACC`; Flows B–D. Единый AES-ключ, производный от PKP |
-| P4 | **Lit off-chain auth** (Ed25519/EDDSA) | `lit-sdk.js` ⚠︎ | Сессионная Ed25519-пара (SP-auth Greenfield). Только mainnet. |
-| P5-Lit | **SIWE / sessionSigs** (EIP-4361 + ECDSA) | `lit-sdk.js::makeLitAuth` ⚠︎ | Авторизация Charlie перед Lit-узлами. Только mainnet. |
-| P5-Ch | **personal\_sign proof** (ECDSA) | `lit-sdk-chipotle.js::createSignedProof` | Charlie подписывает nonce; Chipotle сервер проверяет ECDSA + ACC. Flows B–D. |
-| P6 | **EVM подпись** (ECDSA secp256k1) | MetaMask + `greenfield-sdk-tx.js`, контракты | EIP-712 `eth_signTypedData_v4` (Greenfield tx), tx BSC (`purchase`) |
-| P7 | **Хеши**: keccak256 / SHA-256 | контракты / `course-template.js` | `contentHash` on-chain; `dataToEncryptHash` сайдкара |
-| P8 | **TLS** | транспорт к Greenfield SP / RPC / Lit | Конфиденциальность канала (CSP allowlist) |
+| #      | Протокол                                    | Где (модуль)                                  | Назначение                                                                                         |
+| ------ | --------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| P1     | **AES-256-GCM** (AEAD)                        | `crypto-envelope.js`                                 | Объёмное шифрование контента + key-wrap DEK под MK                              |
+| P2     | **PBKDF2-SHA-256** (210k)                     | `crypto-envelope.js`                                 | Опц. парольная обёртка MK (портативный бэкап, без Lit)                 |
+| P3-Lit | **Lit threshold encryption** (BLS12-381, MPC) | `lit-access.js` + `lit-sdk.js` ⚠︎                | Обёртка `MK` под `ACC`; mainnet (Flow E)                                                       |
+| P3-Ch  | **Chipotle AES-256-GCM** (TEE / mock)         | `lit-access.js` + `lit-sdk-chipotle.js`            | Обёртка `MK` под `ACC`; Flows B–D. Единый AES-ключ, производный от PKP |
+| P4     | **Lit off-chain auth** (Ed25519/EDDSA)        | `lit-sdk.js` ⚠︎                                    | Сессионная Ed25519-пара (SP-auth Greenfield). Только mainnet.                            |
+| P5-Lit | **SIWE / sessionSigs** (EIP-4361 + ECDSA)     | `lit-sdk.js::makeLitAuth` ⚠︎                       | Авторизация Charlie перед Lit-узлами. Только mainnet.                            |
+| P5-Ch  | **personal\_sign proof** (ECDSA)              | `lit-sdk-chipotle.js::createSignedProof`             | Charlie подписывает nonce; Chipotle сервер проверяет ECDSA + ACC. Flows B–D.      |
+| P6     | **EVM подпись** (ECDSA secp256k1)      | MetaMask +`greenfield-sdk-tx.js`, контракты | EIP-712 `eth_signTypedData_v4` (Greenfield tx), tx BSC (`purchase`)                                      |
+| P7     | **Хеши**: keccak256 / SHA-256             | контракты /`course-template.js`             | `contentHash` on-chain; `dataToEncryptHash` сайдкара                                             |
+| P8     | **TLS**                                       | транспорт к Greenfield SP / RPC / Lit        | Конфиденциальность канала (CSP allowlist)                                            |
 
 ---
 
@@ -58,12 +58,12 @@
 Четыре тира. Криптографическая схема P1/P2/P6/P7/P8 **не меняется** ни в одном из них.
 Меняется только DRM-бэкенд (P3) и путь авторизации (P4/P5).
 
-| Тир | Flow | DRM вариант 1 | DRM вариант 2 | Greenfield | EVM-цепь | P5 авторизация |
-|-----|------|--------------|--------------|-----------|---------|---------------|
-| **devnet** | B, C | 🌶 Chipotle **mock** `localhost:8000` | — | local 9000 / testnet 5600 | Anvil / BSC testnet | `personal_sign` → `signedProof` |
-| **testnet-Ch** | D | 🌶 Chipotle **live** `api.chipotle.litprotocol.com` | — | testnet 5600 | BSC testnet | `personal_sign` → `signedProof` |
-| **testnet-Lit** | D | 🔑 Lit **`datil-test`** ¹ | 🌶 Chipotle live (fallback) | testnet 5600 | BSC testnet | SIWE sessionSigs (Ed25519) |
-| **mainnet** | E | 🔑 Lit **`datil`** ✅ рекомендуется | 🌶 Chipotle live (альтернатива) | mainnet | BSC mainnet | SIWE sessionSigs (Ed25519) |
+| Тир                | Flow | DRM вариант 1                                       | DRM вариант 2                        | Greenfield                | EVM-цепь        | P5 авторизация            |
+| --------------------- | ---- | ---------------------------------------------------------- | ------------------------------------------- | ------------------------- | ------------------- | ------------------------------------ |
+| **devnet**      | B, C | 🌶 Chipotle**mock** `localhost:8000`               | —                                          | local 9000 / testnet 5600 | Anvil / BSC testnet | `personal_sign` → `signedProof` |
+| **testnet-Ch**  | D    | 🌶 Chipotle**live** `api.chipotle.litprotocol.com` | —                                          | testnet 5600              | BSC testnet         | `personal_sign` → `signedProof` |
+| **testnet-Lit** | D    | 🔑 Lit**`datil-test`** ¹                          | 🌶 Chipotle live (fallback)                 | testnet 5600              | BSC testnet         | SIWE sessionSigs (Ed25519)           |
+| **mainnet**     | E    | 🔑 Lit**`datil`** ✅ рекомендуется    | 🌶 Chipotle live (альтернатива) | mainnet                   | BSC mainnet         | SIWE sessionSigs (Ed25519)           |
 
 ¹ Lit `datil-test` требует открытого порта **7470** (P2P). На нашем сервере он заблокирован → используем Chipotle. На инфраструктуре без этого ограничения `datil-test` — предпочтительный staging: те же session-sigs, те же ACCs, реальные Lit-узлы.
 
@@ -71,15 +71,15 @@
 
 #### P3: сравнение всех вариантов
 
-| Параметр | Chipotle mock (devnet) | Chipotle live (testnet-Ch) | Lit `datil-test` (testnet-Lit) | Lit `datil` (mainnet) |
-|----------|----------------------|--------------------------|-------------------------------|----------------------|
-| Транспорт | HTTP `localhost:8000` | HTTPS REST | P2P, порт **7470** ¹ | P2P, порт **7470** ¹ |
-| Хранение `MK` | AES-GCM в памяти | AES-GCM в TEE | BLS-доля на каждом узле | BLS-доля на каждом узле |
-| Проверка ACC | In-process (адрес = строка) | JS в TEE, on-chain | Lit-узлы читают BSC testnet | Lit-узлы читают BSC mainnet |
-| NFT/balanceOf в ACC | ❌ не работает | ✅ | ✅ | ✅ |
-| Ключ PKP | `CHIPOTLE_PKP_KEY` в env | `CHIPOTLE_PKP_KEY` в TEE | Threshold BLS | Threshold BLS |
-| `litNetwork` | `"chipotle"` | `"chipotle"` | `"datil-test"` | `"datil"` |
-| Доп. поля манифеста | `chipotleUrl`, `pkpId` | `chipotleUrl`, `pkpId` | — | — |
+| Параметр                    | Chipotle mock (devnet)                 | Chipotle live (testnet-Ch)  | Lit `datil-test` (testnet-Lit)        | Lit `datil` (mainnet)                 |
+| ----------------------------------- | -------------------------------------- | --------------------------- | --------------------------------------- | --------------------------------------- |
+| Транспорт                  | HTTP `localhost:8000`                | HTTPS REST                  | P2P, порт**7470** ¹          | P2P, порт**7470** ¹          |
+| Хранение `MK`             | AES-GCM в памяти                | AES-GCM в TEE              | BLS-доля на каждом узле | BLS-доля на каждом узле |
+| Проверка ACC                | In-process (адрес = строка) | JS в TEE, on-chain         | Lit-узлы читают BSC testnet   | Lit-узлы читают BSC mainnet   |
+| NFT/balanceOf в ACC                | ❌ не работает               | ✅                          | ✅                                      | ✅                                      |
+| Ключ PKP                        | `CHIPOTLE_PKP_KEY` в env            | `CHIPOTLE_PKP_KEY` в TEE | Threshold BLS                           | Threshold BLS                           |
+| `litNetwork`                      | `"chipotle"`                         | `"chipotle"`              | `"datil-test"`                        | `"datil"`                             |
+| Доп. поля манифеста | `chipotleUrl`, `pkpId`             | `chipotleUrl`, `pkpId`  | —                                      | —                                      |
 
 ¹ Порт 7470 заблокирован на нашем текущем сервере → `datil-test` недоступен в текущей инфраструктуре.
 
@@ -105,25 +105,27 @@ const { encryptMasterKey, decryptMasterKey } = createLitAccess({ litClient });
 
 #### P5: sessionSigs (Lit) vs signedProof (Chipotle)
 
-| Параметр | P5-Ch (`signedProof`) | P5-Lit (`sessionSigs`) |
-|----------|----------------------|----------------------|
-| Что подписывает Charlie | `personal_sign(nonce)` | SIWE/EIP-4361 через `personal_sign` |
-| Тип ключа | ECDSA secp256k1 (MetaMask) | Ed25519 (ephemeral, seed из MetaMask) |
-| Кому предъявляется | Chipotle REST API | Lit P2P-узлам |
-| TTL / scoping | ❌ нет (stateless nonce) | ✅ ограничено по времени и ресурсам |
-| Где используется | Chipotle (devnet/testnet-Ch) | Lit datil-test / datil (mainnet) |
+| Параметр                      | P5-Ch (`signedProof`)      | P5-Lit (`sessionSigs`)                                        |
+| ------------------------------------- | ---------------------------- | --------------------------------------------------------------- |
+| Что подписывает Charlie | `personal_sign(nonce)`     | SIWE/EIP-4361 через `personal_sign`                      |
+| Тип ключа                     | ECDSA secp256k1 (MetaMask)   | Ed25519 (ephemeral, seed из MetaMask)                         |
+| Кому предъявляется   | Chipotle REST API            | Lit P2P-узлам                                              |
+| TTL / scoping                         | ❌ нет (stateless nonce)  | ✅ ограничено по времени и ресурсам |
+| Где используется       | Chipotle (devnet/testnet-Ch) | Lit datil-test / datil (mainnet)                                |
 
 `signedProof` — упрощение без scoping. Для production Lit (datil/datil-test) — только `sessionSigs`.
 
 #### ACC на devnet vs mainnet
 
 На devnet Chipotle mock проверяет ACC упрощённо:
+
 ```js
 // chipotle-mock.mjs — проверка ACC
 const allowed = conditions.some(
   c => c.returnValueTest?.value?.toLowerCase() === userAddress.toLowerCase(),
 );
 ```
+
 Это означает: на devnet ACC пропускает только адреса, **явно перечисленные** в `returnValueTest.value`.
 Логика NFT/ERC-721/balanceOf **не исполняется** — на devnet она всегда ложная.
 
@@ -132,22 +134,26 @@ const allowed = conditions.some(
 ### Чеклист перехода testnet → mainnet
 
 **DRM (P3/P5):**
+
 - [ ] Заменить адаптер: `createChipotleClient` → `createLitClient({ litNetwork: 'datil' })`
 - [ ] Убрать `chipotleUrl` / `pkpId` из конфига и сборки
 - [ ] Пополнить Lit Capacity Credits (без них `datil` ограничивает RPS)
 - [ ] Убедиться, что `litNetwork: "datil"` в каждом манифесте
 
 **Цепи и контракты:**
+
 - [ ] Задеплоить `CourseMarketplace` / `AccessPass` / `Treasury` на BSC mainnet
 - [ ] Если включена модель Deployer — задеплоить `PlatformRegistry` / `DeployerLedger`
 - [ ] Прописать реальные адреса контрактов в ACC (`accessControlConditions`)
 - [ ] Перевести Greenfield bucket на mainnet SP (`gnfd-mainnet-sp1.bnbchain.org`)
 
 **Безопасность:**
+
 - [ ] CSP: убрать `localhost:8000` из `connect-src`, добавить Lit-узлы (mainnet)
 - [ ] `CHIPOTLE_PKP_KEY` — не передавать в production; Lit PKP — threshold, без единой точки
 
 **Если промежуточный staging на Lit datil-test (порт 7470 должен быть открыт):**
+
 - [ ] Убедиться, что инфраструктура не блокирует порт 7470 (TCP outbound)
 - [ ] `litNetwork: "datil-test"` в манифестах staging, `"datil"` на mainnet (несовместимы)
 - [ ] Provision Capacity Credits для `datil-test` отдельно от mainnet-кредитов
@@ -156,48 +162,46 @@ const allowed = conditions.some(
 
 Легенда: ✅ CI автоматически · 🔑 opt-in (нужны секреты/Docker) · 🔲 нужно реализовать · — не применимо
 
-| Тест | CI-джоб | devnet | testnet-Ch | testnet-Lit | mainnet |
-|------|---------|--------|-----------|------------|---------|
-| `tests/chipotle-drm.test.js` | `test:unit` ✅ | ✅ in-process | — | — | — |
-| `tests/lit-access.test.js` | `test:unit` ✅ | ✅ fake client | ✅ same | ✅ same | ✅ same |
-| `tests/crypto-envelope.test.js` | `test:unit` ✅ | ✅ WebCrypto | ✅ same | ✅ same | ✅ same |
-| `tests/lit-pricing.test.js` | `test:unit` ✅ | ✅ | ✅ | ✅ | ✅ |
-| `greenfield-integration.docker.test.js` | `test:integration` ✅ | ✅ mock-SP | — | — | — |
-| `greenfield-testnet.live.test.js` | opt-in 🔑 | — | ✅ testnet | — | — |
-| `greenfield-local.docker.test.js` | opt-in 🔑 | ✅ chain 9000 | — | — | — |
-| forge tests (Solidity contracts, incl. P-A: 25 тестов) | `contracts` ✅ | ✅ Foundry | ✅ same | ✅ same | ✅ same |
-| lit-integration (datil-test) | 🔲 не реализован | — | — | 🔲 | — |
-| platform-licensing unit-тест | 🔲 не реализован | 🔲 | 🔲 | 🔲 | 🔲 |
-| platform-licensing Hardhat | 🔲 не реализован | — | 🔲 | — | 🔲 |
-| Браузерный reader (manual) | — | ✅ localhost | ✅ testnet | ✅ testnet | ✅ mainnet |
+| Тест                                                     | CI-джоб                  | devnet         | testnet-Ch | testnet-Lit | mainnet    |
+| ------------------------------------------------------------ | ---------------------------- | -------------- | ---------- | ----------- | ---------- |
+| `tests/chipotle-drm.test.js`                               | `test:unit` ✅             | ✅ in-process  | —         | —          | —         |
+| `tests/lit-access.test.js`                                 | `test:unit` ✅             | ✅ fake client | ✅ same    | ✅ same     | ✅ same    |
+| `tests/crypto-envelope.test.js`                            | `test:unit` ✅             | ✅ WebCrypto   | ✅ same    | ✅ same     | ✅ same    |
+| `tests/lit-pricing.test.js`                                | `test:unit` ✅             | ✅             | ✅         | ✅          | ✅         |
+| `greenfield-integration.docker.test.js`                    | `test:integration` ✅      | ✅ mock-SP     | —         | —          | —         |
+| `greenfield-testnet.live.test.js`                          | opt-in 🔑                    | —             | ✅ testnet | —          | —         |
+| `greenfield-local.docker.test.js`                          | opt-in 🔑                    | ✅ chain 9000  | —         | —          | —         |
+| forge tests (Solidity contracts, incl. P-A: 25 тестов) | `contracts` ✅             | ✅ Foundry     | ✅ same    | ✅ same     | ✅ same    |
+| lit-integration (datil-test)                                 | 🔲 не реализован | —             | —         | 🔲          | —         |
+| platform-licensing unit-тест                             | 🔲 не реализован | 🔲             | 🔲         | 🔲          | 🔲         |
+| platform-licensing Hardhat                                   | 🔲 не реализован | —             | 🔲         | —          | 🔲         |
+| Браузерный reader (manual)                         | —                           | ✅ localhost   | ✅ testnet | ✅ testnet  | ✅ mainnet |
 
 ### CI/CD статус протоколов
 
-| Протокол | Покрыт в CI | Тип покрытия | Что отсутствует |
-|---------|------------|-------------|----------------|
-| P1 AES-256-GCM | ✅ | `crypto-envelope.test.js` (10 тестов, hermetic) | — |
-| P2 PBKDF2 | ✅ | `crypto-envelope.test.js` | — |
-| P3-Ch Chipotle mock | ✅ | `chipotle-drm.test.js` (in-process, 6 тестов) | — |
-| P3-Ch Chipotle live | 🔑 opt-in | `greenfield-testnet.live.test.js` (chipotle-writer) | Автоматизация с реальными секретами |
-| P3-Lit datil-test | 🔲 | — | Нужен `lit-integration.docker.test.js` без моков |
-| P3-Lit datil (mainnet) | 🔲 | — | Smoke-test или e2e с prod-данными |
-| P4 Ed25519 (sessionSigs) | 🔲 | — | Зависит от P3-Lit тестов |
-| P5-Ch signedProof | ✅ | `chipotle-drm.test.js` (mock verifyMessage) | — |
-| P5-Lit sessionSigs | 🔲 | — | Зависит от P3-Lit тестов |
-| P6 EVM tx | ✅ | forge tests + `greenfield-sdk-tx.test.js` | — |
-| P7 keccak256/SHA-256 | ✅ | forge tests + `crypto-envelope.test.js` | — |
-| P8 TLS/CSP | ✅ advisory | статический анализ CSP | Нет automated browser e2e |
-| Deployer fee-split | 🔲 | — | `platform-licensing.test.js` без Hardhat-моков |
+| Протокол         | Покрыт в CI | Тип покрытия                                 | Что отсутствует                                       |
+| ------------------------ | ------------------ | ------------------------------------------------------- | ------------------------------------------------------------------- |
+| P1 AES-256-GCM           | ✅                 | `crypto-envelope.test.js` (10 тестов, hermetic) | —                                                                  |
+| P2 PBKDF2                | ✅                 | `crypto-envelope.test.js`                             | —                                                                  |
+| P3-Ch Chipotle mock      | ✅                 | `chipotle-drm.test.js` (in-process, 6 тестов)   | —                                                                  |
+| P3-Ch Chipotle live      | 🔑 opt-in          | `greenfield-testnet.live.test.js` (chipotle-writer)   | Автоматизация с реальными секретами |
+| P3-Lit datil-test        | 🔲                 | —                                                      | Нужен `lit-integration.docker.test.js` без моков     |
+| P3-Lit datil (mainnet)   | 🔲                 | —                                                      | Smoke-test или e2e с prod-данными                        |
+| P4 Ed25519 (sessionSigs) | 🔲                 | —                                                      | Зависит от P3-Lit тестов                             |
+| P5-Ch signedProof        | ✅                 | `chipotle-drm.test.js` (mock verifyMessage)           | —                                                                  |
+| P5-Lit sessionSigs       | 🔲                 | —                                                      | Зависит от P3-Lit тестов                             |
+| P6 EVM tx                | ✅                 | forge tests +`greenfield-sdk-tx.test.js`              | —                                                                  |
+| P7 keccak256/SHA-256     | ✅                 | forge tests +`crypto-envelope.test.js`                | —                                                                  |
+| P8 TLS/CSP               | ✅ advisory        | статический анализ CSP                 | Нет automated browser e2e                                        |
+| Deployer fee-split       | 🔲                 | —                                                      | `platform-licensing.test.js` без Hardhat-моков            |
 
 **Добавить в CI без мокирования (приоритет):**
 
 1. **`tests/lit-integration.test.js`** — реальный Lit `datil-test` через Docker-compose.
    Запускать только если `LIT_DATIL_TEST_ENABLED=1` и порт 7470 доступен.
    Тестировать: encrypt/decrypt с настоящими session-sigs, реальная ACC на BSC testnet.
-
 2. **`tests/platform-licensing.test.js`** (unit) — `computeSaleSplit` с 3 получателями,
    `computeSaveCharge` с `deployerFeeBps`. Hermetic, в `test:unit` CI-джобе.
-
 3. **`tests/platform-licensing.hardhat.test.js`** — `CourseMarketplace.purchase()` с
    реальным Hardhat-нодом и реальным Solidity-контрактом (не mock). В `contracts` CI-джобе.
 
@@ -262,6 +266,7 @@ graph LR
 `crypto-envelope.js`. Всё в браузере (WebCrypto, инъектируемый).
 
 **Encrypt объекта** (`encryptObject(MK, data, meta)`):
+
 1. `DEK ← random(32)`; `iv ← random(12)`; `dekIv ← random(12)`.
 2. `ct = AES-GCM(key=DEK, iv, data, aad = JSON{schema,alg,contentType,originalKey,encoding})`.
 3. `wrappedDek = AES-GCM(key=MK, dekIv, DEK, aad = JSON{schema,originalKey})`.
@@ -275,8 +280,7 @@ GCM ⇒ `DECRYPT_FAILED` (AEAD-binding, аудит B2).
 
 ## P2 — PBKDF2-SHA-256 (опц. парольная обёртка MK)
 
-`wrapMasterWithPassphrase`: `salt←random(16)`, `KEK = PBKDF2(pass,
-salt, 210000, SHA-256)`, `wrapped = AES-GCM(KEK, iv, MK)`. Обратное —
+`wrapMasterWithPassphrase`: `salt←random(16)`, `KEK = PBKDF2(pass, salt, 210000, SHA-256)`, `wrapped = AES-GCM(KEK, iv, MK)`. Обратное —
 `unwrapMasterWithPassphrase`. Неверный пароль ⇒ `DECRYPT_FAILED`.
 Назначение: портативный бэкап `MK` без Lit.
 
@@ -435,12 +439,12 @@ Alice (governance) может монетизировать саму платфо
 
 ### Роли и ключи
 
-| Роль | Крипто-ключ | Что делает |
-|------|------------|-----------|
-| 👩 **Alice** | ECDSA (governance) | Деплоит контракты, устанавливает ставки комиссий, получает `protocolFee` |
-| 🏢 **Deployer** | ECDSA (operator) | Платит Alice, получает `deployerFee` с каждой операции на своей платформе |
-| 👨 **Bob** | ECDSA + AES-ключи | Публикует курс, получает `sellerAmount` |
-| 🧑 **Charlie** | ECDSA | Покупает доступ, оплачивает read-fee |
+| Роль             | Крипто-ключ  | Что делает                                                                                                           |
+| -------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 👩**Alice**    | ECDSA (governance)     | Деплоит контракты, устанавливает ставки комиссий, получает `protocolFee` |
+| 🏢**Deployer** | ECDSA (operator)       | Платит Alice, получает `deployerFee` с каждой операции на своей платформе      |
+| 👨**Bob**      | ECDSA + AES-ключи | Публикует курс, получает `sellerAmount`                                                                |
+| 🧑**Charlie**  | ECDSA                  | Покупает доступ, оплачивает read-fee                                                                  |
 
 Deployer не шифрует контент и не держит `MK` — только получает комиссию через P6-tx.
 Его компрометация → потеря комиссий, **не** утечка контента.
@@ -458,6 +462,7 @@ Deployer →[P6 tx: purchaseLicense{value}(licenseId)]→ CourseMarketplace
 ```
 
 Deployer после этого:
+
 - Управляет своим `CourseMarketplace` (или fork), где `treasury = address(Deployer)`.
 - Alice не получает долю от последующих продаж — только `protocolFee` если это
   предусмотрено в контракте форка.
@@ -533,14 +538,14 @@ sequenceDiagram
 
 ### Сравнение моделей
 
-| Аспект | Модель A (one-time) | Модель B (revenue-share) |
-|--------|--------------------|-----------------------|
-| Платёж Alice | Единоразово при старте | Процент с каждой tx |
-| Предсказуемость для Deployer | ✅ фиксированная стоимость | ❌ зависит от объёма |
-| Доход Alice при масштабировании | ❌ не растёт | ✅ растёт с платформой |
-| On-chain сложность | Минимальная (`LicenseRegistry`) | Выше (3 расщепления) |
-| Crypto-риск Deployer | Только его `MK`/PKP-ключ | То же |
-| Отзыв лицензии | По `licenseId` в `LicenseRegistry` | Обнуление `deployerFeeBps` |
+| Аспект                                           | Модель A (one-time)                        | Модель B (revenue-share)          |
+| ------------------------------------------------------ | ------------------------------------------------ | --------------------------------------- |
+| Платёж Alice                                     | Единоразово при старте       | Процент с каждой tx       |
+| Предсказуемость для Deployer         | ✅ фиксированная стоимость | ❌ зависит от объёма     |
+| Доход Alice при масштабировании | ❌ не растёт                             | ✅ растёт с платформой |
+| On-chain сложность                            | Минимальная (`LicenseRegistry`)     | Выше (3 расщепления)     |
+| Crypto-риск Deployer                               | Только его `MK`/PKP-ключ          | То же                               |
+| Отзыв лицензии                            | По `licenseId` в `LicenseRegistry`        | Обнуление `deployerFeeBps`   |
 
 ### CI/CD — что нужно добавить
 
@@ -599,6 +604,7 @@ DevTools. Но главная проблема глубже: в текущей �
 on-chain ACC — пустить или нет.
 
 Целевая архитектура:
+
 - Шифртекст в NFT **физически привязан** к конкретному адресу: его нельзя
   использовать с другого адреса даже при наличии API-ключа платформы
 - После истечения `AccessPass.expiryOf[buyer][courseId]` расшифровка
@@ -608,17 +614,21 @@ on-chain ACC — пустить или нет.
 ### Суть: разделение шифртекста и ACC
 
 Текущая схема (один шифртекст, динамический ACC):
+
 ```
 manifest.lit.ciphertext  ← один для всех покупателей
 ACC = hasCourseAccess(userAddress, courseId)  ← Chipotle звонит в BSC
 ```
+
 Любой, чей адрес проходит ACC, получает один и тот же MK.
 
 Целевая схема (per-buyer шифртекст, статический ACC):
+
 ```
 AccessPass.encryptedKey[tokenId]  ← свой для каждого покупателя
 ACC = { address == buyer  AND  block.timestamp <= expiryOf[buyer][courseId] }
 ```
+
 Шифртекст Боба расшифровывается только Бобом и только до истечения срока.
 Шифртекст Чарли — только Чарли. Украденный шифртекст Боба бесполезен для Чарли:
 Chipotle в TEE проверяет адрес до расшифровки и отказывает.
@@ -629,10 +639,10 @@ Chipotle в TEE проверяет адрес до расшифровки и о�
 
 **Принцип.** Lit Protocol разделяет два независимых слоя:
 
-| Слой | Назначение | Секретность |
-|------|-----------|------------|
-| `capacityDelegationAuthSig` | Доказывает, что Capacity Credits NFT платформы покрывает этот запрос (обходит rate-limit узлов Lit) | **Не секрет** — содержит только подпись, не ключ |
-| `ACC = courseAccessAcc(marketplace, courseId)` | Решает, **кому** вернуть MK | Проверяется on-chain узлами Lit |
+| Слой                                         | Назначение                                                                                                                                     | Секретность                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `capacityDelegationAuthSig`                    | Доказывает, что Capacity Credits NFT платформы покрывает этот запрос (обходит rate-limit узлов Lit) | **Не секрет** — содержит только подпись, не ключ |
+| `ACC = courseAccessAcc(marketplace, courseId)` | Решает,**кому** вернуть MK                                                                                                        | Проверяется on-chain узлами Lit                                           |
 
 Платформа (deployer) покупает Capacity Credits NFT один раз на Base (chain 8453). Delegation auth sig генерируется при публикации курса и кладётся в `manifest.lit.capacityDelegationAuthSig`. Браузер читает подпись из публичного манифеста и использует её при построении `sessionSigs` — Capacity Credits списываются с аккаунта платформы, но **MK возвращается только тому, чей адрес проходит ACC** (т.е. купившему курс).
 
@@ -662,6 +672,7 @@ Access (Bob):
 Никакого бэкенда не требуется.
 
 **Реализация.**
+
 - `write-devnet.mjs` / `write-mainnet.mjs`: добавить генерацию
   `delegationAuthSig` и поле в манифест при публикации.
 - `course-view.js`: убрать `dummy-api-key`; читать
@@ -707,6 +718,7 @@ Access (Bob):
 выдачей MK. Истёкший NFT → 401.
 
 **Реализация.**
+
 - Backend: event listener (BSC) + `/api/unlock` endpoint (EIP-712 verify + Chipotle proxy)
 - Greenfield: `_access/{buyer}.enc` per buyer
 - `AccessPass.sol`: опционально добавить `tokenURI` mapping
@@ -753,6 +765,7 @@ Access (Bob):
 где expiry требует активного мониторинга (не lazy-check).
 
 **Проблемы.**
+
 - Размер `accessControlConditions` растёт линейно с числом покупателей
 - 1 Greenfield write + 2 Chipotle вызова на каждую покупку (encrypt + decrypt)
 - Cron для expiry — дополнительная инфраструктура
@@ -762,17 +775,17 @@ Access (Bob):
 
 ### Сравнение вариантов
 
-| Критерий | V1 Delegation | V2 UnlockToken | V3 ACC re-wrap |
-|----------|--------------|---------------|----------------|
-| API-ключ в браузере | ❌ нет | ❌ нет | ❌ нет |
-| Backend-сервис | ❌ не нужен | ✅ нужен (тонкий) | ✅ нужен (event+cron) |
-| Expiry enforcement | ✅ lazy on-chain | ✅ lazy on-chain | ⚠️ active cron |
-| Чтение без контракт-вызова | ❌ Lit читает BSC | ✅ адресное сравнение | ✅ адресное сравнение |
-| Публичный список покупателей | ❌ нет | ❌ нет | ⚠️ виден в манифесте |
-| Стоимость на покупку | ~0 | 2 Chipotle вызова | 2 Chipotle вызова + Greenfield write |
-| Стоимость на прочтение | 1 Lit вызов (за счёт платформы) | 1 Chipotle (платформа) | 1 Chipotle вызов |
-| Сложность реализации | Низкая | Средняя | Высокая |
-| Децентрализация | ✅ Lit threshold MPC | ⚠️ centralized proxy | ⚠️ centralized backend |
+| Критерий                                       | V1 Delegation                                       | V2 UnlockToken                         | V3 ACC re-wrap                             |
+| ------------------------------------------------------ | --------------------------------------------------- | -------------------------------------- | ------------------------------------------ |
+| API-ключ в браузере                       | ❌ нет                                           | ❌ нет                              | ❌ нет                                  |
+| Backend-сервис                                   | ❌ не нужен                                  | ✅ нужен (тонкий)           | ✅ нужен (event+cron)                 |
+| Expiry enforcement                                     | ✅ lazy on-chain                                    | ✅ lazy on-chain                       | ⚠️ active cron                           |
+| Чтение без контракт-вызова      | ❌ Lit читает BSC                             | ✅ адресное сравнение | ✅ адресное сравнение     |
+| Публичный список покупателей | ❌ нет                                           | ❌ нет                              | ⚠️ виден в манифесте      |
+| Стоимость на покупку                 | ~0                                                  | 2 Chipotle вызова                | 2 Chipotle вызова + Greenfield write |
+| Стоимость на прочтение             | 1 Lit вызов (за счёт платформы) | 1 Chipotle (платформа)        | 1 Chipotle вызов                      |
+| Сложность реализации                | Низкая                                        | Средняя                         | Высокая                             |
+| Децентрализация                         | ✅ Lit threshold MPC                                | ⚠️ centralized proxy                 | ⚠️ centralized backend                   |
 
 **Рекомендация для mainnet:** V1 (delegation) — наименее сложный, Lit-native,
 не требует серверного компонента. V2 — если нужна Chipotle-based инфраструктура
@@ -827,15 +840,15 @@ NFT хранит только `tokenURI` → указатель на Greenfield.
 
 > **Статус реализации:** полностью реализовано и верифицировано на живом стеке.
 >
-> | Компонент | Файл | Статус |
-> |-----------|------|--------|
-> | Контракт: `wrapNonce`, `encryptedKey`, `setEncryptedKey`, `resetForRewrap` | `contracts/src/AccessPass.sol` | ✅ |
-> | Интерфейс | `contracts/src/interfaces/IAccessPass.sol` | ✅ |
-> | Forge-тесты (25 тестов, все pass) | `contracts/test/AccessPass.t.sol` | ✅ |
-> | Mock: `wrap_for_buyer` — on-chain nonce guard + timestamp ACC в ответе | `greenfield-testnet/chipotle-mock.mjs` | ✅ |
-> | Mock: `accSatisfied` — timestamp-условия как AND, адресные как OR | `greenfield-testnet/chipotle-mock.mjs` | ✅ |
-> | Browser: wrap → setEncryptedKey → decrypt + ACC reconstruct из `expiryOf` | `course-view.js` | ✅ |
-> | Верификация на Anvil (9/9 тестов) | `/tmp/verify_p_a.mjs`, 2026-05-28 | ✅ |
+> | Компонент                                                                        | Файл                                     | Статус |
+> | ----------------------------------------------------------------------------------------- | -------------------------------------------- | ------------ |
+> | Контракт:`wrapNonce`, `encryptedKey`, `setEncryptedKey`, `resetForRewrap` | `contracts/src/AccessPass.sol`             | ✅           |
+> | Интерфейс                                                                        | `contracts/src/interfaces/IAccessPass.sol` | ✅           |
+> | Forge-тесты (25 тестов, все pass)                                           | `contracts/test/AccessPass.t.sol`          | ✅           |
+> | Mock:`wrap_for_buyer` — on-chain nonce guard + timestamp ACC в ответе           | `greenfield-testnet/chipotle-mock.mjs`     | ✅           |
+> | Mock:`accSatisfied` — timestamp-условия как AND, адресные как OR  | `greenfield-testnet/chipotle-mock.mjs`     | ✅           |
+> | Browser: wrap → setEncryptedKey → decrypt + ACC reconstruct из `expiryOf`           | `course-view.js`                           | ✅           |
+> | Верификация на Anvil (9/9 тестов)                                      | `/tmp/verify_p_a.mjs`, 2026-05-28          | ✅           |
 
 **Принцип.** Платформа создаёт одну PKP-пару (Chipotle генерирует при деплое).
 MK курса хранится зашифрованным в Greenfield под ACC = `{address == PKP_ADDRESS}` —
@@ -903,8 +916,7 @@ MK курса хранится зашифрованным в Greenfield под A
 
 `wrap_for_buyer` — **открытый** эндпоинт. Любой, зная `buyer` + `courseId`
 (оба видны в публичном BSC-событии `CoursePurchased`), может вызвать его
-произвольное число раз. Lit Action проверяет `AccessPass.hasAccess(bob,
-courseId) == true` — и это всегда `true` после покупки до expiry.
+произвольное число раз. Lit Action проверяет `AccessPass.hasAccess(bob, courseId) == true` — и это всегда `true` после покупки до expiry.
 
 ```
 Атака:
@@ -924,11 +936,14 @@ Lit Action проверяет `ecrecover(signedProof) == buyer`. Eve не мож
 
 **Уровень 2 — on-chain идемпотентность (основная защита).**
 Lit Action до любого decrypt/encrypt читает BSC:
+
 ```
 if AccessPass.encryptedKey[tokenId] != bytes(0):
     return ERROR "already_wrapped"  // ← кредиты не потрачены
 ```
+
 `AccessPass.setEncryptedKey()` принимает запись **ровно один раз**:
+
 ```solidity
 function setEncryptedKey(uint256 tokenId, bytes calldata ct) external {
     if (msg.sender != ownerOf(tokenId)) revert NotAuthorized();
@@ -937,15 +952,18 @@ function setEncryptedKey(uint256 tokenId, bytes calldata ct) external {
     emit EncryptedKeySet(tokenId);
 }
 ```
+
 После первого вызова `setEncryptedKey` все последующие `wrap_for_buyer`
 увидят ненулевой ключ и откажут **до** траты кредитов. Окно гонки ≈ время
 одной BSC-транзакции; в худшем случае — 2 вызова wrap вместо одного.
 
 **Уровень 3 — one-time nonce от маркетплейса (сильнейшая защита, опц.).**
 `CourseMarketplace.purchase()` записывает:
+
 ```solidity
 wrapNonce[buyer][courseId] = keccak256(buyer, courseId, block.number, block.timestamp);
 ```
+
 Lit Action читает nonce, проверяет `!= 0`. Затем PKP-ключ подписывает
 BSC-транзакцию `AccessPass.consumeNonce(buyer, courseId)` → nonce обнуляется.
 Повторный вызов: nonce == 0 → Lit Action revert **до decrypt vault**.
@@ -971,6 +989,7 @@ BSC-транзакцию `AccessPass.consumeNonce(buyer, courseId)` → nonce о
 до того как buyer вызовет `setEncryptedKey`). С уровнем 3: **1 кредит** гарантированно.
 
 **Изменения в коде:**
+
 - `AccessPass.sol`: `encryptedKey` mapping + `setEncryptedKey()` с `AlreadySet`-guard
 - `CourseMarketplace.sol` (опц.): `wrapNonce` mapping + `consumeNonce()` onlyPKP
 - `course-view.js`: убрать `dummy-api-key`; после покупки: `wrap_for_buyer` → `setEncryptedKey`
@@ -1051,18 +1070,18 @@ ACC) и при истечении (убрать покупателя). Одна�
 
 ### Сравнение per-NFT схем
 
-| Критерий | P-A PKP Vault | P-B Sub-account | P-C Timestamp-ACC |
-|----------|--------------|----------------|-------------------|
-| Шифртекст в NFT | ✅ да (per-buyer) | ✅ да (sub_api_key) | ❌ нет (один в манифесте) |
-| Шифртекст Bob ≠ Charlie | ✅ | ✅ | ❌ |
-| Expiry без бэкенда | ✅ встроен в ACC | ✅ sub-account expiry | ⚠️ требует cron |
-| Контрактный вызов при чтении | ❌ не нужен | ❌ не нужен | ❌ не нужен |
-| Платформенный API-ключ в браузере | ❌ нет | ❌ нет | ❌ нет (но нужен при wrap) |
-| Зависит от Chipotle sub-accounts | ❌ | ✅ (нет в mock) | ❌ |
-| Список покупателей публичен | ❌ нет | ❌ нет | ⚠️ виден в ACC |
-| Gas на хранение ключа | ~50k (on-chain) или ~0 (GF sidecar) | ~50k | ~0 |
-| Необходим cron/event listener | ❌ | ❌ | ✅ для revoke |
-| Сложность реализации | Средняя | Высокая (Chipotle API) | Низкая |
+| Критерий                                            | P-A PKP Vault                          | P-B Sub-account               | P-C Timestamp-ACC                          |
+| ----------------------------------------------------------- | -------------------------------------- | ----------------------------- | ------------------------------------------ |
+| Шифртекст в NFT                                   | ✅ да (per-buyer)                    | ✅ да (sub_api_key)         | ❌ нет (один в манифесте) |
+| Шифртекст Bob ≠ Charlie                           | ✅                                     | ✅                            | ❌                                         |
+| Expiry без бэкенда                                | ✅ встроен в ACC               | ✅ sub-account expiry         | ⚠️ требует cron                   |
+| Контрактный вызов при чтении       | ❌ не нужен                     | ❌ не нужен            | ❌ не нужен                         |
+| Платформенный API-ключ в браузере | ❌ нет                              | ❌ нет                     | ❌ нет (но нужен при wrap)    |
+| Зависит от Chipotle sub-accounts                   | ❌                                     | ✅ (нет в mock)           | ❌                                         |
+| Список покупателей публичен        | ❌ нет                              | ❌ нет                     | ⚠️ виден в ACC                     |
+| Gas на хранение ключа                        | ~50k (on-chain) или ~0 (GF sidecar) | ~50k                          | ~0                                         |
+| Необходим cron/event listener                      | ❌                                     | ❌                            | ✅ для revoke                           |
+| Сложность реализации                     | Средняя                         | Высокая (Chipotle API) | Низкая                               |
 
 **Рекомендованная схема для mainnet: P-A.**
 PKP Vault — полностью без бэкенда, физическая привязка шифртекста к адресу,
@@ -1158,10 +1177,12 @@ expiry в ACC. Требует одного изменения в `AccessPass.sol
 ```
 
 **Расчёт кредитов:**
+
 ```
 N = ceil((expiry - now) / seconds_per_day) × reads_per_day × 2
   ← ×2: один decrypt credentials + один decrypt MK за сессию
 ```
+
 При продлении подписки: `allocate_credits(N_additional)` к существующему
 sub-account.
 
@@ -1253,16 +1274,16 @@ P-E расширяет эту идею до декрипта контента.
 
 **Ключевые свойства P-E:**
 
-| Свойство | Значение |
-|----------|---------|
-| Кто держит ключ | Lit MPC (threshold, не единая точка) |
-| Кто определяет политику | Smart contract BSC (`hasCourseAccess`) + Lit Action |
-| Кто платит за операции | Покупатель (Capacity Credits на своём PKP) |
-| Drain платформенных кредитов | Невозможен: у покупателя свой PKP |
-| API-ключ в браузере | Отсутствует: аутентификация через PKP + sessionSigs |
-| Expiry | Smart contract oracle (lazy, проверяется при каждом чтении) |
-| Revocation | `AccessPass.revoke()` → `hasAccess = false` → следующее чтение отказывает |
-| On-chain след | AccessPass (BSC) + buyerPKP NFT (Chronicle) |
+| Свойство                                  | Значение                                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Кто держит ключ                      | Lit MPC (threshold, не единая точка)                                                        |
+| Кто определяет политику      | Smart contract BSC (`hasCourseAccess`) + Lit Action                                                    |
+| Кто платит за операции         | Покупатель (Capacity Credits на своём PKP)                                              |
+| Drain платформенных кредитов | Невозможен: у покупателя свой PKP                                               |
+| API-ключ в браузере                  | Отсутствует: аутентификация через PKP + sessionSigs                        |
+| Expiry                                            | Smart contract oracle (lazy, проверяется при каждом чтении)                    |
+| Revocation                                        | `AccessPass.revoke()` → `hasAccess = false` → следующее чтение отказывает |
+| On-chain след                                 | AccessPass (BSC) + buyerPKP NFT (Chronicle)                                                              |
 
 **Зависимости:** Lit Protocol mainnet (Chronicle chain 175177), `@lit-protocol/contracts-sdk`
 для mintPKP/allocateCapacityCredits, Chronicle token для газа.
@@ -1271,17 +1292,17 @@ P-E расширяет эту идею до декрипта контента.
 
 ### Итоговое сравнение всех per-NFT схем
 
-| | P-A PKP Vault | P-D Sub-account | P-E PKP-per-NFT |
-|--|--|--|--|
-| Стек | Chipotle REST | Chipotle REST | Lit Protocol Chronicle |
-| Кредиты | Платформа (drain-защищено) | Покупатель (N кредитов в sub-account) | Покупатель (Capacity Credits NFT) |
-| Ключ в NFT | address-specific ciphertext | encrypted sub_api_key + ciphertext | buyerPKP address + ciphertext |
-| Smart contract oracle | нет (timestamp в ACC) | нет (timestamp в ACC) | ✅ `hasCourseAccess` при каждом чтении |
-| Продление подписки | новый bob_ct (re-wrap) | `allocate_credits` | BSC purchase + `allocateCapacityCredits` |
-| Требует backend | нет | нет (если Lit Action) | нет |
-| API-ключ в браузере | нет | нет | нет |
-| Полностью децентрализован | частично (Chipotle TEE) | частично (Chipotle) | ✅ (threshold MPC) |
-| Готовность к реализации | Высокая | Средняя (зависит от Chipotle API) | Средняя (Chronicle интеграция) |
+|                                                   | P-A PKP Vault                               | P-D Sub-account                                          | P-E PKP-per-NFT                                        |
+| ------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
+| Стек                                          | Chipotle REST                               | Chipotle REST                                            | Lit Protocol Chronicle                                 |
+| Кредиты                                    | Платформа (drain-защищено) | Покупатель (N кредитов в sub-account) | Покупатель (Capacity Credits NFT)            |
+| Ключ в NFT                                   | address-specific ciphertext                 | encrypted sub_api_key + ciphertext                       | buyerPKP address + ciphertext                          |
+| Smart contract oracle                             | нет (timestamp в ACC)                   | нет (timestamp в ACC)                                | ✅`hasCourseAccess` при каждом чтении |
+| Продление подписки               | новый bob_ct (re-wrap)                 | `allocate_credits`                                     | BSC purchase +`allocateCapacityCredits`              |
+| Требует backend                            | нет                                      | нет (если Lit Action)                             | нет                                                 |
+| API-ключ в браузере                  | нет                                      | нет                                                   | нет                                                 |
+| Полностью децентрализован | частично (Chipotle TEE)             | частично (Chipotle)                              | ✅ (threshold MPC)                                     |
+| Готовность к реализации      | Высокая                              | Средняя (зависит от Chipotle API)        | Средняя (Chronicle интеграция)        |
 
 **Для mainnet рекомендован P-E** как единственная схема без единой точки отказа:
 smart contract — оракул, Lit MPC — ключ, Capacity Credits — топливо.
@@ -1347,16 +1368,16 @@ Chipotle этот параметр должен быть обязательны�
 
 ### Итоговая оценка
 
-| Критерий | Оценка | Комментарий |
-|----------|--------|-------------|
-| Безопасность от drain | **5/5** | wrapNonce + AlreadySet: атомарный замок, верифицировано |
+| Критерий                               | Оценка  | Комментарий                                                                                |
+| ---------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
+| Безопасность от drain            | **5/5** | wrapNonce + AlreadySet: атомарный замок, верифицировано                   |
 | Адресная изоляция ключей | **5/5** | Шифртекст физически адресно-привязан, Eve заблокирована |
-| Expiry enforcement | **5/5** | `block.timestamp ≤ expiry` в buyer ACC; Chipotle проверяет при каждом decrypt |
-| Gas-эффективность | **3/5** | ~50k gas за setEncryptedKey; допустимо, но не оптимально |
-| Простота для покупателя | **4/5** | Первый вход: 2 подписи + 1 tx; повторный: 1 подпись |
-| Децентрализация | **3/5** | Chipotle = единая точка; для mainnet нужен P-E |
-| Готовность к prod | **4/5** | Работает на Chipotle devnet; для BSC mainnet нужен real Chipotle → P-E |
+| Expiry enforcement                             | **5/5** | `block.timestamp ≤ expiry` в buyer ACC; Chipotle проверяет при каждом decrypt   |
+| Gas-эффективность                 | **3/5** | ~50k gas за setEncryptedKey; допустимо, но не оптимально                     |
+| Простота для покупателя   | **4/5** | Первый вход: 2 подписи + 1 tx; повторный: 1 подпись                  |
+| Децентрализация                 | **3/5** | Chipotle = единая точка; для mainnet нужен P-E                                     |
+| Готовность к prod                   | **4/5** | Работает на Chipotle devnet; для BSC mainnet нужен real Chipotle → P-E             |
 
-**Схема P-A — рабочая основа для testnet и devnet.** Expiry встроен в buyer ACC,
+**Схема P-A — рабочая основа для testnet и devnet.** Expiry встроен в buyer  ACC,
 drain-защита верифицирована. Для production mainnet: постепенная миграция на P-E
 (Chronicle PKP, threshold MPC, без единой точки отказа).

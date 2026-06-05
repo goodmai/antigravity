@@ -118,4 +118,40 @@ contract GreenfieldGroupGateTest is Test {
         gate.setGranter(marketplace, true);
         assertTrue(gate.isGranter(marketplace));
     }
+
+    /// M-3: groupId 0 is the "not set" sentinel — accepting it would make every
+    /// grant/revoke for that course revert as GroupNotSet immediately.
+    function test_setGroup_rejectsZeroGroupId() public {
+        vm.expectRevert(GreenfieldGroupGate.ZeroGroupId.selector);
+        gate.setGroup(COURSE, 0);
+        // The mapping must remain at its previous value.
+        assertEq(gate.groupOf(COURSE), GROUP);
+    }
+
+    /// Granter can be disabled after being enabled, locking them out.
+    function test_granterDisable_blocksSubsequentCalls() public {
+        gate.setGranter(marketplace, true);
+        assertTrue(gate.isGranter(marketplace));
+        gate.setGranter(marketplace, false);
+        assertFalse(gate.isGranter(marketplace));
+
+        vm.prank(marketplace);
+        vm.expectRevert(GreenfieldGroupGate.NotAuthorized.selector);
+        gate.grantAccess(COURSE, buyer, 0);
+    }
+
+    /// Multiple courses can be mapped to different groups independently.
+    function test_multiCourse_independentGroups() public {
+        gate.setGroup(1, 10);
+        gate.setGroup(2, 20);
+
+        gate.grantAccess(1, buyer, 0);
+        gate.grantAccess(2, buyer, 0);
+        assertTrue(hub.member(10, buyer));
+        assertTrue(hub.member(20, buyer));
+
+        gate.revokeAccess(1, buyer);
+        assertFalse(hub.member(10, buyer));
+        assertTrue(hub.member(20, buyer)); // course 2 unaffected
+    }
 }

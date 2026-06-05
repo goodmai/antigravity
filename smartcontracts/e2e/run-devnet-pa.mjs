@@ -45,7 +45,7 @@ const env = (k, fallback) => {
 };
 
 const ANVIL_RPC        = env('ANVIL_RPC',        'http://anvil:8545');
-const CHAIN_ID         = Number(env('CHAIN_ID',  '97'));
+const CHAIN_ID         = Number(env('CHAIN_ID',  '31337'));
 const CHIPOTLE_URL     = env('CHIPOTLE_URL',     'http://chipotle-mock:8000');
 const GF_SP            = env('GF_SP',            'http://mock-sp:9000');
 const GF_ADDR          = getAddress(env('GREENFIELD_TESTNET_ADDRESS'));

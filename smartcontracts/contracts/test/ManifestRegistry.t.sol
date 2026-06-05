@@ -74,4 +74,38 @@ contract ManifestRegistryTest is Test {
         assertEq(h, bytes32(0));
         assertEq(t, 0);
     }
+
+    /// verify() must return true only for the exact (key, hash) pair that was
+    /// anchored — any off-by-one in either dimension is a tamper signal.
+    function testFuzz_anchorAndVerify(bytes32 key, bytes32 hash) public {
+        vm.assume(hash != bytes32(0));
+        vm.prank(author1);
+        reg.anchor(key, hash);
+        assertTrue(reg.verify(key, hash));
+        // flipping one bit in the hash must not pass
+        bytes32 flipped = bytes32(uint256(hash) ^ 1);
+        assertFalse(reg.verify(key, flipped));
+        // same hash, different key must not pass
+        bytes32 otherKey = bytes32(uint256(key) ^ 1);
+        assertFalse(reg.verify(otherKey, hash));
+    }
+
+    /// Multiple distinct keys can be independently anchored and updated.
+    function test_multipleKeys_independent() public {
+        bytes32 key2 = keccak256("bucket2/_lit/manifest.json");
+        vm.prank(author1);
+        reg.anchor(KEY, H1);
+        vm.prank(author2);
+        reg.anchor(key2, H2);
+
+        assertTrue(reg.verify(KEY, H1));
+        assertFalse(reg.verify(KEY, H2)); // KEY is anchored to H1, not H2
+        assertTrue(reg.verify(key2, H2));
+        assertFalse(reg.verify(key2, H1));
+
+        // author1 cannot update key2 and vice versa
+        vm.prank(author1);
+        vm.expectRevert(ManifestRegistry.NotKeyAuthor.selector);
+        reg.anchor(key2, H1);
+    }
 }

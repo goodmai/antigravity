@@ -19,6 +19,8 @@
  * @module lit-sdk-chipotle
  */
 
+import { evaluateAcc, makeFetchEthCall } from './lit-acc-eval.js';
+
 // Transient HTTP statuses the Chipotle TEE (Rocket server) returns while
 // rate-limiting or warming up. They mean the request was NOT processed, so
 // retrying is safe and idempotent.
@@ -147,32 +149,23 @@ export function createChipotleClient({ chipotleUrl = 'http://localhost:8000', pk
         throw new Error('Chipotle decrypt requires authContext.userAddress');
       }
 
-      // Simulate ACC check since Chipotle TEE doesn't implement Lit.Actions.checkConditions yet
-      let hasAccess = false;
-      const accAuthor = accessControlConditions.find(c => c.returnValueTest?.value?.toLowerCase() === userAddress.toLowerCase());
-      if (accAuthor) {
-        hasAccess = true;
-      } else {
-        const accContract = accessControlConditions.find(c => c.contractAddress);
-        if (accContract) {
-           const { ethers } = await import('ethers');
-           const rpc = typeof process !== 'undefined' && process.env.ANVIL_RPC ? process.env.ANVIL_RPC : 'http://127.0.0.1:8545';
-           const provider = new ethers.providers.JsonRpcProvider(rpc);
-           if (accContract.standardContractType === 'ERC721') {
-             const contract = new ethers.Contract(accContract.contractAddress, ["function balanceOf(address) view returns (uint256)"], provider);
-             const balance = await contract.balanceOf(userAddress);
-             const minVal = ethers.BigNumber.from(accContract.returnValueTest?.value ?? '1');
-             hasAccess = balance.gte(minVal);
-           } else {
-             const contract = new ethers.Contract(accContract.contractAddress, ["function hasCourseAccess(address,uint256) view returns (bool)"], provider);
-             const courseId = parseInt(accContract.parameters[1], 10);
-             hasAccess = await contract.hasCourseAccess(userAddress, courseId);
-           }
-        }
-      }
-      
-      if (!hasAccess) {
-         throw new Error("not authorized: access control conditions check failed");
+      // App-side ACC enforcement via the canonical evaluator (lit-acc-eval.js).
+      // The Chipotle TEE does NOT implement Lit.Actions.checkConditions, so the
+      // conditions are enforced HERE, before the decrypt call — identically to
+      // the mock and the browser readers (single source of truth). This is what
+      // enforces P-A subscription expiry: without the timestamp pass an expired
+      // buyer (whose address condition always matches) would still recover the
+      // master key on mainnet.
+      const rpc = (typeof process !== 'undefined' && process.env.ANVIL_RPC)
+        ? process.env.ANVIL_RPC
+        : 'http://127.0.0.1:8545';
+      const verdict = await evaluateAcc({
+        accessControlConditions,
+        userAddress,
+        ethCall: makeFetchEthCall(rpc),
+      });
+      if (!verdict.ok) {
+        throw new Error(`not authorized: ${verdict.reason}`);
       }
 
       const result = await callLitAction({

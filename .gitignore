@@ -42,3 +42,18 @@ Thumbs.db
 # Local demo deploy output (run_demo.sh)
 smartcontracts/demo/addresses.json
 smartcontracts/demo/manifest-*.json
+
+# Cloned MetaMask extension and scratch scripts
+scratch/
+
+# Temp files and Chrome logs
+.chrome-user-data/
+*.log
+test-results/
+lcov.info
+.cache-synpress/
+**/smartcontracts/e2e-synpress/.cache-synpress/
+
+
+
+

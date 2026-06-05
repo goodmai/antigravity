@@ -1,0 +1,21 @@
+{
+  "name": "daskibo-e2e-synpress",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Daskibo Academy — full UI e2e tests with Synpress + MetaMask",
+  "scripts": {
+    "cache": "synpress",
+    "cache:force": "synpress --force",
+    "cache:headless": "synpress --headless",
+    "test": "playwright test",
+    "test:headed": "HEADLESS=false playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed:debug": "HEADLESS=false PWDEBUG=1 playwright test"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.48.2",
+    "@synthetixio/synpress": "^4.1.2",
+    "dotenv": "^16.4.2"
+  }
+}
