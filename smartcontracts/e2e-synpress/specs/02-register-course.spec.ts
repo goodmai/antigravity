@@ -26,7 +26,7 @@ test.describe('Register course as Alice (Author)', () => {
 
   test('Alice is detected as author role', async ({ page }) => {
     const role = page.locator('#role')
-    await expect(role).toHaveText('author', { timeout: 5000 })
+    await expect(role).toHaveText('Author', { timeout: 5000 })
   })
 
   test('Alice can register a course', async ({ page, metamask }) => {

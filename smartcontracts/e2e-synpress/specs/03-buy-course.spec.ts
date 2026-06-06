@@ -27,7 +27,7 @@ test.describe('Buy course as Bob (Client)', () => {
   })
 
   test('Bob is detected as client role', async ({ page }) => {
-    await expect(page.locator('#role')).toHaveText('client', { timeout: 5000 })
+    await expect(page.locator('#role')).toHaveText('Client', { timeout: 5000 })
   })
 
   test('Bob can buy the first course', async ({ page, metamask }) => {
