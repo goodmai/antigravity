@@ -1,10 +1,9 @@
 /**
- * ERC-20 completeness tests — covers approve / transferFrom / allowance.
+ * [unit] ERC-20 approve / transferFrom / allowance
  *
- * The base sandbox.test.js covers deploy + transfer; this file proves that
- * after the audit refactor, the in-memory simulator now implements every
- * function and event required by EIP-20, plus the OpenZeppelin / USDC
- * "infinite allowance" semantics.
+ * Extends sandbox-evm.test.js with EIP-20 completeness:
+ * approve, transferFrom, infinite allowance, Approval events.
+ * No DOM, no network.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -16,7 +15,7 @@ import {
   APPROVE_GAS,
   TRANSFER_FROM_GAS,
   GAS_PRICE,
-} from '../academy/courses/web3-genesis/assets/sandbox.js';
+} from '../../academy/courses/web3-genesis/assets/sandbox.js';
 
 const TOKEN = { name: 'AGT', symbol: 'AGT', decimals: 0, initialSupply: 1000n };
 
@@ -67,7 +66,6 @@ describe('approve', () => {
     const before = sb.getBalance('alice');
     sb.approve(token, 'alice', 'bob', 50n);
     const after = sb.getBalance('alice');
-    // Deploy already cost gas; here we compare the diff caused by approve.
     expect(before - after).toBe(APPROVE_GAS * GAS_PRICE);
   });
 });
@@ -125,7 +123,6 @@ describe('transferFrom', () => {
 
   it('reverts when balance is insufficient even if allowance is enough', () => {
     const { sb, token } = deploy();
-    // Alice gives Bob a huge allowance, but Carol has zero tokens.
     sb.approve(token, 'carol', 'bob', 1_000_000n);
     expect(() => sb.transferFrom(token, 'bob', 'carol', 'dave', 1n))
       .toThrowError(/exceeds balance/i);
@@ -142,7 +139,7 @@ describe('transferFrom', () => {
   });
 });
 
-describe('EIP-20 invariants after approve / transferFrom mixed flows', () => {
+describe('EIP-20 invariants: approve + transferFrom mixed flows', () => {
   it('sum(balanceOf) == totalSupply through a long chain of transfers', () => {
     const { sb, token } = deploy();
     sb.approve(token, 'alice', 'bob', MAX_UINT256);

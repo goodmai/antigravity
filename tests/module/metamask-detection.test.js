@@ -1,13 +1,13 @@
+// @vitest-environment jsdom
 /**
- * Daskibo Academy — MetaMask integration tests
+ * [module] MetaMask provider detection, session management, signing flow
  *
- * Test suites:
- *   1. Network switching
- *   2. Address display
- *   3. Signing rejection
- *   4. Endpoint unavailability
- *   5. Signed message validation
- *   6. Disconnect and wallet change
+ * Tests the three deployment environments:
+ *   Mode 1 — MetaMask mobile in-app browser (injected window.ethereum)
+ *   Mode 2 — Desktop Chrome with extension (window.ethereum.providers[], EIP-6963)
+ *   Mode 3 — Mobile Chrome (deep-link redirect to metamask.app.link)
+ *
+ * All ethereum calls are mocked with vi.fn(). No real wallet, no network.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -30,7 +30,7 @@ import {
   __injectVerifyMessage,
   __registerEip6963Provider,
   __clearEip6963Providers,
-} from '../academy/js/web3-core.js';
+} from '../../academy/js/web3-core.js';
 
 const UA_ANDROID_CHROME =
   'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
@@ -39,7 +39,7 @@ const UA_METAMASK_INAPP =
 const UA_DESKTOP =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// ── Mock ethereum provider factory ───────────────────────────────────────
+// ── Provider mock helpers ─────────────────────────────────────────────────
 
 function mockEthereum(overrides = {}) {
   return {
@@ -51,13 +51,12 @@ function mockEthereum(overrides = {}) {
   };
 }
 
-// Default full-success ethereum mock (accounts + switch + sign all pass)
 function successEthereum(address = '0xAbCd1234567890abcdef1234567890AbCd123456', sig = '0xdeadbeef') {
   const eth = mockEthereum();
   eth.request.mockImplementation(({ method }) => {
-    if (method === 'eth_requestAccounts')      return Promise.resolve([address]);
+    if (method === 'eth_requestAccounts')        return Promise.resolve([address]);
     if (method === 'wallet_switchEthereumChain') return Promise.resolve(null);
-    if (method === 'personal_sign')            return Promise.resolve(sig);
+    if (method === 'personal_sign')              return Promise.resolve(sig);
     return Promise.resolve(null);
   });
   return eth;
@@ -69,9 +68,7 @@ describe('Network switching', () => {
   it('calls wallet_switchEthereumChain with Unit0 chain ID', async () => {
     const eth = mockEthereum();
     eth.request.mockResolvedValue(null);
-
     await switchToUnit0(eth);
-
     expect(eth.request).toHaveBeenCalledWith({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: UNIT0_CHAIN_ID_HEX }],
@@ -83,9 +80,7 @@ describe('Network switching', () => {
     eth.request
       .mockRejectedValueOnce({ code: 4902, message: 'Unrecognized chain ID' })
       .mockResolvedValue(null);
-
     await switchToUnit0(eth);
-
     expect(eth.request).toHaveBeenCalledWith(
       expect.objectContaining({
         method: 'wallet_addEthereumChain',
@@ -101,9 +96,7 @@ describe('Network switching', () => {
     eth.request
       .mockRejectedValueOnce({ code: -32603, message: 'chain not found' })
       .mockResolvedValue(null);
-
     await switchToUnit0(eth);
-
     expect(eth.request).toHaveBeenCalledWith(
       expect.objectContaining({ method: 'wallet_addEthereumChain' }),
     );
@@ -117,7 +110,6 @@ describe('Network switching', () => {
       if (method === 'wallet_switchEthereumChain') return Promise.reject({ code: 4001, message: 'User rejected' });
       return Promise.resolve(null);
     });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'USER_REJECTED_NETWORK' });
   });
 
@@ -136,18 +128,14 @@ describe('Address display', () => {
   it('connectAndSign returns the connected address', async () => {
     const addr = '0xAbCd1234567890abcdef1234567890AbCd123456';
     __injectVerifyMessage(vi.fn().mockResolvedValue(true));
-    const eth = successEthereum(addr);
-
-    const result = await connectAndSign(eth);
+    const result = await connectAndSign(successEthereum(addr));
     expect(result.address).toBe(addr);
   });
 
   it('persists the address in localStorage after connect', async () => {
     const addr = '0x1111222233334444555566667777888899990000';
     __injectVerifyMessage(vi.fn().mockResolvedValue(true));
-    const eth = successEthereum(addr);
-
-    await connectAndSign(eth);
+    await connectAndSign(successEthereum(addr));
     expect(getSession()?.address).toBe(addr);
   });
 
@@ -186,7 +174,6 @@ describe('Signing rejection', () => {
       if (method === 'personal_sign')              return Promise.reject({ code: 4001, message: 'User rejected' });
       return Promise.resolve(null);
     });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'USER_REJECTED_SIGNING' });
   });
 
@@ -199,7 +186,6 @@ describe('Signing rejection', () => {
       if (method === 'personal_sign')              return Promise.reject({ code: 4001, message: 'User rejected' });
       return Promise.resolve(null);
     });
-
     try { await connectAndSign(eth); } catch (_) {}
     expect(getSession()).toBeNull();
   });
@@ -207,7 +193,6 @@ describe('Signing rejection', () => {
   it('throws USER_REJECTED when user rejects eth_requestAccounts', async () => {
     const eth = mockEthereum();
     eth.request.mockRejectedValue({ code: 4001, message: 'User denied account access' });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'USER_REJECTED' });
   });
 });
@@ -227,7 +212,6 @@ describe('Endpoint unavailability', () => {
       });
       return Promise.resolve(null);
     });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'NETWORK_UNAVAILABLE' });
   });
 
@@ -240,7 +224,6 @@ describe('Endpoint unavailability', () => {
       if (method === 'wallet_addEthereumChain')    return Promise.reject(new Error('Failed to fetch'));
       return Promise.resolve(null);
     });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'NETWORK_UNAVAILABLE' });
   });
 
@@ -281,7 +264,6 @@ describe('Signed message validation', () => {
       if (method === 'personal_sign')              return Promise.resolve('0xwrongsig');
       return Promise.resolve(null);
     });
-
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'INVALID_SIGNATURE' });
   });
 
@@ -291,24 +273,21 @@ describe('Signed message validation', () => {
     const mockVerify = vi.fn().mockResolvedValue(true);
     __injectVerifyMessage(mockVerify);
     const eth = successEthereum(addr, sig);
-
     await connectAndSign(eth);
-
     expect(mockVerify).toHaveBeenCalledWith(
       expect.objectContaining({ address: addr, signature: sig, message: SIGN_MESSAGE }),
     );
   });
 });
 
-// ── 6. Disconnect and wallet change ──────────────────────────────────────
+// ── 6. Session lifecycle ──────────────────────────────────────────────────
 
-describe('Disconnect and wallet change', () => {
+describe('Session lifecycle', () => {
   beforeEach(() => clearSession());
 
   it('clearSession removes wallet and sig from localStorage', () => {
     setSession('0xABC', '0xSIG');
     expect(getSession()).not.toBeNull();
-
     clearSession();
     expect(getSession()).toBeNull();
   });
@@ -330,12 +309,8 @@ describe('Disconnect and wallet change', () => {
     const addr1 = '0x1111111111111111111111111111111111111111';
     const addr2 = '0x2222222222222222222222222222222222222222';
     __injectVerifyMessage(vi.fn().mockResolvedValue(true));
-
-    // First connection
     await connectAndSign(successEthereum(addr1, '0xsig1'));
     expect(getSession()?.address).toBe(addr1);
-
-    // Simulate wallet change: app clears old session, user reconnects
     clearSession();
     await connectAndSign(successEthereum(addr2, '0xsig2'));
     expect(getSession()?.address).toBe(addr2);
@@ -360,13 +335,13 @@ describe('Mobile browser detection', () => {
     expect(hasMetaMask({ isMetaMask: false })).toBe(false);
   });
 
-  it('connectAndSign throws METAMASK_NOT_FOUND when isMetaMask flag is absent (desktop, no UA)', async () => {
+  it('connectAndSign throws METAMASK_NOT_FOUND when isMetaMask flag is absent', async () => {
     const eth = { isMetaMask: false, request: vi.fn() };
     await expect(connectAndSign(eth)).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });
   });
 });
 
-// ── 8. Three-environment MetaMask support ────────────────────────────────
+// ── 8. Mode 1 — MetaMask mobile in-app browser ───────────────────────────
 
 describe('Mode 1 — MetaMask mobile in-app browser', () => {
   beforeEach(() => { clearSession(); __clearEip6963Providers(); });
@@ -389,6 +364,8 @@ describe('Mode 1 — MetaMask mobile in-app browser', () => {
     expect(result.address).toBe(addr);
   });
 });
+
+// ── 9. Mode 2 — Desktop Chrome with extension(s) ─────────────────────────
 
 describe('Mode 2 — Desktop Chrome with extension(s)', () => {
   beforeEach(() => { clearSession(); __clearEip6963Providers(); });
@@ -425,6 +402,8 @@ describe('Mode 2 — Desktop Chrome with extension(s)', () => {
   });
 });
 
+// ── 10. Mode 3 — Mobile Chrome (Android), no injected provider ────────────
+
 describe('Mode 3 — Mobile Chrome (Android), no injected provider', () => {
   beforeEach(() => { clearSession(); __clearEip6963Providers(); });
 
@@ -434,7 +413,11 @@ describe('Mode 3 — Mobile Chrome (Android), no injected provider', () => {
   });
 
   it('buildMetaMaskDeepLink targets metamask.app.link/dapp/<host><path>', () => {
-    const link = buildMetaMaskDeepLink({ host: 'goodmai.github.io', pathname: '/antigravity/academy/login.html', search: '' });
+    const link = buildMetaMaskDeepLink({
+      host: 'goodmai.github.io',
+      pathname: '/antigravity/academy/login.html',
+      search: '',
+    });
     expect(link).toBe('https://metamask.app.link/dapp/goodmai.github.io/antigravity/academy/login.html');
   });
 
@@ -448,7 +431,6 @@ describe('Mode 3 — Mobile Chrome (Android), no injected provider', () => {
   });
 
   it('does NOT redirect when already inside the MetaMask in-app browser', async () => {
-    // In-app browser without a resolvable provider yet → plain not-found, no loop
     await expect(
       connectAndSign(undefined, { userAgent: UA_METAMASK_INAPP }),
     ).rejects.toMatchObject({ code: 'METAMASK_NOT_FOUND' });

@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test":             "vitest run",
+    "test:unit":        "vitest run tests/unit",
+    "test:module":      "vitest run tests/module",
+    "test:coverage":    "vitest run --coverage",
+    "test:integration": "vitest run tests/integration --environment node",
+    "test:watch":       "vitest",
+    "test:ui":          "vitest --ui"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^2.1.0",

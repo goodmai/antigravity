@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
+/**
+ * [module] Quiz UI component
+ *
+ * Tests DOM rendering, user interaction, and localStorage progress
+ * for the academy quiz widget. Requires jsdom.
+ */
+
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mountAll, loadProgress, saveProgress } from '../academy/courses/web3-genesis/assets/quiz.js';
+import { mountAll, loadProgress, saveProgress } from '../../academy/courses/web3-genesis/assets/quiz.js';
 
 const fixture = {
   title: 'Test quiz',

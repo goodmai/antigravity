@@ -1,21 +1,60 @@
 # Тест-фреймворк: оценка необходимости и достаточности
 
 > Составлено по результатам анализа CI-прогона [#147 (run 27088764030)](https://github.com/goodmai/antigravity/actions/runs/27088764030) на ветке `claude/greenfield-smartcontracts-setup-2HS95` (последний коммит `0217fdc`), 2026-06-07.
+> Реструктуризация tests/ по пирамиде — 2026-06-07 (ветка `claude/metamask-ui-tests-review-GfL6y`).
 
 ---
 
-## 1. Карта тест-слоёв
+## 0. Структура тестов по пирамиде (текущее состояние)
+
+```
+tests/
+├── unit/                           ← [node] Чистые функции, без DOM и сети
+│   ├── rpc-helpers.test.js         │  JSON-RPC envelope, isContract, hex, gas, finality, feeHistory
+│   ├── sandbox-evm.test.js         │  In-memory EVM: deploy, transfer, events, gas
+│   └── sandbox-erc20.test.js       │  EIP-20 approve/transferFrom/allowance
+│
+├── module/                         ← [jsdom] Компоненты с DOM и моками провайдера
+│   ├── metamask-detection.test.js  │  Три режима MetaMask: injected / EIP-6963 / mobile deeplink
+│   ├── quiz-ui.test.js             │  Quiz-виджет: рендер, клики, localStorage
+│   └── sandbox-embed.test.js       │  Embed-виджеты: remix-inline, tenderly, rpc-live, anvil
+│
+├── integration/                    ← [node + Docker] Реальные сервисы (*.docker.test.js)
+│   └── README.md                   │  Живут в smartcontracts/integration/ на feature-ветке
+│
+├── e2e/                            ← Greenfield + Lit + Chipotle (скрипты Node)
+│   └── README.md                   │  Живут в smartcontracts/e2e/ на feature-ветке
+│
+└── ui/                             ← Playwright + Synpress + MetaMask 13.24.0
+    └── README.md                   │  Живут в smartcontracts/e2e-synpress/ на feature-ветке
+```
+
+### Команды по слоям
+
+```sh
+npm run test             # unit + module (165 тестов, ~1.7s)
+npm run test:unit        # только unit/  (100 тестов)
+npm run test:module      # только module/ (65 тестов)
+npm run test:coverage    # unit + module с v8 coverage
+npm run test:integration # *.docker.test.js (нужен Docker)
+npm run test:watch       # watch-режим
+```
+
+---
+
+## 1. Карта тест-слоёв (полная система, включая smartcontracts)
 
 | Слой | Тул | Команда / джоб | Среда | Статус CI |
 |------|-----|---------------|-------|-----------|
-| **Unit + coverage** | Vitest | `npm run test:coverage` / джоб `test` | Node 22, нет сети | ❌ FAILED |
-| **Integration (Docker)** | Vitest + Docker | `npm run test:integration` / джоб `Integration (Docker) Tests` | Docker, без браузера | ✅ PASS |
-| **Forge unit (смарт-контракты)** | Foundry forge | `forge test -vvv` / джоб `Foundry Smart Contract Tests` | Local EVM (in-memory) | ⚠️ forge test PASS, snapshot FAIL |
-| **Forge gas-snapshot** | `forge snapshot --check` | в том же джобе | – | ❌ FAIL |
-| **UI E2E (MetaMask + Synpress)** | Playwright + Synpress | `npx playwright test` / джоб `Full UI E2E` | Docker local-full + Xvfb + Chrome 130 + MM 13.24.0 | ✅ PASS (12/12) |
-| **E2E Lit (Greenfield + Chipotle)** | Node runner | `./run_e2e_lit.sh` / джоб `E2E Lit Protocol Gating` | Docker + real Chipotle TEE + real Greenfield testnet | ❌ FAIL (SP sealing timeout) |
-| **Real Chipotle TEE (docker)** | Docker Compose | профиль `local-real-chipotle` / джоб `Real Chipotle TEE Integration` | Docker + Rust dstack simulator | ❌ FAIL (build/launch) |
-| **Devnet E2E** | `run-e2e.mjs` | `node smartcontracts/e2e/run-e2e.mjs` / джоб `Devnet E2E` | Real testnets (BSC + GF) | ⏭️ SKIP (нет секрета) |
+| **unit** | Vitest | `npm run test:unit` | Node, нет DOM | ✅ 100 тестов |
+| **module** | Vitest + jsdom | `npm run test:module` | jsdom | ✅ 65 тестов |
+| **integration** | Vitest + Docker | `npm run test:integration` / джоб `Integration (Docker) Tests` | Docker, без браузера | ✅ PASS |
+| **Forge unit** | Foundry forge | `forge test -vvv` / джоб `Foundry Smart Contract Tests` | Local EVM (in-memory) | ⚠️ test PASS, snapshot FAIL |
+| **Forge gas-snapshot** | `forge snapshot --check` | в том же джобе | – | ❌ FAIL (нужен `forge snapshot`) |
+| **e2e** | Node runner | `./run_e2e_lit.sh` / джоб `E2E Lit Protocol Gating` | Docker + Chipotle TEE + Greenfield testnet | ❌ FAIL (SP sealing timeout) |
+| **ui** | Playwright + Synpress | `npx playwright test` / джоб `Full UI E2E` | Docker local-full + Xvfb + Chrome 130 + MM 13.24.0 | ✅ PASS (12/12) |
+| **Real Chipotle TEE** | Docker Compose | профиль `local-real-chipotle` / джоб `Real Chipotle TEE Integration` | Docker + Rust dstack simulator | ❌ FAIL (build/launch) |
+| **Devnet E2E** | `run-e2e.mjs` | джоб `Devnet E2E` | Real testnets (BSC + GF) | ⏭️ SKIP (нет секрета) |
 
 ---
 
@@ -262,36 +301,45 @@ npx playwright test --reporter=line --timeout=70000
 
 ```
 antigravity/
-├── tests/                          # Vitest unit tests
-│   ├── web3.test.js                # Greenfield/crypto/SDK юниты
-│   ├── web3-quiz.test.js
-│   ├── web3-sandbox.test.js
-│   ├── web3-sandbox-embed.test.js
-│   ├── web3-rpc.test.js
-│   ├── web3-sandbox-erc20.test.js
-│   └── metamask-synpress.spec.ts   # ⚠️ НЕ vitest: Playwright spec, должен быть исключён
+├── tests/                                   # Vitest-пирамида (unit + module)
+│   ├── unit/                                # [node] Чистые функции, без DOM и сети
+│   │   ├── rpc-helpers.test.js              #   JSON-RPC envelope, isContract, hex, gas, finality (42)
+│   │   ├── sandbox-evm.test.js              #   In-memory EVM: deploy, transfer, events, gas (42)
+│   │   └── sandbox-erc20.test.js            #   EIP-20 approve/transferFrom/allowance (16)
+│   ├── module/                              # [jsdom] Компоненты с DOM и моками провайдера
+│   │   ├── metamask-detection.test.js       #   Три режима MM: injected / EIP-6963 / mobile (42)
+│   │   ├── quiz-ui.test.js                  #   Quiz-виджет: рендер, клики, localStorage (7)
+│   │   └── sandbox-embed.test.js            #   Embed-виджеты: remix, tenderly, rpc, anvil (16)
+│   ├── integration/                         # [node + Docker] Реальные сервисы
+│   │   └── README.md                        #   *.docker.test.js живут в smartcontracts/integration/
+│   ├── e2e/                                 # Greenfield + Lit + Chipotle (скрипты Node)
+│   │   └── README.md                        #   run-e2e.mjs живёт в smartcontracts/e2e/
+│   └── ui/                                  # Playwright + Synpress + MetaMask 13.24.0
+│       └── README.md                        #   Specs живут в smartcontracts/e2e-synpress/specs/
 ├── smartcontracts/
 │   ├── contracts/
-│   │   ├── test/                   # Forge unit tests (144 тестов)
-│   │   └── .gas-snapshot           # ⚠️ Устарел, требует обновления
-│   ├── integration/                # Docker integration tests (vitest)
-│   ├── e2e/                        # Devnet / Greenfield E2E runner
+│   │   ├── test/                            # Forge unit tests (144 тестов, forge test)
+│   │   └── .gas-snapshot                    # ⚠️ Устарел, требует forge snapshot
+│   ├── integration/                         # Docker integration tests (vitest *.docker.test.js)
+│   ├── e2e/                                 # Devnet / Greenfield E2E runner
 │   │   └── run-e2e.mjs
-│   ├── e2e-synpress/               # UI E2E (Playwright + Synpress + MetaMask)
+│   ├── e2e-synpress/                        # UI E2E (Playwright + Synpress + MetaMask)
 │   │   ├── specs/
-│   │   │   ├── 01-connect-network.spec.ts
-│   │   │   ├── 02-register-course.spec.ts
-│   │   │   ├── 03-buy-course.spec.ts
-│   │   │   ├── 04-access-matrix.spec.ts
-│   │   │   ├── 05-withdraw.spec.ts
-│   │   │   ├── fixture.ts          # Playwright fixture (context + ethers)
-│   │   │   └── synpress.ts         # Synpress MetaMask setup
-│   │   ├── wallet-setup/           # Synpress wallet cache setup
-│   │   ├── build-cache.mjs         # Строит Synpress cache
-│   │   ├── patch-synpress.mjs      # Применяет патчи для MM 13.24.0
+│   │   │   ├── 01-connect-network.spec.ts   #   Подключение MetaMask, chain ID
+│   │   │   ├── 02-register-course.spec.ts   #   Регистрация курса автором
+│   │   │   ├── 03-buy-course.spec.ts        #   Покупка курса, AccessPass NFT
+│   │   │   ├── 04-access-matrix.spec.ts     #   Матрица доступа: Author / Client / Eve
+│   │   │   ├── 05-withdraw.spec.ts          #   Pull-withdraw автором
+│   │   │   ├── fixture.ts                   #   Playwright fixture (context + ethers)
+│   │   │   └── synpress.ts                  #   Synpress MetaMask setup
+│   │   ├── wallet-setup/                    # Synpress wallet cache setup
+│   │   ├── build-cache.mjs                  # Строит Synpress cache (xvfb-run)
+│   │   ├── patch-synpress.mjs               # Патчи для MM 13.24.0
 │   │   └── playwright.config.ts
-│   └── run_e2e_lit.sh              # E2E Lit/Chipotle runner
-└── .github/workflows/test.yml      # CI: 7 параллельных джобов
+│   └── run_e2e_lit.sh                       # E2E Lit/Chipotle runner
+├── vitest.config.js                         # include: unit/**+module/**, exclude: integration/e2e/ui
+├── package.json                             # test / test:unit / test:module / test:integration
+└── .github/workflows/test.yml               # CI: 7 параллельных джобов
 ```
 
 ---

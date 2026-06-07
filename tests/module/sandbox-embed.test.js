@@ -1,4 +1,12 @@
 // @vitest-environment jsdom
+/**
+ * [module] Sandbox embed DOM widget
+ *
+ * Tests DOM rendering of the five sandbox embed types:
+ * remix-inline, tenderly, rpc-live, metamask, anvil.
+ * Requires jsdom; fetch is mocked for rpc-live network calls.
+ */
+
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   buildRemixUrl,
@@ -6,7 +14,7 @@ import {
   PUBLIC_RPCS,
   NETWORK_PRESETS,
   mountAll,
-} from '../academy/courses/web3-genesis/assets/sandbox-embed.js';
+} from '../../academy/courses/web3-genesis/assets/sandbox-embed.js';
 
 describe('buildRemixUrl', () => {
   it('encodes inline source via base64 url-safe code fragment', () => {
@@ -16,7 +24,6 @@ describe('buildRemixUrl', () => {
     expect(url).toContain('autoCompile=true');
     expect(url).toContain('#code=');
     expect(url).toContain('filename=A.sol');
-    // не должно содержать padding `=` или `/` или `+`
     const fragment = url.split('#code=')[1].split('&')[0];
     expect(fragment).not.toMatch(/[/+=]/);
   });
@@ -96,7 +103,6 @@ describe('mountAll', () => {
     const host = document.querySelector('.sandbox');
     expect(host.textContent).toContain('X');
     expect(host.querySelector('button[data-action="open"]')).toBeTruthy();
-    // iframe не вставляется до клика
     expect(host.querySelector('iframe')).toBeNull();
   });
 
@@ -107,11 +113,9 @@ describe('mountAll', () => {
     const host = document.querySelector('.sandbox');
     const cards = host.querySelectorAll('a.embed-card');
     expect(cards.length).toBeGreaterThanOrEqual(3);
-    // Ссылки только на официальный Tenderly
     for (const a of cards) {
       expect(a.href).toMatch(/^https:\/\/(dashboard|docs)\.tenderly\.co\//);
     }
-    // Slug пробрасывается в форму создания VNet
     const createLink = Array.from(cards).find((a) => a.href.includes('virtual-testnets/new'));
     expect(createLink.href).toContain('slug=my-slug');
     expect(createLink.href).toContain('network=1');
