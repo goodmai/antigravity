@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-import WebSocket from 'ws';
+// `ws` is only needed by the raw-WebSocket CLI path (openMetaMask). Import it
+// lazily so consumers that just use the exported CDP helpers (which receive a
+// `run` fn — e.g. build-cache.mjs / daskibo.setup.ts driving MetaMask through
+// Playwright's CDP session) don't need `ws` on their module resolution path.
 import * as path from 'path';
 
 const MM_ID = process.env.METAMASK_EXT_ID ?? 'hebhblbkkdabgoldnojllkipeoacjioc';
 const CDP = 'http://127.0.0.1:9222';
 
 async function openMetaMask() {
+  const { default: WebSocket } = await import('ws');
   const tabs = await fetch(`${CDP}/json`).then(r => r.json());
   let mm = tabs.find(t => t.url?.startsWith(`chrome-extension://${MM_ID}/home.html`));
 
