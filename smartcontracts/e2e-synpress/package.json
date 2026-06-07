@@ -17,5 +17,8 @@
     "@playwright/test": "^1.48.2",
     "@synthetixio/synpress": "^4.1.2",
     "dotenv": "^16.4.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
   }
 }
