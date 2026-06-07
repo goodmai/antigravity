@@ -9,7 +9,10 @@
  * explicitly opening MetaMask home.html, then running daskibo.setup.ts logic.
  */
 
-import { chromium } from 'playwright';
+// Import chromium from @playwright/test (the actual dependency); the bare
+// 'playwright' package isn't installed here and only resolved locally via
+// node_modules hoisting — it's absent in CI's strict pnpm tree.
+import { chromium } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
