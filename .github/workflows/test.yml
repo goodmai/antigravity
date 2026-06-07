@@ -276,7 +276,9 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # v11 to match the local toolchain — pnpm 9 rejects e2e-synpress's
+          # pnpm-workspace.yaml ("packages field missing or empty"); 10/11 tolerate it.
+          version: 11
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
