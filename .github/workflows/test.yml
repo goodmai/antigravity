@@ -254,3 +254,108 @@ jobs:
           else
             echo "⏭️ Skipping Devnet E2E tests: GREENFIELD_TESTNET_PRIVATE_KEY secret is not set."
           fi
+
+  ui-e2e-synpress:
+    name: Full UI E2E (Synpress + MetaMask, docker local-full)
+    # Heavy headed-browser job: real MetaMask 13.24.0 driven over CDP against the
+    # full local stack. Runs on PRs touching smartcontracts/**, nightly, and on demand.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: smartcontracts/e2e-synpress
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # ── Local stack: Anvil (31337) + deterministic deploy + frontend (8085) + chipotle-mock (8000) ──
+      - name: Bring up local-full stack
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile local-full up -d \
+            anvil frontend chipotle-mock deploy
+          echo "Waiting for one-shot deploy to finish…"
+          code="$(docker wait daskibo-deploy)"
+          docker logs daskibo-deploy | tail -25
+          [ "$code" = "0" ] || { echo "::error::contract deploy failed (exit $code)"; exit 1; }
+
+      - name: Wait for endpoints (Anvil / frontend / chipotle-mock)
+        working-directory: smartcontracts
+        run: |
+          ok() { curl -sf -m 4 "$@" >/dev/null; }
+          for i in $(seq 1 30); do
+            if ok -X POST http://localhost:9545 -H 'content-type: application/json' \
+                  --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' \
+               && ok http://localhost:8085/course-demo.html \
+               && ok http://localhost:8000/core/v1/version; then
+              echo "All endpoints healthy."; exit 0
+            fi
+            echo "waiting for stack… ($i)"; sleep 2
+          done
+          echo "::error::stack did not become healthy"; docker compose -f docker-compose.yml ps; exit 1
+
+      # ── Headed-browser prerequisites (not committed — fetched fresh) ──
+      - name: Install MetaMask 13.24.0 extension
+        run: |
+          curl -fsSL -o /tmp/mm.zip \
+            https://github.com/MetaMask/metamask-extension/releases/download/v13.24.0/metamask-chrome-13.24.0.zip
+          mkdir -p /tmp/metamask-13.24.0
+          unzip -q /tmp/mm.zip -d /tmp/metamask-13.24.0
+          test -f /tmp/metamask-13.24.0/manifest.json
+          echo "METAMASK_EXT_PATH=/tmp/metamask-13.24.0" >> "$GITHUB_ENV"
+
+      - name: Install Chrome-for-Testing 130 (honours --load-extension; Chrome 137+ blocks it)
+        run: |
+          npx -y @puppeteer/browsers install chrome@130 --path "$HOME/cft" | tee /tmp/cft.txt
+          CHROME_BIN="$(awk 'END{print $NF}' /tmp/cft.txt)"
+          test -x "$CHROME_BIN"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          "$CHROME_BIN" --version
+
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Install e2e deps + browser libs + apply MetaMask 13.24.0 patches
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install-deps chromium
+          node patch-synpress.mjs
+
+      # ── Build the Synpress wallet cache fresh (it is keyed to the extension id,
+      #    so it must be rebuilt in CI rather than shipped) and run the suite. ──
+      - name: Build Synpress wallet cache (headed under Xvfb)
+        run: xvfb-run -a node build-cache.mjs --force
+
+      - name: Run full UI E2E suite
+        run: xvfb-run -a npx playwright test --reporter=line --timeout=70000 --global-timeout=900000
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synpress-ui-report
+          path: |
+            smartcontracts/e2e-synpress/playwright-report/
+            smartcontracts/e2e-synpress/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stack logs on failure
+        if: failure()
+        working-directory: smartcontracts
+        run: docker compose -f docker-compose.yml --profile local-full logs --tail=120
+
+      - name: Teardown
+        if: always()
+        working-directory: smartcontracts
+        run: docker compose -f docker-compose.yml --profile local-full down --remove-orphans -v

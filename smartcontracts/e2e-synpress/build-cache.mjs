@@ -30,7 +30,10 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 // setup file). Override with CACHE_HASH=... env.
 const CACHE_HASH = process.env.CACHE_HASH ?? '1a6f1899c902e05101dd';
 const CACHE_DIR  = path.join(__dirname, '.cache-synpress', CACHE_HASH);
-const MM_PATH    = '/home/g/projects/metamask-chrome-13.24.0';
+// Path to the unpacked MetaMask 13.24.0 extension. Override with METAMASK_EXT_PATH
+// (CI downloads the v13.24.0 release zip and unpacks it). Must match the value
+// patch-synpress.mjs feeds the Synpress fixture's prepareExtension().
+const MM_PATH    = process.env.METAMASK_EXT_PATH ?? '/home/g/projects/metamask-chrome-13.24.0';
 // Chrome 137+ blocks `--load-extension` outright; system Chrome here is 148.
 // Use Chrome-for-Testing 130 (>= MetaMask's minimum_chrome_version 115), which
 // still honours `--load-extension`. Persisted under ~/.local/share so it survives
