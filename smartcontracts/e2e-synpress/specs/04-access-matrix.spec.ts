@@ -10,9 +10,11 @@
  */
 import { test, expect } from './synpress'
 
-const ALICE = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
-const BOB   = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8'
-const EVE   = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC'
+// The matrix renders one row per persona, labelled by ROLE and a truncated
+// address (course-demo.js `short()` → "0x7099…79C8"). Match rows by the role
+// pill text — the persona addresses (Author=anvil#1 0x7099, Client=anvil#2
+// 0x3C44, Eve=anvil#3 0x90F7) are truncated in the cell so an address-prefix
+// substring match never hits.
 
 test.describe('Access matrix', () => {
   test.beforeEach(async ({ page, metamask }) => {
@@ -47,8 +49,8 @@ test.describe('Access matrix', () => {
     await page.locator('#btn-access').click()
     await expect(page.locator('#matrix table')).toBeVisible({ timeout: 10000 })
 
-    // Alice row should show ✓ / "yes" / true
-    const aliceRow = page.locator(`tr:has-text("${ALICE.slice(0, 10)}")`).first()
+    // Author row should show ✓ (author always has access to their own course)
+    const aliceRow = page.locator('tr:has-text("Author")').first()
     await expect(aliceRow).toContainText(/yes|✓|true/i, { timeout: 5000 })
   })
 
@@ -56,7 +58,7 @@ test.describe('Access matrix', () => {
     await page.locator('#btn-access').click()
     await expect(page.locator('#matrix table')).toBeVisible({ timeout: 10000 })
 
-    const eveRow = page.locator(`tr:has-text("${EVE.slice(0, 10)}")`).first()
+    const eveRow = page.locator('tr:has-text("Eve")').first()
     await expect(eveRow).toContainText(/no|✗|false/i, { timeout: 5000 })
   })
 })

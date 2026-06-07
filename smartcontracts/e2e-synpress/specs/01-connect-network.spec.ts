@@ -40,5 +40,9 @@ test('Add/switch Anvil network button triggers wallet_addEthereumChain', async (
 
   const params = await requestPromise as Record<string, unknown>
   expect((params as any).chainId).toBe('0x7a69')
-  expect((params as any).nativeCurrency?.symbol).toBe('tBNB')
+  // Anvil's native token is ETH; the demo sends symbol 'ETH' for chain 31337
+  // (course-demo.js — only non-local chains advertise 'tBNB'). 'tBNB' is merely
+  // the cosmetic label MetaMask stored for the network in the wallet cache, not
+  // what the dapp passes to wallet_addEthereumChain.
+  expect((params as any).nativeCurrency?.symbol).toBe('ETH')
 })

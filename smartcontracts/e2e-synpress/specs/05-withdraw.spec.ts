@@ -42,7 +42,11 @@ test.describe('Author withdrawal', () => {
 
     await expect(page.locator('#status')).toContainText(/withdraw|success/i, { timeout: 15000 })
 
-    // Refresh pending balance — should be 0
-    await expect(pending).toHaveText('0', { timeout: 8000 })
+    // Pending should drain to zero. The UI renders formatEther(bal), so a zero
+    // balance shows as "0.0" (not "0") — compare numerically rather than by exact
+    // string, and poll while the post-tx refresh lands.
+    await expect
+      .poll(async () => Number((await pending.textContent())?.trim() ?? '1'), { timeout: 8000 })
+      .toBe(0)
   })
 })

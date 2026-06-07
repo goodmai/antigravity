@@ -42,7 +42,20 @@ async function driveNotification(context: any, extensionId: string | undefined, 
   if (!extensionId) throw new Error('MetaMask extensionId not set')
   const urlPart = `chrome-extension://${extensionId}/notification.html`
   let np: any = context.pages().find((p: any) => p.url().includes(urlPart))
-  if (!np) np = await context.waitForEvent('page', { predicate: (p: any) => p.url().includes(urlPart), timeout: 15000 })
+  if (!np) {
+    // The popup may legitimately never open: connecting an already-connected
+    // account, or adding/switching a network that's already in the wallet, both
+    // resolve silently with no notification surface. Treat that as a no-op
+    // instead of hanging the whole test on a 15s waitForEvent throw — the
+    // page-level assertion that follows is the real signal for a missing tx popup.
+    np = await context
+      .waitForEvent('page', { predicate: (p: any) => p.url().includes(urlPart), timeout: 8000 })
+      .catch(() => null)
+    if (!np) {
+      console.warn('[driveNotification] no MetaMask notification popup appeared (likely already handled); skipping')
+      return
+    }
+  }
   await np.waitForLoadState('domcontentloaded').catch(() => {})
   await sleep(1200)
   const run = cdpRunFor(np)

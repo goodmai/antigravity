@@ -46,19 +46,25 @@ test.describe('Buy course as Bob (Client)', () => {
   })
 
   test('Bob has AccessPass NFT after buying', async ({ page, metamask }) => {
-    // Buy the course
-    await page.locator('button:has-text("Buy")').first().click()
-    await metamask.confirmTransaction()
-    await expect(page.locator('#status')).toContainText(/purchas|nft|access/i, { timeout: 20000 })
+    // Bob may already own the course from the previous test (anvil is not reset
+    // between tests, so AccessPass persists). When owned, the demo renders no
+    // "Buy" button — so only buy if one is present; either way Bob ends up with
+    // the pass, which is what this test verifies.
+    const buyBtn = page.locator('button:has-text("Buy")').first()
+    if (await buyBtn.count() > 0 && await buyBtn.isVisible().catch(() => false)) {
+      await buyBtn.click()
+      await metamask.confirmTransaction()
+      await expect(page.locator('#status')).toContainText(/purchas|nft|access/i, { timeout: 20000 })
+    }
 
     // Reconnect to refresh balance/NFT count
     await page.locator('#btn-connect').click()
     await metamask.connectToDapp()
 
-    // NFT count should be > 0
+    // #passes renders like "1 (course 0)" (or "0"), so parse the leading integer.
     const passes = page.locator('#passes')
     await expect(passes).not.toHaveText('—', { timeout: 8000 })
     const passCount = await passes.textContent()
-    expect(Number(passCount?.trim())).toBeGreaterThan(0)
+    expect(parseInt(passCount?.trim() ?? '0', 10)).toBeGreaterThan(0)
   })
 })
