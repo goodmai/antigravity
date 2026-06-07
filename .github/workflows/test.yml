@@ -318,6 +318,41 @@ jobs:
           done
           echo "::error::stack did not become healthy"; docker compose -f docker-compose.yml ps; exit 1
 
+      # course-demo.html fetches ./demo/addresses.json (deployed contract addrs +
+      # chain config). It is gitignored and normally written by the demo-deploy
+      # service; the local-full `deploy` doesn't emit it, so without this the page
+      # 404s and every test fails on an empty #net-line. The deploy logs print the
+      # same address lines demo-deploy greps, so derive it from there. rpcUrl must
+      # be the host port (9545) — the page's read provider runs on the runner host.
+      # The frontend's bind mount is live, so a file written now is served at once.
+      - name: Generate demo/addresses.json for the frontend
+        working-directory: smartcontracts
+        run: |
+          LOG="$(docker logs daskibo-deploy 2>&1)"
+          pick() { printf '%s' "$LOG" | grep -i "$1" | grep -oiE '0x[0-9a-f]{40}' | tail -1; }
+          TREASURY="$(pick 'Treasury ')"
+          ACCESSPASS="$(pick 'AccessPass ')"
+          MARKETPLACE="$(pick 'CourseMarketplace')"
+          if [ -z "$TREASURY" ] || [ -z "$ACCESSPASS" ] || [ -z "$MARKETPLACE" ]; then
+            echo "::error::could not parse deployed addresses from deploy logs"; printf '%s\n' "$LOG" | tail -40; exit 1
+          fi
+          mkdir -p demo
+          cat > demo/addresses.json <<JSON
+          {
+            "chainId": 31337,
+            "chainIdHex": "0x7a69",
+            "chainName": "Daskibo Anvil (local)",
+            "rpcUrl": "http://127.0.0.1:9545",
+            "treasury": "$TREASURY",
+            "accessPass": "$ACCESSPASS",
+            "marketplace": "$MARKETPLACE"
+          }
+          JSON
+          cat demo/addresses.json
+          echo "→ verifying it is served…"
+          curl -sf -m 5 http://localhost:8085/demo/addresses.json | grep -q "$MARKETPLACE" \
+            || { echo "::error::addresses.json not served by frontend"; exit 1; }
+
       # ── Headed-browser prerequisites (not committed — fetched fresh) ──
       - name: Install MetaMask 13.24.0 extension
         run: |
