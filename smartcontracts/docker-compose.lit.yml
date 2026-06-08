@@ -111,7 +111,7 @@ services:
       bash -c "
       curl -L https://foundry.paradigm.xyz | bash &&
       export PATH=\"/root/.foundry/bin:$$PATH\" &&
-      foundryup &&
+      ( for i in 1 2 3 4 5; do foundryup -i v1.7.1 && exit 0; echo \"foundryup attempt $$i failed (transient download); retrying in 15s\"; sleep 15; done; exit 1 ) &&
       export ADDR=$$(grep contract_address /shared-config/NodeConfig.toml | cut -d'\"' -f2) &&
       echo \"Seeding signers and registering account at $$ADDR...\" &&
       cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x49052f8877e87a0d87efe794e5d9b04eff35a5ea --value 10ether &&
