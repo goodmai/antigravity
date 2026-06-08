@@ -54,18 +54,22 @@ jobs:
       # pinned binary fetch). v1.7.1 matches the forge that generated .gas-snapshot.
       - name: Install Foundry (v1.7.1, with retry)
         run: |
+          # Pin FOUNDRY_DIR — the installer's base is ${XDG_CONFIG_HOME:-$HOME},
+          # and GitHub runners set XDG_CONFIG_HOME, so without this foundryup lands
+          # in ~/.config/.foundry/bin and the $HOME/.foundry path check never hits.
+          export FOUNDRY_DIR="$HOME/.foundry"
           ok=0
           for i in 1 2 3 4; do
             curl -fL https://foundry.paradigm.xyz | bash || true
-            if [ -x "$HOME/.foundry/bin/foundryup" ] && "$HOME/.foundry/bin/foundryup" -i v1.7.1; then
+            if [ -x "$FOUNDRY_DIR/bin/foundryup" ] && "$FOUNDRY_DIR/bin/foundryup" -i v1.7.1; then
               ok=1; break
             fi
             echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
             sleep 15
           done
           [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
-          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
-          "$HOME/.foundry/bin/forge" --version
+          echo "$FOUNDRY_DIR/bin" >> "$GITHUB_PATH"
+          "$FOUNDRY_DIR/bin/forge" --version
 
       - name: Install forge dependencies
         working-directory: smartcontracts/contracts
@@ -307,18 +311,22 @@ jobs:
       # the stack even comes up.
       - name: Install Foundry (v1.7.1, with retry)
         run: |
+          # Pin FOUNDRY_DIR — the installer's base is ${XDG_CONFIG_HOME:-$HOME},
+          # and GitHub runners set XDG_CONFIG_HOME, so without this foundryup lands
+          # in ~/.config/.foundry/bin and the $HOME/.foundry path check never hits.
+          export FOUNDRY_DIR="$HOME/.foundry"
           ok=0
           for i in 1 2 3 4; do
             curl -fL https://foundry.paradigm.xyz | bash || true
-            if [ -x "$HOME/.foundry/bin/foundryup" ] && "$HOME/.foundry/bin/foundryup" -i v1.7.1; then
+            if [ -x "$FOUNDRY_DIR/bin/foundryup" ] && "$FOUNDRY_DIR/bin/foundryup" -i v1.7.1; then
               ok=1; break
             fi
             echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
             sleep 15
           done
           [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
-          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
-          "$HOME/.foundry/bin/forge" --version
+          echo "$FOUNDRY_DIR/bin" >> "$GITHUB_PATH"
+          "$FOUNDRY_DIR/bin/forge" --version
 
       # The deploy container mounts ./contracts and runs `forge build`; it
       # auto-installs forge-std but expects openzeppelin-contracts to already be
