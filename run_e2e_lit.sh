@@ -103,6 +103,14 @@ echo "==> Applying greenfield-js-sdk local patches..."
 # Start building and running containers in detached mode
 if ! docker compose -f "$COMPOSE_FILE" up --build -d; then
     echo "ERROR: Failed to start docker compose lit stack"
+    # `up` aborts on the first one-shot service that exits non-zero (e.g.
+    # chipotle-bootstrap), but with -d its output is swallowed. Dump container
+    # state + logs so the actual failure is visible in CI instead of just the
+    # generic "didn't complete successfully: exit 1".
+    echo "----- docker compose ps -----"
+    docker compose -f "$COMPOSE_FILE" ps -a || true
+    echo "----- docker compose logs (tail) -----"
+    docker compose -f "$COMPOSE_FILE" logs --no-color --tail=80 || true
     exit 1
 fi
 
