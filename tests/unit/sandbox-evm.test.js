@@ -1,14 +1,9 @@
 /**
- * Daskibo Academy — Web3 Genesis sandbox tests
+ * [unit] In-memory EVM sandbox — deploy + transfer + invariants
  *
- * Covers the four classroom mechanics of Lesson 01:
- *   1. Deploy ERC-20 ⇒ correct supply, deployer credited, Transfer(0→deployer).
- *   2. Transfer    ⇒ debit/credit, Transfer event emitted, supply preserved.
- *   3. Read views  ⇒ balanceOf, totalSupply, tokenInfo are consistent.
- *   4. Invariants  ⇒ no transfer to zero address, no overdraw, no negatives.
- *
- * Plus the supporting primitives (address derivation, parse/format units,
- * gas accounting, event indexing).
+ * Pure-function coverage, no DOM, no network.
+ * Covers: address helpers, parseUnits/formatUnits, ERC-20 deploy/transfer,
+ * gas accounting, event filtering.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -25,7 +20,7 @@ import {
   TRANSFER_GAS,
   DEPLOY_GAS,
   GAS_PRICE,
-} from '../academy/courses/web3-genesis/assets/sandbox.js';
+} from '../../academy/courses/web3-genesis/assets/sandbox.js';
 
 const TOKEN = { name: 'Antigravity Token', symbol: 'AGT', decimals: 18, initialSupply: 1000n };
 
@@ -291,7 +286,7 @@ describe('ERC-20: transfer', () => {
   });
 });
 
-// ── 6. Cross-cutting: tx log & event filtering ───────────────────────────
+// ── 6. History & event filtering ──────────────────────────────────────────
 
 describe('history & filtering', () => {
   it('records deploy + transfer transactions in order', () => {
@@ -310,7 +305,7 @@ describe('history & filtering', () => {
     const b = sb.deployERC20('alice', { ...TOKEN, name: 'Other', symbol: 'OTH' }).address;
     sb.transfer(a, 'alice', 'bob', 1n);
     sb.transfer(b, 'alice', 'bob', 1n);
-    expect(sb.getEvents({ address: a })).toHaveLength(2); // mint + transfer
+    expect(sb.getEvents({ address: a })).toHaveLength(2);
     expect(sb.getEvents({ address: b })).toHaveLength(2);
   });
 

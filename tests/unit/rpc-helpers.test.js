@@ -1,17 +1,8 @@
 /**
- * Daskibo Academy — Web3 Genesis Lesson 03 helper tests
+ * [unit] JSON-RPC client helper functions
  *
- * Pure-function coverage for the JSON-RPC client logic that lives in
- * academy/courses/web3-genesis/assets/rpc-helpers.js. The four practical
- * lesson tasks each get their own describe block:
- *
- *   1. Is this address a contract?       → isContract
- *   2. How much gas did this tx burn?    → txFeeWei / txStatus / isDeployReceipt
- *   3. Is this block final?              → finalityOf / confirmations
- *   4. What does the fee market look like? → parseFeeHistory
- *
- * Plus the supporting primitives (envelope, hex helpers, curl rendering,
- * method index).
+ * Pure-function coverage for rpc-helpers.js. No DOM, no network.
+ * Lesson 03: is-contract, gas burn, finality, fee history.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -29,7 +20,7 @@ import {
   parseFeeHistory,
   renderCurl,
   RPC_METHODS,
-} from '../academy/courses/web3-genesis/assets/rpc-helpers.js';
+} from '../../academy/courses/web3-genesis/assets/rpc-helpers.js';
 
 // ── 1. JSON-RPC envelope ─────────────────────────────────────────────────
 
@@ -81,7 +72,7 @@ describe('parseRpcResponse', () => {
   });
 });
 
-// ── 2. Practical task #1: isContract ─────────────────────────────────────
+// ── 2. isContract ─────────────────────────────────────────────────────────
 
 describe('isContract (eth_getCode)', () => {
   it('returns false for an EOA (code == 0x)', () => {
@@ -132,20 +123,20 @@ describe('hex helpers', () => {
   });
 });
 
-// ── 4. Practical task #2: gas burn from a receipt ────────────────────────
+// ── 4. Gas burn ───────────────────────────────────────────────────────────
 
 describe('txStatus / txFeeWei / isDeployReceipt', () => {
   const eip1559 = {
     status: '0x1',
-    gasUsed: '0x5208',                  // 21000
-    effectiveGasPrice: '0x3b9aca00',    // 1 gwei
+    gasUsed: '0x5208',
+    effectiveGasPrice: '0x3b9aca00',
     contractAddress: null,
   };
 
   const legacy = {
     status: '0x1',
-    gasUsed: '0x5208',                  // 21000
-    gasPrice: '0x77359400',             // 2 gwei
+    gasUsed: '0x5208',
+    gasPrice: '0x77359400',
     contractAddress: null,
   };
 
@@ -153,7 +144,7 @@ describe('txStatus / txFeeWei / isDeployReceipt', () => {
 
   const deployment = {
     status: '0x1',
-    gasUsed: '0xcf08',                  // 53000
+    gasUsed: '0xcf08',
     effectiveGasPrice: '0x3b9aca00',
     contractAddress: '0xAbCdEf0123456789ABCDef0123456789ABCdef01',
   };
@@ -176,7 +167,7 @@ describe('txStatus / txFeeWei / isDeployReceipt', () => {
   });
 
   it('computes fee = gasUsed × effectiveGasPrice (EIP-1559)', () => {
-    expect(txFeeWei(eip1559)).toBe(21_000n * 10n ** 9n); // 21000 gas × 1 gwei
+    expect(txFeeWei(eip1559)).toBe(21_000n * 10n ** 9n);
   });
 
   it('falls back to gasPrice for legacy receipts', () => {
@@ -197,7 +188,7 @@ describe('txStatus / txFeeWei / isDeployReceipt', () => {
   });
 });
 
-// ── 5. Practical task #3: finality ───────────────────────────────────────
+// ── 5. Finality ───────────────────────────────────────────────────────────
 
 describe('finalityOf / confirmations', () => {
   const ctx = { latest: 1000n, safe: 990n, finalized: 980n };
@@ -228,16 +219,16 @@ describe('finalityOf / confirmations', () => {
   it('confirmations counts depth from head', () => {
     expect(confirmations(995n, 1000n)).toBe(5n);
     expect(confirmations(1000n, 1000n)).toBe(0n);
-    expect(confirmations(1001n, 1000n)).toBe(0n); // future ⇒ 0
+    expect(confirmations(1001n, 1000n)).toBe(0n);
   });
 });
 
-// ── 6. Practical task #4: fee history summary ────────────────────────────
+// ── 6. Fee history ────────────────────────────────────────────────────────
 
 describe('parseFeeHistory', () => {
   const fh = {
     oldestBlock: '0x100',
-    baseFeePerGas: ['0x1', '0x2', '0x3', '0x4', '0x5', '0x6'], // N=5, last is next-block prediction
+    baseFeePerGas: ['0x1', '0x2', '0x3', '0x4', '0x5', '0x6'],
     gasUsedRatio: [0.5, 0.6, 0.7, 0.8, 0.9],
     reward: [
       ['0x1', '0x2', '0x3'],
@@ -254,7 +245,6 @@ describe('parseFeeHistory', () => {
   });
 
   it('computes average baseFee', () => {
-    // (1+2+3+4+5)/5 = 3
     expect(parseFeeHistory(fh).avgBaseFee).toBe(3n);
   });
 
@@ -263,7 +253,6 @@ describe('parseFeeHistory', () => {
   });
 
   it('picks median percentile from reward[]', () => {
-    // reward column index 1 → [2,3,4,5,6] avg 4
     expect(parseFeeHistory(fh).avgPriorityFee).toBe(4n);
   });
 
