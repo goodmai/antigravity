@@ -19,3 +19,6 @@ remappings = [
 
 [fuzz]
 runs = 256
+# Pin the fuzz seed so `forge snapshot --check` is deterministic — without it
+# fuzz-test gas varies run-to-run and the committed .gas-snapshot never matches.
+seed = "0x1"
