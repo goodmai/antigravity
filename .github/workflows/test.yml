@@ -430,8 +430,17 @@ jobs:
       - name: Build Synpress wallet cache (headed under Xvfb)
         run: xvfb-run -a node build-cache.mjs --force
 
-      - name: Run full UI E2E suite
-        run: xvfb-run -a npx playwright test --reporter=line --timeout=70000 --global-timeout=900000
+      - name: Run UI E2E suite (marketplace specs 01-05)
+        run: xvfb-run -a npx playwright test --grep-invert @content --reporter=line --timeout=70000 --global-timeout=900000
+
+      # DRM content-unlock journey (spec 06, @content): seed course #1 + its
+      # manifest on a fresh Anvil (so Bob is genuinely denied before buying),
+      # then run the @content tests in isolation. Kept separate from 01-05 because
+      # it needs a clean chain (otherwise Bob already owns the course).
+      - name: Run UI E2E content-unlock journey (spec 06, @content)
+        run: |
+          bash seed-content.sh
+          xvfb-run -a npx playwright test --grep @content --reporter=line --timeout=90000 --global-timeout=400000
 
       - name: Upload Playwright report + traces
         if: always()

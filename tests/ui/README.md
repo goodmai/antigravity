@@ -14,8 +14,16 @@ chipotle-mock). Проверяет полный пользовательский
 | `03-buy-course.spec.ts` | Покупка курса, минт AccessPass NFT | Bob (anvil #2) |
 | `04-access-matrix.spec.ts` | Матрица доступа: Author ✓ / Client ✓ / Eve ✗ | все три |
 | `05-withdraw.spec.ts` | Pull-withdraw выручки автором | Alice |
+| `06-content-access.spec.ts` (`@content`) | **DRM-чтение**: Bob без доступа → ридер блокирует; покупает; снова открывает → расшифровка и **видит текст урока** | Bob |
 
-**Статус: 12/12 PASS** локально и в CI (2026-06-08, прогон полностью зелёный).
+**Статус: 12/12 PASS** (спеки 01-05) + **3/3 PASS** (spec 06, DRM-unlock), локально и в CI.
+
+> [!NOTE]
+> **spec 06 (`@content`) изолирован** и НЕ входит в основной прогон: он требует
+> чистого Anvil (иначе Боб уже владеет курсом) + перегенерированного манифеста
+> под текущий PKP chipotle-mock. Основная суита гонится `--grep-invert @content`,
+> а content-фаза — `seed-content.sh` + `--grep @content`. Это единственный спек,
+> реально проверяющий «нет доступа → не открыть / есть доступ → открыл и увидел текст».
 
 ---
 
@@ -60,9 +68,17 @@ node patch-synpress.mjs            # правит node_modules под локал
 export CHROME_BIN=/path/to/chrome-for-testing-130/.../chrome
 export METAMASK_EXT_PATH=/path/to/metamask-chrome-13.24.0
 xvfb-run -a node build-cache.mjs --force     # importWallet → onboarding → addNetwork → 3 аккаунта
-xvfb-run -a npx playwright test --reporter=line --timeout=70000 --global-timeout=900000
+
+# основная суита (маркетплейс, спеки 01-05):
+xvfb-run -a npx playwright test --grep-invert @content --reporter=line --timeout=70000 --global-timeout=900000
+
+# DRM content-unlock (spec 06): сначала засидить курс #1 + манифест на свежем Anvil, потом @content:
+bash seed-content.sh
+xvfb-run -a npx playwright test --grep @content --reporter=line
 ```
 Кэш профиля привязан к extension id, поэтому **строится заново** (не коммитится).
+`seed-content.sh` пересоздаёт Anvil, регистрирует курс #1 от Author и перешифровывает
+`demo/manifest-1.json` под текущий PKP chipotle-mock (`cast` + node нужны на PATH).
 
 > [!WARNING]
 > Если Anvil/фронтенд падают посреди прогона — сюита **виснет** на global-timeout
