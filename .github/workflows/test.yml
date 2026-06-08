@@ -47,22 +47,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # foundry-rs/foundry-toolchain has no retry; foundryup's release/attestation
-      # downloads flake intermittently (504 gateway time-out, hash mismatch, tar
-      # errors), which has failed this job and the UI-E2E job repeatedly. Install
-      # foundryup and retry the pinned binary fetch. v1.7.1 also matches the forge
-      # version the .gas-snapshot was generated with.
+      # foundry-rs/foundry-toolchain has no retry; both the foundryup installer
+      # (curl|bash) AND its binary download flake intermittently (504 gateway
+      # time-out, hash mismatch, "tar: Error is not recoverable"), failing this
+      # job and the UI-E2E job repeatedly. Retry the WHOLE install (installer +
+      # pinned binary fetch). v1.7.1 matches the forge that generated .gas-snapshot.
       - name: Install Foundry (v1.7.1, with retry)
         run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          FOUNDRYUP="$HOME/.foundry/bin/foundryup"
           ok=0
           for i in 1 2 3 4; do
-            if "$FOUNDRYUP" -i v1.7.1; then ok=1; break; fi
-            echo "::warning::foundryup attempt $i failed (transient download?); retrying in 15s"
+            curl -fL https://foundry.paradigm.xyz | bash || true
+            if [ -x "$HOME/.foundry/bin/foundryup" ] && "$HOME/.foundry/bin/foundryup" -i v1.7.1; then
+              ok=1; break
+            fi
+            echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
             sleep 15
           done
-          [ "$ok" = 1 ] || { echo "::error::foundryup failed after retries"; exit 1; }
+          [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
           echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
           "$HOME/.foundry/bin/forge" --version
 
@@ -301,19 +302,21 @@ jobs:
           # pnpm-workspace.yaml ("packages field missing or empty"); 10/11 tolerate it.
           version: 11
 
-      # foundryup downloads flake intermittently (504 / hash mismatch / tar);
-      # install + retry the pinned fetch so this job doesn't die before the stack.
+      # foundryup installer + binary download flake intermittently (504 / hash
+      # mismatch / tar); retry the whole install so this job doesn't die before
+      # the stack even comes up.
       - name: Install Foundry (v1.7.1, with retry)
         run: |
-          curl -L https://foundry.paradigm.xyz | bash
-          FOUNDRYUP="$HOME/.foundry/bin/foundryup"
           ok=0
           for i in 1 2 3 4; do
-            if "$FOUNDRYUP" -i v1.7.1; then ok=1; break; fi
-            echo "::warning::foundryup attempt $i failed (transient download?); retrying in 15s"
+            curl -fL https://foundry.paradigm.xyz | bash || true
+            if [ -x "$HOME/.foundry/bin/foundryup" ] && "$HOME/.foundry/bin/foundryup" -i v1.7.1; then
+              ok=1; break
+            fi
+            echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
             sleep 15
           done
-          [ "$ok" = 1 ] || { echo "::error::foundryup failed after retries"; exit 1; }
+          [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
           echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
           "$HOME/.foundry/bin/forge" --version
 
