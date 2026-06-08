@@ -3,6 +3,18 @@
 > Составлено по результатам анализа CI-прогона [#147 (run 27088764030)](https://github.com/goodmai/antigravity/actions/runs/27088764030) на ветке `claude/greenfield-smartcontracts-setup-2HS95` (последний коммит `0217fdc`), 2026-06-07.
 > Реструктуризация tests/ по пирамиде — 2026-06-07 (ветка `claude/metamask-ui-tests-review-GfL6y`).
 
+> [!IMPORTANT]
+> **ОБНОВЛЕНО 2026-06-08 — все 7 джоб `test.yml` зелёные** (run 27126201159, overall `success`).
+> Ветка `claude/metamask-ui-tests-review-GfL6y` влита (merge `055923c`). Все провалы из
+> раздела 2 закрыты — см. отметки **РЕШЕНО** в каждом подразделе. Раздел 6 (P0) выполнен.
+>
+> Важная поправка к разделам 2.3 / 2.4: исходный диагноз был неверен. И `E2E Lit`, и
+> `Real Chipotle` падали **по одной причине** — контейнер `chipotle-bootstrap` гонит
+> `foundryup` внутри себя, и его загрузка флакала (`tar: not a tar archive` / 504 /
+> hash mismatch) → `exit 1`. Это тот же баг, что валил шаги Install Foundry. Не sealing
+> и не build-timeout. Закрыто ретраем `foundryup -i v1.7.1` в `command` сервиса.
+> Полный RCA — `skills/bughunter/SKILL.md` BUG-020/021, память `ci-foundry-flake`.
+
 ---
 
 ## 0. Структура тестов по пирамиде (текущее состояние)
@@ -20,24 +32,33 @@ tests/
 │   └── sandbox-embed.test.js       │  Embed-виджеты: remix-inline, tenderly, rpc-live, anvil
 │
 ├── integration/                    ← [node + Docker] Реальные сервисы (*.docker.test.js)
-│   └── README.md                   │  Живут в smartcontracts/integration/ на feature-ветке
+│   └── README.md                   │  Файлы — в корневом tests/*.docker.test.js
 │
 ├── e2e/                            ← Greenfield + Lit + Chipotle (скрипты Node)
-│   └── README.md                   │  Живут в smartcontracts/e2e/ на feature-ветке
+│   └── README.md                   │  Скрипты — в smartcontracts/e2e/ + run_e2e_lit.sh
 │
 └── ui/                             ← Playwright + Synpress + MetaMask 13.24.0
-    └── README.md                   │  Живут в smartcontracts/e2e-synpress/ на feature-ветке
+    └── README.md                   │  Спеки — в smartcontracts/e2e-synpress/specs/
 ```
 
-### Команды по слоям
+> [!NOTE]
+> Чистая «пирамида» (unit→node, module→jsdom, include-whitelist) из review-ветки была
+> при мердже **смягчена**: в `vitest.config.js` оставлен **глобальный `environment: 'jsdom'`**
+> и скан всего `tests/` — иначе ~30 корневых тестов (без docblock `@vitest-environment`)
+> молча выпали бы. Папки `tests/{unit,module}` сохранены как организационные; реальные
+> исключения — `tests/**/*.spec.ts`, `e2e-synpress/**`, `tests/{e2e,ui}/**`, `scratch/**`.
+
+### Команды по слоям (фактический `package.json`)
 
 ```sh
-npm run test             # unit + module (165 тестов, ~1.7s)
-npm run test:unit        # только unit/  (100 тестов)
-npm run test:module      # только module/ (65 тестов)
-npm run test:coverage    # unit + module с v8 coverage
-npm run test:integration # *.docker.test.js (нужен Docker)
-npm run test:watch       # watch-режим
+npm test                 # vitest run — ВСЕ vitest-тесты (jsdom); включает docker/live → нужен Docker
+npm run test:unit        # всё, КРОМЕ *.docker.test.js / *.live.test.js
+npm run test:module      # только tests/module/
+npm run test:coverage    # как test:unit + v8 coverage  → CI-джоб `test` (373 теста, lines 93%)
+npm run test:integration # только *.docker.test.js (нужен Docker) → CI-джоб `Integration`
+npm run test:live        # только *.live.test.js (нужны секреты/сеть)
+npm run test:contracts   # forge test (smartcontracts/contracts)
+npm run typecheck        # tsc; npm run lint:noany — запрет any → тоже в CI-джобе `test`
 ```
 
 ---
@@ -49,18 +70,26 @@ npm run test:watch       # watch-режим
 | **unit** | Vitest | `npm run test:unit` | Node, нет DOM | ✅ 100 тестов |
 | **module** | Vitest + jsdom | `npm run test:module` | jsdom | ✅ 65 тестов |
 | **integration** | Vitest + Docker | `npm run test:integration` / джоб `Integration (Docker) Tests` | Docker, без браузера | ✅ PASS |
-| **Forge unit** | Foundry forge | `forge test -vvv` / джоб `Foundry Smart Contract Tests` | Local EVM (in-memory) | ⚠️ test PASS, snapshot FAIL |
-| **Forge gas-snapshot** | `forge snapshot --check` | в том же джобе | – | ❌ FAIL (нужен `forge snapshot`) |
-| **e2e** | Node runner | `./run_e2e_lit.sh` / джоб `E2E Lit Protocol Gating` | Docker + Chipotle TEE + Greenfield testnet | ❌ FAIL (SP sealing timeout) |
+| **Forge unit** | Foundry forge | `forge test -vvv` / джоб `Foundry Smart Contract Tests` | Local EVM (in-memory) | ✅ PASS (158 тестов) |
+| **Forge gas-snapshot** | `forge snapshot --check --tolerance 1` | в том же джобе | – | ✅ PASS (seed + перегенерён) |
+| **e2e** | Node runner | `./run_e2e_lit.sh` / джоб `E2E Lit Protocol Gating` | Docker + Chipotle TEE + Greenfield testnet | ✅ PASS (ретрай bootstrap) |
 | **ui** | Playwright + Synpress | `npx playwright test` / джоб `Full UI E2E` | Docker local-full + Xvfb + Chrome 130 + MM 13.24.0 | ✅ PASS (12/12) |
-| **Real Chipotle TEE** | Docker Compose | профиль `local-real-chipotle` / джоб `Real Chipotle TEE Integration` | Docker + Rust dstack simulator | ❌ FAIL (build/launch) |
+| **Real Chipotle TEE** | Docker Compose | профиль `local-real-chipotle` / джоб `Real Chipotle TEE Integration` | Docker + Rust dstack simulator | ✅ PASS (ретрай bootstrap) |
 | **Devnet E2E** | `run-e2e.mjs` | джоб `Devnet E2E` | Real testnets (BSC + GF) | ⏭️ SKIP (нет секрета) |
 
 ---
 
 ## 2. Детальный разбор каждого провала
 
-### 2.1 Unit-тест джоб (`test`) — FAILED
+### 2.1 Unit-тест джоб (`test`) — РЕШЕНО ✅
+
+> **РЕШЕНО:** в `vitest.config.js` добавлены исключения `tests/**/*.spec.ts`,
+> `smartcontracts/e2e-synpress/**`, `tests/e2e/**`, `tests/ui/**`, `scratch/**`.
+> Плюс отдельная флака registry-таймаута: `test:coverage` теперь гонит
+> `--exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'` (docker-тесты — в джобе
+> `Integration`). Итог: 373 теста зелёные, lines 93%.
+
+_Исходный анализ:_
 
 **Причина:** файл `tests/metamask-synpress.spec.ts` попадает в глобаль vitest, а его импорт `@synthetixio/synpress` тянет `esbuild`. Esbuild проверяет `new TextEncoder().encode("") instanceof Uint8Array` — в среде vitest/jsdom это `false`, что вызывает `Invariant violation`.
 
@@ -80,7 +109,13 @@ Error: Invariant violation: "new TextEncoder().encode("") instanceof Uint8Array"
 
 ---
 
-### 2.2 Foundry gas-snapshot — FAILED
+### 2.2 Foundry gas-snapshot — РЕШЕНО ✅
+
+> **РЕШЕНО:** `[fuzz] seed = "0x1"` в `foundry.toml` (детерминизм фьюза) + перегенерён
+> `.gas-snapshot` (157 записей / 158 тестов) + CI гонит `forge snapshot --check --tolerance 1`
+> (1% поглощает дрейф метрики между версиями forge, реальные регрессии >1% всё равно валят).
+
+_Исходный анализ:_
 
 **Причина:** в ветке добавлены новые forge-тесты, но `.gas-snapshot` не обновлён. `forge snapshot --check` фиксирует:
 
@@ -91,7 +126,15 @@ Error: Invariant violation: "new TextEncoder().encode("") instanceof Uint8Array"
 
 ---
 
-### 2.3 E2E Lit Protocol Gating — FAILED
+### 2.3 E2E Lit Protocol Gating — РЕШЕНО ✅ (диагноз ниже был неверен)
+
+> **РЕШЕНО / ПОПРАВКА:** реальная причина — НЕ sealing-таймаут. Контейнер
+> `chipotle-bootstrap` гонит `curl|bash && foundryup` внутри себя, и эта загрузка
+> флакала (`tar: not a tar archive` / 504 / hash mismatch) → `exit 1` → `docker compose up`
+> аборт → джоб красный. Нашли через дамп `docker compose logs` при падении `up` в
+> `run_e2e_lit.sh`. Фикс: ретрай `foundryup -i v1.7.1` 5× в `command` сервиса. См. BUG-021.
+
+_Исходный (ошибочный) анализ:_
 
 **Причина:** таймаут ожидания sealing объекта `_lit/manifest.json` на Greenfield testnet SP:
 
@@ -108,7 +151,13 @@ E2E-LIT-NFT FAILED: Error: Resource not found
 
 ---
 
-### 2.4 Real Chipotle TEE (docker) — FAILED
+### 2.4 Real Chipotle TEE (docker) — РЕШЕНО ✅ (диагноз ниже был неверен)
+
+> **РЕШЕНО / ПОПРАВКА:** причина та же, что в 2.3 — `chipotle-bootstrap` `exit 1` из-за
+> флакающей загрузки `foundryup` внутри контейнера, НЕ build-timeout. Обе джобы (`E2E Lit`
+> и `Real Chipotle`) чередовали pass/fail именно на этом. Закрыто тем же ретраем.
+
+_Исходный (ошибочный) анализ:_
 
 **Причина:** джоб собирает `dstack-simulator` из исходников Rust (~50с), затем docker-compose поднимает реальный Chipotle (Dockerfile тянет `lit-api-server` и собирает тяжёлый контейнер). На 2-core GitHub runner сборка занимает ~2m, и стек не успевает подняться до healthcheck'а.
 
@@ -210,9 +259,15 @@ Vitest-тесты с тегом `.docker.test.js`. Запускаются про
 
 ## 6. Что нужно исправить (приоритизированный список)
 
-### P0 — блокируют CI
+> [!NOTE]
+> **P0 и P1 выполнены 2026-06-08** — CI полностью зелёный. P0.1 (gas snapshot),
+> P0.2 (spec.ts в vitest) закрыты; P1.3/P1.4 (флака Lit/Chipotle) закрыты ретраем
+> `foundryup` в `chipotle-bootstrap` (реальная причина оказалась не sealing/timeout,
+> а тот же foundryup-баг — см. 2.3/2.4). Остаётся опциональный P2 (расширение покрытия).
 
-1. **Forge snapshot** — обновить `.gas-snapshot`:
+### P0 — блокируют CI — ✅ ВЫПОЛНЕНО
+
+1. **Forge snapshot** — ✅ сделано (seed + перегенерация + `--tolerance 1`). Обновить `.gas-snapshot`:
    ```sh
    cd smartcontracts/contracts
    forge install --no-git foundry-rs/forge-std
@@ -221,17 +276,17 @@ Vitest-тесты с тегом `.docker.test.js`. Запускаются про
    git add .gas-snapshot && git commit -m "chore(contracts): update gas snapshot"
    ```
 
-2. **`tests/metamask-synpress.spec.ts` в vitest** — исключить из vitest-глобаля. Добавить в `vitest.config.*`:
-   ```js
-   exclude: ['tests/metamask-synpress.spec.ts', 'smartcontracts/e2e-synpress/**']
-   ```
-   Или перенести файл в `smartcontracts/e2e-synpress/` где он и должен жить.
+2. **`tests/metamask-synpress.spec.ts` в vitest** — ✅ сделано: в `vitest.config.js`
+   добавлено `exclude: [..., 'tests/**/*.spec.ts', 'smartcontracts/e2e-synpress/**', ...]`.
 
-### P1 — снижают надёжность CI
+### P1 — снижают надёжность CI — ✅ ВЫПОЛНЕНО
 
-3. **E2E Lit sealing timeout** — увеличить `readObjectWithRetry` с 60×5s до 120×5s. Или добавить в джоб `continue-on-error: true` с аннотацией `# GF testnet sealing non-deterministic`.
+3. **`E2E Lit` / `Real Chipotle`** — ✅ закрыто (НЕ sealing/timeout, как думалось): корневая
+   причина — флака `foundryup` внутри `chipotle-bootstrap`. Ретрай `foundryup -i v1.7.1` 5×
+   в `command` сервиса в обоих compose-файлах. Шаги Install Foundry на раннере тоже переведены
+   на ручную установку с ретраем + `FOUNDRY_DIR` (иначе XDG_CONFIG_HOME уводит foundryup).
 
-4. **Real Chipotle TEE** — уже стоит `if: workflow_dispatch || schedule`, но для нейтрализации добавить `timeout-minutes: 20` и `continue-on-error: true`.
+4. **Диагностика** — ✅ `run_e2e_lit.sh` дампит `compose ps -a` + логи при падении `up`.
 
 ### P2 — улучшения покрытия
 
@@ -344,4 +399,6 @@ antigravity/
 
 ---
 
-*Дата анализа: 2026-06-07. CI run: [#147 на `claude/greenfield-smartcontracts-setup-2HS95`](https://github.com/goodmai/antigravity/actions/runs/27088764030). UI E2E: 12/12 pass (джоб `Full UI E2E (Synpress + MetaMask, docker local-full)`).*
+*Дата анализа: 2026-06-07 (run 27088764030). **Обновлено 2026-06-08: все 7 джоб зелёные** —
+run [27126201159](https://github.com/goodmai/antigravity/actions/runs/27126201159) (overall `success`),
+ветка `claude/greenfield-smartcontracts-setup-2HS95`. UI E2E: 12/12 pass.*
