@@ -8,7 +8,7 @@
     "test:module": "vitest run tests/module",
     "test:integration": "vitest run docker.test.js",
     "test:live": "vitest run live.test.js",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'",
     "test:contracts": "forge test -vvv --root smartcontracts/contracts",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
