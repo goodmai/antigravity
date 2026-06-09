@@ -204,16 +204,32 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Run Lit gating E2E (mock Chipotle + Anvil + mock SP, P-A scheme)
+      # Two-step orchestration (not `up --abort-on-container-exit`): the one-shot
+      # `deploy` exits 0 and would otherwise trip abort-on-exit, racing the
+      # long-running chipotle-mock to a SIGKILL (137) before the e2e runner
+      # starts. Instead: bring deps + deploy up detached, wait for deploy, then
+      # run the e2e one-shot and use ITS exit code as the gate (mirrors the
+      # proven ui-e2e-synpress pattern).
+      - name: Bring up stack (Anvil + mock Chipotle + mock SP) + deploy
+        working-directory: smartcontracts
         run: |
-          docker compose -f smartcontracts/docker-compose.yml --profile devnet-pa \
-            up --build --abort-on-container-exit --exit-code-from devnet-pa-e2e
+          docker compose -f docker-compose.yml --profile devnet-pa up -d --build \
+            anvil chipotle-mock mock-sp-devnet deploy
+          echo "Waiting for one-shot deploy…"
+          code="$(docker wait daskibo-deploy)"
+          docker logs daskibo-deploy
+          [ "$code" = "0" ] || { echo "::error::contract deploy failed (exit $code)"; exit 1; }
+
+      - name: Run P-A Lit gating E2E
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile devnet-pa run --rm devnet-pa-e2e
 
       - name: Teardown
         if: always()
+        working-directory: smartcontracts
         run: |
-          docker compose -f smartcontracts/docker-compose.yml --profile devnet-pa \
-            down --remove-orphans -v
+          docker compose -f docker-compose.yml --profile devnet-pa down --remove-orphans -v
 
   integration-test:
     name: Integration (Docker) Tests
