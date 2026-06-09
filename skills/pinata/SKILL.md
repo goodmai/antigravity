@@ -126,6 +126,7 @@ OpenAPI каждой поверхности:
   перепривязывать (это и есть tamper-evidence, см. litaction.md).
 
 ## См. также
+- [pinata.md](./pinata.md) — роль Pinata в архитектуре (что хранит/не хранит, зачем).
 - [litaction.md](./litaction.md) — какие именно Lit Actions пинить и куда идёт CID.
 - [lit-actions/README — provisioning runbook](../../smartcontracts/lit-actions/README.md)
 - [Lit skill §7.5](../lit/SKILL.md) · [spec/REVIEW.md R-1b](../../spec/REVIEW.md)
