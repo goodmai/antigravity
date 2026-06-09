@@ -1,169 +1,191 @@
 # Daskibo Academy — Test Reference
 
-## How to run
+A single, formalized **test pyramid**: many fast hermetic tests at the base, a few
+slow real-world tests at the top. Every layer has a fixed **naming convention**, a
+**runner**, a **gate**, and a **CI job**, so any test's layer is obvious from its
+file name alone.
+
+Cross-refs: use cases [uc.md](./uc.md) · test cases [tc.md](./tc.md) ·
+traceability [RTM.md](./RTM.md) · contract audit
+[audit.md](../smartcontracts/contracts/audit.md).
+
+---
+
+## 1. The pyramid
+
+```
+                         ▲ fewer, slower, real infra, opt-in
+        ┌───────────────────────────────────────────────┐
+   L5   │ Acceptance — live/real networks                │  *.live.test.js · e2e/run-e2e.mjs
+        │ BSC+Greenfield testnet + Chipotle mainnet      │  CI: devnet-e2e (nightly, secrets)
+        ├───────────────────────────────────────────────┤
+   L4   │ System E2E — local full stack                  │  e2e-synpress/**/*.spec.ts · run_e2e_lit.sh
+        │ UI (MetaMask) · DRM stack (Lit/Chipotle/GF)    │  CI: ui-e2e-synpress (PR) · e2e-lit (nightly)
+        ├───────────────────────────────────────────────┤
+   L3   │ Integration — Docker, mock infra               │  *.docker.test.js
+        │ mock SP + nginx, real HTTP                      │  CI: integration-test (PR)
+        ├───────────────────────────────────────────────┤
+   L2   │ Component — in-process integration             │  *.test.js (spins in-proc HTTP/mocks)
+        │ chipotle mock, SP emulation, backend contract  │  CI: test (PR)
+        ├───────────────────────────────────────────────┤
+   L1   │ Unit — hermetic (the base, run everywhere)     │  *.t.sol (forge) · *.test.js (vitest)
+        │ pure functions, contracts, ACC eval, crypto    │  CI: forge-test + test (PR)
+        └───────────────────────────────────────────────┘
+                         ▼ many, fast, no Docker/keys/network
+```
+
+**PR gate (every pull request & push):** L1 + L2 + L3 + the L4 **UI** suite —
+jobs `test`, `forge-test`, `integration-test`, `ui-e2e-synpress`.
+**Nightly / `workflow_dispatch` (heavy, best-effort):** the L4 **DRM stack** and
+L5 **live** — jobs `e2e-lit-integration`, `chipotle-real-integration`, `devnet-e2e`.
+
+> Why the DRM-stack E2E is nightly, not on PRs: it builds the upstream
+> `LIT-Protocol/chipotle` image (Rust), which pulls a pinned git dependency that
+> upstream periodically makes private / rewrites — an external break that must not
+> block this repo's PRs. PR-level Lit-gating confidence comes from the L1/L2
+> hermetic tests (`lit-acc-eval`, `chipotle-drm`, `course-read`, `lit-pricing`).
+> See [.github/workflows/test.yml](../.github/workflows/test.yml).
+
+---
+
+## 2. Formalized naming
+
+Layer is encoded in the **file name / path** — no other signal needed.
+
+| Layer | File convention | Runner | Gate | CI job |
+|-------|-----------------|--------|------|--------|
+| **L1** Unit (Solidity) | `smartcontracts/contracts/test/*.t.sol` | Foundry `forge` | none | `forge-test` |
+| **L1** Unit (JS) | `tests/<unit>.test.js` (pure) | vitest | none | `test` |
+| **L2** Component | `tests/<feature>.test.js` (in-proc HTTP/mock) | vitest | none | `test` |
+| **L3** Integration | `tests/<feature>.docker.test.js` | vitest + Docker | Docker daemon | `integration-test` |
+| **L4** System E2E (UI) | `smartcontracts/e2e-synpress/specs/NN-<flow>.spec.ts` | Playwright + Synpress | Docker + MetaMask | `ui-e2e-synpress` |
+| **L4** System E2E (stack) | `run_e2e_lit.sh` → `smartcontracts/e2e/run-e2e-lit*.mjs` | bash + node + Docker | Docker + `CHIPOTLE_DIR` | `e2e-lit-integration` |
+| **L5** Acceptance (live) | `tests/<feature>.live.test.js` · `smartcontracts/e2e/run-e2e.mjs` | vitest / node | funded testnet keys | `devnet-e2e` |
+
+**Test-case identifiers.** Every documented case has a stable ID `TC-<UC>.<n>`
+bound to a use case `UC-<nn>` and traced in [RTM.md](./RTM.md). Example:
+`TC-04.2` = the purchase-credits-pull case under `UC-04`. Audit-driven cases reuse
+the finding ID (`H-1`, `N-1`, …).
+
+**Test-function naming.**
+- Foundry: `test_<unit>_<behavior>()`; fuzz `testFuzz_<behavior>()`; negative paths
+  end in `_reverts` / `_rejects…` (e.g. `test_adjustPrice_rejectsFullDiscount`).
+- vitest: `describe('<module-or-unit>')` + `it('<behavior in present tense>')`
+  (e.g. `describe('pinFile') · it('throws PINATA_UPLOAD_FAILED …')`).
+
+**Vitest scope.** `vitest.config.js` excludes `lib/`, `e2e-synpress/`, `tests/e2e/`,
+`tests/ui/`, `*.spec.ts`, `scratch/` — i.e. L4 UI/Playwright and vendored trees are
+**not** collected by vitest; they run via their own runners.
+
+---
+
+## 3. How to run
 
 ```bash
-# Default: all unit + in-process integration tests (no Docker, no keys)
-npm test
+# L1 + L2 (hermetic JS) — fast, the default
+npm run test:unit          # excludes *.docker.test.js and *.live.test.js
+npm test                   # all vitest (auto-runs L3 docker tests if Docker is up)
+npm run test:coverage      # L1/L2 with coverage (buckets/** threshold)
+npx vitest run tests/pinata-client.test.js   # one file
+npm run test:watch         # watch mode
 
-# Watch mode
-npm run test:watch   # or: npx vitest --watch
+# L1 contracts (Foundry)
+npm run test:contracts     # forge test -vvv  (179 tests)
+cd smartcontracts/contracts && forge snapshot --check --tolerance 1
 
-# Single file
-npx vitest run tests/chipotle-drm.test.js
+# L3 — Docker integration (mock SP + nginx)
+npm run test:integration   # *.docker.test.js (needs Docker)
 
-# Docker-based integration (mock SP + nginx)
-npm test   # greenfield-integration.docker.test.js auto-starts compose when Docker is available
+# L4 — System E2E
+#  UI (MetaMask, docker local-full):
+cd smartcontracts/e2e-synpress && npm test          # Playwright + Synpress
+#  DRM stack (Lit/Chipotle/Greenfield local, fresh genesis):
+CHIPOTLE_DIR=~/GitHub/chipotle ./run_e2e_lit.sh
 
-# Live testnet (spends real testnet gas)
-export GREENFIELD_TESTNET_PRIVATE_KEY=0x...
-export GREENFIELD_TESTNET_ADDRESS=0x...
-npm test   # greenfield-testnet.live.test.js activates automatically
-
-# Local Greenfield chain (builds Go node, ~5 min)
-RUN_GREENFIELD_LOCAL=1 npm test
+# L5 — Acceptance (live, spends testnet gas)
+export GREENFIELD_TESTNET_PRIVATE_KEY=0x... GREENFIELD_TESTNET_ADDRESS=0x...
+npm run test:live          # *.live.test.js
+node smartcontracts/e2e/run-e2e.mjs   # full real-network flow
 ```
 
 ---
 
-## Test matrix
+## 4. Test inventory (by layer)
 
-| Test file | Type | Speed | Gate condition | What it covers |
-|-----------|------|-------|---------------|----------------|
-| `lit-access.test.js` | unit | fast | — | `createLitAccess` orchestrator, `classify()` error codes |
-| `crypto-envelope.test.js` | unit | fast | — | AES-256-GCM envelope: encrypt, decrypt, DEK wrap, passphrase wrap |
-| `chipotle-drm.test.js` | in-process integration | fast | — | Chipotle mock server (in-proc), encrypt/decrypt, `ACCESS_DENIED` path |
-| `course-publish.test.js` | unit | fast | — | `planCoursePublish` lesson planning and manifest shape |
-| `course-read.test.js` | unit | fast | — | `readCourseManifest` and lesson index |
-| `course-template.test.js` | unit | fast | — | Course template generation |
-| `greenfield-buckets.test.js` | unit | fast | — | Bucket name validation, metadata encoding |
-| `greenfield-sp.test.js` | unit | fast | — | SP endpoint URL construction |
-| `greenfield-sdk-tx.test.js` | unit | fast | — | SDK transaction builder helpers |
-| `greenfield-wallet-core.test.js` | unit | fast | — | Wallet derivation and signing |
-| `greenfield-wallet-backend.test.js` | unit | fast | — | Backend wallet adapter |
-| `greenfield-backend-contract.test.js` | unit | fast | — | Backend contract interaction |
-| `sp-emulation-backend.test.js` | unit | fast | — | SP emulation backend API |
-| `greenfield-ui.test.js` | unit | fast | — | UI component logic |
-| `wallet-provider.test.js` | unit | fast | — | MetaMask / injected provider detection |
-| `lit-pricing.test.js` | unit | fast | — | Lit credit pricing calculations |
-| `web3.test.js` | unit | fast | — | Web3 utility functions |
-| `web3-quiz.test.js` | unit | fast | — | Quiz interaction logic |
-| `web3-rpc.test.js` | unit | fast | — | RPC helpers |
-| `web3-sandbox.test.js` | unit | fast | — | Sandbox environment |
-| `web3-sandbox-embed.test.js` | unit | fast | — | Sandbox embed API |
-| `web3-sandbox-erc20.test.js` | unit | fast | — | ERC-20 sandbox interactions |
-| `greenfield-integration.docker.test.js` | docker integration | medium | Docker daemon available | nginx + mock-sp: bucket create, object save, read round-trip |
-| `greenfield-local.docker.test.js` | docker integration | slow (4-5 min) | Docker + `RUN_GREENFIELD_LOCAL=1` | Real local Greenfield chain: chain-id, block production |
-| `greenfield-testnet.live.test.js` | live testnet | slow (varies) | Docker + `GREENFIELD_TESTNET_PRIVATE_KEY` + `GREENFIELD_TESTNET_ADDRESS` | Real testnet: plain write + Chipotle DRM write (chain 5600) |
+### L1 — Unit
+- **Contracts (`*.t.sol`, forge, 179 tests, 100% line/func):**
+  `AccessPass`, `AuthorNft`, `ClientNft`, `SoulboundAccessNft`, `CourseMarketplace`,
+  `Treasury`, `ManifestRegistry`, `GreenfieldGroupGate`. See
+  [audit.md](../smartcontracts/contracts/audit.md) / [NFT.md](../smartcontracts/contracts/NFT.md).
+- **JS pure units (`tests/*.test.js`):** `lit-acc.test.js`, `lit-acc-eval.test.js`,
+  `lit-access.test.js`, `lit-pricing.test.js`, `crypto-envelope.test.js`,
+  `course-publish.test.js`, `course-read.test.js`, `course-template.test.js`,
+  `claim-eip712.test.js`, `greenfield-buckets/-sp/-sdk-tx/-wallet-*`,
+  `wallet-provider.test.js`, `web3*.test.js`,
+  `pinata-client.test.js` · `pinata-config.test.js` · `pinata-upload.test.js` (35).
 
----
+### L2 — Component (in-process integration)
+`chipotle-drm.test.js` (in-proc Chipotle mock + `ACCESS_DENIED`),
+`sp-emulation-backend.test.js`, `greenfield-backend-contract.test.js`,
+`daskibo-drm.test.js`, `greenfield-ui.test.js`.
 
-## Test tiers
+### L3 — Integration (Docker)
+`greenfield-integration.docker.test.js` (nginx + mock-sp round-trip),
+`greenfield-local.docker.test.js` (real local chain, `RUN_GREENFIELD_LOCAL=1`),
+`contracts.docker.test.js` (forge build/test + deploy smoke vs anvil).
 
-### Tier 1 — Unit / in-process (always run)
+### L4 — System E2E
+- **UI:** `e2e-synpress/specs/01-connect-network` … `06-content-access` (DRM
+  unlock journey), driven by Synpress on `docker local-full`.
+- **DRM stack:** `run-e2e-lit-nft.mjs` (compose default: `hasCourseAccess` →
+  soulbound `AccessPass`), `run-e2e-lit.mjs` (`ClientNft.balanceOf` gate),
+  `run-devnet-pa.mjs` (P-A wrap/expiry). Orchestrated by `run_e2e_lit.sh`.
 
-No environment variables, no Docker, no network. Runs in vitest jsdom environment.
-
-- WebCrypto: import `webcrypto` from `node:crypto` explicitly — do **not** rely on the jsdom global.
-- Fetch: available natively in Node 22+; no polyfill needed.
-- In-process servers: use `http.createServer` + `listen(0, ...)` to get a random free port.
-
-Gate: none — these run in `npm test` by default.
-
-### Tier 2 — Docker integration (runs when Docker is available)
-
-The test file calls `execSync('docker info')` and skips the describe block if Docker is
-unreachable. Tests bring up compose stacks via `execFileSync('docker', ['compose', ...])`.
-
-Gate: Docker daemon reachable.
-
-### Tier 3 — Live testnet (opt-in)
-
-Spends real testnet BNB. Requires a funded account.
-
-Gate: `GREENFIELD_TESTNET_PRIVATE_KEY` and `GREENFIELD_TESTNET_ADDRESS` both set.
-
-Fund a testnet account:
-```
-https://docs.bnbchain.org/bnb-greenfield/getting-started/get-test-bnb/
-```
-
-### Tier 4 — Local chain (opt-in)
-
-Builds the Greenfield Go node from source. First build takes ~5 min; subsequent runs use
-the Docker build cache. Every boot starts from a fresh genesis (no persistent volume).
-
-Gate: `RUN_GREENFIELD_LOCAL=1` environment variable.
+### L5 — Acceptance (live)
+`greenfield-testnet.live.test.js` (real testnet write + Chipotle DRM, chain 5600),
+`smartcontracts/e2e/run-e2e.mjs` (full real-network flow). See feasibility scope in
+[REVIEW.md](./REVIEW.md).
 
 ---
 
-## Environment variable reference
+## 5. Environment variables
 
-| Variable | Tier | Description |
-|----------|------|-------------|
-| `RUN_GREENFIELD_LOCAL` | 4 | Set to `1` to enable local-chain docker test |
-| `GREENFIELD_TESTNET_PRIVATE_KEY` | 3 | Hex private key with testnet BNB |
-| `GREENFIELD_TESTNET_ADDRESS` | 3 | Matching 0x Ethereum address |
-| `GF_BUCKET` | 3 | Override bucket name (default: auto) |
-| `LIT_ALLOWED_ADDRESS` | 3 | Additional address to add to ACC |
-| `CHIPOTLE_PKP_KEY` | 3 | Persist the Chipotle mock PKP across restarts |
-| `CHIPOTLE_URL` | 3/4 | Chipotle server URL (default: `http://localhost:8000`) |
+| Variable | Layer | Description |
+|----------|-------|-------------|
+| `RUN_GREENFIELD_LOCAL` | L3 | `1` → enable the local-chain docker test |
+| `CHIPOTLE_DIR` / `SIMULATOR_DIR` | L4 | upstream Chipotle repo / dstack simulator paths for `run_e2e_lit.sh` |
+| `GREENFIELD_TESTNET_PRIVATE_KEY` | L5 | hex private key funded with testnet BNB |
+| `GREENFIELD_TESTNET_ADDRESS` | L5 | matching 0x address |
+| `GF_BUCKET` | L5 | override bucket name (default: auto) |
+| `CHIPOTLE_URL` | L4/L5 | Chipotle endpoint (mock `http://localhost:8000` or `https://api.chipotle.litprotocol.com`) |
+| `CHIPOTLE_API_KEY` | L5 | Chipotle usage key (Stripe-funded account) |
+| `LIT_ALLOWED_ADDRESS` | L5 | extra address to OR into the ACC |
 
 ---
 
-## How to add a new test
+## 6. How to add a test (pick the lowest layer that proves the behavior)
 
-### Adding a Tier 1 (unit) test
+**L1 (JS unit).** `tests/<unit>.test.js`; `import { describe, it, expect } from 'vitest'`;
+for crypto `import { webcrypto } from 'node:crypto'`. Runs automatically.
 
-1. Create `tests/my-feature.test.js`
-2. Import from `vitest`: `import { describe, it, expect } from 'vitest'`
-3. If you need crypto: `import { webcrypto } from 'node:crypto'`
-4. No special gate needed — it runs automatically
+**L1 (contract).** Add `test_<unit>_<behavior>()` in
+`smartcontracts/contracts/test/<Contract>.t.sol`; run `forge test`; refresh
+`forge snapshot` if gas changed.
 
+**L2 (component).** Same `*.test.js` suffix; spin an in-proc server with
+`http.createServer` + `listen(0, …)` for a random free port; close it in `afterAll`.
+
+**L3 (docker).** Name it `*.docker.test.js` and gate on Docker:
 ```js
-import { describe, it, expect } from 'vitest';
-import { webcrypto } from 'node:crypto';
-import { myFunction } from '../smartcontracts/buckets/my-module.js';
-
-describe('myFunction', () => {
-  it('does the thing', () => {
-    expect(myFunction('input')).toBe('expected');
-  });
-});
+import { execSync } from 'node:child_process';
+const docker = (() => { try { execSync('docker info',{stdio:'ignore'}); return describe; } catch { return describe.skip; } })();
 ```
 
-### Adding a Tier 2 (docker) test
+**L4 (UI).** Add `smartcontracts/e2e-synpress/specs/NN-<flow>.spec.ts` (Playwright +
+Synpress). Not collected by vitest — run via the synpress runner.
 
-1. Create `tests/my-feature.docker.test.js`
-2. Add the Docker availability gate at the top:
-```js
-import { execSync, execFileSync } from 'node:child_process';
-function dockerAvailable() {
-  try { execSync('docker info', { stdio: 'ignore' }); return true; }
-  catch { return false; }
-}
-const d = dockerAvailable() ? describe : describe.skip;
-```
-3. Use `execFileSync('docker', ['compose', '-f', '...', 'run', '--rm', 'service'])` to drive compose
+**L5 (live).** Add to `tests/<feature>.live.test.js`; gate on the funded-key env so
+it stays opt-in.
 
-### Adding a Tier 3 (live testnet) test
-
-Add to `tests/greenfield-testnet.live.test.js` inside the existing `d(...)` describe block.
-The `ENABLED` gate already checks for Docker + private key + address.
-
-### Adding an in-process HTTP mock (Tier 1)
-
-Use `http.createServer` + `listen(0, ...)` for a random port:
-
-```js
-import http from 'node:http';
-import { beforeAll, afterAll } from 'vitest';
-
-let server, baseUrl;
-beforeAll(async () => {
-  server = http.createServer((req, res) => { /* ... */ });
-  await new Promise(r => server.listen(0, '127.0.0.1', r));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
-});
-afterAll(() => server.close());
-```
+Whatever you add, give it a `TC-<UC>.<n>` ID and wire it into
+[tc.md](./tc.md) + [RTM.md](./RTM.md) so coverage stays traceable.
