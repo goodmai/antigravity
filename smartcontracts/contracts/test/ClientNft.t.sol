@@ -158,6 +158,55 @@ contract ClientNftTest is Test {
         nft.claimWithSig(client, expiry, deadline, abi.encodePacked(r, s, v));
     }
 
+    /// Replay protection: reusing the same signature consumes the nonce on the
+    /// first call, so the second recovers a digest over nonce+1 and the
+    /// recovered signer no longer equals claimSigner → InvalidClaimSignature.
+    /// (AuthorNft has this test; ClientNft must guarantee the same.)
+    function test_claimWithSig_replayReverts() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 digest = _claimDigest(client, expiry, nft.claimNonces(client), deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
+        bytes memory sig = abi.encodePacked(r, s, v);
+        nft.claimWithSig(client, expiry, deadline, sig);
+        vm.expectRevert(SoulboundAccessNft.InvalidClaimSignature.selector);
+        nft.claimWithSig(client, expiry, deadline, sig);
+    }
+
+    /// A PKP-signed claim with expiry == 0 mints a perpetual client pass — the
+    /// signed-mint counterpart of `test_mint_perpetual_grantsAccess`.
+    function test_claimWithSig_perpetual() public {
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 digest = _claimDigest(client, 0, nft.claimNonces(client), deadline);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPk, digest);
+        uint256 id = nft.claimWithSig(client, 0, deadline, abi.encodePacked(r, s, v));
+        assertEq(nft.expiryOf(id), 0);
+        assertEq(nft.accessExpiryOf(client), 0);
+        vm.warp(block.timestamp + 3650 days);
+        assertTrue(nft.hasAccess(client)); // never lapses
+    }
+
+    /// Two successive signed claims to the same holder: each consumes the next
+    /// nonce, so a fresh signature over nonce+1 mints a second token (renewal /
+    /// top-up via the PKP path). Confirms the nonce monotonically advances.
+    function test_claimWithSig_secondClaimWithFreshNonce() public {
+        uint64 expiry = uint64(block.timestamp + 30 days);
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes32 d0 = _claimDigest(client, expiry, 0, deadline);
+        (uint8 v0, bytes32 r0, bytes32 s0) = vm.sign(signerPk, d0);
+        uint256 id0 = nft.claimWithSig(client, expiry, deadline, abi.encodePacked(r0, s0, v0));
+        assertEq(nft.claimNonces(client), 1);
+
+        bytes32 d1 = _claimDigest(client, expiry, 1, deadline);
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(signerPk, d1);
+        uint256 id1 = nft.claimWithSig(client, expiry, deadline, abi.encodePacked(r1, s1, v1));
+        assertEq(nft.claimNonces(client), 2);
+
+        assertTrue(id1 > id0, "second claim mints a new tokenId");
+        assertEq(nft.balanceOf(client), 2);
+    }
+
     // ── Delegated granter (G-08) ──────────────────────────────────────────
     event GranterSet(address indexed account, bool allowed);
     event AccessRevoked(address indexed holder, uint256 indexed tokenId);

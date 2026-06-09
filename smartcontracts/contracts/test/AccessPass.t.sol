@@ -269,6 +269,14 @@ contract AccessPassTest is Test {
         pass.resetForRewrap(id); // should not revert
     }
 
+    /// resetForRewrap on a tokenId that was never minted → ownerOf == address(0)
+    /// → NotGranted. Closes the governance-side guard branch (no rewrap of a
+    /// non-existent pass).
+    function test_resetForRewrap_revertsOnNonexistentToken() public {
+        vm.expectRevert(AccessPass.NotGranted.selector);
+        pass.resetForRewrap(99999); // owner == address(this), token never minted
+    }
+
     function test_tokenIdOf_reverseMapping() public {
         vm.prank(mp);
         uint256 id = pass.mint(alice, 7, 0);

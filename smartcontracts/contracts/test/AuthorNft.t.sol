@@ -181,6 +181,38 @@ contract AuthorNftTest is Test {
         nft.claimWithSig(author, deadline, abi.encodePacked(r, s, v));
     }
 
+    /// Two successive PKP claims to the same author: each consumes the next
+    /// nonce, so a fresh signature over nonce+1 mints a second credential. The
+    /// `balanceOf >= 1` Lit gate stays satisfied throughout (now balanceOf==2).
+    function test_claimWithSig_secondClaimWithFreshNonce() public {
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes32 d0 = _claimDigest(author, 0, deadline);
+        (uint8 v0, bytes32 r0, bytes32 s0) = vm.sign(signerPk, d0);
+        uint256 id0 = nft.claimWithSig(author, deadline, abi.encodePacked(r0, s0, v0));
+        assertEq(nft.claimNonces(author), 1);
+
+        bytes32 d1 = _claimDigest(author, 1, deadline);
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(signerPk, d1);
+        uint256 id1 = nft.claimWithSig(author, deadline, abi.encodePacked(r1, s1, v1));
+        assertEq(nft.claimNonces(author), 2);
+
+        assertTrue(id1 > id0, "second claim mints a new tokenId");
+        assertEq(nft.balanceOf(author), 2); // Lit `balanceOf >= 1` gate still true
+    }
+
+    /// Revoke flips the `balanceOf >= 1` Lit gate to false; a fresh mint restores
+    /// it. Exercises the full author-credential lifecycle the Lit Action reads.
+    function test_revoke_thenRemint_restoresBalanceGate() public {
+        uint256 id = nft.mint(author);
+        assertEq(nft.balanceOf(author), 1);
+        nft.revoke(id);
+        assertEq(nft.balanceOf(author), 0); // gate fails
+        uint256 id2 = nft.mint(author);
+        assertEq(nft.balanceOf(author), 1); // gate restored
+        assertTrue(id2 > id, "re-mint issues a new tokenId");
+    }
+
     function test_setClaimSigner_ownerOnly_andEffect() public {
         address newSigner = makeAddr("newSigner");
         vm.prank(author);
