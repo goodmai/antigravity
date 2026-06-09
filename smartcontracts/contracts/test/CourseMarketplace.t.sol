@@ -826,6 +826,23 @@ contract CourseMarketplaceTest is Test {
         mp.adjustPrice(id, 1); // +0.01% pushes it past uint96.max
     }
 
+    /// Audit N-1: an extreme bps beyond MAX_ADJUST_BPS reverts with the custom
+    /// BadPrice error, NOT an arithmetic panic — consistent error semantics.
+    function test_adjustPrice_rejectsBpsAboveMax() public {
+        uint256 id = _register(1 ether);
+        int256 max = mp.MAX_ADJUST_BPS();
+        vm.startPrank(author);
+        // exactly at the cap is allowed (price stays within uint96)…
+        mp.adjustPrice(id, max);
+        // …one past the cap reverts BadPrice (no panic)
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, max + 1);
+        // an absurd bps that would overflow the math also reverts BadPrice
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, type(int256).max);
+        vm.stopPrank();
+    }
+
     /// CORE INVARIANT: an author discount/markup changes only the base price —
     /// the platform commission *percentages* (treasuryBps / w3extBps) are
     /// untouched, so the protocol/w3ext cut stays the same SHARE of the new

@@ -30,6 +30,11 @@ contract CourseMarketplace is ICourseMarketplace {
 
     uint16 public constant BPS_DENOMINATOR = 10_000;
     uint16 public constant MAX_BPS_EACH = 3_000;
+    // Upper bound for a single `adjustPrice` markup (audit N-1): far above any
+    // realistic reprice (+9900% = 100×), but small enough that
+    // `price·(BPS_DENOMINATOR+bps)` stays well within int256 — so an extreme
+    // `bps` reverts with the custom `BadPrice` instead of an arithmetic panic.
+    int256 public constant MAX_ADJUST_BPS = 990_000;
 
     // Named access-duration presets for `registerCourse` / `updateCourse`
     // (seconds). DURATION_PERPETUAL is a sentinel → never expires (mapped
@@ -190,8 +195,10 @@ contract CourseMarketplace is ICourseMarketplace {
         Course storage c = courses[courseId];
         if (c.author != msg.sender) revert NotAuthor();
         int256 denom = int256(uint256(BPS_DENOMINATOR));
-        // bps <= -100% would zero/negate the price.
-        if (bps <= -denom) revert BadPrice();
+        // bps <= -100% would zero/negate the price; bps > MAX_ADJUST_BPS is an
+        // unrealistic markup that could overflow the arithmetic — both rejected
+        // as BadPrice (audit N-1: custom error, never an arithmetic panic).
+        if (bps <= -denom || bps > MAX_ADJUST_BPS) revert BadPrice();
         int256 np = (int256(uint256(c.price)) * (denom + bps)) / denom;
         // Rounding toward zero can hit 0 for tiny prices + large discounts.
         if (np <= 0 || uint256(np) > type(uint96).max) revert BadPrice();

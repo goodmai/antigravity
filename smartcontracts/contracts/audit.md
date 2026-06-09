@@ -1,19 +1,23 @@
 # Smart Contract Audit — Daskibo DRM Platform
-**Date:** 2026-05-29  
+**Pass 1:** 2026-05-29 · **Pass 2:** 2026-06-09  
 **Branch:** claude/greenfield-smartcontracts-setup-2HS95  
-**Scope:** `contracts/src/` (7 contracts, 3 interfaces)  
-**Forge test baseline:** 144 passed → **158 passed** after fixes (0 failures)
+**Scope:** `contracts/src/` (8 contracts, 5 interfaces)  
+**Forge test baseline:** 144 → 158 (Pass 1) → **179 passed** (Pass 2), 0 failures  
+**Coverage:** 100% line/function on all contracts; 100% branch except
+`AccessPass` 87.5% (2 unreachable defensive guards — see [NFT.md §5](./NFT.md#5-покрытие-тестами-foundry)).
 
 ---
 
 ## Executive Summary
 
 The codebase is well-structured and shows prior hardening work (Ownable2Step on
-`CourseMarketplace`/`Treasury`, inline reentrancy guard, full pull-payment model,
-`EmptyCiphertext` guard, timestamp-ACC expiry enforcement). No critical
-reentrancy or integer-overflow vulnerabilities were found.
+`CourseMarketplace`/`Treasury`/`AccessPass`, inline reentrancy guard, full
+pull-payment model, `EmptyCiphertext` guard, `StaleToken` guard, timestamp-ACC
+expiry enforcement). No critical or high vulnerabilities remain open. No
+reentrancy, integer-overflow, or access-control-bypass issues were found in the
+Pass-2 scope.
 
-**Four bugs fixed in this audit:**
+**Pass 1 — four bugs fixed:**
 
 | ID  | Severity | Contract                | Title                                        |
 |-----|----------|-------------------------|----------------------------------------------|
@@ -21,6 +25,27 @@ reentrancy or integer-overflow vulnerabilities were found.
 | M-2 | Medium   | `SoulboundAccessNft`    | `setClaimSigner(0)` disables claim mechanism |
 | M-3 | Medium   | `GreenfieldGroupGate`   | `setGroup(course, 0)` bricks all access ops  |
 | M-5 | Medium   | `AccessPass`            | No ownership transfer mechanism              |
+
+**Pass 2 — review of the new `CourseMarketplace` features** (per-course sale
+nonce + author percentage discount/markup, see [sc.md §2](../../spec/sc.md) /
+[RTM.md §4](../../spec/RTM.md)):
+
+| ID  | Severity | Contract            | Title                                          | Status |
+|-----|----------|---------------------|------------------------------------------------|--------|
+| N-1 | Low      | `CourseMarketplace` | `adjustPrice` extreme `bps` → arithmetic panic | Fixed  |
+| N-2 | Info     | `CourseMarketplace` | `CoursePurchased` ABI change (added `saleNonce`)| Addressed |
+| N-3 | Low      | `CourseMarketplace` | In-flight `purchase` reverts on a reprice race | Acknowledged |
+
+**Positive findings (Pass 2):**
+- **Commission-percentage invariant holds.** `adjustPrice` mutates only
+  `courses[id].price`; the platform cut bps (`treasuryBps`/`w3extBps`) are
+  owner-only via `setParams` and untouched by an author reprice — verified by
+  `test_adjustPrice_doesNotChangeCommissionPercentages` and
+  `test_adjustPrice_authorCannotAlterCommissionConfig`.
+- **Sale nonce is sound.** `++salesCount[courseId]` is bumped in the Effects
+  phase (before the single trusted external call) per Checks-Effects-Interactions,
+  is gap-free (the tx reverts wholesale on any failure), per-course isolated, and
+  `uint256` so unbounded in practice. No reentrancy or overflow concern.
 
 ---
 
@@ -178,6 +203,80 @@ Two new tests:
 
 ---
 
+## Pass 2 Findings (2026-06-09) — sale nonce + percentage reprice
+
+### N-1 — `adjustPrice` extreme `bps` reverts via arithmetic panic [`CourseMarketplace.sol`]
+
+**Severity:** Low · **Status:** Fixed
+
+#### Description
+
+`adjustPrice(courseId, int256 bps)` computes
+`newPrice = price·(BPS_DENOMINATOR + bps) / BPS_DENOMINATOR`. `bps` is an
+unbounded `int256`; the lower side is guarded (`bps <= -BPS_DENOMINATOR →
+BadPrice`), but the upper side was not. A caller (the course author) passing an
+astronomically large `bps` (e.g. near `type(int256).max`) overflowed the
+`denom + bps` / multiplication and reverted with a Solidity arithmetic **panic
+(0x11)** instead of the contract's custom `BadPrice` error. No fund risk
+(author-only, state-changing call simply reverts), but the inconsistent error
+semantics are a minor robustness/UX defect — every other bounded input in the
+contract (`MAX_BPS_EACH`, `MAX_DURATION`) reverts a custom error.
+
+#### Fix
+
+Added an explicit upper bound, mirroring the existing `MAX_*` pattern:
+
+```solidity
+int256 public constant MAX_ADJUST_BPS = 990_000; // +9900% (100×)
+
+if (bps <= -denom || bps > MAX_ADJUST_BPS) revert BadPrice();
+```
+
+`MAX_ADJUST_BPS` is far above any realistic reprice yet small enough that
+`price·(denom+bps)` (with `price ≤ uint96.max`) stays well within `int256`, so
+the path can no longer panic; the existing `uint96`-overflow check still rejects
+results that don't fit the price field. New test:
+`test_adjustPrice_rejectsBpsAboveMax` (cap allowed, `cap+1` and
+`type(int256).max` both → `BadPrice`).
+
+---
+
+### N-2 — `CoursePurchased` ABI change (added indexed `saleNonce`) [`CourseMarketplace.sol`]
+
+**Severity:** Informational · **Status:** Addressed
+
+#### Description
+
+UC-15 adds an indexed `saleNonce` to `CoursePurchased`, changing the event
+signature (topic0 hash) and decode layout. Any off-chain consumer decoding by
+the old signature (indexers, dashboards, the e2e harness) breaks until its ABI
+is regenerated. This is expected for a pre-deploy change but must be surfaced.
+
+#### Action
+
+In-repo consumers synced to the new signature:
+`smartcontracts/e2e/run-e2e.mjs` and `run-devnet-pa.mjs`. Front-end
+(`course-*.js`) does not subscribe to `CoursePurchased`. **Before any redeploy:**
+regenerate external ABIs / subgraph mappings.
+
+---
+
+### N-3 — In-flight `purchase` reverts on a reprice race [`CourseMarketplace.sol`]
+
+**Severity:** Low · **Status:** Acknowledged (no fix — pre-existing behavior)
+
+#### Description
+
+`purchase` requires `msg.value == c.price` exactly. If the author runs
+`adjustPrice` (or `updateCourse`) between a buyer reading the price and their tx
+being mined, the buyer's tx reverts `BadPrice`. This is a griefing/MEV
+inconvenience, **not** a fund-loss bug (the buyer's ETH is returned by the
+revert), and it already existed for `updateCourse`. A `purchase(courseId,
+uint256 maxPrice)` slippage parameter would let buyers opt into a price ceiling.
+Deferred — out of scope for the current change and would alter the public API.
+
+---
+
 ## Non-Fixed Observations (Low / Design)
 
 ### L-1 — `_freshNonce` entropy uses block-level values
@@ -237,7 +336,32 @@ add Ownable2Step before any mainnet wiring.
 | `ManifestRegistry.t.sol`      | `testFuzz_anchorAndVerify`                        | fuzz       |
 |                               | `test_multipleKeys_independent`                   | coverage   |
 
-**Total: 144 → 158 tests, 0 failures.**
+**Pass 1 total: 144 → 158 tests, 0 failures.**
+
+### Pass 2 (2026-06-09)
+
+| File                          | New Tests                                              | Covers   |
+|-------------------------------|-------------------------------------------------------|----------|
+| `CourseMarketplace.t.sol`     | `test_adjustPrice_discount_reducesPrice_emits`        | UC-14    |
+|                               | `test_adjustPrice_markup_increasesPrice`              | UC-14    |
+|                               | `test_adjustPrice_compounds_offCurrentPrice`         | UC-14    |
+|                               | `test_adjustPrice_onlyAuthor`                         | UC-14    |
+|                               | `test_adjustPrice_rejectsFullDiscount`               | UC-14    |
+|                               | `test_adjustPrice_rejectsRoundsToZero`               | UC-14    |
+|                               | `test_adjustPrice_rejectsUint96Overflow`             | UC-14    |
+|                               | `test_adjustPrice_rejectsBpsAboveMax`                | N-1      |
+|                               | `test_adjustPrice_doesNotChangeCommissionPercentages`| invariant|
+|                               | `test_adjustPrice_authorCannotAlterCommissionConfig` | invariant|
+|                               | `test_adjustPrice_buyerMustPayNewPrice`              | UC-14    |
+|                               | `test_saleNonce_incrementsPerCourse_andEmitted`      | UC-15    |
+|                               | `test_saleNonce_isolatedPerCourse`                   | UC-15    |
+|                               | `test_e2e_purchase_mintsPass_andBuyerStoresLitKey`   | E2E      |
+|                               | `test_e2e_author_hasFreeAccess_withoutPassOrPayment` | E2E      |
+| `AccessPass.t.sol`            | `test_resetForRewrap_revertsOnNonexistentToken`      | NotGranted branch |
+| `AuthorNft.t.sol`             | `test_claimWithSig_secondClaimWithFreshNonce`, `test_revoke_thenRemint_restoresBalanceGate` | NFT |
+| `ClientNft.t.sol`             | `test_claimWithSig_replayReverts` / `_perpetual` / `_secondClaimWithFreshNonce` | NFT |
+
+**Pass 2 total: 158 → 179 tests, 0 failures.** Traceability: [RTM.md](../../spec/RTM.md).
 
 ---
 
@@ -259,6 +383,16 @@ leaving the write-once slot effectively empty.
 
 **After the H-1 fix**, the full P-A lifecycle (mint → wrap → set key → expire →
 renew → wrap again) is fully protected from cross-token nonce pollution.
+
+**Pricing & sale nonce (Pass 2).** `adjustPrice` is a pure storage mutation
+(no external calls, no reentrancy surface) gated by `NotAuthor`; with the N-1
+bound it cannot panic and cannot produce a zero/overflowing price. Crucially it
+is isolated from the fee configuration: an author controls only their own
+`price`, never the protocol's `treasuryBps`/`w3extBps` (owner-only via
+`setParams`), so the commission **percentage** is invariant under any discount or
+markup — the protocol cut simply scales with the new price. The per-course
+`saleNonce` is incremented in the Effects phase ahead of the single trusted
+`accessPass.mint` interaction, so it is gap-free and reentrancy-safe.
 
 ### `SoulboundAccessNft` / `AuthorNft` / `ClientNft` — Role NFTs
 

@@ -82,7 +82,7 @@ const MP_ABI = parseAbi([
   'function hasCourseAccess(address user, uint256 courseId) view returns (bool)',
   'function quote(uint256 price) view returns (uint256 protocolCut, uint256 w3extFee, uint256 authorAmount)',
   'event CourseRegistered(uint256 indexed courseId, address indexed author, uint96 price, string bucket)',
-  'event CoursePurchased(uint256 indexed courseId, address indexed buyer, uint256 price, uint256 protocolCut, uint256 w3extFee, uint256 authorAmount)',
+  'event CoursePurchased(uint256 indexed courseId, address indexed buyer, uint256 indexed saleNonce, uint256 price, uint256 protocolCut, uint256 w3extFee, uint256 authorAmount)',
   'function accessPass() view returns (address)',
 ]);
 
