@@ -35,7 +35,7 @@ contract ReenterAuthor {
 contract RejectEth {}
 
 /// Malicious AccessPass that tries to call mp.withdraw() from inside mint(),
-/// exercising cross-function reentrancy (purchase → mint callback → withdraw).
+/// exercising cross-function reentrancy (purchase -> mint callback -> withdraw).
 contract MaliciousPassMint {
     CourseMarketplace public mp;
     mapping(uint256 => address) public ownerOf;
@@ -342,7 +342,7 @@ contract CourseMarketplaceTest is Test {
     }
 
     function test_hasCourseAccess_nonexistentCourse_noRevertFalse() public view {
-        // course 0/999 never registered → author == address(0), no pass
+        // course 0/999 never registered -> author == address(0), no pass
         assertFalse(mp.hasCourseAccess(buyer, 0));
         assertFalse(mp.hasCourseAccess(buyer, 999));
     }
@@ -353,7 +353,7 @@ contract CourseMarketplaceTest is Test {
         CourseMarketplace fresh = new CourseMarketplace(address(treasury), w3ext);
         vm.prank(author);
         uint256 id = fresh.registerCourse(1 ether, bytes32("h"), "b", 0);
-        assertFalse(fresh.hasCourseAccess(buyer, id)); // accessPass unset → false
+        assertFalse(fresh.hasCourseAccess(buyer, id)); // accessPass unset -> false
         assertTrue(fresh.hasCourseAccess(author, id)); // author still free
     }
 
@@ -395,7 +395,7 @@ contract CourseMarketplaceTest is Test {
         vm.startPrank(buyer);
         mp.purchase{value: 1 ether}(id);
         vm.expectRevert(CourseMarketplace.AlreadyOwned.selector);
-        mp.purchase{value: 1 ether}(id); // still valid → blocked
+        mp.purchase{value: 1 ether}(id); // still valid -> blocked
         vm.stopPrank();
     }
 
@@ -433,7 +433,7 @@ contract CourseMarketplaceTest is Test {
 
     function test_preset_perpetual_neverExpires_noOverflow() public {
         uint256 id = _buyWith(mp.DURATION_PERPETUAL()); // uint64 max sentinel
-        // mapped to AccessPass expiry 0 (perpetual), no add → no overflow
+        // mapped to AccessPass expiry 0 (perpetual), no add -> no overflow
         assertEq(pass.expiryOf(buyer, id), 0);
         assertTrue(mp.hasCourseAccess(buyer, id));
         vm.warp(block.timestamp + 100 * 365 days); // century later
@@ -584,7 +584,7 @@ contract CourseMarketplaceTest is Test {
         mp.updateCourse(id, 2 ether, true); // price bumped before buyer's tx
         vm.prank(buyer);
         vm.expectRevert(CourseMarketplace.BadPrice.selector);
-        mp.purchase{value: 1 ether}(id); // old price → BadPrice; ETH refunded
+        mp.purchase{value: 1 ether}(id); // old price -> BadPrice; ETH refunded
     }
 
     // ── Duration presets: week + month (coverage gap) ───────────────────────
@@ -593,7 +593,7 @@ contract CourseMarketplaceTest is Test {
         uint256 id = _buyWith(mp.DURATION_WEEK());
         assertTrue(mp.hasCourseAccess(buyer, id));
         vm.warp(block.timestamp + 7 days);
-        assertTrue(mp.hasCourseAccess(buyer, id)); // exactly at boundary → still valid
+        assertTrue(mp.hasCourseAccess(buyer, id)); // exactly at boundary -> still valid
         vm.warp(block.timestamp + 1);
         assertFalse(mp.hasCourseAccess(buyer, id));
     }
@@ -646,10 +646,10 @@ contract CourseMarketplaceTest is Test {
         assertEq(p + w + a, price);
     }
 
-    // ── End-to-end P-A buyer flow: purchase → receive NFT → store Lit key ─────
+    // ── End-to-end P-A buyer flow: purchase -> receive NFT -> store Lit key ─────
 
     /// The full content-buyer journey through the real AccessPass NFT:
-    ///   1. buyer pays → CourseMarketplace.purchase mints the soulbound pass
+    ///   1. buyer pays -> CourseMarketplace.purchase mints the soulbound pass
     ///      to the buyer and grants on-chain access (the predicate the Lit
     ///      Action reads via hasCourseAccess / AccessPass.hasAccess);
     ///   2. the buyer now owns a tokenId (reverse-lookup via tokenIdOf) and
@@ -663,7 +663,7 @@ contract CourseMarketplaceTest is Test {
         uint96 price = 1 ether;
         uint256 courseId = _register(price);
 
-        // 1. Pay → pass minted to the buyer, access granted on-chain.
+        // 1. Pay -> pass minted to the buyer, access granted on-chain.
         vm.prank(buyer);
         mp.purchase{value: price}(courseId);
         assertTrue(mp.hasCourseAccess(buyer, courseId), "buyer entitled after purchase");
@@ -697,5 +697,185 @@ contract CourseMarketplaceTest is Test {
         assertTrue(mp.hasCourseAccess(author, courseId), "author has free access");
         assertEq(pass.tokenIdOf(author, courseId), 0, "author holds no buyer pass");
         assertFalse(pass.hasAccess(author, courseId), "no AccessPass grant for author");
+    }
+
+    // ── Sale nonce (per-course sale ordinal in CoursePurchased) ───────────────
+
+    event CoursePurchased(
+        uint256 indexed courseId,
+        address indexed buyer,
+        uint256 indexed saleNonce,
+        uint256 price,
+        uint256 protocolCut,
+        uint256 w3extFee,
+        uint256 authorAmount
+    );
+
+    /// salesCount starts at 0 and increments 1-based per sale of THIS course;
+    /// the emitted saleNonce matches the post-increment value.
+    function test_saleNonce_incrementsPerCourse_andEmitted() public {
+        uint96 price = 1 ether;
+        uint256 id = _register(price);
+        assertEq(mp.salesCount(id), 0, "no sales yet");
+
+        address b1 = makeAddr("b1");
+        address b2 = makeAddr("b2");
+        vm.deal(b1, 10 ether);
+        vm.deal(b2, 10 ether);
+
+        (uint256 p, uint256 w, uint256 a) = mp.quote(price);
+
+        vm.expectEmit(true, true, true, true);
+        emit CoursePurchased(id, b1, 1, price, p, w, a);
+        vm.prank(b1);
+        mp.purchase{value: price}(id);
+        assertEq(mp.salesCount(id), 1, "first sale -> nonce 1");
+
+        vm.expectEmit(true, true, true, true);
+        emit CoursePurchased(id, b2, 2, price, p, w, a);
+        vm.prank(b2);
+        mp.purchase{value: price}(id);
+        assertEq(mp.salesCount(id), 2, "second sale -> nonce 2");
+    }
+
+    /// Sale nonces are isolated per course — buying course B doesn't bump A's.
+    function test_saleNonce_isolatedPerCourse() public {
+        uint96 price = 1 ether;
+        uint256 a1 = _register(price);
+        vm.prank(author);
+        uint256 a2 = mp.registerCourse(price, bytes32("h2"), "b2", 0);
+
+        vm.prank(buyer);
+        mp.purchase{value: price}(a1);
+        vm.prank(buyer);
+        mp.purchase{value: price}(a2);
+
+        assertEq(mp.salesCount(a1), 1, "course A: one sale");
+        assertEq(mp.salesCount(a2), 1, "course B: one sale, independent counter");
+    }
+
+    // ── Author percentage discount / markup (adjustPrice) ─────────────────────
+
+    event CoursePriceAdjusted(
+        uint256 indexed courseId, uint96 oldPrice, uint96 newPrice, int256 bps
+    );
+
+    function test_adjustPrice_discount_reducesPrice_emits() public {
+        uint256 id = _register(1 ether);
+        vm.expectEmit(true, false, false, true);
+        emit CoursePriceAdjusted(id, 1 ether, 0.8 ether, -2000); // -20%
+        vm.prank(author);
+        uint96 np = mp.adjustPrice(id, -2000);
+        assertEq(np, 0.8 ether);
+        (, uint96 p,,,,) = mp.courses(id);
+        assertEq(p, 0.8 ether);
+    }
+
+    function test_adjustPrice_markup_increasesPrice() public {
+        uint256 id = _register(1 ether);
+        vm.prank(author);
+        uint96 np = mp.adjustPrice(id, 1500); // +15%
+        assertEq(np, 1.15 ether);
+        (, uint96 p,,,,) = mp.courses(id);
+        assertEq(p, 1.15 ether);
+    }
+
+    /// Discount then markup compound off the (already discounted) current price.
+    function test_adjustPrice_compounds_offCurrentPrice() public {
+        uint256 id = _register(1 ether);
+        vm.startPrank(author);
+        mp.adjustPrice(id, -5000); // -> 0.5 ether
+        uint96 np = mp.adjustPrice(id, 5000); // +50% of 0.5 -> 0.75 ether (NOT back to 1)
+        vm.stopPrank();
+        assertEq(np, 0.75 ether);
+    }
+
+    function test_adjustPrice_onlyAuthor() public {
+        uint256 id = _register(1 ether);
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.NotAuthor.selector);
+        mp.adjustPrice(id, -1000);
+    }
+
+    /// A -100% (or worse) discount would zero/negate the price -> BadPrice.
+    function test_adjustPrice_rejectsFullDiscount() public {
+        uint256 id = _register(1 ether);
+        vm.startPrank(author);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, -10000); // -100%
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, -20000); // beyond -100%
+        vm.stopPrank();
+    }
+
+    /// Tiny price + large discount rounds toward zero -> BadPrice (no 0-price course).
+    function test_adjustPrice_rejectsRoundsToZero() public {
+        vm.prank(author);
+        uint256 id = mp.registerCourse(1, bytes32("h"), "b", 0); // price = 1 wei
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, -9000); // 1 * 1000 / 10000 = 0
+    }
+
+    /// A markup that overflows uint96 must revert rather than truncate.
+    function test_adjustPrice_rejectsUint96Overflow() public {
+        vm.prank(author);
+        uint256 id = mp.registerCourse(type(uint96).max, bytes32("h"), "b", 0);
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.adjustPrice(id, 1); // +0.01% pushes it past uint96.max
+    }
+
+    /// CORE INVARIANT: an author discount/markup changes only the base price —
+    /// the platform commission *percentages* (treasuryBps / w3extBps) are
+    /// untouched, so the protocol/w3ext cut stays the same SHARE of the new
+    /// price, and the buyer pays the new price exactly.
+    function test_adjustPrice_doesNotChangeCommissionPercentages() public {
+        uint256 id = _register(1 ether);
+        uint16 tBps = mp.treasuryBps();
+        uint16 wBps = mp.w3extBps();
+
+        vm.prank(author);
+        mp.adjustPrice(id, -3000); // -30% -> 0.7 ether
+
+        // bps config is unchanged by the author's reprice…
+        assertEq(mp.treasuryBps(), tBps, "treasuryBps unchanged");
+        assertEq(mp.w3extBps(), wBps, "w3extBps unchanged");
+
+        // …and the split on the NEW price is still exactly those percentages.
+        uint96 newPrice = 0.7 ether;
+        (uint256 p, uint256 w, uint256 a) = mp.quote(newPrice);
+        assertEq(p, uint256(newPrice) * tBps / 10_000, "protocol cut = same %");
+        assertEq(w, uint256(newPrice) * wBps / 10_000, "w3ext cut = same %");
+        assertEq(p + w + a, newPrice, "splits re-sum to new price");
+
+        // End-to-end: buyer pays the new price; pendingWithdrawals match quote.
+        vm.prank(buyer);
+        mp.purchase{value: newPrice}(id);
+        assertEq(mp.pendingWithdrawals(address(treasury)), p);
+        assertEq(mp.pendingWithdrawals(w3ext), w);
+        assertEq(mp.pendingWithdrawals(author), a);
+    }
+
+    /// The author cannot use adjustPrice to touch the platform commission: only
+    /// the owner controls bps via setParams (author call reverts NotOwner).
+    function test_adjustPrice_authorCannotAlterCommissionConfig() public {
+        _register(1 ether);
+        vm.prank(author);
+        vm.expectRevert(CourseMarketplace.NotOwner.selector);
+        mp.setParams(0, 0, address(treasury), w3ext); // author may NOT zero the cut
+    }
+
+    /// After a reprice the buyer must pay the NEW price; the old price reverts.
+    function test_adjustPrice_buyerMustPayNewPrice() public {
+        uint256 id = _register(1 ether);
+        vm.prank(author);
+        mp.adjustPrice(id, -2000); // -> 0.8 ether
+        vm.prank(buyer);
+        vm.expectRevert(CourseMarketplace.BadPrice.selector);
+        mp.purchase{value: 1 ether}(id); // old price rejected
+        vm.prank(buyer);
+        mp.purchase{value: 0.8 ether}(id); // new price accepted
+        assertTrue(mp.hasCourseAccess(buyer, id));
     }
 }

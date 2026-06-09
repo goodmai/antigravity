@@ -72,6 +72,9 @@ contract CourseMarketplace is ICourseMarketplace {
     uint256 public nextCourseId = 1;
     mapping(uint256 => Course) public courses;
     mapping(address => uint256) public pendingWithdrawals;
+    // Per-course, 1-based completed-sale counter. Emitted as `saleNonce` in
+    // CoursePurchased so each sale has a stable, gap-free ordinal.
+    mapping(uint256 => uint256) public salesCount;
 
     event OwnershipTransferStarted(address indexed previous, address indexed pending);
     event OwnershipTransferred(address indexed previous, address indexed current);
@@ -174,6 +177,32 @@ contract CourseMarketplace is ICourseMarketplace {
     }
 
     /// @inheritdoc ICourseMarketplace
+    /// @dev newPrice = price * (BPS_DENOMINATOR + bps) / BPS_DENOMINATOR.
+    ///      `bps` is signed and relative to the *current* price (a discount and
+    ///      a later markup compound). Only the author may reprice; the platform
+    ///      commission percentages (treasuryBps / w3extBps) are owner-controlled
+    ///      and are deliberately NOT touched here — so a discount/markup changes
+    ///      only the base price, never the protocol's percentage cut.
+    function adjustPrice(uint256 courseId, int256 bps)
+        external
+        returns (uint96 newPrice)
+    {
+        Course storage c = courses[courseId];
+        if (c.author != msg.sender) revert NotAuthor();
+        int256 denom = int256(uint256(BPS_DENOMINATOR));
+        // bps <= -100% would zero/negate the price.
+        if (bps <= -denom) revert BadPrice();
+        int256 np = (int256(uint256(c.price)) * (denom + bps)) / denom;
+        // Rounding toward zero can hit 0 for tiny prices + large discounts.
+        if (np <= 0 || uint256(np) > type(uint96).max) revert BadPrice();
+
+        uint96 oldPrice = c.price;
+        newPrice = uint96(uint256(np));
+        c.price = newPrice;
+        emit CoursePriceAdjusted(courseId, oldPrice, newPrice, bps);
+    }
+
+    /// @inheritdoc ICourseMarketplace
     function quote(uint256 price)
         public
         view
@@ -205,6 +234,10 @@ contract CourseMarketplace is ICourseMarketplace {
         pendingWithdrawals[c.author] += authorAmount;
         pendingWithdrawals[w3ext] += w3extFee;
         pendingWithdrawals[treasury] += protocolCut;
+        // Per-course sale ordinal (1-based), bumped in Effects (before the
+        // external call) per Checks-Effects-Interactions. Gap-free because
+        // purchase() either completes or reverts wholesale.
+        uint256 saleNonce = ++salesCount[courseId];
 
         // ── Interactions (only the trusted, set-once AccessPass) ─────────
         // 0 or the PERPETUAL sentinel ⇒ never expires (AccessPass expiry
@@ -217,7 +250,7 @@ contract CourseMarketplace is ICourseMarketplace {
         accessPass.mint(msg.sender, courseId, expiry);
 
         emit CoursePurchased(
-            courseId, msg.sender, msg.value, protocolCut, w3extFee, authorAmount
+            courseId, msg.sender, saleNonce, msg.value, protocolCut, w3extFee, authorAmount
         );
     }
 
