@@ -94,9 +94,20 @@ jobs:
         # the pinned fuzz seed in foundry.toml.
         run: forge snapshot --check --tolerance 1
 
+  # ── Real-Chipotle TEE jobs (best-effort, OFF the PR path) ──────────────────
+  # These build the upstream LIT-Protocol/chipotle image, which compiles
+  # lit-api-core (Rust). That build pulls a git dependency `LIT-Protocol/zerossl`
+  # at a pinned revision; upstream periodically makes it private / rewrites
+  # history, so the build can fail in CI with "revision … not found /
+  # failed to authenticate" — entirely outside this repo's control.
+  # Therefore: run only on schedule/dispatch and never block PRs; the PR gate
+  # covers Lit gating via the hermetic unit tests (lit-acc-eval, chipotle-drm,
+  # course-read, lit-pricing) in the `test` job. continue-on-error keeps the
+  # nightly green when the upstream image is temporarily unbuildable.
   chipotle-real-integration:
     name: Real Chipotle TEE Integration (docker)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -173,9 +184,14 @@ jobs:
           docker compose -f smartcontracts/docker-compose.yml \
             --profile local-real-chipotle down --remove-orphans -v
 
+  # Builds chipotle-real (upstream Rust) too — see the note on
+  # chipotle-real-integration above. Moved OFF the PR path (was pull_request):
+  # an upstream LIT-Protocol/zerossl break must not block this repo's PRs.
+  # Nightly/dispatch only, best-effort.
   e2e-lit-integration:
     name: E2E Lit Protocol Gating Integration
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'pull_request'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
