@@ -172,6 +172,8 @@ courses + Solidity settlement layer**.
 | [`spec/SPEC.md`](./spec/SPEC.md) | On-chain settlement ТЗ (marketplace / access pass / treasury) |
 | [`spec/AUDIT.md`](./spec/AUDIT.md) | Contracts audit — logic / deploy / mint, findings & status |
 | [`spec/sc.md`](./spec/sc.md) | Smart-contract reference (AccessPass, CourseMarketplace, Treasury, AuthorNft, ClientNft) |
+| [`smartcontracts/contracts/NFT.md`](./smartcontracts/contracts/NFT.md) | Access-NFT explainer — author/buyer minting, P-A Lit-key storage, claim-signer Lit Action, coverage |
+| [`spec/RTM.md`](./spec/RTM.md) | Requirements traceability matrix (req → contract → test → doc) |
 | [`spec/osint.md`](./spec/osint.md) | OSINT — competitive analysis (Glacier, Keypo, 4EVERLAND, CyberConnect) vs our stack; growth points & risks |
 | [`spec/uc.md`](./spec/uc.md) / [`spec/tc.md`](./spec/tc.md) | Use cases / test cases mapped to suites |
 | [`smartcontracts/e2e/`](./smartcontracts/e2e/) | **THE main check** — real-network E2E (anvil-BNB + Greenfield testnet + Chipotle/Lit v3 DRM); see §1 below |

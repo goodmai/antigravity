@@ -23,6 +23,8 @@ Central home for all specifications and design docs. (Lecture & lab texts stay u
 | Doc | What it is |
 | --- | --- |
 | [sc.md](./sc.md) | Smart‑contract reference (AccessPass, CourseMarketplace, Treasury, AuthorNft, ClientNft) |
+| [NFT.md](../smartcontracts/contracts/NFT.md) | Access‑NFT explainer — author/buyer minting, P‑A Lit‑key storage, claim‑signer Lit Action, coverage |
+| [RTM.md](./RTM.md) | Requirements Traceability Matrix — requirement → contract → test → doc |
 | [SPEC.md](./SPEC.md) | On‑chain settlement ТЗ (BSC / Greenfield / Lit) |
 | [AUDIT.md](./AUDIT.md) | Contracts audit — logic / deploy / mint, findings & status |
 | [GREENFIELD.md](./GREENFIELD.md) | Bucket console, the 3 Greenfield flows (mock / private / testnet), backends, CI |
@@ -41,6 +43,7 @@ Central home for all specifications and design docs. (Lecture & lab texts stay u
 | [workflow_cicd.md](./workflow_cicd.md) | Testing scheme (as‑is/to‑be), CI gaps, implementation plan |
 | [uc.md](./uc.md) | Use cases + Funding Matrix (per‑network native tokens) |
 | [tc.md](./tc.md) | Test cases mapped to suites |
+| [RTM.md](./RTM.md) | Requirements traceability matrix (req → code → test → doc) |
 | [sdettest.md](./sdettest.md) | SDET testing report |
 
 ## Protocol doc map
@@ -68,8 +71,8 @@ governance review (see the whitepaper disclaimer). These are planning documents;
 > working Solidity codebase already ships under `smartcontracts/contracts/` — the DRM course
 > platform (`AccessPass`, `CourseMarketplace`, `Treasury`, and the soulbound role NFTs
 > `SoulboundAccessNft`/`AuthorNft`/`ClientNft`), documented in [sc.md](./sc.md). It uses
-> Foundry + OpenZeppelin v5.6.1, has a contracts CI gate (`.github/workflows/test.yml`), 86
-> forge tests at 100% coverage, and a Lit + BNB Greenfield e2e. EPIC‑01 should **reuse** these
+> Foundry + OpenZeppelin v5.6.1, has a contracts CI gate (`.github/workflows/test.yml`), 178
+> forge tests at 100% line/function coverage, and a Lit + BNB Greenfield e2e. EPIC‑01 should **reuse** these
 > building blocks — especially the in‑repo soulbound ERC‑721 pattern and the Foundry/CI
 > harness — rather than scaffold from scratch. Testing strategy: [workflow_cicd.md](./workflow_cicd.md);
 > testnet funding: [uc.md](./uc.md) (Funding Matrix).

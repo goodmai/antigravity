@@ -3,12 +3,19 @@
 Settlement + access layer for the Daskibo Academy DRM platform. Solidity
 `^0.8.28`, Foundry, `evm_version = cancun`, optimizer 200 runs.
 
-Source: `smartcontracts/contracts/src/`. Tests: `…/test/` (86 forge tests,
-**100% line/statement/branch/function coverage** on all six contracts).
+Source: `smartcontracts/contracts/src/`. Tests: `…/test/` (**178 forge tests**,
+100% line/function coverage on all contracts; 100% branch on every contract
+except `AccessPass` at 87.5% — the 2 open branches are unreachable defensive
+guards, see [NFT.md §5](../smartcontracts/contracts/NFT.md#5-покрытие-тестами-foundry)).
 
 Contracts: `AccessPass`, `CourseMarketplace`, `Treasury` (settlement layer) +
 `SoulboundAccessNft` (abstract base) → `AuthorNft`, `ClientNft` (the soulbound
 role NFTs Lit gates on, replacing the old `MockNFT` stub).
+
+> **Cross-refs:** the access-NFT lifecycle (who is minted what, P-A Lit-key
+> storage, the claim-signer Lit Action, coverage) is written up in
+> [`smartcontracts/contracts/NFT.md`](../smartcontracts/contracts/NFT.md).
+> Requirement → contract → test → doc traceability is in [RTM.md](./RTM.md).
 
 ## Roles in the larger system
 
@@ -48,35 +55,58 @@ of course access. Soulbound by design: this is the structural flash-loan
 mitigation (audit 3.2 / 4.1) — Lit checks `hasAccess`, and there is no
 transferable balance to flash-loan.
 
+It also doubles as the **per-NFT Lit-key store** (scheme P-A): each token holds a
+buyer-specific Chipotle ciphertext (the wrapped master key), with a one-time
+`wrapNonce` anti-drain guard. Full P-A walkthrough:
+[NFT.md §2](../smartcontracts/contracts/NFT.md#2-как-в-nft-хранятся-lit-ключи-схема-p-a)
+and [crypto.md](./crypto.md).
+
 **State**
 | Var | Type | Meaning |
 |---|---|---|
-| `owner` | `address` | deployer; may wire the marketplace once |
+| `owner` / `pendingOwner` | `address` | Ownable2Step governance (M-5) |
 | `marketplace` | `address` | the only authorised minter (set-once) |
 | `_nextId` | `uint256` | monotonic token id counter (starts at 1) |
 | `ownerOf[tokenId]` | `address` | holder of a pass |
 | `courseOf[tokenId]` | `uint256` | course a pass grants |
 | `_granted[user][course]` | `bool` | private grant flag |
 | `expiryOf[user][course]` | `uint64` | unix expiry; `0` = perpetual |
+| `wrapNonce[buyer][course]` | `uint256` | one-time wrap nonce; `!=0` = wrap allowed, `0` = consumed (P-A anti-drain) |
+| `encryptedKey[tokenId]` | `bytes` | address-bound Chipotle ciphertext; empty until set; **write-once** |
+| `_tokenIdOf[buyer][course]` | `uint256` | reverse lookup (buyer,course)→tokenId |
 
 **Functions**
 - `constructor()` — sets `owner = msg.sender`.
+- `transferOwnership(to)` / `acceptOwnership()` — Ownable2Step (M-5).
 - `setMarketplace(address mp)` — `onlyOwner`, one-shot. Reverts `ZeroAddress`
   / `MarketplaceAlreadySet`. Wires the authorised minter.
 - `mint(address to, uint256 courseId, uint64 expiry) → uint256 tokenId` —
   **only `marketplace`** (`NotMarketplace` otherwise — even the owner cannot
   mint). Reverts `ZeroAddress` (recipient) and `AlreadyOwned` (active,
-  non-expired grant). Records ownership/course/expiry, emits `AccessGranted`.
-  Re-mint after expiry is allowed (renewal).
+  non-expired grant). Records ownership/course/expiry, issues a fresh
+  `wrapNonce`, emits `AccessGranted` + `WrapNonceIssued`. Re-mint after expiry
+  is allowed (renewal).
+- `setEncryptedKey(uint256 tokenId, bytes ct)` — token owner only; **write-once**
+  store of the wrapped Lit key, consumes `wrapNonce` atomically. Reverts
+  `NotTokenOwner`, `EmptyCiphertext`, `AlreadySet`, `StaleToken` (H-1), and
+  `NonceConsumed`.
+- `resetForRewrap(uint256 tokenId)` — owner/marketplace; clears the key and
+  issues a fresh nonce (rotation/recovery). Reverts `NotOwner`, `NotGranted`,
+  `StaleToken`. Emits `WrapNonceReset`.
+- `tokenIdOf(buyer, courseId) → uint256` — reverse lookup (0 if none).
 - `hasAccess(address user, uint256 courseId) → bool` — `true` iff granted and
   not expired. **The predicate Lit's ACC ultimately depends on.**
 - `_expired(user,course)` *(internal)* — `exp != 0 && now > exp`.
 - **Soulbound reverts** — `transferFrom`, both `safeTransferFrom` overloads
   (3- and 4-arg), `approve`, `setApprovalForAll` all `revert Soulbound()`.
 
-**Errors:** `NotOwner, NotMarketplace, MarketplaceAlreadySet, ZeroAddress,
-AlreadyOwned, Soulbound`.
-**Events:** `AccessGranted(user, courseId, tokenId)`.
+**Errors:** `NotOwner, NotPendingOwner, NotMarketplace, MarketplaceAlreadySet,
+ZeroAddress, AlreadyOwned, Soulbound, AlreadySet, NonceConsumed, NotTokenOwner,
+NotGranted, EmptyCiphertext, StaleToken`.
+**Events:** `AccessGranted(user, courseId, tokenId)`,
+`EncryptedKeySet(tokenId, buyer)`, `WrapNonceIssued(buyer, courseId, nonce)`,
+`WrapNonceReset(buyer, courseId, newNonce)`,
+`OwnershipTransferStarted/Transferred`.
 
 ---
 
@@ -118,7 +148,16 @@ uint64 accessDuration, bool active }`.
   uint64 accessDuration) → courseId` — `price>0` (`BadPrice`); finite
   durations must be `≤ MAX_DURATION` (`BadDuration`); emits `CourseRegistered`.
 - `updateCourse(courseId, price, active)` — author-only (`NotAuthor`),
-  `price>0`; reprice / toggle active; emits `CourseUpdated`.
+  `price>0`; set absolute price / toggle active; emits `CourseUpdated`.
+- `adjustPrice(courseId, int256 bps) → uint96 newPrice` — author-only
+  (`NotAuthor`) **percentage** reprice relative to the current price:
+  negative = discount, positive = markup (e.g. `-2000` = −20 %, `+1500` =
+  +15 %); successive calls compound. `newPrice = price·(10000+bps)/10000`.
+  Reverts `BadPrice` on `bps ≤ −100 %`, round-to-zero, or `uint96` overflow.
+  **Does NOT touch `treasuryBps`/`w3extBps`** — the platform commission stays
+  the same *percentage* of whatever the new price is (only the owner may change
+  bps, via `setParams`). Emits `CoursePriceAdjusted(courseId, oldPrice,
+  newPrice, bps)`.
 - `quote(price) → (protocolCut, w3extFee, authorAmount)` — `cut = price·bps /
   10000`; **remainder rounds to the author** so payouts re-sum exactly to
   `price`.
@@ -126,9 +165,13 @@ uint64 accessDuration, bool active }`.
   (`AccessPassUnset`), course active (`Inactive`), `msg.value == price`
   (`BadPrice`), caller has no access yet (`AlreadyOwned`). Effects: credits
   `pendingWithdrawals` for author / w3ext / treasury (no value pushed →
-  hostile treasury can't DoS sales). Interaction: only the trusted
-  `accessPass.mint(...)`; perpetual sentinel avoids `uint64` overflow. Emits
-  `CoursePurchased`.
+  hostile treasury can't DoS sales) and bumps the per-course sale ordinal
+  `++salesCount[courseId]`. Interaction: only the trusted `accessPass.mint(...)`;
+  perpetual sentinel avoids `uint64` overflow. Emits `CoursePurchased(courseId,
+  buyer, saleNonce, …)` — `saleNonce` is the 1-based, gap-free Nth-sale ordinal
+  of this course (stable handle for off-chain receipts/indexers).
+- `salesCount(courseId) → uint256` — completed-sale counter (the last emitted
+  `saleNonce`).
 - `hasCourseAccess(user, courseId) → bool` — author always `true` (free access
   to own content); else `false` if no AccessPass wired; else
   `accessPass.hasAccess`. **This is the function Lit's evmContractConditions
@@ -170,7 +213,7 @@ Local helper interface `IWithdrawable { withdraw() }`.
 ## 4. Soulbound role NFTs (Lit gating) — replaces `MockNFT`
 
 > ✅ **Current / applied.** Implemented, deployed by `DeployAccessNfts.s.sol`, and
-> covered by forge tests at 100% (104 tests total). Includes **revoke** (R-09),
+> covered by forge tests at 100% (part of the 178-test suite). Includes **revoke** (R-09),
 > **delegated granter role** (G-08), and the [`ManifestRegistry`](#4d-manifestregistry--on-chain-acc-anchor-g-09) anchor (G-09) — see [osint.md §3.1](./osint.md).
 
 The old `MockNFT` (a transferable ERC721 stub, then a transferable real ERC721)
@@ -289,10 +332,13 @@ relayer-fee/`FailureAck` accounting.
 
 ## 5. Interfaces (`src/interfaces/`)
 
-- **`IAccessPass`** — `mint`, `hasAccess`; event `AccessGranted`.
+- **`IAccessPass`** — `mint`, `hasAccess`, `setEncryptedKey`, `encryptedKey`,
+  `wrapNonce`, `tokenIdOf`; events `AccessGranted`, `EncryptedKeySet`,
+  `WrapNonceIssued`, `WrapNonceReset`.
 - **`ICourseMarketplace`** — `Course` struct; `registerCourse`, `updateCourse`,
-  `purchase`, `hasCourseAccess`, `withdraw`, `quote`; events `CourseRegistered`,
-  `CourseUpdated`, `CoursePurchased`, `Withdrawn`.
+  `adjustPrice`, `purchase`, `hasCourseAccess`, `withdraw`, `quote`,
+  `salesCount`; events `CourseRegistered`, `CourseUpdated`, `CoursePriceAdjusted`,
+  `CoursePurchased` (with indexed `saleNonce`), `Withdrawn`.
 - **`ITreasury`** — `fund`, `withdraw`, `totalReceived`; events `Funded`,
   `Withdrawn`.
 - **`IGreenfieldCourseBucket`** — *OPTIONAL, not implemented in v1.* Spec for an
@@ -356,9 +402,11 @@ Two distinct Lit scenarios live under `smartcontracts/docker-compose.lit.yml` �
    pre-purchase DENIED → `purchase()` → AccessPass minted → ALLOWED & decrypts →
    soulbound transfer reverts → post-expiry DENIED → Eve DENIED.
 
-**Off-chain unit coverage:** 86 forge tests, 100% line/statement/branch/function
-coverage on all six contracts (`SoulboundAccessNft` 26/26 lines, `AuthorNft`
-7/7, `ClientNft` 17/17).
+**Off-chain unit coverage:** 178 forge tests, 100% line/function coverage on all
+contracts (`SoulboundAccessNft`, `AuthorNft`, `ClientNft` at 100% across
+line/stmt/branch/func; `AccessPass` 100% line/func, 87.5% branch — 2 unreachable
+defensive guards). Per-contract breakdown:
+[NFT.md §5](../smartcontracts/contracts/NFT.md#5-покрытие-тестами-foundry).
 
 > Re-run `run_e2e_lit.sh` (full `down -v` + genesis rebuild) to re-confirm the
 > default scenario in-stack after the rename. To exercise the `ClientNft`

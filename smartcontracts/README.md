@@ -339,10 +339,15 @@ there to stop you accidentally sending real testnet funds to sweep-bot bait.
 | `greenfield-testnet/write-testnet-chipotle.mjs` | Publish course with Chipotle DRM |
 | `bucket-builder.html` | Browser course builder (preview + publish via MetaMask) |
 | `bucket-reader.html` | Browser DRM reader (Lit + Chipotle, MetaMask session) |
+| [`contracts/src/`](contracts/src/) | Solidity sources: `CourseMarketplace`, `AccessPass`, `Treasury`, `SoulboundAccessNft`→`AuthorNft`/`ClientNft`, `ManifestRegistry` |
+| [`contracts/NFT.md`](contracts/NFT.md) | Access-NFT explainer — author/buyer minting, P-A Lit-key storage, claim-signer Lit Action, coverage |
+| [`lit-actions/claim-signer.action.js`](lit-actions/claim-signer.action.js) | Decentralized claim-signer Lit Action (PKP, EIP-712) |
+| [`../spec/sc.md`](../spec/sc.md) | Smart-contract reference |
+| [`../spec/RTM.md`](../spec/RTM.md) | Requirements traceability matrix (req → code → test → doc) |
 | [`../spec/CHIPOTLE.md`](../spec/CHIPOTLE.md) | Full Chipotle DRM technical reference |
 | [`../spec/TESTING.md`](../spec/TESTING.md) | Test matrix and how to run |
 | [`../spec/COMPOSE.md`](../spec/COMPOSE.md) | Docker Compose file reference |
-| [`../spec/`](../spec/) | All other specs & design docs (SPEC, AUDIT, sc, GREENFIELD, lit, uc, tc, …) |
+| [`../spec/`](../spec/) | All other specs & design docs (SPEC, AUDIT, sc, RTM, NFT, GREENFIELD, lit, uc, tc, …) |
 
 ---
 

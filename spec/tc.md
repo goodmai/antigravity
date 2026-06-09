@@ -46,6 +46,22 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 ## UC-08 governance
 | TC-08.1 | F | bps bounded (per-cut limit, zero-addr) | `CourseMarketplace.t.sol` |
 | TC-08.2 | F | Treasury withdraw owner-only (full matrix below) | `Treasury.t.sol` |
+| TC-08.6 | F | author **cannot** alter commission config: `setParams` from author → `NotOwner` | `CourseMarketplace.t.sol` (`test_adjustPrice_authorCannotAlterCommissionConfig`) |
+
+## UC-14 author percentage reprice (discount / markup)
+| TC | Type | Assertion | Where |
+|----|------|-----------|-------|
+| TC-14.1 | F | discount (−bps) reduces price + emits `CoursePriceAdjusted`; markup (+bps) increases | `CourseMarketplace.t.sol` (`test_adjustPrice_discount…`, `…_markup…`) |
+| TC-14.2 | F | successive adjustments compound off the current price (−50% then +50% ≠ original) | `CourseMarketplace.t.sol` (`test_adjustPrice_compounds_offCurrentPrice`) |
+| TC-14.3 | F | author-only (`NotAuthor`); ≤ −100%, round-to-zero, `uint96` overflow → `BadPrice` | `CourseMarketplace.t.sol` (`…_onlyAuthor`, `…_rejectsFullDiscount`, `…_rejectsRoundsToZero`, `…_rejectsUint96Overflow`) |
+| TC-14.4 | F | **commission % invariant**: reprice leaves `treasuryBps`/`w3extBps` unchanged; split is the same share of the new price; pendingWithdrawals match `quote` | `CourseMarketplace.t.sol` (`test_adjustPrice_doesNotChangeCommissionPercentages`) |
+| TC-14.5 | F | after reprice the buyer must pay the NEW price (old price → `BadPrice`) | `CourseMarketplace.t.sol` (`test_adjustPrice_buyerMustPayNewPrice`) |
+
+## UC-15 per-sale ordinal (sale nonce)
+| TC | Type | Assertion | Where |
+|----|------|-----------|-------|
+| TC-15.1 | F | `salesCount` starts 0, increments 1-based per sale; emitted `saleNonce` matches | `CourseMarketplace.t.sol` (`test_saleNonce_incrementsPerCourse_andEmitted`) |
+| TC-15.2 | F | sale nonces isolated per course (buying B doesn't bump A) | `CourseMarketplace.t.sol` (`test_saleNonce_isolatedPerCourse`) |
 
 ## UC-09 tamper/abuse
 | TC-09.1 | U | tampered ciphertext / meta / relocated DEK → `DECRYPT_FAILED` | `tests/crypto-envelope.test.js` (3,5) |
@@ -83,6 +99,14 @@ Legend: **U** = hermetic unit (`npm test`), **D** = Docker-gated
 | TC-04.8 | F | duration presets: HOUR/WEEK/MONTH/YEAR/PERPETUAL constant values; HOUR expires after 1h; YEAR valid <365d / expired after; PERPETUAL (`uint64.max`) → expiry 0, never expires, no overflow (century warp) | `CourseMarketplace.t.sol` |
 | TC-04.9 | F | audit hardening: finite `accessDuration > MAX_DURATION` → `BadDuration`; `MAX_DURATION`/`PERPETUAL`/`0` allowed (no overflow-DoS) | `CourseMarketplace.t.sol` |
 | TC-08.5 | F | `setAccessPass` emits `AccessPassSet` event | `CourseMarketplace.t.sol` |
+| TC-PA.1 | F | P-A key store: `wrapNonce` issued at mint; `setEncryptedKey` write-once stores ciphertext + consumes nonce; `AlreadySet`/`NonceConsumed`/`NotTokenOwner`/`EmptyCiphertext` guards | `AccessPass.t.sol` |
+| TC-PA.2 | F | H-1 stale-token: `setEncryptedKey`/`resetForRewrap` on a renewed-over token → `StaleToken`; `resetForRewrap` on nonexistent → `NotGranted`; rotation issues a fresh nonce | `AccessPass.t.sol` |
+| TC-PA.3 | F | P-A + expiry: `expiryOf` stored at mint; access denied after `>exp` while ciphertext persists (ACC enforces off-chain); renewal issues fresh nonce/token | `AccessPass.t.sol` |
+| TC-NFT.1 | F | soulbound role NFTs: mint by owner/granter; transfer/approve/setApprovalForAll revert; `supportsInterface`; `revoke` flips `balanceOf`/`hasAccess`, remint restores | `AuthorNft.t.sol`, `ClientNft.t.sol` |
+| TC-NFT.2 | F | `claimWithSig` (PKP/EIP-712): mints for authorized signer; replay → `InvalidClaimSignature`; expired deadline → `ClaimExpired`; wrong signer → `InvalidClaimSignature`; `setClaimSigner(0)` → `ZeroAddress`; nonce progression (2nd claim); ClientNft perpetual claim | `AuthorNft.t.sol`, `ClientNft.t.sol` |
+| TC-NFT.3 | F | ClientNft expiry semantics: valid at `=exp`, invalid at `>exp`; `accessExpiryOf` never shrinks; perpetual not downgraded; finite upgraded to perpetual | `ClientNft.t.sol` |
+| TC-E2E.1 | F | end-to-end buyer: `purchase` → soulbound pass minted → `wrapNonce` issued → buyer `setEncryptedKey` (Lit key stored, nonce consumed) → pass stays soulbound | `CourseMarketplace.t.sol` (`test_e2e_purchase_mintsPass_andBuyerStoresLitKey`) |
+| TC-E2E.2 | F | author free access without a buyer pass or payment (`hasCourseAccess` true, `tokenIdOf` 0) | `CourseMarketplace.t.sol` (`test_e2e_author_hasFreeAccess_withoutPassOrPayment`) |
 | TC-G1   | U | SDK adapter call-shapes (growth #4): makeLitClient connect/encrypt/decrypt; makeLitAuth SIWE+sessionSigs; wallet createBucket signTypedDataCallback + lowercase `offchainauth` + EDDSA delegate auth | `tests/sdk-adapters.shape.test.js` |
 
 **Backend conformance** (cross-cuts UC-02/04/05): one contract suite runs

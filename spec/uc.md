@@ -32,10 +32,13 @@ The author can always decrypt their own course without paying:
   (`AlreadyOwned`).
 
 ### UC-04 — Client purchases time-limited access
-Buyer pays `price`; split = Treasury 20 % (push) + w3ext 20 % (pull) +
-author remainder (pull); a **soulbound** AccessPass is minted with
-`expiry = now + accessDuration` (0 = perpetual). After expiry
-`hasCourseAccess` returns false → Lit stops releasing the key.
+Buyer pays `price`; split = Treasury 20 % + w3ext 20 % + author remainder, all
+credited as **pull-payments** (no push during `purchase`, so a hostile treasury
+can't DoS sales); a **soulbound** AccessPass is minted with `expiry = now +
+accessDuration` (0 = perpetual) and a one-time `wrapNonce` for the P-A Lit-key
+store. After expiry `hasCourseAccess` returns false → Lit stops releasing the
+key. Each sale emits a per-course `saleNonce` (UC-15). The buyer then stores the
+wrapped Lit key in their NFT (UC-05 / [NFT.md §2](../smartcontracts/contracts/NFT.md#2-как-в-nft-хранятся-lit-ключи-схема-p-a)).
 
 ### UC-05 — Client decrypts purchased content
 Reader fetches manifest + `.enc`, obtains Lit session sigs (wallet
@@ -54,6 +57,32 @@ reentrancy-guarded. Same for w3ext.
 ### UC-08 — Governance tunes parameters
 Owner (Ownable2Step) sets bounded bps (≤ MAX each, sum ≤ 100 %) and
 treasury/w3ext addresses; Treasury outflow is governance-only.
+**Boundary:** only the **owner** may change the commission **percentages**
+(`setParams` → `treasuryBps`/`w3extBps`). An **author cannot** alter the
+platform cut — they may only set/adjust their own course **price** (UC-14).
+
+### UC-14 — Author reprices a course (percentage discount / markup)
+The author sets a base price at `registerCourse`, then later runs a sale or a
+price bump **in percent** via `CourseMarketplace.adjustPrice(courseId, bps)`:
+negative = discount, positive = markup; successive adjustments compound off the
+current price. The **platform commission percentage is unaffected** — the
+protocol/w3ext cut stays the same *share* of whatever the new price is (the
+absolute fee just scales with price). Author-only (`NotAuthor`); `BadPrice` if
+the result would be ≤ 0 or overflow `uint96`. Emits `CoursePriceAdjusted`.
+- Pre: caller is the course author.
+- Flow: `registerCourse(price)` → `adjustPrice(id, -2000)` (−20 % sale) →
+  buyer now pays the discounted price; `quote()` splits it at the unchanged bps.
+- Post: `courses[id].price` updated; `treasuryBps`/`w3extBps` unchanged.
+
+### UC-15 — Per-sale ordinal (sale nonce) on every purchase
+Every `purchase()` emits `CoursePurchased` carrying an indexed, 1-based,
+gap-free **`saleNonce`** = the Nth sale of that course (`salesCount[courseId]`
+post-increment). It gives off-chain indexers / receipt systems a stable ordinal
+per course without scanning balances, and is isolated per course (buying course
+B never bumps A's counter).
+- Pre: course active, AccessPass wired.
+- Flow: buyer A → `saleNonce 1`; buyer B → `saleNonce 2`; …
+- Post: `salesCount(courseId)` equals the last emitted `saleNonce`.
 
 ### UC-09 — Tamper / abuse attempts (must fail)
 Tampered ciphertext or metadata ⇒ `DECRYPT_FAILED`; relocated wrapped
