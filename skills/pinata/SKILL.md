@@ -31,8 +31,26 @@ Lit-экшена, чтобы привязать к нему PKP (только э
 > ⚠️ **Только `PINATA_API_KEY` (id ключа) для загрузки НЕ хватает.** Проверено
 > вживую (2026-06): значение-только-ключ возвращает **HTTP 401 "Not Authorized"**
 > на `POST /v3/files`. Нужен либо **JWT**, либо **key + secret**. Текущий `.env`
-> содержит `PINATA_API_KEY` + `PINATA_GATEWAY`; добавь `PINATA_JWT` (или
-> `PINATA_API_SECRET`) перед реальной загрузкой.
+> содержит `PINATA_API_KEY` + `PINATA_GATEWAY` (+ `PINATA_GATEWAY_KEY`); добавь
+> `PINATA_JWT` (рекомендуется) или `PINATA_API_SECRET` перед реальной загрузкой.
+
+### Как получить ключи и gateway (Pinata App)
+
+1. **API Keys** в сайдбаре → **New Key** (для старта — Admin + unlimited uses).
+   Одно создание ключа выдаёт **сразу три** значения:
+   `pinata_api_key`, `pinata_api_secret` и **JWT**. **JWT — рекомендуемый и
+   основной** способ аутентификации (длинный `eyJ…`-токен). → `PINATA_JWT`.
+   - Присланный ранее `2e38419b6677160c5981` (20 симв.) — это **`pinata_api_key`**
+     (id), не JWT. Чтобы грузить: либо возьми **JWT** того же ключа → `PINATA_JWT`,
+     либо добавь его **`pinata_api_secret`** → `PINATA_API_SECRET` (тогда работает
+     legacy-пара key+secret).
+2. **Gateways** в сайдбаре → скопируй домен в формате `fun-llama-300.mypinata.cloud`
+   **ровно так** (без протокола) → `PINATA_GATEWAY` (у нас
+   `bronze-junior-ant-598.mypinata.cloud`).
+
+Инструмент уже поддерживает оба пути: `pinataAuthHeaders` берёт **JWT** если он
+задан, иначе **key + secret** — отдельный `pinata_api_key` без секрета отвергается
+(`MISSING_PINATA_AUTH`).
 
 `.env.example` (коммитится) содержит плейсхолдеры; реальные значения — только в
 `.env`. **Секреты никогда не коммитить.**
