@@ -94,16 +94,21 @@ jobs:
         # the pinned fuzz seed in foundry.toml.
         run: forge snapshot --check --tolerance 1
 
-  # ── Real-Chipotle TEE jobs (best-effort, OFF the PR path) ──────────────────
-  # These build the upstream LIT-Protocol/chipotle image, which compiles
-  # lit-api-core (Rust). That build pulls a git dependency `LIT-Protocol/zerossl`
-  # at a pinned revision; upstream periodically makes it private / rewrites
-  # history, so the build can fail in CI with "revision … not found /
-  # failed to authenticate" — entirely outside this repo's control.
-  # Therefore: run only on schedule/dispatch and never block PRs; the PR gate
-  # covers Lit gating via the hermetic unit tests (lit-acc-eval, chipotle-drm,
-  # course-read, lit-pricing) in the `test` job. continue-on-error keeps the
-  # nightly green when the upstream image is temporarily unbuildable.
+  # ── Real-Chipotle TEE job (best-effort, OFF the PR path) ───────────────────
+  # Builds the upstream LIT-Protocol/chipotle image, which compiles lit-api-core
+  # (Rust) → pulls the git dependency `LIT-Protocol/zerossl` at a pinned revision.
+  # That repo is PRIVATE (404 for external CI; pinned rev f91b84e2 unreachable on
+  # every public Chipotle ref incl. tag v1.1.7), so the image cannot be built
+  # without LIT-Protocol credentials — outside this repo's control.
+  # Per the Chipotle README, the supported way to use the REAL service is the
+  # hosted REST API (api.chipotle.litprotocol.com, account + API key) — "no
+  # servers to run"; building the image is a LIT-Protocol-internal dev path that
+  # needs the private zerossl. So: schedule/dispatch only + continue-on-error
+  # (best-effort upstream build). The PR path instead runs the mock-TEE gating
+  # E2E (e2e-lit-integration below) plus the hermetic unit tests (lit-acc-eval,
+  # chipotle-drm, course-read, lit-pricing) in the `test` job — full gating
+  # coverage, no private dep. Real hosted-API coverage runs in devnet-e2e
+  # (needs CHIPOTLE_API_KEY / funded account secrets).
   chipotle-real-integration:
     name: Real Chipotle TEE Integration (docker)
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
@@ -184,75 +189,31 @@ jobs:
           docker compose -f smartcontracts/docker-compose.yml \
             --profile local-real-chipotle down --remove-orphans -v
 
-  # Builds chipotle-real (upstream Rust) too — see the note on
-  # chipotle-real-integration above. Moved OFF the PR path (was pull_request):
-  # an upstream LIT-Protocol/zerossl break must not block this repo's PRs.
-  # Nightly/dispatch only, best-effort.
+  # Lit-Protocol gating E2E on the PR path — runs against the Chipotle MOCK
+  # (REST-compatible: encrypt/decrypt/wrap_for_buyer + ACC enforcement), NOT the
+  # upstream chipotle-real image. The real image compiles lit-api-core, which
+  # depends on the PRIVATE repo LIT-Protocol/zerossl (404 for any external CI —
+  # pinned rev f91b84e2 is unreachable), so it CANNOT be built here. The mock
+  # exercises the same gating flow: purchase → wrap_for_buyer → setEncryptedKey →
+  # decrypt (allowed) → Eve denied → double-wrap blocked → expiry enforced.
+  # Real-TEE coverage lives in the nightly chipotle-real-integration job.
   e2e-lit-integration:
-    name: E2E Lit Protocol Gating Integration
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    continue-on-error: true
+    name: E2E Lit Protocol Gating Integration (mock TEE)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
-      - name: Checkout Chipotle Repo
-        uses: actions/checkout@v5
-        with:
-          repository: LIT-Protocol/chipotle
-          path: GitHub/chipotle
-          ref: next
-
-      - name: Patch Chipotle Dockerfile to include git
+      - name: Run Lit gating E2E (mock Chipotle + Anvil + mock SP, P-A scheme)
         run: |
-          sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
-          mkdir -p GitHub/chipotle/lit-api-server/static
-
-      - name: Checkout dstack Repo
-        uses: actions/checkout@v5
-        with:
-          repository: Dstack-TEE/dstack
-          path: GitHub/dstack
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            GitHub/chipotle -> target
-            GitHub/dstack -> target
-
-      - name: Build dstack simulator
-        working-directory: GitHub/dstack/sdk/simulator
-        run: |
-          cargo build --release -p dstack-guest-agent-simulator
-          cp ../../target/release/dstack-simulator .
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-
-      - name: Run E2E Lit Integration Tests
-        env:
-          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
-          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
-        run: |
-          chmod +x run_e2e_lit.sh
-          ./run_e2e_lit.sh
+          docker compose -f smartcontracts/docker-compose.yml --profile devnet-pa \
+            up --build --abort-on-container-exit --exit-code-from devnet-pa-e2e
 
       - name: Teardown
         if: always()
-        env:
-          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
-          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
         run: |
-          docker compose -f smartcontracts/docker-compose.lit.yml down --remove-orphans -v
+          docker compose -f smartcontracts/docker-compose.yml --profile devnet-pa \
+            down --remove-orphans -v
 
   integration-test:
     name: Integration (Docker) Tests

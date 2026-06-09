@@ -19,8 +19,8 @@ traceability [RTM.md](./RTM.md) · contract audit
    L5   │ Acceptance — live/real networks                │  *.live.test.js · e2e/run-e2e.mjs
         │ BSC+Greenfield testnet + Chipotle mainnet      │  CI: devnet-e2e (nightly, secrets)
         ├───────────────────────────────────────────────┤
-   L4   │ System E2E — local full stack                  │  e2e-synpress/**/*.spec.ts · run_e2e_lit.sh
-        │ UI (MetaMask) · DRM stack (Lit/Chipotle/GF)    │  CI: ui-e2e-synpress (PR) · e2e-lit (nightly)
+   L4   │ System E2E — local full stack                  │  e2e-synpress/**/*.spec.ts · e2e/run-*.mjs
+        │ UI (MetaMask) · DRM gating (mock Chipotle)     │  CI: ui-e2e-synpress (PR) · e2e-lit mock (PR)
         ├───────────────────────────────────────────────┤
    L3   │ Integration — Docker, mock infra               │  *.docker.test.js
         │ mock SP + nginx, real HTTP                      │  CI: integration-test (PR)
@@ -34,17 +34,22 @@ traceability [RTM.md](./RTM.md) · contract audit
                          ▼ many, fast, no Docker/keys/network
 ```
 
-**PR gate (every pull request & push):** L1 + L2 + L3 + the L4 **UI** suite —
-jobs `test`, `forge-test`, `integration-test`, `ui-e2e-synpress`.
-**Nightly / `workflow_dispatch` (heavy, best-effort):** the L4 **DRM stack** and
-L5 **live** — jobs `e2e-lit-integration`, `chipotle-real-integration`, `devnet-e2e`.
+**PR gate (every pull request & push):** L1 + L2 + L3 + the L4 **UI** suite +
+the L4 **mock-TEE DRM gating** E2E — jobs `test`, `forge-test`,
+`integration-test`, `ui-e2e-synpress`, `e2e-lit-integration`.
+**Nightly / `workflow_dispatch` (heavy, best-effort):** the **real-TEE** build and
+L5 **live** — jobs `chipotle-real-integration`, `devnet-e2e`.
 
-> Why the DRM-stack E2E is nightly, not on PRs: it builds the upstream
-> `LIT-Protocol/chipotle` image (Rust), which pulls a pinned git dependency that
-> upstream periodically makes private / rewrites — an external break that must not
-> block this repo's PRs. PR-level Lit-gating confidence comes from the L1/L2
-> hermetic tests (`lit-acc-eval`, `chipotle-drm`, `course-read`, `lit-pricing`).
-> See [.github/workflows/test.yml](../.github/workflows/test.yml).
+> Why the DRM gating E2E runs against the **Chipotle mock** on PRs (not the real
+> image): building upstream `LIT-Protocol/chipotle` compiles `lit-api-core`, which
+> depends on the **private** repo `LIT-Protocol/zerossl` (404 to external CI;
+> pinned rev unreachable on every public ref incl. tag `v1.1.7`) — it cannot be
+> built without LIT-Protocol credentials. Per the Chipotle README the real service
+> is meant to be used as a **hosted REST API** (`api.chipotle.litprotocol.com`),
+> not self-built. So PRs run the mock (`docker-compose.yml --profile devnet-pa`),
+> which is REST-compatible and exercises the full gating flow; the real hosted-API
+> path runs nightly in `devnet-e2e`. See
+> [.github/workflows/test.yml](../.github/workflows/test.yml).
 
 ---
 
@@ -59,8 +64,9 @@ Layer is encoded in the **file name / path** — no other signal needed.
 | **L2** Component | `tests/<feature>.test.js` (in-proc HTTP/mock) | vitest | none | `test` |
 | **L3** Integration | `tests/<feature>.docker.test.js` | vitest + Docker | Docker daemon | `integration-test` |
 | **L4** System E2E (UI) | `smartcontracts/e2e-synpress/specs/NN-<flow>.spec.ts` | Playwright + Synpress | Docker + MetaMask | `ui-e2e-synpress` |
-| **L4** System E2E (stack) | `run_e2e_lit.sh` → `smartcontracts/e2e/run-e2e-lit*.mjs` | bash + node + Docker | Docker + `CHIPOTLE_DIR` | `e2e-lit-integration` |
-| **L5** Acceptance (live) | `tests/<feature>.live.test.js` · `smartcontracts/e2e/run-e2e.mjs` | vitest / node | funded testnet keys | `devnet-e2e` |
+| **L4** System E2E (DRM gating, mock) | `smartcontracts/e2e/run-devnet-pa.mjs` via `docker-compose.yml --profile devnet-pa` | docker compose + node | Docker | `e2e-lit-integration` |
+| **L4** System E2E (real TEE, nightly) | `run_e2e_lit.sh` → `e2e/run-e2e-lit*.mjs` (needs the private upstream build) | bash + node + Docker | Docker + LIT creds (unavailable) | `chipotle-real-integration` |
+| **L5** Acceptance (live) | `tests/<feature>.live.test.js` · `smartcontracts/e2e/run-e2e.mjs` | vitest / node | funded testnet keys + `CHIPOTLE_API_KEY` | `devnet-e2e` |
 
 **Test-case identifiers.** Every documented case has a stable ID `TC-<UC>.<n>`
 bound to a use case `UC-<nn>` and traced in [RTM.md](./RTM.md). Example:
@@ -135,11 +141,16 @@ node smartcontracts/e2e/run-e2e.mjs   # full real-network flow
 `contracts.docker.test.js` (forge build/test + deploy smoke vs anvil).
 
 ### L4 — System E2E
-- **UI:** `e2e-synpress/specs/01-connect-network` … `06-content-access` (DRM
+- **UI (PR):** `e2e-synpress/specs/01-connect-network` … `06-content-access` (DRM
   unlock journey), driven by Synpress on `docker local-full`.
-- **DRM stack:** `run-e2e-lit-nft.mjs` (compose default: `hasCourseAccess` →
-  soulbound `AccessPass`), `run-e2e-lit.mjs` (`ClientNft.balanceOf` gate),
-  `run-devnet-pa.mjs` (P-A wrap/expiry). Orchestrated by `run_e2e_lit.sh`.
+- **DRM gating, mock Chipotle (PR):** `run-devnet-pa.mjs` via
+  `docker-compose.yml --profile devnet-pa` — purchase → `wrap_for_buyer` →
+  `setEncryptedKey` → decrypt (allowed) → Eve denied → double-wrap blocked →
+  expiry enforced. Verified green; no Rust/private-dep build.
+- **Real TEE (nightly, best-effort):** `run_e2e_lit.sh` →
+  `run-e2e-lit-nft.mjs` (`hasCourseAccess`→`AccessPass`) / `run-e2e-lit.mjs`
+  (`ClientNft.balanceOf`) — builds the upstream image; unbuildable in external CI
+  (private `zerossl`), so `chipotle-real-integration` is `continue-on-error`.
 
 ### L5 — Acceptance (live)
 `greenfield-testnet.live.test.js` (real testnet write + Chipotle DRM, chain 5600),
