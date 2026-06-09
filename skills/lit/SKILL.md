@@ -20,14 +20,22 @@ description: Интеграция Lit Protocol и Chipotle DRM в проекте
 ### Выбранный DRM-слой проекта: Chipotle (Lit v3)
 
 > [!IMPORTANT]
-> **Проект использует Chipotle (Lit v3).** Старые P2P-сети Lit (`datil`/`datil-test`/
-> `datil-dev`) **отключены 2026-02-25**, сеть **Naga тоже свёрнута** — Chipotle
-> заменяет обе. Везде, где в доках упоминается `datil*`, это **исторический/устаревший**
-> контекст.
+> **Проект использует Chipotle (Lit v3, generally available).** Хронология сетей
+> Lit (сверено июнь 2026 по [docs.dev.litprotocol.com](https://docs.dev.litprotocol.com/)
+> и блогу [Naga Network Sunset & Lit v3 Transition](https://spark.litprotocol.com/naga-network-sunset/)):
+> - **Datil (Lit v0)** — `datil`/`datil-test`/`datil-dev` **отключены 2026-02-25**;
+> - **Naga (Lit v1)** — кратко существовала (mainnet + Naga-testnet, SDK **v8**),
+>   но **полностью свёрнута 2026-04-01** (chain halted 03-25, full sunset 04-01);
+> - **Chipotle (Lit v3)** — **generally available**, ground-up rebuild, REST/HTTP
+>   поверх TEE на Phala, **SDK не требуется** → это таргет проекта.
+>
+> Итого на июнь 2026 **живых децентрализованных P2P-сетей Lit нет**; и Datil, и
+> Naga мертвы. Везде, где в доках/коде упоминается `datil*` или Naga/`v8 SDK`, это
+> **исторический/устаревший** контекст.
 >
 > ⚠️ **У Lit БОЛЬШЕ НЕТ ТЕСТНЕТОВ.** Публичных тестовых сетей не осталось (Datil
-> закрыт, Naga-faucet/доки 503, Chipotle живёт только на **Base mainnet**). Доступны
-> ровно **два режима**:
+> закрыт 2026-02-25, Naga свёрнута 2026-04-01, Chipotle живёт только на
+> **Base mainnet**). Доступны ровно **два режима**:
 > 1. **Локальная сборка** (дефолт для dev/devnet/CI, без реальных средств) — два варианта:
 >    - **полный локальный TEE** — реальный Chipotle (dstack-sim + `chipotle-real`) +
 >      локальный Greenfield + деплой NFT: наш композ
@@ -235,10 +243,12 @@ Protection*, *Video/Livestream Gating*). 💡 Для платных вебина
 | Chipotle Swagger / OpenAPI | `…/core/v1/swagger-ui` · `…/core/v1/openapi.json` | `lit-api-server` 0.1.0 |
 | Chipotle chain config | `GET …/core/v1/get_node_chain_config` | `{chain:"Base", chain_id:8453, testnet:false, contract:0xaAaAA9120fE271F653cfDb6bf400dB93D2DEa7Aa}` — ChainSecured Diamond (EIP-2535) на **Base mainnet** |
 | **Lit mainnet chain** (Chronicle) | RPC `https://lit-chain-rpc.litprotocol.com` · explorer `https://lit-chain-explorer.litprotocol.com` | **chain id 175200**; нативная L2-цепь Lit (PKP/контракты Lit) |
-| Документация | https://docs.dev.litprotocol.com/ ✅ | актуальные доки Chain-Secured TEE |
+| **Документация (каноничная)** ✅ | https://docs.dev.litprotocol.com/ | актуальные доки Chipotle / Chain-Secured TEE |
+| Блог: переход на v3 | https://spark.litprotocol.com/naga-network-sunset/ | даты sunset Naga (full 2026-04-01) и переход на Chipotle |
 | Phala TEE chain-of-trust | https://docs.phala.com/phala-cloud/attestation/chain-of-trust | модель доверия Chipotle prod |
 | ❌ `api.dev.litprotocol.com` | — | **мёртв** (TLS altname mismatch) — НЕ использовать |
-| ❌ Naga docs / Yellowstone faucet | naga.developer… / chronicle-yellowstone-faucet… | **503** — P2P-тестнеты Lit неактивны (Datil закрыт) |
+| ⚠️ Naga docs (legacy) | naga.developer.litprotocol.com | доки **свёрнутой** сети Naga (v1, sunset 2026-04-01) — не для нового кода; канон — docs.dev |
+| ❌ Yellowstone faucet / Datil | chronicle-yellowstone-faucet… | P2P-сети Lit (Datil) закрыты 2026-02-25 |
 
 > Auth Chipotle: `X-Api-Key`/`Bearer` (managed-аккаунт) **или** wallet-подпись
 > (ChainSecured, `*_with_signature`). Оплата — Stripe-кредиты (`/billing/*`) / x402;
@@ -283,18 +293,20 @@ Protection*, *Video/Livestream Gating*). 💡 Для платных вебина
 ### 7.3 ⚠️ Актуальность сетей (вычитано из #announcements / #dev-support, 2026)
 
 > [!CAUTION]
-> **Сеть Datil (Lit v0) ОТКЛЮЧЕНА с 2026-02-25.** Анонс из `#announcements`
-> (2026-02-03): *«Lit v0 (Datil network) is going to be shut down on 2/25»*.
-> Значит `datil` / `datil-test` / **`datil-dev`** больше не живут. Это напрямую
-> ломает текущий код, который дефолтит на Datil:
+> **Datil (Lit v0) ОТКЛЮЧЕНА 2026-02-25; Naga (Lit v1) ПОЛНОСТЬЮ СВЁРНУТА
+> 2026-04-01.** Анонсы: Datil — `#announcements` (2026-02-03) *«Lit v0 (Datil
+> network) is going to be shut down on 2/25»*; Naga — блог
+> [Naga Network Sunset & Lit v3 Transition](https://spark.litprotocol.com/naga-network-sunset/)
+> (chain halted 03-25, full sunset **04-01**). Значит ни `datil*`, ни Naga больше
+> не живут. Это ломает любой код, дефолтящий на Datil/Naga:
 > - [lit-sdk.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk.js) (`network='datil-test'`)
 > - `write-testnet-lit.mjs`, `write-devnet.mjs` (`datil-dev`)
 >
-> **Выбор проекта — Chipotle (Lit v3).** И **Datil, и Naga сворачиваются**
-> (в `#dev-support`: *«Naga-network is shutting down»*), поэтому таргетим Chipotle:
-> - **Chipotle (Lit v3)** — *«live on production»* (анонс 2026-04-07): ground-up
->   rebuild, REST/HTTP поверх TEE на Phala, **SDK не требуется**. В проекте уже есть
->   адаптер [lit-sdk-chipotle.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk-chipotle.js) (`/core/v1/lit_action`).
+> **Выбор проекта — Chipotle (Lit v3), generally available.** Таргетим Chipotle:
+> - **Chipotle (Lit v3)** — GA (анонс 2026-04-07, *«now generally available»*):
+>   ground-up rebuild, REST/HTTP поверх TEE на Phala, **SDK не требуется** (у Naga
+>   был SDK v8 — теперь неактуален). В проекте уже есть адаптер
+>   [lit-sdk-chipotle.js](file:///home/g/projects/antigravity/smartcontracts/buckets/lit-sdk-chipotle.js) (`/core/v1/lit_action`).
 > - Base-URL (✅ верифицирован 2026-05-26) — `https://api.chipotle.litprotocol.com/core/v1/`
 >   (42 пути, Swagger/OpenAPI там же). ⚠️ `api.dev.litprotocol.com` мёртв (TLS). Chipotle
 >   на **Base mainnet 8453** (отдельного тестнета нет); нативная Lit Chain — **175200**
