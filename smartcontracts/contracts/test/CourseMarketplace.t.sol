@@ -645,4 +645,57 @@ contract CourseMarketplaceTest is Test {
         assertEq(mp.pendingWithdrawals(author),            a);
         assertEq(p + w + a, price);
     }
+
+    // ── End-to-end P-A buyer flow: purchase → receive NFT → store Lit key ─────
+
+    /// The full content-buyer journey through the real AccessPass NFT:
+    ///   1. buyer pays → CourseMarketplace.purchase mints the soulbound pass
+    ///      to the buyer and grants on-chain access (the predicate the Lit
+    ///      Action reads via hasCourseAccess / AccessPass.hasAccess);
+    ///   2. the buyer now owns a tokenId (reverse-lookup via tokenIdOf) and
+    ///      holds a one-time wrapNonce (anti-drain guard for Chipotle credits);
+    ///   3. the buyer stores their address-bound Chipotle ciphertext (the
+    ///      wrapped Lit/master key, scheme P-A) via setEncryptedKey, which
+    ///      consumes the wrapNonce so no second wrap is possible.
+    /// This is the on-chain backbone of "how the buyer receives the NFT and how
+    /// the Lit key is stored in it".
+    function test_e2e_purchase_mintsPass_andBuyerStoresLitKey() public {
+        uint96 price = 1 ether;
+        uint256 courseId = _register(price);
+
+        // 1. Pay → pass minted to the buyer, access granted on-chain.
+        vm.prank(buyer);
+        mp.purchase{value: price}(courseId);
+        assertTrue(mp.hasCourseAccess(buyer, courseId), "buyer entitled after purchase");
+        assertTrue(pass.hasAccess(buyer, courseId), "AccessPass predicate true");
+
+        // 2. Buyer owns the NFT; a fresh wrapNonce was issued; key slot empty.
+        uint256 tokenId = pass.tokenIdOf(buyer, courseId);
+        assertGt(tokenId, 0, "buyer holds a tokenId");
+        assertEq(pass.ownerOf(tokenId), buyer, "buyer is the NFT owner");
+        assertGt(pass.wrapNonce(buyer, courseId), 0, "one-time wrapNonce issued at mint");
+        assertEq(pass.encryptedKey(tokenId).length, 0, "no Lit key stored yet");
+
+        // 3. Buyer stores the wrapped Lit key (Chipotle ciphertext) into the NFT.
+        bytes memory wrappedKey = hex"4c49545f4b4559"; // "LIT_KEY"
+        vm.prank(buyer);
+        pass.setEncryptedKey(tokenId, wrappedKey);
+        assertEq(pass.encryptedKey(tokenId), wrappedKey, "Lit key stored in the NFT");
+        assertEq(pass.wrapNonce(buyer, courseId), 0, "wrapNonce consumed (anti re-wrap)");
+
+        // The NFT remains soulbound — the buyer cannot resell their access.
+        vm.prank(buyer);
+        vm.expectRevert(AccessPass.Soulbound.selector);
+        pass.transferFrom(buyer, makeAddr("reseller"), tokenId);
+    }
+
+    /// The author is never minted a buyer pass and never pays — yet
+    /// hasCourseAccess is true for them (Lit gates author read/write on this).
+    /// Confirms the author "receives" access by authorship, not by an NFT mint.
+    function test_e2e_author_hasFreeAccess_withoutPassOrPayment() public {
+        uint256 courseId = _register(1 ether);
+        assertTrue(mp.hasCourseAccess(author, courseId), "author has free access");
+        assertEq(pass.tokenIdOf(author, courseId), 0, "author holds no buyer pass");
+        assertFalse(pass.hasAccess(author, courseId), "no AccessPass grant for author");
+    }
 }
