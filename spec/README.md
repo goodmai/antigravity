@@ -44,6 +44,7 @@ Central home for all specifications and design docs. (Lecture & lab texts stay u
 | [uc.md](./uc.md) | Use cases + Funding Matrix (per‑network native tokens) |
 | [tc.md](./tc.md) | Test cases mapped to suites |
 | [RTM.md](./RTM.md) | Requirements traceability matrix (req → code → test → doc) |
+| [REVIEW.md](./REVIEW.md) | Feasibility audit — Chipotle (Lit mainnet) + Greenfield testnet + NFT gate on BSC/opBNB testnet |
 | [sdettest.md](./sdettest.md) | SDET testing report |
 
 ## Protocol doc map
