@@ -511,6 +511,7 @@ services:
       - >
         if echo "$$RPC_URL" | grep -qvE 'anvil|127\.0\.0\.1|localhost' && [ "$$PRIVATE_KEY" = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" ]; then echo "REFUSING: well-known anvil dev key against non-local RPC ($$RPC_URL). Pass a real PRIVATE_KEY for testnet/mainnet."; exit 1; fi
         && (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
         && forge build
         && forge script script/Deploy.s.sol:Deploy
         --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
