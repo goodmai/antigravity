@@ -75,13 +75,16 @@ async function main() {
         { content, name: t.file, network, contentType: 'application/javascript', ...cfg },
         {},
       );
+      // Persist a token-LESS gateway URL — the gateway access token is a secret
+      // and must never be written to a committed artifact. Readers append
+      // ?pinataGatewayToken from PINATA_GATEWAY_KEY at read time.
       out[t.name] = {
         file: t.file,
         cid,
-        url: url ?? gatewayUrl(cid, { gateway: cfg.gateway || 'gateway.pinata.cloud', token: cfg.gatewayToken }),
+        url: gatewayUrl(cid, { gateway: cfg.gateway || 'gateway.pinata.cloud' }),
       };
       console.log(`✓ ${t.name}: ${cid}`);
-      console.log(`    ${out[t.name].url}`);
+      console.log(`    ${url ?? out[t.name].url}`); // console may show the token URL (ephemeral)
     }
     const mapPath = join(LIT_ACTIONS_DIR, 'cids.json');
     writeFileSync(mapPath, JSON.stringify(out, null, 2) + '\n');
