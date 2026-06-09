@@ -83,3 +83,75 @@ export function parseCid(json) {
   }
   return cid;
 }
+
+/**
+ * Pin a single file/blob to IPFS via Pinata.
+ * @param {{
+ *   content: string|Uint8Array|Blob,
+ *   name?: string,
+ *   network?: 'public'|'private',
+ *   contentType?: string,
+ *   jwt?: string, apiKey?: string, apiSecret?: string,
+ *   gateway?: string,
+ * }} opts
+ * @param {{ fetch?: typeof fetch, FormData?: typeof FormData, Blob?: typeof Blob }} [deps]
+ * @returns {Promise<{ cid: string, url?: string, raw: any }>}
+ */
+export async function pinFile(opts, deps = {}) {
+  const {
+    content,
+    name = 'file',
+    network = 'public',
+    contentType = 'application/octet-stream',
+    jwt,
+    apiKey,
+    apiSecret,
+    gateway,
+  } = opts ?? {};
+
+  const fetchImpl = deps.fetch ?? globalThis.fetch;
+  const FormDataImpl = deps.FormData ?? globalThis.FormData;
+  const BlobImpl = deps.Blob ?? globalThis.Blob;
+  if (typeof fetchImpl !== 'function') {
+    throw pinataError('no fetch implementation available', 'NO_FETCH');
+  }
+
+  // Auth FIRST — fail before constructing/sending the request when missing.
+  const headers = pinataAuthHeaders({ jwt, apiKey, apiSecret });
+
+  const form = new FormDataImpl();
+  const blob =
+    BlobImpl && content instanceof BlobImpl
+      ? content
+      : new BlobImpl([content], { type: contentType });
+  form.append('file', blob, name);
+  form.append('network', network);
+  form.append('name', name);
+
+  const res = await fetchImpl(PINATA_UPLOAD_URL, { method: 'POST', headers, body: form });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw pinataError(`upload failed (HTTP ${res.status}) ${detail}`.trim(), 'PINATA_UPLOAD_FAILED');
+  }
+  const json = await res.json();
+  const cid = parseCid(json);
+  return { cid, url: gateway ? gatewayUrl(cid, { gateway }) : undefined, raw: json };
+}
+
+/**
+ * Pin a JSON object (pretty-printed) to IPFS.
+ * @param {any} obj
+ * @param {Omit<Parameters<typeof pinFile>[0], 'content'|'contentType'>} [opts]
+ * @param {Parameters<typeof pinFile>[1]} [deps]
+ */
+export async function pinJson(obj, opts = {}, deps = {}) {
+  return pinFile(
+    {
+      ...opts,
+      content: JSON.stringify(obj, null, 2),
+      contentType: 'application/json',
+      name: opts.name ?? 'data.json',
+    },
+    deps,
+  );
+}
