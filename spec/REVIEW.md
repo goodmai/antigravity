@@ -37,10 +37,16 @@ publish to Greenfield testnet 5600, gate via **real** Chipotle
 `api.chipotle.litprotocol.com`) → `frontend`. Defaults: `NFT_GATING_CHAIN=bscTestnet`,
 `CHIPOTLE_URL=https://api.chipotle.litprotocol.com`, `GREENFIELD_SP=gnfd-testnet-sp1`.
 
-**Readiness:** ~85%. The crypto/contract layer and publish path are production-shaped
-(178/179 forge tests green, 100% line/func — see [audit.md](../smartcontracts/contracts/audit.md)).
-The open items are a **trust-model caveat (R-1)**, **config wiring (R-2)**, and
-**opBNB support being additive (R-3)** — none are architectural blockers.
+**Readiness — demo path:** ~85%. The crypto/contract layer and publish path are
+production-shaped (178/179 forge tests green, 100% line/func — see
+[audit.md](../smartcontracts/contracts/audit.md)); the shipped mainnet-lit flow
+runs today with owner-EOA minting and the mock `wrap_for_buyer`.
+
+**Readiness — trustless production:** ~55%. The decentralized enforcement
+mechanisms exist **as code** but are **not provisioned** as live PKP actions (no
+IPFS CID, no minted PKP, `claimSigner` is an EOA, `wrap_for_buyer` is mock-only)
+— see **R-1b** (the main blocker). Other open items: **trust-model caveat (R-1)**,
+**config wiring (R-2)**, **opBNB additive (R-3)** — none are architectural blockers.
 
 ## 3. Funding & network matrix (this combo)
 
@@ -99,6 +105,34 @@ BSC testnet** (or opBNB testnet) RPC, e.g. `https://bsc-testnet-rpc.publicnode.c
 **Recommendation:** rename `ANVIL_RPC` → `GATING_RPC` (keep `ANVIL_RPC` as a
 fallback alias) and set it explicitly in `docker-compose.mainnet-lit.yml`; assert
 non-localhost when `CHIPOTLE_URL` is the real endpoint.
+
+### R-1b — PKP actions are code-ready but **not provisioned** · Severity: High (blocker for the trustless path)
+
+The enforcement mechanisms R-1 recommends exist as **code + contract + unit
+tests**, but neither is deployed as a live PKP-backed Lit Action on real Chipotle:
+
+- **`claim-signer.action.js`** (mint authorization): action JS written; contract
+  side (`claimWithSig`/`setClaimSigner`/nonce/replay/deadline) fully forge-tested;
+  EIP-712 digest byte-parity unit-tested (`tests/claim-eip712.test.js`). **Missing:**
+  not pinned to IPFS (no CID), no Chipotle PKP minted/assigned to the CID,
+  `DeployAccessNfts` sets `claimSigner = deployer` (an EOA, **not** a PKP), and
+  **no caller** wires it in — `docker-compose.mainnet-lit.yml` mints directly via
+  the owner key (`cast send … mint`). So today minting is centralized (owner EOA),
+  not trustless.
+- **`wrap_for_buyer`** (decrypt-side P-A address-binding — the actual key release):
+  implemented **only in the mock** (`greenfield-testnet/chipotle-mock.mjs`,
+  exercised by `e2e/run-devnet-pa.mjs`). On real Chipotle it is **not** a built-in
+  REST endpoint — it must be deployed as a custom Lit Action backed by a PKP/vault
+  holding the master key.
+
+**To make the trustless path real:** (1) pin both actions to IPFS; (2) mint a
+Chipotle PKP and assign it to each action CID; (3) `nft.setClaimSigner(pkpEvmAddr)`;
+(4) add the caller that POSTs `claim-signer` and submits the returned signature to
+`claimWithSig`; (5) deploy `wrap_for_buyer` as a PKP-backed action on real Chipotle
+and point the reader at it. Until then the shipped mainnet-lit flow relies on the
+**owner EOA for minting** and the **mock for `wrap_for_buyer`** — acceptable for a
+demo, not for production. See [NFT.md §4](../smartcontracts/contracts/NFT.md#4-lit-action--децентрализованный-claim-signer)
+and [Lit skill §7.5](../skills/lit/SKILL.md).
 
 ### R-3 — opBNB testnet support is additive · Severity: Medium (scope)
 
@@ -163,7 +197,8 @@ This topology already defaults to the soulbound `ClientNft`.
 - [ ] Deploy `DeployAccessNfts` + `CourseMarketplace` to the chosen gate chain (97 or 5611); record addresses.
 - [ ] Set `NFT_GATING_CHAIN`, `NFT_GATING_CONTRACT`/`MARKETPLACE_ADDR`, `COURSE_ID`.
 - [ ] Set `GATING_RPC` (R-2) to a public gate-chain RPC; for opBNB also extend `CHAIN_RPCS` (R-3).
-- [ ] Decide the enforcement TCB (R-1): server-side reader for paid tiers + P-A address-binding; wire the PKP `claim-signer` action.
+- [ ] Decide the enforcement TCB (R-1): server-side reader for paid tiers + P-A address-binding.
+- [ ] **Provision the PKP actions (R-1b)** — pin `claim-signer` + `wrap_for_buyer` to IPFS, mint a Chipotle PKP per CID, `setClaimSigner(pkpEvmAddr)`, add the claim-signer caller, deploy `wrap_for_buyer` on real Chipotle. (Until done: minting is owner-EOA and `wrap_for_buyer` is mock-only.)
 - [ ] Publish via `write-devnet.mjs`; verify manifest round-trip and `readObjectWithRetry` on the SP (R-5).
 - [ ] Negative tests: pre-purchase DENIED, post-purchase ALLOWED, post-expiry DENIED, soulbound transfer reverts, RPC-down fails closed (R-6).
 
