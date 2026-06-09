@@ -56,16 +56,20 @@ export function normalizeGateway(gateway) {
 }
 
 /**
- * Public gateway URL for a CID on the dedicated gateway.
+ * Public gateway URL for a CID on the dedicated gateway. If a gateway access
+ * `token` is given (Pinata "Gateway Key"), it is appended as
+ * `?pinataGatewayToken=…` — required to read content from a restricted dedicated
+ * gateway.
  * @param {string} cid
- * @param {{ gateway?: string }} [opts]
+ * @param {{ gateway?: string, token?: string }} [opts]
  * @returns {string}
  */
-export function gatewayUrl(cid, { gateway } = {}) {
+export function gatewayUrl(cid, { gateway, token } = {}) {
   if (typeof cid !== 'string' || cid.trim().length === 0) {
     throw pinataError('a CID is required', 'INVALID_CID');
   }
-  return `https://${normalizeGateway(gateway)}/ipfs/${cid.trim()}`;
+  const base = `https://${normalizeGateway(gateway)}/ipfs/${cid.trim()}`;
+  return token ? `${base}?pinataGatewayToken=${token}` : base;
 }
 
 /**
@@ -107,6 +111,7 @@ export async function pinFile(opts, deps = {}) {
     apiKey,
     apiSecret,
     gateway,
+    gatewayToken,
   } = opts ?? {};
 
   const fetchImpl = deps.fetch ?? globalThis.fetch;
@@ -135,7 +140,11 @@ export async function pinFile(opts, deps = {}) {
   }
   const json = await res.json();
   const cid = parseCid(json);
-  return { cid, url: gateway ? gatewayUrl(cid, { gateway }) : undefined, raw: json };
+  return {
+    cid,
+    url: gateway ? gatewayUrl(cid, { gateway, token: gatewayToken }) : undefined,
+    raw: json,
+  };
 }
 
 /**

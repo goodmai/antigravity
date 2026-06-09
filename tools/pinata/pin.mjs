@@ -75,7 +75,11 @@ async function main() {
         { content, name: t.file, network, contentType: 'application/javascript', ...cfg },
         {},
       );
-      out[t.name] = { file: t.file, cid, url: url ?? gatewayUrl(cid, { gateway: cfg.gateway || 'gateway.pinata.cloud' }) };
+      out[t.name] = {
+        file: t.file,
+        cid,
+        url: url ?? gatewayUrl(cid, { gateway: cfg.gateway || 'gateway.pinata.cloud', token: cfg.gatewayToken }),
+      };
       console.log(`✓ ${t.name}: ${cid}`);
       console.log(`    ${out[t.name].url}`);
     }

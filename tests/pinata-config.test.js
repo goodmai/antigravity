@@ -11,12 +11,14 @@ describe('pinataConfigFromEnv', () => {
       PINATA_API_KEY: 'k',
       PINATA_API_SECRET: 's',
       PINATA_GATEWAY: 'bronze-junior-ant-598.mypinata.cloud',
+      PINATA_GATEWAY_KEY: 'gwtok',
     });
     expect(cfg).toEqual({
       jwt: 'jwt',
       apiKey: 'k',
       apiSecret: 's',
       gateway: 'bronze-junior-ant-598.mypinata.cloud',
+      gatewayToken: 'gwtok',
     });
   });
 
@@ -25,9 +27,15 @@ describe('pinataConfigFromEnv', () => {
     expect(cfg.apiSecret).toBe('s2');
   });
 
+  it('accepts the PINATA_GATEWAY_TOKEN alias for the gateway key', () => {
+    expect(pinataConfigFromEnv({ PINATA_GATEWAY_TOKEN: 'tok2' }).gatewayToken).toBe('tok2');
+  });
+
   it('returns undefined for absent vars (no empty strings)', () => {
     const cfg = pinataConfigFromEnv({});
-    expect(cfg).toEqual({ jwt: undefined, apiKey: undefined, apiSecret: undefined, gateway: undefined });
+    expect(cfg).toEqual({
+      jwt: undefined, apiKey: undefined, apiSecret: undefined, gateway: undefined, gatewayToken: undefined,
+    });
   });
 });
 

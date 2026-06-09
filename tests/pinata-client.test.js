@@ -78,6 +78,18 @@ describe('gatewayUrl', () => {
   it('throws on a missing gateway', () => {
     expect(() => gatewayUrl('QmAbc', {})).toThrowError(/INVALID_GATEWAY/);
   });
+
+  it('appends a gateway access token as ?pinataGatewayToken when given', () => {
+    expect(gatewayUrl('QmAbc', { gateway: 'g.mypinata.cloud', token: 'TOK123' })).toBe(
+      'https://g.mypinata.cloud/ipfs/QmAbc?pinataGatewayToken=TOK123',
+    );
+  });
+
+  it('omits the query when no token is given', () => {
+    expect(gatewayUrl('QmAbc', { gateway: 'g.mypinata.cloud' })).toBe(
+      'https://g.mypinata.cloud/ipfs/QmAbc',
+    );
+  });
 });
 
 describe('parseCid', () => {

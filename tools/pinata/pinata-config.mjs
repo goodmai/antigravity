@@ -18,6 +18,7 @@ export function pinataConfigFromEnv(env = {}) {
     apiKey: pick(env.PINATA_API_KEY),
     apiSecret: pick(env.PINATA_API_SECRET) ?? pick(env.PINATA_SECRET_API_KEY),
     gateway: pick(env.PINATA_GATEWAY),
+    gatewayToken: pick(env.PINATA_GATEWAY_KEY) ?? pick(env.PINATA_GATEWAY_TOKEN),
   };
 }
 

@@ -26,6 +26,7 @@ Lit-экшена, чтобы привязать к нему PKP (только э
 | `PINATA_JWT` | **рекомендуется** — Bearer JWT из Pinata App, работает с v3 upload API |
 | `PINATA_API_KEY` + `PINATA_API_SECRET` | legacy-пара (нужны **обе** для загрузки) |
 | `PINATA_GATEWAY` | dedicated gateway host без протокола, напр. `bronze-junior-ant-598.mypinata.cloud` |
+| `PINATA_GATEWAY_KEY` | gateway access token (Pinata "Gateway Key") для чтения restricted-гейтвея → `?pinataGatewayToken=…` (алиас `PINATA_GATEWAY_TOKEN`) |
 
 > ⚠️ **Только `PINATA_API_KEY` (id ключа) для загрузки НЕ хватает.** Проверено
 > вживую (2026-06): значение-только-ключ возвращает **HTTP 401 "Not Authorized"**
@@ -77,7 +78,27 @@ const { cid, url } = await pinFile(
 - **legacy:** `POST https://api.pinata.cloud/pinning/pinFileToIPFS` с заголовками
   `pinata_api_key` / `pinata_secret_api_key`; ответ `{ IpfsHash }`. `parseCid`
   понимает обе формы.
-- **чтение:** `https://<gateway>/ipfs/<cid>`.
+- **чтение:** `https://<gateway>/ipfs/<cid>` (+ `?pinataGatewayToken=<PINATA_GATEWAY_KEY>`
+  для restricted-гейтвея). `gatewayUrl(cid, { gateway, token })` собирает это.
+
+## Две поверхности Pinata API (не путать)
+
+Pinata экспонирует **два разных API** — для нашей задачи (пиннинг Lit-actions в
+IPFS) нужен **первый**:
+
+| Поверхность | Хост | Auth | Для чего |
+| :--- | :--- | :--- | :--- |
+| **Files / Pinning API** ← *мы используем это* | `uploads.pinata.cloud/v3/files`, `api.pinata.cloud` | Bearer JWT (или legacy key+secret) | загрузка/пиннинг файлов в IPFS → CID; чтение через gateway |
+| **Agents API** (отдельный продукт) | `agents.pinata.cloud`, `{agentId}.agents.pinata.cloud` | Pinata JWT / per-agent gateway token | AI-агенты Pinata и их **«Skills»** (модульные способности, ≤10 на агента) + community-хаб `/v0/clawhub` |
+
+> ⚠️ **«Skills» в Agents API — это НЕ Claude Code skills и не наш Lit-флоу.** Это
+> собственная концепция Pinata (`GET/POST /v0/skills`, `/v0/agents/{id}/skills`,
+> `/v0/clawhub`). Нам она не нужна для пиннинга экшенов; упомянута, чтобы не
+> спутать поверхности. OpenAPI: `https://agents.pinata.cloud/openapi`.
+
+OpenAPI каждой поверхности:
+- Files/Upload API — [docs.pinata.cloud/api-reference/endpoint/upload-a-file](https://docs.pinata.cloud/api-reference/endpoint/upload-a-file)
+- Agents API — `https://agents.pinata.cloud/openapi` ([docs](https://docs.pinata.cloud/agents/api#skills))
 
 ## Безопасность
 - `.env` в `.gitignore` (проверено: `git check-ignore .env`). CLI читает `.env`
