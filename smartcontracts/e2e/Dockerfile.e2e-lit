@@ -1,0 +1,10 @@
+# Daskibo Academy — Same-Network Lit NFT Gating E2E runner container
+FROM node:22-bookworm
+
+WORKDIR /app
+COPY package.json /app/package.json
+RUN npm install --no-audit --no-fund
+COPY run-e2e-lit.mjs /app/run-e2e-lit.mjs
+COPY run-e2e-lit-nft.mjs /app/run-e2e-lit-nft.mjs
+
+CMD ["node", "/app/run-e2e-lit.mjs"]

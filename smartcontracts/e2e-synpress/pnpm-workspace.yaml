@@ -1,0 +1,12 @@
+# Single-package "workspace": pnpm 11 reads project settings only from this file
+# (the package.json "pnpm" field is no longer honoured). packages: marks this dir
+# as the workspace root so the settings below apply.
+#
+# pnpm 10+ blocks dependency build scripts by default; synpress bundles the wallet
+# setup with esbuild, whose postinstall links the platform binary, so esbuild must
+# be allowed to build — otherwise `pnpm install` aborts with ERR_PNPM_IGNORED_BUILDS
+# (fatal in CI on a fresh install). pnpm 11 tracks this approval under allowBuilds.
+packages:
+  - .
+allowBuilds:
+  esbuild: true

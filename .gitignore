@@ -5,6 +5,55 @@ venv/
 env/
 __pycache__/
 *.pyc
+.pytest_cache/
 
 node_modules/
 package-lock.json
+
+# Build and Test Artifacts
+coverage/
+.nyc_output/
+dist/
+build/
+artifacts/*/test/
+out/
+.screenshots/
+test_results.md
+installed_skills_ls.txt
+screenshot_list.txt
+security_checklist.xlsx
+
+.env
+.env.*
+!.env.example
+
+logs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# Local demo deploy output (run_demo.sh)
+smartcontracts/demo/addresses.json
+smartcontracts/demo/manifest-*.json
+
+# Cloned MetaMask extension and scratch scripts
+scratch/
+
+# Temp files and Chrome logs
+.chrome-user-data/
+*.log
+test-results/
+lcov.info
+.cache-synpress/
+**/smartcontracts/e2e-synpress/.cache-synpress/
+
+
+
+

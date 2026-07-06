@@ -1,0 +1,41 @@
+# Real BNB Greenfield — local PRIVATE network, clean state on every boot.
+#
+# Builds the official `bnb-chain/greenfield` node from source and runs the
+# canonical local-up script, which launches real validators + storage
+# providers producing real blocks (chain-id greenfield_9000-1). No host
+# volumes are mounted for chain data, so every `up` starts from a fresh
+# genesis — i.e. a private chain with clean state.
+#
+# Source of truth for the commands baked into the image:
+#   https://github.com/bnb-chain/greenfield  (deployment/localup/localup.sh)
+#
+# Heavy (Go build + multi-process chain). Pin the node version via the
+# GREENFIELD_REF build arg. Default test run skips the matching test
+# unless RUN_GREENFIELD_LOCAL=1 is set.
+#
+#   docker compose -f smartcontracts/greenfield-local/docker-compose.yml up -d --build
+#   curl -s localhost:26750/status | jq .result.node_info.network   # greenfield_9000-1
+#   docker compose -f smartcontracts/greenfield-local/docker-compose.yml down -v
+
+services:
+  greenfield-local:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Pin to a release tag for reproducibility; `master` for latest dev.
+        GREENFIELD_REF: ${GREENFIELD_REF:-master}
+        VALIDATORS: ${VALIDATORS:-1}
+        SPS: ${SPS:-1}
+    # Clean state: NO volumes — chain data lives only in the container layer
+    # and is destroyed on `down`. Each boot re-runs localup from genesis.
+    ports:
+      - "26750:26750"   # validator0 Tendermint RPC
+      - "9033:9033"     # sp0 HTTP gateway (confirm via `localup.sh print`)
+      - "1317:1317"     # cosmos REST (if enabled by localup)
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped && curl -sf http://127.0.0.1:9033/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 80
+      start_period: 120s

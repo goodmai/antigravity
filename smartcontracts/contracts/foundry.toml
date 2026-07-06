@@ -1,0 +1,24 @@
+[profile.default]
+src = "src"
+test = "test"
+out = "out"
+libs = ["lib"]
+solc = "0.8.28"
+# OpenZeppelin v5.6 emits `mcopy`, which requires Cancun. The local Lit/Base
+# anvil and BSC/Base targets all support Cancun.
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+# Most of `src/` is self-contained; the soulbound access NFTs (AuthorNft /
+# ClientNft, the Lit-gating ERC721s) use OpenZeppelin. Install deps with:
+#   forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+]
+
+[fuzz]
+runs = 256
+# Pin the fuzz seed so `forge snapshot --check` is deterministic — without it
+# fuzz-test gas varies run-to-run and the committed .gas-snapshot never matches.
+seed = "0x1"

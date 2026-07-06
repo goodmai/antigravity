@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Урок 32: Хостинг сайта на BNB Greenfield | Anti-Gravity Academy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="../../academy/css/academy.css" />
+    <style>
+      :root {
+        --bg-dark: #020617;
+        --card-bg: rgba(30, 41, 59, 0.5);
+        --accent-primary: #38bdf8;
+        --accent-secondary: #818cf8;
+        --text-main: #f8fafc;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.1);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: var(--bg-dark);
+        background-image:
+          radial-gradient(circle at 20% 20%, rgba(56,189,248,.05) 0%, transparent 25%),
+          radial-gradient(circle at 80% 80%, rgba(129,140,248,.04) 0%, transparent 25%);
+        color: var(--text-main); line-height: 1.7;
+      }
+      .lesson-container { max-width: 880px; margin: 0 auto; padding: 60px 24px 100px; }
+      header {
+        background: var(--card-bg); border: 1px solid var(--glass-border);
+        backdrop-filter: blur(12px); padding: 18px 24px; border-radius: 16px;
+        margin-bottom: 32px;
+      }
+      .back-link { text-decoration: none; color: var(--accent-primary); font-weight: 600; }
+      h1 {
+        font-size: 2.5rem; font-weight: 800; letter-spacing: -.025em; margin: 24px 0 16px;
+        background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      }
+      h2 { font-size: 1.6rem; font-weight: 700; margin: 36px 0 14px; color: var(--text-main); }
+      h3 { font-size: 1.2rem; font-weight: 600; margin: 24px 0 10px; color: var(--accent-primary); }
+      p { margin: .7em 0; color: var(--text-main); }
+      ul, ol { padding-left: 1.4em; margin: .6em 0; }
+      li { margin: .3em 0; }
+      blockquote {
+        border-left: 3px solid var(--accent-primary); padding: .6em 1em; margin: 1em 0;
+        color: var(--text-dim); background: rgba(56,189,248,.04);
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        background: rgba(255,255,255,.07); padding: .12em .4em;
+        border-radius: 6px; font-size: .92em;
+      }
+      pre {
+        background: rgba(0,0,0,.45); border: 1px solid var(--glass-border);
+        border-radius: 12px; padding: 18px; overflow: auto; margin: 1em 0;
+      }
+      pre code { background: none; padding: 0; font-size: .9em; line-height: 1.55; }
+      hr { border: none; border-top: 1px solid var(--glass-border); margin: 2em 0; }
+      table { border-collapse: collapse; margin: 1em 0; width: 100%; }
+      table th, table td { border-bottom: 1px solid var(--glass-border); padding: 8px 12px; text-align: left; }
+      table th { background: rgba(56,189,248,.06); }
+      a { color: var(--accent-primary); }
+      footer { text-align: center; color: var(--text-dim); padding: 40px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div class="lesson-container">
+      <header>
+        <a href="../index.html" class="back-link">← Назад к списку уроков</a>
+      </header>
+
+      <main>
+        <h1>Урок 32: Хостинг сайта на BNB Greenfield</h1>
+
+        <blockquote>
+          <p>Пошаговый гайд по размещению статического сайта в децентрализованном хранилище BNB Greenfield. Создадим бакет, зальём <code>index.html</code> + CSS + картинку, разберём URL-формат, поймаем главную граблю с <code>--contentType</code>, и в конце соберём hello-world-скрипт на Node.js, который делает то же самое программно.</p>
+          <p>Источник: <a href="https://docs.bnbchain.org/bnb-greenfield/for-developers/tutorials/hosting-websites-overview/" target="_blank" rel="noopener">BNB Greenfield Hosting Tutorial</a>.</p>
+        </blockquote>
+
+        <hr />
+
+        <h2>Введение</h2>
+        <p>Обычный веб-хостинг сводится к «арендуй сервер, отдай ему файлы, направь домен». Это работает, но имеет известные минусы: единая точка отказа, сервер может пропасть, провайдер может cделать takedown, а ты — заложник одной компании.</p>
+        <p><strong>BNB Greenfield</strong> — децентрализованное хранилище в экосистеме BNB Chain. Файлы лежат не на одной машине, а реплицируются между независимыми <strong>Storage Providers</strong> (SP); метаданные живут в собственной Cosmos-чейне Greenfield (<code>greenfield_1017-1</code> mainnet, <code>greenfield_5600-1</code> testnet). Любой сайт из статических файлов (HTML/CSS/JS/изображения) можно полностью разместить там — без серверов, без хостеров.</p>
+        <p>Этот урок — практический. Пройдём весь путь: от <code>gnfd-cmd init</code> до открытия <code>https://&lt;sp&gt;/view/&lt;bucket&gt;/index.html</code> в браузере.</p>
+
+        <hr />
+
+        <h2>1. Архитектура: bucket, object, SP, URL</h2>
+
+        <h3>Bucket (бакет)</h3>
+        <p>Контейнер для файлов, чем-то напоминает S3-бакет: глобально уникальное имя в нижнем регистре (<code>[a-z0-9-]</code>), 3–63 символа. Принадлежит одному адресу (owner), имеет <strong>primary SP</strong> — основной провайдер хранения. На testnet SP-адреса публикуются в реестре, например:</p>
+        <table>
+          <thead><tr><th>SP</th><th>EVM-адрес</th><th>View-эндпойнт</th></tr></thead>
+          <tbody>
+            <tr><td>SP1</td><td><code>0x231099e40E1f98879C4126ef35D82FF006F24fF2</code></td><td><code>https://gnfd-testnet-sp1.bnbchain.org</code></td></tr>
+            <tr><td>SP2</td><td><code>0xCe1A0D9DDE7Ed3a4D9Eb9eB73FbBC2AC93A30A88</code></td><td><code>https://gnfd-testnet-sp-2.bnbchain.org</code></td></tr>
+          </tbody>
+        </table>
+        <p>Бакет создаётся on-chain транзакцией <code>MsgCreateBucket</code> — за неё платится комиссия в BNB.</p>
+
+        <h3>Object (объект)</h3>
+        <p>Файл внутри бакета. Имя — это <strong>полный путь</strong> относительно бакета (можно с «подпапками»: <code>assets/img/plato.jpg</code> — никаких настоящих папок в Greenfield нет, это просто часть имени). У объекта обязательно есть:</p>
+        <ul>
+          <li><code>contentType</code> (MIME) — критично для сайта, иначе браузер не отрендерит,</li>
+          <li><code>visibility</code> (<code>public-read</code> / <code>private</code> / <code>inherit</code>) — кто может скачать,</li>
+          <li><code>payload size</code> — размер для оплаты хранения.</li>
+        </ul>
+
+        <h3>Storage Provider</h3>
+        <p>SP — нода, которая принимает и отдаёт байты, выставляя HTTP-эндпойнт. Один primary SP + secondary-копии (erasure coding 4+2): даже если 2 из 6 SP'ов исчезнут, объект восстанавливается.</p>
+
+        <h3>Greenfield URL</h3>
+        <pre><code>gnfd://&lt;bucket_name&gt;/&lt;object_name&gt;?[parameter]*</code></pre>
+        <p>Это «нативный» формат для on-chain ссылок. Для браузера используется HTTP-вариант через view-эндпойнт SP:</p>
+        <pre><code>https://&lt;sp-host&gt;/view/&lt;bucket_name&gt;/&lt;object_name&gt;</code></pre>
+        <p><code>view</code> — стримит файл inline с правильным content-type (если он указан). Для скачивания — <code>/download/...</code>.</p>
+
+        <hr />
+
+        <h2>2. Подготовка</h2>
+
+        <h3>2.1 Установка gnfd-cmd</h3>
+        <pre><code># из исходников (Go 1.20+)
+git clone https://github.com/bnb-chain/greenfield-cmd
+cd greenfield-cmd
+make build
+sudo install build/gnfd-cmd /usr/local/bin/
+gnfd-cmd version</code></pre>
+        <p>Или скачать <a href="https://github.com/bnb-chain/greenfield-cmd/releases" target="_blank" rel="noopener">release-бинарник</a>.</p>
+
+        <h3>2.2 Конфиг и ключ</h3>
+        <pre><code># keystore зашифрован паролем; ключ в plaintext нигде не лежит
+gnfd-cmd keystore generate
+
+# Initialization — testnet endpoints
+gnfd-cmd config set rpcAddr "https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org:443"
+gnfd-cmd config set chainId  "greenfield_5600-1"</code></pre>
+
+        <h3>2.3 Пополнение баланса</h3>
+        <p>Greenfield использует BNB для газа и <strong>отдельный «payment account»</strong> для оплаты хранения/трафика. Тестнет-faucet даёт оба:</p>
+        <ul>
+          <li><a href="https://gnfd-testnet-faucet.bnbchain.org" target="_blank" rel="noopener">gnfd-testnet-faucet.bnbchain.org</a> — tBNB на твой адрес,</li>
+          <li><code>gnfd-cmd payment deposit --amount 0.05</code> — перевести часть в payment-аккаунт.</li>
+        </ul>
+        <pre><code>gnfd-cmd bank balance        # газовый счёт
+gnfd-cmd payment ls          # хранилище / стриминговая оплата</code></pre>
+
+        <hr />
+
+        <h2>3. Создаём bucket</h2>
+        <p>Имя бакета должно быть <strong>глобально уникальным</strong>. Используй префикс/timestamp.</p>
+        <pre><code>gnfd-cmd bucket create \
+  --visibility public-read \
+  --primarySP 0x231099e40E1f98879C4126ef35D82FF006F24fF2 \
+  gnfd://my-hello-world-$(date +%s)</code></pre>
+        <p>Ответ:</p>
+        <pre><code>make_bucket: my-hello-world-1716902400
+transaction hash: E083FB2647D0A53640B63AD1DB8EFA0E1C5CC05454C0774E3DB2A4822E73D423</code></pre>
+        <p>Проверь в <a href="https://testnet.greenfieldscan.com" target="_blank" rel="noopener">testnet.greenfieldscan.com</a> — там будет тx <code>MsgCreateBucket</code>.</p>
+        <blockquote><p><strong>Цена.</strong> Создание бакета — несколько центов tBNB газа. Хранение оплачивается отдельно через streaming-payment в зависимости от суммарного размера объектов.</p></blockquote>
+
+        <hr />
+
+        <h2>4. Готовим hello-world сайт</h2>
+        <p>Минимум три файла. Создаём папку <code>site/</code>:</p>
+
+        <p><strong><code>site/index.html</code></strong>:</p>
+        <pre><code>&lt;!doctype html&gt;
+&lt;html lang="ru"&gt;
+  &lt;head&gt;
+    &lt;meta charset="UTF-8" /&gt;
+    &lt;title&gt;Hello, Greenfield!&lt;/title&gt;
+    &lt;link rel="stylesheet" href="styles.css" /&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;Hello, Greenfield 🌱&lt;/h1&gt;
+    &lt;p&gt;Этот сайт лежит в децентрализованном хранилище BNB Greenfield.&lt;/p&gt;
+    &lt;img src="logo.png" alt="logo" /&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+        <p><strong><code>site/styles.css</code></strong>:</p>
+        <pre><code>body{font-family:system-ui,sans-serif;background:#0b0d12;color:#e2e8f0;
+     max-width:640px;margin:4em auto;padding:0 1em;line-height:1.6}
+h1{background:linear-gradient(to right,#38bdf8,#818cf8);
+   -webkit-background-clip:text;background-clip:text;color:transparent}
+img{max-width:200px;margin-top:1em}</code></pre>
+
+        <p><strong><code>site/logo.png</code></strong> — любая картинка-логотип.</p>
+
+        <blockquote><p>Используем <strong>относительные пути</strong> (<code>href="styles.css"</code>, <code>src="logo.png"</code>). Это работает, потому что все файлы — внутри одного бакета, и браузер резолвит относительный путь от текущего URL, который указывает в этот же бакет.</p></blockquote>
+
+        <hr />
+
+        <h2>5. Загружаем файлы — ВАЖНО про <code>--contentType</code></h2>
+        <p>Главная ошибка из туториала BNB: если не указать MIME-тип, объект отдаётся как <code>application/octet-stream</code>, и браузер либо <strong>скачивает файл вместо рендера</strong>, либо <strong>отказывается применять CSS</strong> из-за strict MIME checking.</p>
+        <blockquote><p><strong>Greenfield — immutable storage.</strong> Чтобы «обновить» объект, его нужно удалить и залить заново. Поэтому лучше сразу указать правильный <code>--contentType</code>.</p></blockquote>
+        <pre><code>BUCKET="gnfd://my-hello-world-1716902400"
+
+# HTML — text/html
+gnfd-cmd object put \
+  --visibility public-read --contentType text/html \
+  ./site/index.html "$BUCKET/index.html"
+
+# CSS — text/css
+gnfd-cmd object put \
+  --visibility public-read --contentType text/css \
+  ./site/styles.css "$BUCKET/styles.css"
+
+# Картинка — image/png
+gnfd-cmd object put \
+  --visibility public-read --contentType image/png \
+  ./site/logo.png "$BUCKET/logo.png"</code></pre>
+        <p>Каждая команда вернёт что-то вроде:</p>
+        <pre><code>object index.html created on chain
+transaction hash: 20921F3C1DBE3F911217CE82BDC9DC2A745AF61912651A5F9D80F10989A8FC20
+sealing...
+upload index.html to gnfd://my-hello-world-1716902400/index.html</code></pre>
+        <p>«Sealing» — асинхронная фаза, когда SP'ы реплицируют объект и подписывают onchain-подтверждение. Занимает ~30–90 секунд. Пока не запечатан — <code>view</code>-эндпойнт может вернуть 404.</p>
+
+        <h3>Проверяем</h3>
+        <p>Открой в браузере:</p>
+        <pre><code>https://gnfd-testnet-sp1.bnbchain.org/view/my-hello-world-1716902400/index.html</code></pre>
+        <p>(подставь свой bucket name). Если CSS не применился — проверь content-type через <code>gnfd-cmd object stat</code> и переаплоадь с правильным MIME.</p>
+
+        <hr />
+
+        <h2>6. Hello-World скрипт на Node.js</h2>
+        <p>Тот же результат, но через JS SDK. Удобно для CI, авто-деплоя и встраивания в build-пайплайны.</p>
+        <p><strong><code>upload-site.mjs</code></strong>:</p>
+        <pre><code>import { Client } from '@bnb-chain/greenfield-js-sdk';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// ── 0. Конфиг ────────────────────────────────────────────────────────────
+const RPC      = 'https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org';
+const CHAIN_ID = 5600;
+const SP       = 'https://gnfd-testnet-sp1.bnbchain.org';
+const PRIMARY_SP = '0x231099e40E1f98879C4126ef35D82FF006F24fF2';
+
+const PK   = process.env.GREENFIELD_TESTNET_PRIVATE_KEY;
+const ADDR = process.env.GREENFIELD_TESTNET_ADDRESS;
+if (!PK || !ADDR) throw new Error('Set GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS');
+
+const BUCKET = `hello-${Date.now().toString(36)}`;
+const SITE_DIR = './site';
+const FILES = [
+  { path: 'index.html', mime: 'text/html' },
+  { path: 'styles.css', mime: 'text/css' },
+  { path: 'logo.png',   mime: 'image/png' },
+];
+
+// ── 1. Клиент ────────────────────────────────────────────────────────────
+const client = Client.create(RPC, String(CHAIN_ID));
+
+// ── 2. Создаём bucket ────────────────────────────────────────────────────
+console.log(`→ Creating bucket ${BUCKET}…`);
+const createTx = await client.bucket.createBucket({
+  bucketName: BUCKET,
+  creator: ADDR,
+  visibility: 'VISIBILITY_TYPE_PUBLIC_READ',
+  chargedReadQuota: '0',
+  primarySpAddress: PRIMARY_SP,
+  paymentAddress: ADDR,
+});
+const sim = await createTx.simulate({ denom: 'BNB' });
+const broadcast = await createTx.broadcast({
+  denom: 'BNB',
+  gasLimit: Number(sim.gasLimit),
+  gasPrice: sim.gasPrice,
+  payer: ADDR,
+  granter: '',
+  privateKey: PK,
+});
+if (broadcast.code !== 0) throw new Error(`createBucket failed: ${broadcast.rawLog}`);
+console.log(`  ✓ bucket tx ${broadcast.transactionHash}`);
+
+// ── 3. Заливаем файлы (SP создаёт объекты on-chain) ──────────────────────
+for (const f of FILES) {
+  const body = readFileSync(resolve(SITE_DIR, f.path));
+  console.log(`→ Uploading ${f.path} (${f.mime}, ${body.length} B)…`);
+  await client.object.delegateUploadObject({
+    bucketName: BUCKET,
+    objectName: f.path,
+    body: new File([body], f.path, { type: f.mime }),
+    delegatedOpts: { visibility: 'VISIBILITY_TYPE_PUBLIC_READ' },
+    endpoint: SP,
+  }, { type: 'ECDSA', privateKey: PK });
+  console.log(`  ✓ ${f.path}`);
+}
+
+console.log(`\nSite is live (after ~60s sealing):`);
+console.log(`  ${SP}/view/${BUCKET}/index.html`);</code></pre>
+
+        <p>Запуск:</p>
+        <pre><code>export GREENFIELD_TESTNET_PRIVATE_KEY=0x...   # funded tBNB
+export GREENFIELD_TESTNET_ADDRESS=0x...
+npm install @bnb-chain/greenfield-js-sdk
+node upload-site.mjs</code></pre>
+
+        <blockquote><p>В этом репозитории есть готовая инфраструктура: <code>smartcontracts/greenfield-testnet/write-testnet.mjs</code> делает то же самое для целого курса (не одного hello-сайта), а измерение размера и газа — <code>measure-course-testnet.mjs</code>.</p></blockquote>
+
+        <hr />
+
+        <h2>7. Производительность и нюансы</h2>
+
+        <h3>Кэш SP</h3>
+        <p>SP кэширует HTTP-ответы. Если сразу после <code>put</code> ткнул в <code>view</code>-URL и получил 404 — это либо ещё sealing, либо кэш. Подожди 1–2 минуты, перезагрузи без кэша (Ctrl+Shift+R).</p>
+
+        <h3>CORS</h3>
+        <p>Greenfield SP отдаёт <code>Access-Control-Allow-Origin: *</code> для <code>view</code>-эндпойнта — твой сайт на Greenfield может делать <code>fetch</code> к другим бакетам без проблем.</p>
+
+        <h3>Доменное имя</h3>
+        <ul>
+          <li>На testnet — пока только через прокси.</li>
+          <li>На mainnet — <a href="https://docs.bnbchain.org/bnb-greenfield/for-users/space/" target="_blank" rel="noopener">Space Domain</a> маппит <code>mysite.bnb</code> на бакет (ENS-подобный сервис).</li>
+        </ul>
+
+        <h3>Стоимость хранения</h3>
+        <p>Streaming-payment: размер бакета × тариф SP × время. Маленький hello-world (десятки КБ) — около $0.0001/месяц на mainnet. Testnet бесплатный.</p>
+
+        <h3>Атомарность</h3>
+        <p>В Greenfield <strong>нет «коммита пачки файлов»</strong>. Каждый <code>put</code> — отдельная транзакция. Для атомарных деплоев — практика версионированных бакетов: <code>mysite-v3</code> → залить всё → переключить ссылку. Старый бакет можно удалить или оставить для отката.</p>
+
+        <hr />
+
+        <h2>8. Что почитать дальше</h2>
+        <ul>
+          <li><a href="https://github.com/bnb-chain/greenfield-whitepaper" target="_blank" rel="noopener">Greenfield Whitepaper</a> — 30 страниц про модель оплаты и erasure coding.</li>
+          <li><a href="https://github.com/bnb-chain/greenfield-js-sdk" target="_blank" rel="noopener">@bnb-chain/greenfield-js-sdk</a> — JS SDK; смотри <code>examples/</code> в репо.</li>
+          <li>Следующий шаг (TBD) — динамические сайты с auth через wallet + смарт-контрактом за плэйноло (как <code>course-demo.html</code> в нашем репозитории).</li>
+        </ul>
+
+        <hr />
+
+        <h2>Краткая выжимка</h2>
+        <ol>
+          <li>Bucket → один контейнер с уникальным именем, привязан к primary SP.</li>
+          <li>Object → файл с обязательным <code>--contentType</code> — иначе CSS/HTML не работают.</li>
+          <li>Greenfield URL: <code>gnfd://bucket/object</code>, для браузера → <code>https://&lt;sp&gt;/view/&lt;bucket&gt;/&lt;object&gt;</code>.</li>
+          <li>Storage — <strong>immutable</strong>: чтобы обновить файл, удалить и залить заново.</li>
+          <li>CLI <code>gnfd-cmd</code> — для ручной работы; <code>@bnb-chain/greenfield-js-sdk</code> — для автоматизации.</li>
+          <li>Sealing занимает ~30–90 секунд после <code>put</code> — пока он не закончен, <code>view</code> может возвращать 404.</li>
+        </ol>
+      </main>
+
+      <footer>⚡ Anti-Gravity Academy · Web3 track · урок 32</footer>
+    </div>
+  </body>
+</html>

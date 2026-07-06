@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Gated reader: ethers from esm.sh; talks to the demo RPC (access check)
+       and the Chipotle mock (key release) — both via the connected wallet's
+       host. No inline scripts. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://esm.sh;
+    connect-src 'self' https://esm.sh
+      http://127.0.0.1:8545 http://localhost:8545
+      http://127.0.0.1:9545 http://localhost:9545
+      http://127.0.0.1:8000 http://localhost:8000
+      https://data-seed-prebsc-1-s1.binance.org:8545
+      https://data-seed-prebsc-2-s1.binance.org:8545
+      https://bsc-testnet.publicnode.com
+      https://bsc-testnet.bnbchain.org;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data:; base-uri 'self'; object-src 'none'; frame-ancestors 'none'" />
+  <title>Daskibo — Course content (gated)</title>
+  <style>
+    :root{--bg:#0b0d12;--panel:#141821;--line:#232a38;--fg:#e8ecf4;--muted:#94a3b8;
+      --accent:#f0b90b;--ok:#34d399;--err:#f87171;--font:'Inter',system-ui,sans-serif;}
+    *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);}
+    .wrap{max-width:760px;margin:0 auto;padding:3rem 1.25rem;}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:2rem;}
+    h1{margin:.2rem 0 .4rem;font-size:1.8rem;} h2{font-size:1.25rem;} h3{font-size:1.05rem;}
+    .ok{color:var(--ok);} .err{color:var(--err);} .muted{color:var(--muted);}
+    button{background:var(--accent);color:#1a1300;border:0;border-radius:8px;padding:.6rem 1.1rem;
+      font-weight:700;cursor:pointer;} button:hover{filter:brightness(1.08);} button:disabled{opacity:.5;}
+    .kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:1rem 0;font-size:.88rem;}
+    .kv div:nth-child(odd){color:var(--muted);}
+    .mono{font-family:ui-monospace,Menlo,monospace;word-break:break-all;}
+    #status{margin:1rem 0;padding:.7rem 1rem;border-radius:8px;background:#11161f;
+      border:1px solid var(--line);font-size:.9rem;min-height:1.2rem;white-space:pre-wrap;}
+    #status[data-state=error]{border-color:var(--err);color:var(--err);}
+    #status[data-state=ok]{border-color:var(--ok);color:var(--ok);}
+    #lesson{margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--line);line-height:1.6;}
+    #lesson.locked{filter:blur(6px);user-select:none;pointer-events:none;opacity:.5;}
+    a{color:#57c0ff;text-decoration:none;} .back{display:inline-block;margin-top:1.25rem;}
+    code{background:#0e131b;border:1px solid var(--line);border-radius:6px;padding:.1rem .35rem;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="muted">🔐 Daskibo Academy · DRM-gated lesson</div>
+      <h1 id="title">Course content</h1>
+      <p class="muted">This lesson is <b>encrypted</b>. The decryption key is released by the
+         Chipotle key server only if your connected wallet satisfies the on-chain access
+         condition <code>hasCourseAccess(you, courseId)</code>.</p>
+
+      <div class="kv" id="kv"></div>
+      <button id="btn-unlock">Connect MetaMask &amp; unlock</button>
+      <div id="status" data-state="ok">Loading course manifest…</div>
+
+      <div id="lesson" class="locked">
+        <p class="muted">🔒 Locked — connect a wallet that owns this course to decrypt.</p>
+      </div>
+
+      <a class="back" href="./course-demo.html">← back to the demo</a>
+    </div>
+  </div>
+  <script type="module" src="./course-content.js"></script>
+</body>
+</html>

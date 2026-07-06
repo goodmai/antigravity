@@ -1,0 +1,17 @@
+{
+  "name": "greenfield-testnet-writer",
+  "private": true,
+  "type": "module",
+  "description": "Writes a bucket + object to the REAL BNB Greenfield public testnet.",
+  "scripts": {
+    "write": "node write-testnet.mjs"
+  },
+  "dependencies": {
+    "@bnb-chain/greenfield-js-sdk": "^2.2.2",
+    "@lit-protocol/auth-helpers": "^7.4.0",
+    "@lit-protocol/encryption": "^7.4.0",
+    "@lit-protocol/lit-node-client": "^7.4.0",
+    "@metamask/eth-sig-util": "^8.2.0",
+    "ethers": "5.7.2"
+  }
+}

@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daskibo Bucket Builder</title>
+  <style>
+    :root {
+      --bg:#0b0d12; --panel:#141821; --line:#232a38;
+      --fg:#e8ecf4; --muted:#94a3b8; --accent:#f0b90b; --accent-2:#57c0ff;
+      --ok:#34d399; --err:#f87171; --warn:#fbbf24; --purple:#a78bfa;
+      --font:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font)}
+    a{color:var(--accent-2);text-decoration:none}
+    code{font-family:'Fira Code','Consolas',monospace;font-size:.85em}
+    .container{max-width:960px;margin:0 auto;padding:0 1.25rem}
+
+    .hero{padding:1.75rem 0 .75rem;background:radial-gradient(ellipse at top,#1a2030,var(--bg))}
+    .hero h1{font-size:1.7rem;margin:0 0 .2rem}
+    .badge{display:inline-block;font-size:.65rem;padding:.12rem .45rem;border-radius:999px;
+      background:#1f2937;color:var(--accent);margin-left:.4rem;vertical-align:middle}
+
+    /* form */
+    .section{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+      padding:1rem 1.2rem;margin:1rem 0}
+    .section h2{margin:0 0 .8rem;font-size:.95rem;color:var(--accent);
+      text-transform:uppercase;letter-spacing:.06em}
+    .field{display:flex;flex-direction:column;gap:.2rem;margin-bottom:.7rem}
+    .field label{font-size:.74rem;color:var(--muted)}
+    .field input,.field select,.field textarea{
+      background:#0e131b;border:1px solid var(--line);color:var(--fg);
+      border-radius:7px;padding:.42rem .6rem;font:inherit;font-size:.85rem;width:100%}
+    .field textarea{min-height:100px;resize:vertical;font-family:'Fira Code','Consolas',monospace;font-size:.77rem}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+
+    /* lesson card */
+    .lesson-card{border:1px solid var(--line);border-radius:9px;padding:.75rem .9rem;
+      margin-bottom:.6rem;background:#0d1218;position:relative}
+    .lesson-card h3{margin:0 0 .55rem;font-size:.85rem;color:var(--muted)}
+    .lesson-del{position:absolute;top:.55rem;right:.7rem;background:none;border:1px solid var(--line);
+      color:var(--muted);border-radius:5px;font-size:.72rem;padding:.15rem .4rem;cursor:pointer}
+    .lesson-del:hover{color:var(--err);border-color:var(--err)}
+
+    /* buttons */
+    .btn{background:var(--accent);color:#1a1300;border:0;border-radius:7px;
+      padding:.48rem 1rem;font-weight:700;cursor:pointer;font-size:.85rem;white-space:nowrap}
+    .btn:hover{filter:brightness(1.08)}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-ghost{background:transparent;border:1px solid var(--accent);color:var(--accent);
+      border-radius:7px;padding:.42rem .85rem;font-weight:600;cursor:pointer;font-size:.82rem}
+    .btn-ghost:hover{background:#1c1a05}
+    .btn-row{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;margin-top:.6rem}
+
+    /* chip */
+    .chip{display:inline-flex;align-items:center;gap:.3rem;font-size:.74rem;padding:.18rem .5rem;
+      border-radius:999px;background:#1f2937;border:1px solid var(--line)}
+    .chip.ok{border-color:var(--ok);color:var(--ok)}
+    .chip.err{border-color:var(--err);color:var(--err)}
+    .chip.warn{border-color:var(--warn);color:var(--warn)}
+    .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+    /* status */
+    .status{padding:.45rem .8rem;border-radius:8px;background:#11161f;
+      border:1px solid var(--line);font-size:.83rem;margin:.5rem 0}
+    .status.ok{border-color:var(--ok);color:var(--ok)}
+    .status.err{border-color:var(--err);color:var(--err)}
+    .status.warn{border-color:var(--warn);color:var(--warn)}
+    .status.loading{border-color:var(--accent);color:var(--accent)}
+
+    /* preview */
+    .preview-wrap{display:none}
+    .preview-wrap.show{display:block}
+    .obj-list{list-style:none;padding:0;margin:.4rem 0}
+    .obj-item{display:flex;gap:.6rem;align-items:center;padding:.4rem .7rem;
+      border:1px solid var(--line);border-radius:6px;margin-bottom:.35rem;font-size:.8rem}
+    .obj-key{font-family:'Fira Code','Consolas',monospace;font-size:.76rem;color:var(--accent-2);flex:1}
+    .obj-tag{font-size:.65rem;padding:.08rem .35rem;border-radius:4px;background:#1f2937}
+    .obj-tag.enc{color:var(--accent)}
+    .obj-tag.sidecar{color:var(--purple)}
+    .obj-tag.json{color:var(--ok)}
+    .obj-size{color:var(--muted);font-size:.72rem;white-space:nowrap}
+    pre.manifest-pre{background:#080c13;border:1px solid var(--line);border-radius:8px;
+      padding:.65rem .85rem;font-size:.72rem;line-height:1.6;color:#94a3b8;
+      max-height:260px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;
+      font-family:'Fira Code','Consolas',monospace;margin:.4rem 0}
+
+    /* log */
+    .log-wrap{margin:1rem 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+    .log-wrap summary{padding:.5rem .85rem;cursor:pointer;font-size:.8rem;
+      color:var(--muted);user-select:none;background:var(--panel)}
+    .log-pre{margin:0;padding:.6rem .85rem;font-size:.72rem;line-height:1.6;
+      color:#94a3b8;background:#080c13;max-height:200px;overflow-y:auto;
+      font-family:'Fira Code','Consolas',monospace;white-space:pre-wrap}
+
+    footer{padding:1rem 0;text-align:center;color:var(--muted);font-size:.75rem;
+      border-top:1px solid var(--line);margin-top:1.5rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{display:inline-block;animation:spin .7s linear infinite}
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="container">
+    <h1>Bucket Builder <span class="badge">Preview + Publish</span></h1>
+    <p style="color:var(--muted);font-size:.85rem;margin:.3rem 0 0">
+      Design your DRM course, preview the encrypted bucket structure, then publish to Greenfield via MetaMask + Chipotle.
+    </p>
+  </div>
+</section>
+
+<main class="container">
+
+<!-- ── 1. Course Info ───────────────────────────────────────────────── -->
+<div class="section">
+  <h2>1. Course Info</h2>
+  <div class="row2">
+    <div class="field">
+      <label>Course Title</label>
+      <input id="inp-title" value="Daskibo Academy — Введение в Web3 Storage" />
+    </div>
+    <div class="field">
+      <label>Bucket slug (unique name)</label>
+      <input id="inp-slug" value="" placeholder="auto-generated if empty" />
+    </div>
+  </div>
+</div>
+
+<!-- ── 2. Lessons ──────────────────────────────────────────────────── -->
+<div class="section">
+  <h2>2. Lessons</h2>
+  <div id="lesson-list"></div>
+  <button class="btn-ghost" id="btn-add-lesson">+ Add Lesson</button>
+</div>
+
+<!-- ── 3. Access Control ──────────────────────────────────────────── -->
+<div class="section">
+  <h2>3. Access Control</h2>
+  <div class="field">
+    <label>Allowed addresses (comma-separated — your MetaMask address is auto-included)</label>
+    <input id="inp-acc" placeholder="0xABC...,0xDEF..." />
+  </div>
+  <div class="row2">
+    <div class="field">
+      <label>Chipotle URL (mock server)</label>
+      <input id="inp-chipotle" value="http://localhost:8000" />
+    </div>
+    <div class="field">
+      <label>Lit Network (recorded in manifest)</label>
+      <input id="inp-litnet" value="chipotle" />
+    </div>
+  </div>
+</div>
+
+<!-- ── Actions ─────────────────────────────────────────────────────── -->
+<div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.2rem 0 .4rem">
+  <button class="btn" id="btn-preview">Preview Bucket</button>
+  <span style="color:var(--muted);font-size:.82rem">→</span>
+  <button class="btn" id="btn-wallet" style="background:#1e3a5f;color:var(--accent-2)">Connect MetaMask</button>
+  <span class="chip" id="chip-wallet"><span class="dot"></span> Not connected</span>
+  <button class="btn" id="btn-publish" disabled style="background:#1a3320;color:var(--ok)">Publish to Greenfield</button>
+</div>
+
+<div id="status" class="status" style="display:none"></div>
+
+<!-- ── Preview panel ───────────────────────────────────────────────── -->
+<div class="preview-wrap" id="preview-wrap">
+  <div class="section">
+    <h2>Bucket Preview (plaintext structure)</h2>
+    <div id="preview-manifest-box"></div>
+    <ul id="preview-obj-list" class="obj-list"></ul>
+  </div>
+</div>
+
+<!-- ── Log ─────────────────────────────────────────────────────────── -->
+<details class="log-wrap" id="log-wrap">
+  <summary>Builder Log (0 events)</summary>
+  <pre class="log-pre" id="log-pre">(empty)</pre>
+</details>
+
+</main>
+
+<footer>Daskibo Academy · Bucket Builder · Greenfield testnet 5600</footer>
+
+<script type="module">
+import { buildCourseBucket } from './buckets/course-template.js';
+import { GREENFIELD_TESTNET } from './buckets/greenfield-core.js';
+import { planCoursePublish } from './buckets/course-publish.js';
+import { createLitAccess } from './buckets/lit-access.js';
+import { createChipotleClient } from './buckets/lit-sdk-chipotle.js';
+
+/* ── log ─────────────────────────────────────────────────────────── */
+const logPre     = document.getElementById('log-pre');
+const logSummary = document.querySelector('#log-wrap summary');
+const logLines   = [];
+function addLog(msg) {
+  const ts = new Date().toISOString().slice(11, 23);
+  logLines.push(`[${ts}] ${msg}`);
+  logPre.textContent = logLines.join('\n');
+  logPre.scrollTop   = logPre.scrollHeight;
+  logSummary.textContent = `Builder Log (${logLines.length} events)`;
+}
+
+/* ── status ──────────────────────────────────────────────────────── */
+const statusEl = document.getElementById('status');
+function setStatus(msg, type = '') {
+  statusEl.style.display = 'block';
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+  statusEl.innerHTML = msg;
+}
+
+/* ── chip ────────────────────────────────────────────────────────── */
+function setChip(id, cls, text) {
+  const el = document.getElementById(id);
+  el.className = `chip ${cls}`;
+  el.innerHTML = `<span class="dot"></span> ${text}`;
+}
+
+/* ── wallet ──────────────────────────────────────────────────────── */
+let wallet = null;
+
+document.getElementById('btn-wallet').addEventListener('click', async () => {
+  if (!window.ethereum) { alert('MetaMask not found'); return; }
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    wallet = { address: accounts[0] };
+    setChip('chip-wallet', 'ok', wallet.address.slice(0,8) + '…' + wallet.address.slice(-4));
+    addLog(`Wallet: ${wallet.address}`);
+    document.getElementById('btn-publish').disabled = false;
+    // Auto-fill address into ACC field if empty
+    const accInp = document.getElementById('inp-acc');
+    if (!accInp.value.trim()) accInp.value = wallet.address;
+  } catch(e) {
+    addLog(`Wallet error: ${e.message}`);
+    setChip('chip-wallet', 'err', 'Rejected');
+  }
+});
+
+/* ── lesson management ───────────────────────────────────────────── */
+let lessonCount = 0;
+const lessonList = document.getElementById('lesson-list');
+
+function addLesson({ key = '', title = '', contentType = 'text/markdown', body = '' } = {}) {
+  lessonCount++;
+  const n = lessonCount;
+  const div = document.createElement('div');
+  div.className = 'lesson-card';
+  div.dataset.lessonId = n;
+  div.innerHTML = `
+    <h3>Lesson ${n}</h3>
+    <button class="lesson-del" data-del="${n}">✕ Remove</button>
+    <div class="row2">
+      <div class="field">
+        <label>Object key (path)</label>
+        <input class="les-key" value="${escAttr(key || `lessons/${String(n).padStart(2,'0')}/lesson.md`)}" />
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input class="les-title" value="${escAttr(title || `Урок ${n}`)}" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Content type</label>
+      <select class="les-type">
+        <option value="text/markdown" ${contentType === 'text/markdown' ? 'selected' : ''}>text/markdown</option>
+        <option value="text/html"     ${contentType === 'text/html'     ? 'selected' : ''}>text/html</option>
+        <option value="text/plain"    ${contentType === 'text/plain'    ? 'selected' : ''}>text/plain</option>
+        <option value="application/json" ${contentType === 'application/json' ? 'selected' : ''}>application/json</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Content (plaintext)</label>
+      <textarea class="les-body">${escHtml(body)}</textarea>
+    </div>`;
+  div.querySelector('.lesson-del').addEventListener('click', () => div.remove());
+  lessonList.appendChild(div);
+  return div;
+}
+
+function escAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.getElementById('btn-add-lesson').addEventListener('click', () => addLesson());
+
+// Bootstrap with one lesson
+addLesson({
+  key: 'lessons/01/intro.md',
+  title: 'Урок 1 — Архитектура DRM',
+  body: `# Daskibo Academy — DRM на BNB Greenfield\n\nЗдесь находится защищённый контент.\n\n## Содержание\n\nТекст урока...`,
+});
+
+/* ── read form ───────────────────────────────────────────────────── */
+function readSpec() {
+  const slug    = document.getElementById('inp-slug').value.trim()
+                  || `daskibo-${Date.now().toString(36)}`;
+  const title   = document.getElementById('inp-title').value.trim() || 'Untitled Course';
+  const litNet  = document.getElementById('inp-litnet').value.trim() || 'chipotle';
+
+  const lessons = [];
+  lessonList.querySelectorAll('.lesson-card').forEach(card => {
+    lessons.push({
+      key:         card.querySelector('.les-key').value.trim(),
+      title:       card.querySelector('.les-title').value.trim(),
+      contentType: card.querySelector('.les-type').value,
+      body:        card.querySelector('.les-body').value,
+    });
+  });
+  return { slug, title, litNetwork: litNet, lessons };
+}
+
+function readAcc(deployerAddr) {
+  const raw = document.getElementById('inp-acc').value;
+  const addrs = raw.split(',').map(s => s.trim()).filter(Boolean);
+  if (deployerAddr && !addrs.some(a => a.toLowerCase() === deployerAddr.toLowerCase())) {
+    addrs.unshift(deployerAddr);
+  }
+  function cond(addr) {
+    return {
+      contractAddress: '', standardContractType: '', chain: 'ethereum',
+      method: '', parameters: [':userAddress'],
+      returnValueTest: { comparator: '=', value: addr },
+    };
+  }
+  const acc = [cond(addrs[0])];
+  for (let i = 1; i < addrs.length; i++) {
+    acc.push({ operator: 'or' });
+    acc.push(cond(addrs[i]));
+  }
+  return acc;
+}
+
+/* ── Preview ─────────────────────────────────────────────────────── */
+document.getElementById('btn-preview').addEventListener('click', async () => {
+  const spec = readSpec();
+  if (!spec.lessons.length) { setStatus('Add at least one lesson', 'warn'); return; }
+
+  addLog(`Previewing bucket "${spec.slug}"…`);
+  try {
+    const plain = buildCourseBucket(spec);
+    renderPreview(plain, spec);
+    addLog(`✓ Preview ready: ${plain.objects.length} objects`);
+    setStatus(`✓ Preview ready — bucket will contain <strong>${plain.objects.length}</strong> objects`, 'ok');
+  } catch(e) {
+    addLog(`Preview error: ${e.message}`);
+    setStatus('Preview failed: ' + e.message, 'err');
+  }
+});
+
+function renderPreview(plain, spec) {
+  const wrap = document.getElementById('preview-wrap');
+  wrap.classList.add('show');
+
+  // Manifest preview
+  const mbox = document.getElementById('preview-manifest-box');
+  const previewManifest = {
+    ...plain.manifest,
+    note: '← plaintext preview; ciphertext & Lit envelope are added during publish',
+  };
+  mbox.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.25rem">manifest.json preview (plaintext)</div>
+    <pre class="manifest-pre">${escHtml(JSON.stringify(previewManifest, null, 2))}</pre>`;
+
+  // Object list
+  const ul = document.getElementById('preview-obj-list');
+  ul.innerHTML = '';
+
+  // What the encrypted bucket will look like
+  const encObjects = [];
+  for (const o of plain.objects) {
+    if (o.kind === 'manifest') {
+      encObjects.push({ key: o.key, kind: 'manifest', size: o.body.length });
+    } else if (o.kind === 'payload') {
+      // Encrypted payload key ends in .enc
+      const encKey = o.key + '.enc';
+      const sidKey = o.key + '.lit.json';
+      encObjects.push({ key: encKey, kind: 'enc',     size: o.body.length });
+      encObjects.push({ key: sidKey, kind: 'sidecar', size: 256 });
+    }
+  }
+
+  for (const o of encObjects) {
+    const li = document.createElement('li');
+    li.className = 'obj-item';
+    const tagCls  = o.kind === 'manifest' ? 'json' : o.kind === 'enc' ? 'enc' : 'sidecar';
+    const tagLabel = o.kind === 'manifest' ? 'json'
+                   : o.kind === 'enc'      ? '🔒 encrypted'
+                   : '🗝 sidecar';
+    li.innerHTML = `
+      <span class="obj-key">${escHtml(o.key)}</span>
+      <span class="obj-tag ${tagCls}">${tagLabel}</span>
+      <span class="obj-size">~${(o.size / 1024).toFixed(1)} KB</span>`;
+    ul.appendChild(li);
+  }
+  ul.insertAdjacentHTML('afterbegin',
+    `<li style="font-size:.74rem;color:var(--muted);padding:.2rem .4rem">
+      ↑ On Greenfield (after encryption) — plaintext bodies replaced by AES-GCM envelopes
+    </li>`);
+  ul.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ── Publish ─────────────────────────────────────────────────────── */
+document.getElementById('btn-publish').addEventListener('click', async () => {
+  if (!wallet) { setStatus('Connect MetaMask first', 'warn'); return; }
+
+  const spec        = readSpec();
+  const chipotleUrl = document.getElementById('inp-chipotle').value.trim() || 'http://localhost:8000';
+  const acc         = readAcc(wallet.address);
+
+  setStatus('<span class="spin">⟳</span> Connecting to Chipotle…', 'loading');
+  addLog(`Publish → Chipotle: ${chipotleUrl}`);
+
+  const btn = document.getElementById('btn-publish');
+  btn.disabled = true;
+
+  try {
+    // ── 1. Chipotle PKP ──────────────────────────────────────────────
+    const walRes = await fetch(`${chipotleUrl}/core/v1/create_wallet`);
+    if (!walRes.ok) throw new Error(`Chipotle unreachable (${walRes.status}) — is chipotle-mock.mjs running?`);
+    const { wallet_address: pkpId } = await walRes.json();
+    addLog(`✓ Chipotle PKP: ${pkpId}`);
+
+    // ── 2. Plan + encrypt ────────────────────────────────────────────
+    setStatus('<span class="spin">⟳</span> Encrypting course with Chipotle…', 'loading');
+    addLog(`Planning publish: ${acc.filter(c => !c.operator).length} ACC address(es)`);
+
+    const chipClient = createChipotleClient({ chipotleUrl, pkpId });
+    const litAccess  = createLitAccess({ litClient: chipClient, chain: 'ethereum' });
+
+    const plan = await planCoursePublish({
+      spec,
+      pricing: { litSaveCost: 800n, storageCost: 200n },
+      lit: { access: litAccess, accessControlConditions: acc },
+    });
+
+    // Augment manifest with Chipotle routing metadata
+    const litEnv = { ...plan.manifest.lit, litNetwork: 'chipotle', chipotleUrl, pkpId };
+    const manifest = { ...plan.manifest, lit: litEnv };
+    const objects  = plan.objects.map(o =>
+      o.kind === 'manifest' ? { ...o, body: JSON.stringify(manifest) } : o,
+    );
+
+    addLog(`✓ Encrypted: master key Chipotle-wrapped, ${objects.length} objects ready`);
+
+    // ── 3. Connect Greenfield ────────────────────────────────────────
+    setStatus('<span class="spin">⟳</span> Connecting to Greenfield (MetaMask off-chain auth)…', 'loading');
+    addLog('Loading Greenfield wallet SDK…');
+
+    const { makeWalletGreenfieldClient } = await import('./buckets/greenfield-wallet-sdk.js');
+    const { createGreenfieldClient }     = await import('./buckets/greenfield-core.js');
+
+    const GF = GREENFIELD_TESTNET;
+    const walletBackend = await makeWalletGreenfieldClient({
+      provider:   window.ethereum,
+      rpcUrl:     GF.rpcUrl,
+      chainId:    GF.chainId,
+      spEndpoint: GF.spEndpoint,
+    });
+    addLog('✓ Greenfield wallet backend ready');
+
+    function fetchTransport({ method, url, headers, body }) {
+      return fetch(url, { method, headers, body: body || undefined }).then(async res => {
+        const text = await res.text();
+        const h = {};
+        res.headers.forEach((v, k) => { h[k.toLowerCase()] = v; });
+        return { status: res.status, headers: h, body: text };
+      });
+    }
+
+    const gfClient = createGreenfieldClient({
+      transport: fetchTransport,
+      owner: wallet.address,
+      endpoint: GF.spEndpoint,
+      backend: walletBackend,
+    });
+
+    // ── 4. Create bucket ─────────────────────────────────────────────
+    setStatus(`<span class="spin">⟳</span> Creating bucket "${plan.bucketName}"…`, 'loading');
+    addLog(`Creating bucket "${plan.bucketName}"…`);
+    await gfClient.createBucket(plan.bucketName, { visibility: 'public', owner: wallet.address });
+    addLog(`✓ Bucket created`);
+
+    // ── 5. Upload objects ────────────────────────────────────────────
+    for (const o of objects) {
+      setStatus(`<span class="spin">⟳</span> Uploading ${o.key}…`, 'loading');
+      addLog(`Uploading ${o.key} (${o.kind})…`);
+      await gfClient.saveObject(plan.bucketName, o.key, o.body, {
+        contentType: o.contentType,
+        owner: wallet.address,
+      });
+      addLog(`  ✓ saved`);
+    }
+
+    // ── 6. Done ──────────────────────────────────────────────────────
+    const readerUrl = `/bucket-reader.html?bucket=${plan.bucketName}&owner=${wallet.address}`;
+    setStatus(
+      `✅ Published! Bucket: <strong><code>${plan.bucketName}</code></strong><br>
+       <a href="${readerUrl}" target="_blank" rel="noopener">Open DRM Reader →</a>`,
+      'ok'
+    );
+    addLog(`ALL DONE — bucket ${plan.bucketName} published to Greenfield`);
+    addLog(`DRM Reader: http://localhost:8099${readerUrl}`);
+
+  } catch(e) {
+    addLog(`✗ Publish failed: ${e.message}`);
+    setStatus('Publish failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = !wallet;
+  }
+});
+
+// Keyboard shortcut: Ctrl+Enter to preview
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    document.getElementById('btn-preview').click();
+  }
+});
+</script>
+</body>
+</html>

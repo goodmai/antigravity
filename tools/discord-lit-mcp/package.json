@@ -1,0 +1,12 @@
+{
+  "name": "discord-lit-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal read-only MCP server for the Lit Protocol Discord channel (faucets + docs). Self-bot user-token auth — see README.",
+  "bin": { "discord-lit-mcp": "server.mjs" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  }
+}

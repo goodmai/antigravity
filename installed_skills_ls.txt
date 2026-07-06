@@ -1,0 +1,56 @@
+Command: ls -la /home/g/.gemini/config/plugins/google-antigravity-sdk/skills/
+total 8
+drwxrwxr-x 2 g g 4096 May 20 19:32 .
+drwxr-xr-x 5 g g 4096 May 20 19:32 ..
+lrwxrwxrwx 1 g g   51 May 20 19:32 algorithmic-art -> /home/g/projects/antigravity/skills/algorithmic-art
+lrwxrwxrwx 1 g g   52 May 20 19:32 brand-guidelines -> /home/g/projects/antigravity/skills/brand-guidelines
+lrwxrwxrwx 1 g g   49 May 20 19:32 canvas-design -> /home/g/projects/antigravity/skills/canvas-design
+lrwxrwxrwx 1 g g   51 May 20 19:32 doc-coauthoring -> /home/g/projects/antigravity/skills/doc-coauthoring
+lrwxrwxrwx 1 g g   40 May 20 19:32 docx -> /home/g/projects/antigravity/skills/docx
+lrwxrwxrwx 1 g g   51 May 20 19:32 frontend-design -> /home/g/projects/antigravity/skills/frontend-design
+lrwxrwxrwx 1 g g   48 May 20 19:32 gemini-fixer -> /home/g/projects/antigravity/skills/gemini-fixer
+lrwxrwxrwx 1 g g   53 May 20 19:32 inspect-artifacts -> /home/g/projects/antigravity/skills/inspect-artifacts
+lrwxrwxrwx 1 g g   50 May 20 19:32 internal-comms -> /home/g/projects/antigravity/skills/internal-comms
+lrwxrwxrwx 1 g g   39 May 20 19:32 jss -> /home/g/projects/antigravity/skills/jss
+lrwxrwxrwx 1 g g   47 May 20 19:32 mcp-builder -> /home/g/projects/antigravity/skills/mcp-builder
+lrwxrwxrwx 1 g g   39 May 20 19:32 pdf -> /home/g/projects/antigravity/skills/pdf
+lrwxrwxrwx 1 g g   40 May 20 19:32 pptx -> /home/g/projects/antigravity/skills/pptx
+lrwxrwxrwx 1 g g   52 May 20 19:32 prompt-optimizer -> /home/g/projects/antigravity/skills/prompt-optimizer
+lrwxrwxrwx 1 g g   51 May 20 19:32 qa-skill-tester -> /home/g/projects/antigravity/skills/qa-skill-tester
+lrwxrwxrwx 1 g g   52 May 20 19:32 qwen-code-review -> /home/g/projects/antigravity/skills/qwen-code-review
+lrwxrwxrwx 1 g g   52 May 20 19:32 security-checker -> /home/g/projects/antigravity/skills/security-checker
+lrwxrwxrwx 1 g g   49 May 20 19:32 skill-creator -> /home/g/projects/antigravity/skills/skill-creator
+lrwxrwxrwx 1 g g   53 May 20 19:32 slack-gif-creator -> /home/g/projects/antigravity/skills/slack-gif-creator
+lrwxrwxrwx 1 g g   49 May 20 19:32 theme-factory -> /home/g/projects/antigravity/skills/theme-factory
+lrwxrwxrwx 1 g g   57 May 20 19:32 web-artifacts-builder -> /home/g/projects/antigravity/skills/web-artifacts-builder
+lrwxrwxrwx 1 g g   50 May 20 19:32 webapp-testing -> /home/g/projects/antigravity/skills/webapp-testing
+lrwxrwxrwx 1 g g   40 May 20 19:32 xlsx -> /home/g/projects/antigravity/skills/xlsx
+
+
+Command: ls -la /home/g/.gemini/antigravity-cli/skills/
+total 8
+drwxrwxr-x  2 g g 4096 May 20 19:32 .
+drwxr-xr-x 12 g g 4096 May 20 19:32 ..
+lrwxrwxrwx  1 g g   51 May 20 19:32 algorithmic-art -> /home/g/projects/antigravity/skills/algorithmic-art
+lrwxrwxrwx  1 g g   52 May 20 19:32 brand-guidelines -> /home/g/projects/antigravity/skills/brand-guidelines
+lrwxrwxrwx  1 g g   49 May 20 19:32 canvas-design -> /home/g/projects/antigravity/skills/canvas-design
+lrwxrwxrwx  1 g g   51 May 20 19:32 doc-coauthoring -> /home/g/projects/antigravity/skills/doc-coauthoring
+lrwxrwxrwx  1 g g   40 May 20 19:32 docx -> /home/g/projects/antigravity/skills/docx
+lrwxrwxrwx  1 g g   51 May 20 19:32 frontend-design -> /home/g/projects/antigravity/skills/frontend-design
+lrwxrwxrwx  1 g g   48 May 20 19:32 gemini-fixer -> /home/g/projects/antigravity/skills/gemini-fixer
+lrwxrwxrwx  1 g g   53 May 20 19:32 inspect-artifacts -> /home/g/projects/antigravity/skills/inspect-artifacts
+lrwxrwxrwx  1 g g   50 May 20 19:32 internal-comms -> /home/g/projects/antigravity/skills/internal-comms
+lrwxrwxrwx  1 g g   39 May 20 19:32 jss -> /home/g/projects/antigravity/skills/jss
+lrwxrwxrwx  1 g g   47 May 20 19:32 mcp-builder -> /home/g/projects/antigravity/skills/mcp-builder
+lrwxrwxrwx  1 g g   39 May 20 19:32 pdf -> /home/g/projects/antigravity/skills/pdf
+lrwxrwxrwx  1 g g   40 May 20 19:32 pptx -> /home/g/projects/antigravity/skills/pptx
+lrwxrwxrwx  1 g g   52 May 20 19:32 prompt-optimizer -> /home/g/projects/antigravity/skills/prompt-optimizer
+lrwxrwxrwx  1 g g   51 May 20 19:32 qa-skill-tester -> /home/g/projects/antigravity/skills/qa-skill-tester
+lrwxrwxrwx  1 g g   52 May 20 19:32 qwen-code-review -> /home/g/projects/antigravity/skills/qwen-code-review
+lrwxrwxrwx  1 g g   52 May 20 19:32 security-checker -> /home/g/projects/antigravity/skills/security-checker
+lrwxrwxrwx  1 g g   49 May 20 19:32 skill-creator -> /home/g/projects/antigravity/skills/skill-creator
+lrwxrwxrwx  1 g g   53 May 20 19:32 slack-gif-creator -> /home/g/projects/antigravity/skills/slack-gif-creator
+lrwxrwxrwx  1 g g   49 May 20 19:32 theme-factory -> /home/g/projects/antigravity/skills/theme-factory
+lrwxrwxrwx  1 g g   57 May 20 19:32 web-artifacts-builder -> /home/g/projects/antigravity/skills/web-artifacts-builder
+lrwxrwxrwx  1 g g   50 May 20 19:32 webapp-testing -> /home/g/projects/antigravity/skills/webapp-testing
+lrwxrwxrwx  1 g g   40 May 20 19:32 xlsx -> /home/g/projects/antigravity/skills/xlsx

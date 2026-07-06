@@ -4,12 +4,25 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:unit": "vitest run --exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'",
+    "test:module": "vitest run tests/module",
+    "test:integration": "vitest run docker.test.js",
+    "test:live": "vitest run live.test.js",
+    "test:coverage": "vitest run --coverage --exclude '**/*.docker.test.js' --exclude '**/*.live.test.js'",
+    "test:contracts": "forge test -vvv --root smartcontracts/contracts",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint:noany": "bash scripts/check-no-any.sh"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "@synthetixio/synpress": "^4.1.2",
+    "@types/node": "^22.7.0",
     "@vitest/coverage-v8": "^2.1.0",
+    "ethers": "^5.8.0",
     "jsdom": "^29.1.1",
+    "typescript": "^5.6.0",
     "viem": "^2.21.0",
     "vitest": "^2.1.0"
   }

@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lesson 22 · IPFS &amp; Pinata — хранение Lit Action, NFT-метаданных и контента — Web3 Genesis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../../../css/academy.css" />
+  <link rel="stylesheet" href="../../assets/course.css" />
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <div class="container">
+    <div class="crumbs">
+      <a href="../../../../index.html">Academy</a>
+      <span class="sep">/</span>
+      <a href="../../index.html">Web3 Genesis</a>
+      <span class="sep">/</span>
+      <span>Lesson 22 · IPFS &amp; Pinata</span>
+    </div>
+
+    <p class="lesson-meta">Модуль V · Lesson 22 · DePIN &amp; децентрализованное хранение · IPFS</p>
+    <h1>IPFS &amp; Pinata: хранение Lit Action, NFT-метаданных и контента</h1>
+
+    <p>
+      В Web3 нельзя просто «положить файл на сервер» — сервер может исчезнуть, а
+      ссылка протухнуть. <strong>IPFS</strong> (InterPlanetary File System) решает
+      это через <em>контентную адресацию</em>: адрес файла — это хэш его содержимого
+      (<strong>CID</strong>), а не путь на чьём-то диске. <strong>Pinata</strong> —
+      managed-сервис, который надёжно <em>пиннит</em> (хранит и реплицирует) контент
+      в IPFS и отдаёт его через быстрый шлюз.
+    </p>
+
+    <div class="note">
+      <strong>Что вы получите.</strong> После урока вы поймёте, что такое CID и
+      пиннинг, освоите ключевые ручки Pinata (v3 Files API, legacy, шлюз, приватный
+      доступ), и научитесь применять IPFS для трёх главных кейсов: <strong>хранение
+      Lit Action</strong>, <strong>NFT-метаданных (info)</strong> и <strong>NFT-контента</strong>.
+    </div>
+
+    <h2>1. Основы IPFS: контентная адресация</h2>
+
+    <p>
+      В обычном вебе адрес <em>location-based</em>: <code>https://site.com/file.png</code>
+      указывает <em>где</em> лежит файл. В IPFS адрес <em>content-based</em>:
+      <code>ipfs://bafkrei…</code> указывает <em>что</em> это за файл — его
+      криптографический хэш. Отсюда свойства:
+    </p>
+
+    <ul>
+      <li><strong>Неизменяемость.</strong> Изменил хоть один байт → изменился CID.
+        Старый CID навсегда указывает на старое содержимое (tamper-evidence).</li>
+      <li><strong>Дедупликация.</strong> Одинаковый контент = одинаковый CID, где бы
+        его ни загрузили.</li>
+      <li><strong>Пиннинг.</strong> IPFS сам по себе не гарантирует, что файл
+        кто-то хранит. Чтобы контент не «уехал» из сети, его надо <em>запиннить</em>
+        на ноде, которая его держит. Это и делает Pinata.</li>
+      <li><strong>Шлюз (gateway).</strong> Мост IPFS→HTTP:
+        <code>https://&lt;gateway&gt;/ipfs/&lt;cid&gt;</code> отдаёт контент обычным
+        браузерам.</li>
+    </ul>
+
+    <div class="note">
+      <strong>CIDv0 vs CIDv1.</strong> <code>Qm…</code> (base58, CIDv0) — старый
+      формат; <code>bafkrei…</code> / <code>bafybei…</code> (base32, CIDv1) —
+      современный. Pinata v3 возвращает CIDv1. Для совместимости со старыми
+      привязками (например, Lit permitted-action) иногда нужен именно CIDv0.
+    </div>
+
+    <h2>2. Pinata: функционал и ручки (API)</h2>
+
+    <p>
+      Pinata экспонирует <strong>две разные поверхности</strong>. Для хранения
+      файлов нужна <strong>Files / Pinning API</strong>; <em>Agents API</em>
+      (<code>agents.pinata.cloud</code>) — отдельный продукт для AI-агентов и в этом
+      уроке не используется.
+    </p>
+
+    <h3>2.1 Аутентификация</h3>
+    <p>
+      При создании ключа (<em>API Keys → New Key</em>) Pinata выдаёт <strong>сразу
+      три</strong> значения: <code>pinata_api_key</code>, <code>pinata_api_secret</code>
+      и <strong>JWT</strong>. <strong>JWT — рекомендуемый</strong> способ (заголовок
+      <code>Authorization: Bearer &lt;JWT&gt;</code>). Шлюз-домен берётся во вкладке
+      <em>Gateways</em> в формате <code>fun-llama-300.mypinata.cloud</code>.
+    </p>
+
+    <h3>2.2 Ключевые ручки (v3 Files API)</h3>
+    <table class="compare">
+      <tr><th>Метод · путь</th><th>Назначение</th></tr>
+      <tr><td><code>POST https://uploads.pinata.cloud/v3/files</code></td><td>загрузить/запиннить файл (form-data <code>file</code> + <code>network</code>=<code>public</code>/<code>private</code>); ответ <code>{ data: { cid, id, size, … } }</code></td></tr>
+      <tr><td><code>GET https://api.pinata.cloud/v3/files/{network}</code></td><td>список файлов (фильтры по имени, cid, group, keyvalues; пагинация)</td></tr>
+      <tr><td><code>GET …/v3/files/{network}/{id}</code></td><td>метаданные одного файла по id</td></tr>
+      <tr><td><code>PUT …/v3/files/{network}/{id}</code></td><td>обновить имя / keyvalues</td></tr>
+      <tr><td><code>DELETE …/v3/files/{network}/{id}</code></td><td>удалить (unpin)</td></tr>
+      <tr><td><code>POST https://api.pinata.cloud/v3/files/sign</code></td><td>временная подписанная ссылка доступа к <strong>приватному</strong> файлу (signed/expiring URL)</td></tr>
+      <tr><td><code>POST/GET …/v3/groups/{network}</code></td><td>группы — логическая организация файлов (создать/листинг/добавить)</td></tr>
+      <tr><td><code>GET https://&lt;gateway&gt;/ipfs/&lt;cid&gt;</code></td><td>чтение через шлюз; для restricted/private — <code>?pinataGatewayToken=&lt;GATEWAY_KEY&gt;</code></td></tr>
+    </table>
+
+    <p><strong>Legacy-ручки</strong> (всё ещё работают): <code>POST /pinning/pinFileToIPFS</code>,
+      <code>POST /pinning/pinJSONToIPFS</code>, <code>GET /data/pinList</code>,
+      <code>DELETE /pinning/unpin/{cid}</code> на <code>api.pinata.cloud</code>;
+      аутентификация заголовками <code>pinata_api_key</code> + <code>pinata_secret_api_key</code>;
+      ответ содержит <code>IpfsHash</code> вместо <code>data.cid</code>.</p>
+
+    <h3>2.3 SDK <code>pinata</code> (TypeScript)</h3>
+    <pre><code>import { PinataSDK } from 'pinata';
+
+const pinata = new PinataSDK({
+  pinataJwt: process.env.PINATA_JWT,
+  pinataGateway: 'fun-llama-300.mypinata.cloud',
+});
+
+// публичная загрузка → CID
+const { cid } = await pinata.upload.public.file(file);
+// чтение через шлюз
+const data = await pinata.gateways.public.get(cid);
+// приватная: загрузка + временная ссылка
+const priv = await pinata.upload.private.file(file);
+const link = await pinata.gateways.private.createAccessLink({ cid: priv.cid, expires: 3600 });</code></pre>
+
+    <h3>2.4 curl-пример (v3 + JWT)</h3>
+    <pre><code>curl -X POST https://uploads.pinata.cloud/v3/files \
+  -H "Authorization: Bearer $PINATA_JWT" \
+  -F "network=public" \
+  -F "file=@./metadata.json"
+# → { "data": { "cid": "bafkrei…", "id": "…", "size": 512, "is_duplicate": false } }</code></pre>
+
+    <h2>3. Главные юзеркейсы</h2>
+
+    <h3>3.1 Хранение Lit Action (trustless-код)</h3>
+    <p>
+      <strong>Lit Action</strong> — это JS-код, который исполняется в сети
+      Lit/Chipotle (TEE) и, например, подписывает минт NFT через PKP. Чтобы код
+      нельзя было подменить незаметно, его пиннят в IPFS и <strong>привязывают PKP
+      к CID</strong>: только этот байт-в-байт код имеет право подписывать. Изменил
+      код → новый CID → старый PKP теряет право (это и есть гарантия целостности).
+    </p>
+    <div class="note">
+      В этом проекте экшен <code>claim-signer.action.js</code> уже запинен —
+      CID <code>bafkreicg2b2ttr6p2tqp2rbf6p5dtoq3j4srieatm55ntt2cqh6adlb6ta</code>
+      (см. <code>smartcontracts/lit-actions/cids.json</code>, скилл
+      <code>skills/pinata/</code>). Команда:
+      <code>node tools/pinata/pin.mjs --lit-actions</code>.
+    </div>
+
+    <h3>3.2 NFT-метаданные (info)</h3>
+    <p>
+      По стандарту ERC-721/1155 <code>tokenURI</code> указывает на JSON-метаданные.
+      Их кладут в IPFS и записывают в контракт как <code>ipfs://&lt;cid&gt;</code> —
+      так информация о токене неизменяема и не зависит от чьего-то сервера.
+    </p>
+    <pre><code>{
+  "name": "Daskibo Client Pass #1",
+  "description": "Soulbound доступ к курсу",
+  "image": "ipfs://bafybei…imageCID",
+  "attributes": [{ "trait_type": "course", "value": "Web3 Genesis" }]
+}</code></pre>
+    <p>Важно: <code>image</code> тоже должен быть <code>ipfs://…</code>, иначе
+      «децентрализованный» NFT будет ссылаться на смертный HTTP-URL.</p>
+
+    <h3>3.3 NFT-контент (сам ассет)</h3>
+    <p>
+      Картинка/видео/арт токена. Публичный ассет → <code>network=public</code> и
+      <code>ipfs://&lt;cid&gt;</code>. Приватный/гейтед контент → загрузка как
+      <code>private</code> + выдача <strong>временной signed-ссылки</strong> только
+      тем, кто прошёл проверку прав (см. <code>POST /v3/files/sign</code>).
+    </p>
+
+    <div class="note">
+      <strong>IPFS vs BNB Greenfield в нашем стеке.</strong> В Daskibo на IPFS/Pinata
+      лежит <em>код Lit Actions</em> и публичные метаданные, а <em>зашифрованный
+      приватный контент курса</em> — в <strong>BNB Greenfield</strong> (с гейтингом
+      ключа через Lit/Chipotle). Разные носители под разные задачи: неизменяемый
+      публичный код/метаданные vs объёмный приватный контент с платным доступом.
+    </div>
+
+    <h2>4. Задачи для самостоятельного изучения</h2>
+    <ol>
+      <li><strong>Ключи и проверка доступа.</strong> Создай в Pinata API-ключ
+        (Admin), сохрани <code>PINATA_JWT</code> и шлюз в <code>.env</code>. Проверь
+        авторизацию: <code>GET https://api.pinata.cloud/v3/files/public</code> с
+        Bearer-токеном должен вернуть 200, а без него — 401.</li>
+      <li><strong>Первый пин и CID.</strong> Запинь любой текстовый файл через
+        <code>POST /v3/files</code> (curl + JWT). Прочитай его обратно через шлюз
+        <code>https://&lt;gateway&gt;/ipfs/&lt;cid&gt;</code>. Залей тот же файл ещё
+        раз — объясни, почему CID не изменился и что значит <code>is_duplicate</code>.</li>
+      <li><strong>NFT-метаданные.</strong> Собери JSON по ERC-721 (name/description/
+        image/attributes), запинь сначала картинку, подставь её CID в поле
+        <code>image: ipfs://…</code>, затем запинь JSON. Сформируй
+        <code>tokenURI = ipfs://&lt;jsonCID&gt;</code>. Объясни, почему <code>image</code>
+        обязан быть на IPFS.</li>
+      <li><strong>Приватный контент + signed-ссылка.</strong> Загрузи файл как
+        <code>network=private</code>, попробуй открыть его публичным шлюзом (должно
+        не отдаться), затем создай временную ссылку (<code>POST /v3/files/sign</code>
+        или SDK <code>createAccessLink</code>) и открой контент по ней.</li>
+      <li><strong>Lit Action → CID → целостность.</strong> Запинь
+        <code>claim-signer.action.js</code> (<code>node tools/pinata/pin.mjs --lit-actions</code>),
+        зафиксируй CID. Измени в файле один байт (комментарий), перепинь и покажи,
+        что CID сменился. Объясни, как это защищает привязку PKP↔CID.</li>
+      <li><strong>Группы.</strong> Создай группу (<code>POST /v3/groups</code>),
+        загрузи в неё 2–3 файла с указанием <code>group_id</code>, получи листинг
+        группы. Опиши, как группами организовать ассеты одной коллекции/курса.</li>
+      <li><strong>IPFS vs Greenfield (вывод по проекту).</strong> На одной странице
+        обоснуй, что из Daskibo логично хранить на IPFS/Pinata (код экшенов,
+        публичные метаданные), а что — в Greenfield (зашифрованный приватный контент
+        курса), и почему. Сошлись на свойства: неизменяемость, приватность, объём,
+        стоимость, гейтинг доступа.</li>
+    </ol>
+
+    <h2>5. Чек-лист завершения урока</h2>
+    <ul>
+      <li><input type="checkbox" /> Понимаю CID, пиннинг и роль шлюза; различаю CIDv0/CIDv1.</li>
+      <li><input type="checkbox" /> Умею пиннить и читать файлы через v3 Files API (JWT) и шлюз.</li>
+      <li><input type="checkbox" /> Сделал NFT-метаданные с <code>image: ipfs://…</code> и <code>tokenURI</code>.</li>
+      <li><input type="checkbox" /> Поднял приватный файл и временную signed-ссылку.</li>
+      <li><input type="checkbox" /> Запинил Lit Action и понял связь CID↔целостность кода (PKP).</li>
+      <li><input type="checkbox" /> Могу обосновать выбор IPFS vs Greenfield под задачу.</li>
+    </ul>
+
+    <div class="nav-links">
+      <a href="../21/index.html">← Lesson 21 · GOSH &amp; DePIN</a>
+      <a href="../../index.html">К курсу Web3 Genesis →</a>
+    </div>
+  </div>
+
+  <script src="../../../../js/header.js"></script>
+</body>
+</html>

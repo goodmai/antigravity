@@ -1,0 +1,294 @@
+# Canonical LOCAL Lit (v3 / Chipotle) NFT-gating E2E stack.
+#
+# Since Lit has no public testnets anymore (Datil shut down, Naga wound down —
+# see lit skill §1), this **local build** is the default dev/CI path: a real
+# Chipotle TEE (dstack-sim + chipotle-real) + a local Greenfield chain + the full
+# Solidity layer, then the soulbound-NFT gating scenario E2E. The mainnet path
+# (real Chipotle on Base) is docker-compose.mainnet-lit.yml.
+#
+# deploy-nft deploys (deterministic, fresh chipotle-anvil, deployer 0xf39Fd6…):
+#   DeployAccessNfts → ClientNft (nonce 1), AuthorNft (nonce 2), ManifestRegistry (nonce 3)
+#   Deploy           → Treasury, AccessPass, CourseMarketplace (nonces 4-6)
+# Access NFTs are soulbound + revocable (revoke/burn) + delegated-grant (granter role);
+# ManifestRegistry anchors the Lit ACC conditionsHash on-chain (tamper-check).
+#
+# Run:
+#   docker compose -f smartcontracts/docker-compose.lit.yml up --build --abort-on-container-exit --exit-code-from e2e-lit
+#   # or: ./run_e2e_lit.sh  (clean genesis, real 7-SP gnfd)
+
+services:
+  chipotle-anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: chipotle-anvil-lit
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        anvil --host 0.0.0.0 --port 8545
+    ports:
+      - "8545:8545"
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lit-network
+
+  chipotle-dstack-sim:
+    image: ubuntu:24.04
+    container_name: chipotle-dstack-sim-lit
+    working_dir: /app
+    volumes:
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml.orig:ro
+      - dstack-shared-lit:/var/run
+    command: >
+      bash -c "
+      cp /app/dstack.toml.orig /app/dstack.toml &&
+      sed -i 's|unix:\./dstack\.sock|unix:/var/run/dstack.sock|g' /app/dstack.toml &&
+      exec dstack-simulator
+      "
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -S /var/run/dstack.sock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    networks:
+      - lit-network
+
+  chipotle-deployer:
+    image: rust:1.88.0-bookworm
+    container_name: chipotle-deployer-lit
+    working_dir: /app/lit-api-server/blockchain/lit_node_express
+    volumes:
+      - ${CHIPOTLE_DIR:-../../../GitHub/chipotle}:/app
+      - chipotle-config-lit:/shared-config
+    depends_on:
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      if [ -f ../rust_generator_and_deployer/target/debug/contract_deployer ] && [ -d artifacts/contracts ]; then
+        echo '=== Using precompiled contract_deployer and artifacts ===';
+      else
+        echo '=== Compiling from scratch ===' &&
+        apt-get update -qq && apt-get install -y -qq curl &&
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &&
+        apt-get install -y -qq nodejs &&
+        make compile &&
+        cd ../rust_generator_and_deployer && cargo build --bin contract_deployer &&
+        cd ../lit_node_express;
+      fi &&
+      cd ../rust_generator_and_deployer &&
+      DEPLOY_OUTPUT=\$$(./target/debug/contract_deployer --action=deploy --network=anvil --abifolder=../lit_node_express/artifacts/contracts --secret=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url=http://chipotle-anvil:8545 2>&1) &&
+      echo \"\$$DEPLOY_OUTPUT\" &&
+      CONTRACT_ADDRESS=\$$(echo \"\$$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
+      echo \"[chain]\" > /shared-config/NodeConfig.toml &&
+      echo \"name = \\\"anvil\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"contract_address = \\\"\$$CONTRACT_ADDRESS\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"Generated NodeConfig.toml:\" &&
+      cat /shared-config/NodeConfig.toml
+      "
+    networks:
+      - lit-network
+
+
+  chipotle-bootstrap:
+    image: rust:1.88.0-bookworm
+    container_name: chipotle-bootstrap-lit
+    depends_on:
+      chipotle-deployer:
+        condition: service_completed_successfully
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      curl -L https://foundry.paradigm.xyz | bash &&
+      export PATH=\"/root/.foundry/bin:$$PATH\" &&
+      ( for i in 1 2 3 4 5; do foundryup -i v1.7.1 && exit 0; echo \"foundryup attempt $$i failed (transient download); retrying in 15s\"; sleep 15; done; exit 1 ) &&
+      export ADDR=$$(grep contract_address /shared-config/NodeConfig.toml | cut -d'\"' -f2) &&
+      echo \"Seeding signers and registering account at $$ADDR...\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x49052f8877e87a0d87efe794e5d9b04eff35a5ea --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x8cf71453c626b7efc75ec43787c3af36ef9028da --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0xddf180025c7581f4c13b901c84c18d83b86679e6 --value 10ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf --value 100ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setApiPayers(address[])\" \"[0x49052f8877e87a0d87efe794e5d9b04eff35a5ea, 0x8cf71453c626b7efc75ec43787c3af36ef9028da, 0xddf180025c7581f4c13b901c84c18d83b86679e6]\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"newAccount(uint256,bool,string,string,address)\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 true Dummy \"Dummy Account\" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setUsageApiKey(uint256,uint256,uint256,uint256,string,string,bool,bool,bool,uint256[],uint256[],uint256[],uint256[])\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 2000000000 0 \"DummyKey\" \"Dummy Key\" true true true \"[]\" \"[]\" \"[]\" \"[0]\"
+      "
+    volumes:
+      - chipotle-config-lit:/shared-config:ro
+    networks:
+      - lit-network
+
+  chipotle-real:
+    build:
+      context: ${CHIPOTLE_DIR:-../../../GitHub/chipotle}
+      dockerfile: Dockerfile
+    container_name: chipotle-real-lit
+    network_mode: "service:chipotle-anvil"
+    environment:
+      - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
+      - ROCKET_ADDRESS=0.0.0.0
+      - ROCKET_PORT=8000
+      # Disable the CpuOverloadMonitor 429 load-shedding on this single-tenant
+      # TEE node. On a 2-core CI runner the CPU-heavy create_wallet (PKP gen) +
+      # concurrent cargo/docker spike CPU PSI past the 50% default, so the very
+      # next request (encrypt) is shed with HTTP 429 and the e2e flakes. This is
+      # a test node, not real traffic — we want it to process our handful of
+      # sequential calls under load. Thresholds the guard never trips on:
+      #   PSI is a 0–100% figure → 1000 can't be exceeded.
+      #   Load avg threshold = num_cpus * multiplier → 1000 is effectively ∞.
+      - CPU_PSI_THRESHOLD=1000.0
+      - CPU_OVERLOAD_MULTIPLIER=1000.0
+      - BASE_CHAIN_RPC=http://chipotle-anvil:8545
+      - DSTACK_SOCKET=/var/run/dstack.sock
+      - LIT_TELEMETRY_ENDPOINT=http://chipotle-jaeger:4317
+    volumes:
+      - dstack-shared-lit:/var/run
+      - chipotle-config-lit:/app/config:ro
+    entrypoint: >
+      bash -c "
+      cp /app/config/NodeConfig.toml /app/NodeConfig.toml &&
+      /usr/local/bin/DockerEntryPoint.sh
+      "
+    depends_on:
+      chipotle-dstack-sim:
+        condition: service_healthy
+      chipotle-bootstrap:
+        condition: service_completed_successfully
+      chipotle-jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8000"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  chipotle-jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: chipotle-jaeger-lit
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16687:16686" # UI
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686/"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - lit-network
+
+  greenfield-local:
+    build:
+      context: ./greenfield-local
+      dockerfile: Dockerfile
+      args:
+        GREENFIELD_REF: ${GREENFIELD_REF:-v1.10.7}
+        VALIDATORS: ${VALIDATORS:-1}
+        SPS: ${SPS:-7}
+    container_name: greenfield-local-lit
+    ports:
+      - "26750:26750"   # validator0 Tendermint RPC
+      - "7545:8545"     # validator0 EVM RPC
+      - "9033:9033"     # sp0 HTTP gateway
+      - "1317:1317"     # cosmos REST
+    healthcheck:
+      # Ready only once the GVG exists AND all gnfd-sp gateways are serving,
+      # so object upload/download works (not just bucket creation).
+      test: ["CMD", "sh", "-c", "test -f /tmp/sp_ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 240s
+    networks:
+      - lit-network
+
+  deploy-nft:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: deploy-nft-lit
+    user: root
+    working_dir: /work
+    depends_on:
+      chipotle-anvil:
+        condition: service_healthy
+    environment:
+      - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - RPC_URL=http://chipotle-anvil:8545
+    volumes:
+      - ./contracts:/work
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
+        && forge build
+        && forge script script/DeployAccessNfts.s.sol:DeployAccessNfts
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
+    networks:
+      - lit-network
+
+  e2e-lit:
+    build:
+      context: ./e2e
+      dockerfile: Dockerfile.e2e-lit
+    container_name: e2e-lit-runner
+    working_dir: /app
+    depends_on:
+      chipotle-real:
+        condition: service_healthy
+      deploy-nft:
+        condition: service_completed_successfully
+      greenfield-local:
+        condition: service_healthy
+    environment:
+      - CHIPOTLE_RPC=http://chipotle-anvil:8545
+      - CHIPOTLE_URL=http://chipotle-anvil:8000
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - DEPLOYER_ADDR=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - ALICE_ADDR=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - BOB_ADDR=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      # NFT_CONTRACT_ADDR (ClientNft) — balanceOf gate used only by the
+      # non-default run-e2e-lit.mjs. The default scenario (run-e2e-lit-nft.mjs)
+      # resolves addresses from the forge broadcast (run-latest.json), so it
+      # auto-picks up the extra ManifestRegistry/AuthorNft from DeployAccessNfts
+      # regardless of the deployer's nonce on chipotle-anvil.
+      - NFT_CONTRACT_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - GREENFIELD_TESTNET_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - GF_CHAIN_ID=greenfield_9000-1
+      - GF_RPC=http://greenfield-local:26750
+      - GF_SP=http://greenfield-local:9033
+    volumes:
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+      - ./integration:/app/integration:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+      - ./contracts:/app/contracts:ro
+    command: ["node", "/app/run-e2e-lit-nft.mjs"]
+    networks:
+      - lit-network
+
+volumes:
+  dstack-shared-lit:
+  chipotle-config-lit:
+
+networks:
+  lit-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

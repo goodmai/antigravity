@@ -1,0 +1,147 @@
+# Daskibo Academy — REAL-network E2E happy-path
+#
+# Three containers wire a true end-to-end flow with no mocks:
+#
+#   anvil    BNB-testnet clone (chain-id 97, deterministic accounts).
+#            Optionally forks public BSC testnet when BSC_TESTNET_RPC is
+#            set; otherwise spins a clean local chain with the same
+#            chain-id so the contracts behave identically.
+#
+#   deploy   Foundry container that runs script/Deploy.s.sol against the
+#            anvil node. Wires Treasury → AccessPass → CourseMarketplace
+#            using the deterministic anvil dev key (account #0); pins
+#            w3ext = anvil account #4. Addresses are deterministic — see
+#            README "Deterministic addresses".
+#
+#   e2e      Node container that drives the happy-path:
+#              · Alice publishes encrypted course to REAL Greenfield
+#                testnet (chain 5600)
+#              · Master key Lit-wrapped on REAL datil-dev (free; switch
+#                to datil-test only if you own capacity credits)
+#              · Alice registers course on the anvil Marketplace
+#              · Bob purchases — money split asserted on-chain
+#              · Operator re-wraps Lit envelope (Alice OR Bob) — mirrors
+#                the real publisher service that listens for Purchase
+#                events (Lit nodes can't reach a local RPC, so the
+#                Lit-side allowlist tracks on-chain access in real time)
+#              · Bob decrypts and asserts plaintext round-trip
+#              · Eve is rejected at BOTH layers (Marketplace + Lit)
+#              · All payees withdraw pull-payments to zero
+#
+# Run:
+#   export GREENFIELD_TESTNET_PRIVATE_KEY=0x...    # funded tBNB on 5600
+#   export GREENFIELD_TESTNET_ADDRESS=0x...
+#   docker compose -f smartcontracts/e2e/docker-compose.yml up \
+#       --abort-on-container-exit --exit-code-from e2e
+#
+# Driven by tests/e2e-course-flow.live.test.js (opt-in: RUN_E2E=1 +
+# funded Greenfield testnet keys).
+
+services:
+  greenfield-validator:
+    image: bnbchain/greenfield:latest
+    ports:
+      - "26657:26657"
+      - "9090:9090"
+    environment:
+      - CHAIN_ID=greenfield_local_1
+      - ENABLE_STRICT_AUTH=true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:26657/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    entrypoint: ["sh", "-c"]
+    # If BSC_TESTNET_RPC is set, fork the public BSC testnet for a true
+    # clone; otherwise spin a clean local node with chain-id 97. Either
+    # way the EVM behaves identically for the contracts.
+    command:
+      - >
+        anvil --host 0.0.0.0 --chain-id 97 --hardfork shanghai
+        $${BSC_TESTNET_RPC:+--fork-url "$$BSC_TESTNET_RPC"}
+        --silent
+    environment:
+      - BSC_TESTNET_RPC
+    ports:
+      - "8545:8545"
+    healthcheck:
+      test:
+        ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    working_dir: /work
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      # anvil account #0 — deterministic dev key, LOCAL ONLY
+      - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - RPC_URL=http://anvil:8545
+      # w3ext = anvil account #4 (separate from author / buyer / deployer)
+      - W3EXT=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+    volumes:
+      - ../contracts:/work
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
+        && forge build
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
+
+  e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    working_dir: /app
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      greenfield-validator:
+        condition: service_healthy
+    environment:
+      # Anvil-cloned BNB testnet (chain-id 97 matches BSC testnet)
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=97
+      # Deterministic contract addresses (deployer #0, CREATE nonces 0/1/2)
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      # Anvil dev accounts — Alice, Bob, Eve are EOAs (no contracts)
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - DEPLOYER_ADDR=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - ALICE_ADDR=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - BOB_ADDR=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      - W3EXT_ADDR=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+      # REAL public Greenfield testnet (chain 5600) — REQUIRED (no mocks)
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_CHAIN_ID=5600
+      - GF_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+      - GF_SP=https://gnfd-testnet-sp1.bnbchain.org
+      # REAL Lit Protocol — datil-dev is permissionless and free (no
+      # capacity credits required). Switch to datil-test only if the
+      # operator owns capacity credits on Chronicle Yellowstone.
+      - LIT_NETWORK=datil-dev
+      # Course list price (uint96 wei on the anvil chain). 0.01 native.
+      # Anvil dev accounts are auto-funded with 10 000 each, so this is
+      # zero real-world cost — only Greenfield uploads spend funds.
+      - COURSE_PRICE_WEI=10000000000000000
+    volumes:
+      - ./:/app
+      - ../buckets:/app/buckets:ro

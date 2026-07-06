@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Audit 4.2 / 5.3: contain XSS / Lit session-sig theft. Scripts only
+       from self + the pinned esm.sh CDN (no 'unsafe-inline'); connect-src
+       is an explicit allowlist (Greenfield *.bnbchain.org, Lit
+       *.litprotocol.com/*.litgateway.com, esm.sh) — NO bare `https:`.
+       style 'unsafe-inline' retained for the inline <style>/style attrs
+       (CSS-injection is lower risk) — see GREENFIELD.md. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://esm.sh;
+    connect-src 'self' https://*.bnbchain.org https://*.litprotocol.com https://*.litgateway.com https://esm.sh;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data:;
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+    frame-ancestors 'none'" />
+  <title>Daskibo Smart Contracts — Greenfield Buckets</title>
+  <style>
+    :root {
+      --bg: #0b0d12; --panel: #141821; --line: #232a38;
+      --fg: #e8ecf4; --muted: #94a3b8; --accent: #f0b90b; --accent-2: #57c0ff;
+      --ok: #34d399; --err: #f87171;
+      --font: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); }
+    a { color: var(--accent-2); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.25rem; }
+    .hero { padding: 4rem 0 2rem; text-align: center;
+      background: radial-gradient(ellipse at top, #1a2030, var(--bg)); }
+    .hero h1 { font-size: 2.4rem; margin: 0 0 .5rem; }
+    .hero p { color: var(--muted); max-width: 640px; margin: 0 auto; }
+    .badge { display: inline-block; font-size: .7rem; padding: .15rem .55rem;
+      border-radius: 999px; background: #1f2937; color: var(--accent); margin-left: .5rem; }
+    .section { padding: 2.5rem 0; }
+    .section-title { font-size: 1.4rem; margin: 0 0 1.25rem;
+      border-left: 3px solid var(--accent); padding-left: .75rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--line);
+      border-radius: 14px; padding: 1.25rem; }
+    .card h3 { margin: 0 0 .75rem; font-size: 1.05rem; }
+    label { display: block; font-size: .8rem; color: var(--muted); margin: .6rem 0 .25rem; }
+    input, textarea {
+      width: 100%; background: #0e131b; border: 1px solid var(--line);
+      color: var(--fg); border-radius: 8px; padding: .55rem .7rem; font: inherit; }
+    textarea { min-height: 90px; resize: vertical; }
+    button {
+      margin-top: .9rem; background: var(--accent); color: #1a1300; border: 0;
+      border-radius: 8px; padding: .6rem 1.1rem; font-weight: 700; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    #gf-status { margin: 1.25rem 0; padding: .7rem 1rem; border-radius: 8px;
+      background: #11161f; border: 1px solid var(--line); font-size: .9rem; min-height: 1.2rem; }
+    #gf-status[data-state="error"] { border-color: var(--err); color: var(--err); }
+    #gf-status[data-state="ok"]    { border-color: var(--ok); color: var(--ok); }
+    ul#gf-bucket-list { list-style: none; padding: 0; margin: .5rem 0 0; }
+    ul#gf-bucket-list li { padding: .4rem .6rem; border: 1px solid var(--line);
+      border-radius: 6px; margin-bottom: .35rem; font-size: .9rem; }
+    pre#gf-object-output { background: #0e131b; border: 1px solid var(--line);
+      border-radius: 8px; padding: .8rem; overflow: auto; max-height: 260px; margin-top: .5rem; }
+    .course-card { display: block; transition: transform .12s; }
+    .course-card:hover { transform: translateY(-3px); }
+    .course-icon { font-size: 1.8rem; }
+    footer { padding: 2rem 0; text-align: center; color: var(--muted); font-size: .85rem;
+      border-top: 1px solid var(--line); margin-top: 2rem; }
+    .net { font-size: .8rem; color: var(--muted); margin-top: .5rem; }
+    .net code { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Daskibo Smart Contracts <span class="badge">Greenfield Testnet</span></h1>
+      <p>
+        One common console to <strong>create</strong>, <strong>search</strong>,
+        <strong>save</strong> and <strong>read</strong> buckets on the
+        BNB&nbsp;Greenfield decentralized-storage testnet.
+      </p>
+      <p class="net">
+        Chain <code id="net-chain"></code> · SP <code id="net-sp"></code> ·
+        <a id="net-faucet" target="_blank" rel="noopener">testnet faucet</a> ·
+        <a id="net-explorer" target="_blank" rel="noopener">explorer</a>
+      </p>
+    </div>
+  </section>
+
+  <main class="container">
+
+    <div id="gf-status" data-state="ok">Ready. Paste your testnet wallet address to begin.</div>
+
+    <section class="section">
+      <h2 class="section-title">Owner</h2>
+      <div class="card">
+        <label for="gf-owner">Greenfield testnet wallet address (0x…)</label>
+        <input id="gf-owner" placeholder="0xAbCd…" autocomplete="off" />
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Buckets</h2>
+      <div class="grid">
+
+        <div class="card">
+          <h3>Create bucket</h3>
+          <form id="gf-create-form">
+            <label for="gf-bucket-name">Bucket name (3–63, lowercase)</label>
+            <input id="gf-bucket-name" placeholder="my-course-bucket" />
+            <button type="submit">Create</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Search buckets</h3>
+          <form id="gf-search-form">
+            <label for="gf-search-query">Name contains</label>
+            <input id="gf-search-query" placeholder="course" />
+            <button type="submit">Search</button>
+          </form>
+          <ul id="gf-bucket-list"></ul>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Objects</h2>
+      <div class="grid">
+
+        <div class="card">
+          <h3>Save object</h3>
+          <form id="gf-save-form">
+            <label for="gf-save-bucket">Bucket</label>
+            <input id="gf-save-bucket" placeholder="my-course-bucket" />
+            <label for="gf-save-key">Object key</label>
+            <input id="gf-save-key" placeholder="courses/01/intro.md" />
+            <label for="gf-save-body">Content</label>
+            <textarea id="gf-save-body" placeholder="# Lesson 1"></textarea>
+            <button type="submit">Save</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>Read object</h3>
+          <form id="gf-read-form">
+            <label for="gf-read-bucket">Bucket</label>
+            <input id="gf-read-bucket" placeholder="my-course-bucket" />
+            <label for="gf-read-key">Object key</label>
+            <input id="gf-read-key" placeholder="courses/01/intro.md" />
+            <button type="submit">Read</button>
+          </form>
+          <pre id="gf-object-output"></pre>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Lit-protected course</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Publish encrypted course</h3>
+          <form id="gf-lit-publish-form">
+            <label for="gf-lit-slug">Bucket / course slug</label>
+            <input id="gf-lit-slug" placeholder="my-course-01" />
+            <label for="gf-lit-acc">Reader address allowed to decrypt</label>
+            <input id="gf-lit-acc" placeholder="0x… (defaults to Owner)" />
+            <button type="submit">Publish (Lit-gated)</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>Open protected object</h3>
+          <form id="gf-lit-open-form">
+            <label for="gf-lit-open-bucket">Bucket</label>
+            <input id="gf-lit-open-bucket" placeholder="my-course-01" />
+            <label for="gf-lit-open-key">Object key</label>
+            <input id="gf-lit-open-key" placeholder="lessons/01/intro.md" />
+            <button type="submit">Decrypt via Lit</button>
+          </form>
+          <pre id="gf-lit-output"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Courses</h2>
+      <div class="grid">
+        <a class="card course-card" href="./courses/course-01/index.html">
+          <div class="course-icon">🪣</div>
+          <h3>Course 01 · Greenfield Basics</h3>
+          <p style="color:var(--muted);margin:0;">Buckets, objects and the SP gateway. <em>(stub)</em></p>
+        </a>
+        <a class="card course-card" href="./courses/course-02/index.html">
+          <div class="course-icon">🔐</div>
+          <h3>Course 02 · Permissions &amp; Visibility</h3>
+          <p style="color:var(--muted);margin:0;">Public vs private objects, policies. <em>(stub)</em></p>
+        </a>
+        <a class="card course-card" href="./courses/course-03/index.html">
+          <div class="course-icon">⛓️</div>
+          <h3>Course 03 · On-chain Storage Flows</h3>
+          <p style="color:var(--muted);margin:0;">Tx lifecycle, fees and quotas. <em>(stub)</em></p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    Daskibo Academy · Smart Contracts · BNB Greenfield testnet integration
+  </footer>
+
+  <script type="module" src="./index-init.js"></script>
+
+</body>
+</html>

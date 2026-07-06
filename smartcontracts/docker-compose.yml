@@ -1,0 +1,775 @@
+# Unified BNB Greenfield & Lit Protocol Orchestration Stack.
+# Profiles representing the complete product lifecycle:
+#
+# 1. local-mock (Local runs with mocks):
+#    docker compose --profile local-mock up -d
+#
+# 2. local (Local Private Chain with clean state):
+#    docker compose --profile local up -d
+#
+# 3. testnet (legacy alias — Greenfield testnet writer via local chipotle-mock):
+#    docker compose --profile testnet run --rm testnet-writer
+#
+# 4. TESTNETS — full testnet lifecycle:
+#    contracts → BSC testnet 97 + opBNB testnet 5611, storage → Greenfield 5600,
+#    DRM → REAL Chipotle (Lit has NO testnet; Chipotle prod on Base 8453),
+#    artifacts mirrored to IPFS via Pinata.
+#    docker compose --profile testnets up
+#    .env: GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS, CHIPOTLE_API_KEY (Stripe-
+#    funded), PINATA_JWT (or PINATA_API_KEY+PINATA_API_SECRET), PINATA_GATEWAY
+#
+# 5. PROD — full mainnet lifecycle:
+#    contracts → BSC 56 + opBNB 204, storage → Greenfield mainnet 1017,
+#    DRM → REAL Chipotle (Base 8453), artifacts mirrored to IPFS via Pinata.
+#    docker compose --profile prod up
+#    .env: GREENFIELD_MAINNET_PRIVATE_KEY/_ADDRESS, PROD_DEPLOYER_KEY/_ADDR,
+#    CHIPOTLE_API_KEY, PINATA_JWT, PINATA_GATEWAY
+#
+# 6. mainnet (legacy alias for the prod writer only):
+#    docker compose --profile mainnet run --rm mainnet-writer
+#
+# 7. devnet-pa (Devnet P-A scheme — Anvil + chipotle-mock + mock-sp, no real net):
+#    docker compose --profile devnet-pa up --abort-on-container-exit --exit-code-from devnet-pa-e2e
+#
+# 8. local-full (Full local stack — Anvil + chipotle-mock + local Greenfield):
+#    ./run_local_full.sh          ← patches SDK first, then runs compose
+#    or manually:
+#    docker compose --profile local-full up --abort-on-container-exit --exit-code-from local-full-e2e
+#
+# NOTE (Lit): datil/naga P2P networks are DEAD (datil shut down 2026-02-25,
+# Naga sunset 2026-04-01). The only live Lit network is Chipotle (v3, REST,
+# Base mainnet) — so BOTH testnets and prod profiles use the real
+# api.chipotle.litprotocol.com; only local profiles use chipotle-mock.
+#
+# Static frontend Nginx is served on port 8085 across all profiles to preserve
+# complete backward compatibility with vitest integration tests.
+
+services:
+  frontend:
+    image: nginx:1.27-alpine
+    ports:
+      - "8085:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/index.html"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - local-mock
+      - local
+      - testnet
+      - mainnet
+      - test-local
+      - test-devnet
+      - e2e-full
+
+  mock-sp:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "mock-sp.mjs"]
+    environment:
+      - PORT=9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./integration/mock-sp.mjs:/app/mock-sp.mjs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9000/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - local-mock
+
+  chipotle-mock:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - CHIPOTLE_PKP_KEY
+      - CHIPOTLE_PORT=8000
+      - ANVIL_RPC=http://anvil:8545
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node chipotle-mock.mjs"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/core/v1/version"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      # First boot does `npm install` of @bnb-chain/greenfield-js-sdk +
+      # @lit-protocol/* (heavy). Failing healthchecks during the install
+      # don't count until start_period elapses — keeps `up --wait` from
+      # exiting before the server has actually had a chance to start.
+      start_period: 180s
+    profiles:
+      - local
+      - testnet
+      - mainnet
+      - test-devnet
+      - devnet-pa
+      - local-full
+
+  mock-sp-devnet:
+    image: node:22-alpine
+    working_dir: /app
+    command: ["node", "mock-sp.mjs"]
+    environment:
+      - PORT=9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./integration/mock-sp.mjs:/app/mock-sp.mjs:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9000/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - devnet-pa
+
+  devnet-pa-e2e:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+      - ./integration:/app/integration:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      chipotle-mock:
+        condition: service_healthy
+      mock-sp-devnet:
+        condition: service_healthy
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=31337
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - GF_SP=http://mock-sp-devnet:9000
+      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - COURSE_PRICE_WEI=10000000000000000
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node /app/run-devnet-pa.mjs"]
+    profiles:
+      - devnet-pa
+
+  local-full-e2e:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      # The e2e/ dir is mounted (not copied) so the host-patched node_modules
+      # from run_local_full.sh are used by the container — critical for the
+      # local-chain EIP-712 patch (patch_sdk.cjs) to take effect.
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+      - ./integration:/app/integration:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      chipotle-mock:
+        condition: service_healthy
+      greenfield-local:
+        condition: service_healthy
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=31337
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - W3EXT_ADDR=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+      # Local Greenfield private chain (chain-id 9000, EIP-712 pre-Altai)
+      - GF_RPC=http://greenfield-local:26750
+      - GF_SP=http://greenfield-local:9033
+      - GF_CHAIN_ID=9000
+      - LIT_NETWORK=chipotle
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - COURSE_PRICE_WEI=10000000000000000
+    command: ["sh", "-c", "node /app/run-e2e.mjs"]
+    profiles:
+      - local-full
+
+  greenfield-local:
+    build:
+      context: ./greenfield-local
+      dockerfile: Dockerfile
+      args:
+        GREENFIELD_REF: ${GREENFIELD_REF:-master}
+        VALIDATORS: ${VALIDATORS:-1}
+        SPS: ${SPS:-7}
+    ports:
+      - "26750:26750"   # validator0 Tendermint RPC
+      - "7545:8545"     # validator0 EVM RPC
+      - "9033:9033"     # sp0 HTTP gateway
+      - "1317:1317"     # cosmos REST
+    healthcheck:
+      # Two-phase readiness:
+      #   1. GVG bootstrapped (chain ready + global virtual group created)
+      #   2. SP0 gateway HTTP /status returns 200 (SP fully initialized, accepts uploads)
+      test: ["CMD", "sh", "-c", "test -f /tmp/gvg_bootstrapped && curl -sf http://127.0.0.1:9033/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 80
+      start_period: 120s
+    profiles:
+      - local
+      - test-local
+      - e2e-full
+      - local-full
+
+
+  # Legacy alias: Greenfield-testnet writer against the LOCAL chipotle-mock.
+  # (write-testnet-lit.mjs is deprecated — datil is dead — so this now runs the
+  # shared Chipotle pipeline with an NFT/marketplace gate you provide via env.)
+  testnet-writer:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    environment:
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+      - MARKETPLACE_ADDR
+      - COURSE_ID
+      - NFT_GATING_CONTRACT
+      - NFT_GATING_CHAIN
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+      - CHIPOTLE_PKP_KEY
+    depends_on:
+      chipotle-mock:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-devnet.mjs"]
+    profiles:
+      - testnet
+
+  # Legacy alias for the prod writer (no deploy step) — prefer `--profile prod`.
+  mainnet-writer:
+    image: node:22-bookworm
+    working_dir: /app/smartcontracts/greenfield-testnet
+    volumes:
+      - ../:/app
+    environment:
+      - GREENFIELD_MAINNET_PRIVATE_KEY
+      - GREENFIELD_MAINNET_ADDRESS
+      - GF_BUCKET
+      - MARKETPLACE_ADDR
+      - COURSE_ID
+      - NFT_GATING_CONTRACT
+      - NFT_GATING_CHAIN
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - CHIPOTLE_API_KEY
+      - PIN_TO_IPFS
+      - PINATA_JWT
+      - PINATA_API_KEY
+      - PINATA_API_SECRET
+      - PINATA_GATEWAY
+      - PINATA_GATEWAY_KEY
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-mainnet.mjs"]
+    profiles:
+      - mainnet
+
+  # ─── TESTNETS / PROD PROFILES (real chains + real Chipotle + Pinata IPFS) ───
+  #
+  # Same shape for both: a one-shot multichain `deploy` (BSC + opBNB) writing
+  # <profile>-addresses.env into a shared volume + demo/addresses.json for the
+  # frontend, then a one-shot `writer` publishing the encrypted course to
+  # Greenfield with the master key wrapped by the REAL Chipotle and all
+  # artifacts pinned to IPFS via Pinata. `frontend` (nginx :8099) is the
+  # long-running reader UI.
+
+  deploy-testnets:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-testnets-deploy
+    user: root
+    working_dir: /work
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - DEPLOY_CHAINS=${DEPLOY_CHAINS:-bsc,opbnb}
+      - BSC_CHAIN_ID=97
+      - BSC_RPC=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
+      - OPBNB_CHAIN_ID=5611
+      - OPBNB_RPC=${OPBNB_TESTNET_RPC:-https://opbnb-testnet-rpc.bnbchain.org}
+      - COURSE_PRICE=${COURSE_PRICE:-1000000000000000}
+      - ADDR_FILE=testnets-addresses.env
+      - EXPLORER=https://testnet.bscscan.com
+      - CHAIN_NAME=BNB Smart Chain Testnet
+    volumes:
+      - ./contracts:/work
+      - net-shared:/shared
+      - ./demo:/host-demo
+      - ./scripts/deploy-multichain.sh:/usr/local/bin/deploy-multichain.sh:ro
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        export PRIVATE_KEY="$${DEVNET_DEPLOYER_KEY:-$${GREENFIELD_TESTNET_PRIVATE_KEY:-}}"
+        export DEPLOYER_ADDR="$${DEVNET_DEPLOYER_ADDR:-$${GREENFIELD_TESTNET_ADDRESS:-}}"
+        exec bash /usr/local/bin/deploy-multichain.sh
+    profiles:
+      - testnets
+
+  writer-testnets:
+    image: node:22-bookworm
+    container_name: daskibo-testnets-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      deploy-testnets:
+        condition: service_completed_successfully
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # DRM — REAL Chipotle (prod; Lit has no testnet). CHIPOTLE_API_KEY comes
+      # from .env and MUST be Stripe-funded (billing/balance > 0).
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
+      - GF_BUCKET=${GF_BUCKET:-}
+      - PIN_TO_IPFS=${PIN_TO_IPFS:-1}
+    volumes:
+      - ../:/app
+      - net-shared:/shared:ro
+      - ./demo:/host-demo
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/testnets-addresses.env &&
+        echo "→ Publishing to Greenfield TESTNET, gate=hasCourseAccess($$MARKETPLACE_ADDR, $$COURSE_ID) @ $$NFT_GATING_CHAIN, DRM=REAL Chipotle, IPFS=Pinata" &&
+        BUCKET=$$(MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-devnet.mjs | tee /dev/stderr | grep -oE 'daskibo-[a-z0-9]+' | tail -1) &&
+        if [ -n "$$BUCKET" ]; then
+          node -e "const fs=require('fs');const p='/host-demo/addresses.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.bucket='$$BUCKET';j.bucketOwner=process.env.GREENFIELD_TESTNET_ADDRESS;fs.writeFileSync(p,JSON.stringify(j,null,2));console.log('  → patched addresses.json with bucket='+j.bucket);"
+        fi
+    profiles:
+      - testnets
+
+  deploy-prod:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-prod-deploy
+    user: root
+    working_dir: /work
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - DEPLOY_CHAINS=${DEPLOY_CHAINS:-bsc,opbnb}
+      - BSC_CHAIN_ID=56
+      - BSC_RPC=${BSC_RPC:-https://bsc-dataseed.bnbchain.org}
+      - OPBNB_CHAIN_ID=204
+      - OPBNB_RPC=${OPBNB_RPC:-https://opbnb-mainnet-rpc.bnbchain.org}
+      - COURSE_PRICE=${COURSE_PRICE:-1000000000000000}
+      - ADDR_FILE=prod-addresses.env
+      - EXPLORER=https://bscscan.com
+      - CHAIN_NAME=BNB Smart Chain
+      - REQUIRE_REAL_KEY=1
+    volumes:
+      - ./contracts:/work
+      - net-shared:/shared
+      - ./demo:/host-demo
+      - ./scripts/deploy-multichain.sh:/usr/local/bin/deploy-multichain.sh:ro
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        export PRIVATE_KEY="$${PROD_DEPLOYER_KEY:-}"
+        export DEPLOYER_ADDR="$${PROD_DEPLOYER_ADDR:-}"
+        exec bash /usr/local/bin/deploy-multichain.sh
+    profiles:
+      - prod
+
+  writer-prod:
+    image: node:22-bookworm
+    container_name: daskibo-prod-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      deploy-prod:
+        condition: service_completed_successfully
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bsc}
+      - GF_BUCKET=${GF_BUCKET:-}
+      - PIN_TO_IPFS=${PIN_TO_IPFS:-1}
+    volumes:
+      - ../:/app
+      - net-shared:/shared:ro
+      - ./demo:/host-demo
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/prod-addresses.env &&
+        echo "→ Publishing to Greenfield MAINNET, gate=hasCourseAccess($$MARKETPLACE_ADDR, $$COURSE_ID) @ $$NFT_GATING_CHAIN, DRM=REAL Chipotle, IPFS=Pinata" &&
+        BUCKET=$$(MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-mainnet.mjs | tee /dev/stderr | grep -oE 'daskibo-[a-z0-9]+' | tail -1) &&
+        if [ -n "$$BUCKET" ]; then
+          node -e "const fs=require('fs');const p='/host-demo/addresses.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.bucket='$$BUCKET';j.bucketOwner=process.env.GREENFIELD_MAINNET_ADDRESS;fs.writeFileSync(p,JSON.stringify(j,null,2));console.log('  → patched addresses.json with bucket='+j.bucket);"
+        fi
+    profiles:
+      - prod
+
+  frontend-net:
+    image: nginx:1.27-alpine
+    container_name: daskibo-net-frontend
+    ports:
+      - "8099:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/bucket-reader.html"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - testnets
+      - prod
+
+  test-local-runner:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - RUN_GREENFIELD_LOCAL=1
+      - SKIP_DOCKER_ORCHESTRATION=1
+      - GREENFIELD_LOCAL_RPC=http://greenfield-local:26750
+      - GREENFIELD_LOCAL_SP=http://greenfield-local:9033
+    depends_on:
+      greenfield-local:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npx vitest run tests/greenfield-local.docker.test.js"]
+    profiles:
+      - test-local
+
+  test-devnet-runner:
+    image: node:22-bookworm
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - RUN_GREENFIELD_LOCAL=0
+      - SKIP_DOCKER_ORCHESTRATION=1
+      - GREENFIELD_TESTNET_PRIVATE_KEY
+      - GREENFIELD_TESTNET_ADDRESS
+      - GF_BUCKET
+      - LIT_ALLOWED_ADDRESS
+      - CHIPOTLE_URL=http://chipotle-mock:8000
+    depends_on:
+      chipotle-mock:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npx vitest run tests/greenfield-testnet.live.test.js"]
+    profiles:
+      - test-devnet
+
+  # ─── REAL CHIPOTLE PROFILE (TEE EMULATION) ───
+
+  chipotle-anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: chipotle-anvil
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        anvil --host 0.0.0.0 --port 8545
+    ports:
+      - "8545:8545"
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  chipotle-dstack-sim:
+    image: ubuntu:24.04
+    container_name: chipotle-dstack-sim
+    working_dir: /app
+    volumes:
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack-simulator:/usr/local/bin/dstack-simulator:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/appkeys.json:/app/appkeys.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/app-compose.json:/app/app-compose.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/sys-config.json:/app/sys-config.json:ro
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/attestation.bin:/app/attestation.bin:ro
+      # Mount as :ro to prevent sed -i from corrupting the original file on the host
+      - ${SIMULATOR_DIR:-../../../GitHub/dstack/sdk/simulator}/dstack.toml:/app/dstack.toml.orig:ro
+      - dstack-shared:/var/run
+    command: >
+      bash -c "
+      cp /app/dstack.toml.orig /app/dstack.toml &&
+      sed -i 's|unix:\./dstack\.sock|unix:/var/run/dstack.sock|g' /app/dstack.toml &&
+      exec dstack-simulator
+      "
+    healthcheck:
+      test: ["CMD", "bash", "-c", "test -S /var/run/dstack.sock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  chipotle-deployer:
+    image: rust:1.88.0-bookworm
+    container_name: chipotle-deployer
+    working_dir: /app/lit-api-server/blockchain/lit_node_express
+    volumes:
+      - ${CHIPOTLE_DIR:-../../../GitHub/chipotle}:/app
+      - chipotle-config:/shared-config
+    depends_on:
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      apt-get update -qq && apt-get install -y -qq curl &&
+      curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &&
+      apt-get install -y -qq nodejs &&
+      make compile &&
+      cd ../rust_generator_and_deployer && cargo build --bin contract_deployer &&
+      DEPLOY_OUTPUT=$$(./target/debug/contract_deployer --action=deploy --network=anvil --abifolder=../lit_node_express/artifacts/contracts --secret=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 --rpc-url=http://chipotle-anvil:8545 2>&1) &&
+      echo \"$$DEPLOY_OUTPUT\" &&
+      CONTRACT_ADDRESS=$$(echo \"$$DEPLOY_OUTPUT\" | grep -oE 'deployed to 0x[0-9a-fA-F]+' | tail -1 | sed 's/deployed to //') &&
+      echo \"[chain]\" > /shared-config/NodeConfig.toml &&
+      echo \"name = \\\"anvil\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"contract_address = \\\"$$CONTRACT_ADDRESS\\\"\" >> /shared-config/NodeConfig.toml &&
+      echo \"Generated NodeConfig.toml:\" &&
+      cat /shared-config/NodeConfig.toml
+      "
+
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  chipotle-bootstrap:
+    image: rust:1.88.0-bookworm
+    container_name: chipotle-bootstrap
+    depends_on:
+      chipotle-deployer:
+        condition: service_completed_successfully
+      chipotle-anvil:
+        condition: service_healthy
+    command: >
+      bash -c "
+      curl -L https://foundry.paradigm.xyz | bash &&
+      export PATH=\"/root/.foundry/bin:$$PATH\" &&
+      ( for i in 1 2 3 4 5; do foundryup -i v1.7.1 && exit 0; echo \"foundryup attempt $$i failed (transient download); retrying in 15s\"; sleep 15; done; exit 1 ) &&
+      export ADDR=$$(grep contract_address /shared-config/NodeConfig.toml | cut -d'\"' -f2) &&
+      echo \"Seeding signers and registering account at $$ADDR...\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x49052f8877e87a0d87efe794e5d9b04eff35a5ea --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x8cf71453c626b7efc75ec43787c3af36ef9028da --value 10ether &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0xddf180025c7581f4c13b901c84c18d83b86679e6 --value 10ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf --value 100ether && cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setApiPayers(address[])\" \"[0x49052f8877e87a0d87efe794e5d9b04eff35a5ea, 0x8cf71453c626b7efc75ec43787c3af36ef9028da, 0xddf180025c7581f4c13b901c84c18d83b86679e6]\" &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"newAccount(uint256,bool,string,string,address)\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 true Dummy \"Dummy Account\" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 &&
+      cast send --rpc-url http://chipotle-anvil:8545 --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \"$$ADDR\" \"setUsageApiKey(uint256,uint256,uint256,uint256,string,string,bool,bool,bool,uint256[],uint256[],uint256[],uint256[])\" 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 0x0e5ef0c19efd967e0b52255c37d777366c74b8cdce4b8356a956db1bffc0fbc6 2000000000 0 \"DummyKey\" \"Dummy Key\" true true true \"[]\" \"[]\" \"[]\" \"[0]\"
+      "
+    volumes:
+      - chipotle-config:/shared-config:ro
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  chipotle-real:
+    build:
+      context: ${CHIPOTLE_DIR:-../../../GitHub/chipotle}
+      dockerfile: Dockerfile
+    container_name: chipotle-real
+    network_mode: "service:chipotle-anvil"
+    environment:
+      - RUST_LOG=trace,h2=info,hyper=info,hyper_util=info,tonic=info,tower=info,reqwest=info,rustls=info,tokio_util=info
+      - ROCKET_ADDRESS=0.0.0.0
+      - ROCKET_PORT=8000
+      # Disable the CpuOverloadMonitor 429 load-shedding on this single-tenant
+      # TEE node (see docker-compose.lit.yml for the full rationale): on a weak
+      # CI runner the CPU-heavy create_wallet spikes CPU PSI past the 50%
+      # default and the next request is shed with 429, flaking the e2e. These
+      # thresholds (PSI is 0–100%; load = num_cpus * multiplier) never trip.
+      - CPU_PSI_THRESHOLD=1000.0
+      - CPU_OVERLOAD_MULTIPLIER=1000.0
+      - BASE_CHAIN_RPC=http://chipotle-anvil:8545
+      - DSTACK_SOCKET=/var/run/dstack.sock
+      - LIT_TELEMETRY_ENDPOINT=http://chipotle-jaeger:4317
+    volumes:
+      - dstack-shared:/var/run
+      - chipotle-config:/app/config:ro
+    entrypoint: >
+      bash -c "
+      cp /app/config/NodeConfig.toml /app/NodeConfig.toml &&
+      /usr/local/bin/DockerEntryPoint.sh
+      "
+    depends_on:
+      chipotle-dstack-sim:
+        condition: service_healthy
+      chipotle-bootstrap:
+        condition: service_completed_successfully
+      chipotle-jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/8000"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  chipotle-jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: chipotle-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:16686/"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - local-real-chipotle
+      - e2e-full
+
+  # ─── USER CONTRACTS & E2E HAPPY PATH ───
+
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-anvil
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        anvil --host 0.0.0.0 --chain-id 31337 --hardfork cancun
+        $${BSC_TESTNET_RPC:+--fork-url "$$BSC_TESTNET_RPC"}
+        --silent
+    environment:
+      - BSC_TESTNET_RPC
+    ports:
+      - "9545:8545"
+    healthcheck:
+      test:
+        ["CMD", "cast", "block-number", "--rpc-url", "http://localhost:8545"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    profiles:
+      - e2e-full
+      - devnet-pa
+      - local-full
+
+  deploy:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-deploy
+    user: root
+    working_dir: /work
+    depends_on:
+      anvil:
+        condition: service_healthy
+    environment:
+      # ⚠️ LOCAL ANVIL ONLY — this is the PUBLIC, well-known anvil dev key.
+      # NEVER deploy to a real network with it (anyone would own the contracts).
+      # For testnet/mainnet, override PRIVATE_KEY + RPC_URL with real values;
+      # the command below hard-refuses this key against a non-local RPC.
+      - PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - RPC_URL=http://anvil:8545
+      - W3EXT=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+    volumes:
+      - ./contracts:/work
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        if echo "$$RPC_URL" | grep -qvE 'anvil|127\.0\.0\.1|localhost' && [ "$$PRIVATE_KEY" = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" ]; then echo "REFUSING: well-known anvil dev key against non-local RPC ($$RPC_URL). Pass a real PRIVATE_KEY for testnet/mainnet."; exit 1; fi
+        && (test -d lib/forge-std || forge install --no-git foundry-rs/forge-std)
+        && (test -d lib/openzeppelin-contracts || forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1)
+        && forge build
+        && forge script script/Deploy.s.sol:Deploy
+        --rpc-url "$$RPC_URL" --private-key "$$PRIVATE_KEY"
+        --broadcast -vvv
+    profiles:
+      - e2e-full
+      - devnet-pa
+      - local-full
+
+  e2e:
+    build:
+      context: ./e2e
+      dockerfile: Dockerfile.e2e
+    container_name: daskibo-e2e
+    working_dir: /app
+    depends_on:
+      anvil:
+        condition: service_healthy
+      deploy:
+        condition: service_completed_successfully
+      chipotle-real:
+        condition: service_healthy
+      greenfield-local:
+        condition: service_healthy
+    environment:
+      - ANVIL_RPC=http://anvil:8545
+      - CHAIN_ID=31337
+      - TREASURY_ADDR=0x5FbDB2315678afecb367f032d93F642f64180aa3
+      - ACCESSPASS_ADDR=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+      - MARKETPLACE_ADDR=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+      - DEPLOYER_PK=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+      - DEPLOYER_ADDR=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      - ALICE_PK=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+      - ALICE_ADDR=0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      - BOB_PK=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+      - BOB_ADDR=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+      - EVE_PK=0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+      - EVE_ADDR=0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      - W3EXT_ADDR=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+      # REAL public Greenfield testnet (chain 5600) — overridden for local
+      - RUN_GREENFIELD_LOCAL=1
+      - GREENFIELD_LOCAL_RPC=http://greenfield-local:26750
+      - GREENFIELD_LOCAL_SP=http://greenfield-local:9033
+      - GREENFIELD_TESTNET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
+      - GREENFIELD_TESTNET_ADDRESS=0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf
+      - GF_CHAIN_ID=5600
+      - GF_RPC=https://gnfd-testnet-fullnode-tendermint-us.bnbchain.org
+      - GF_SP=https://gnfd-testnet-sp1.bnbchain.org
+      - LIT_NETWORK=custom
+      - CHIPOTLE_URL=http://chipotle-anvil:8000
+      - COURSE_PRICE_WEI=10000000000000000
+    volumes:
+      - ./e2e:/app
+      - ./buckets:/app/buckets:ro
+      - ./greenfield-local:/app/greenfield-local:ro
+      - ./greenfield-testnet:/app/greenfield-testnet:ro
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node /app/run-e2e.mjs"]
+    profiles:
+      - e2e-full
+
+volumes:
+  dstack-shared:
+  chipotle-config:
+  net-shared:
+

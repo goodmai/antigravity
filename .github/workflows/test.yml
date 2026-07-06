@@ -1,0 +1,457 @@
+# Runs the vitest suite + strict typecheck on every push / PR.
+# (Deploy is handled separately by static.yml.)
+name: Test & Typecheck
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    paths:
+      - 'smartcontracts/**'
+      - 'run_e2e_lit.sh'
+      - '.github/workflows/test.yml'
+  workflow_dispatch:
+  schedule:
+    # Nightly run picks up the heavy chipotle-real-integration job.
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Strict Typecheck
+        run: npm run typecheck
+
+      - name: No-any check
+        run: npm run lint:noany
+
+  forge-test:
+    name: Foundry Smart Contract Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # foundry-rs/foundry-toolchain has no retry; both the foundryup installer
+      # (curl|bash) AND its binary download flake intermittently (504 gateway
+      # time-out, hash mismatch, "tar: Error is not recoverable"), failing this
+      # job and the UI-E2E job repeatedly. Retry the WHOLE install (installer +
+      # pinned binary fetch). v1.7.1 matches the forge that generated .gas-snapshot.
+      - name: Install Foundry (v1.7.1, with retry)
+        run: |
+          # Pin FOUNDRY_DIR — the installer's base is ${XDG_CONFIG_HOME:-$HOME},
+          # and GitHub runners set XDG_CONFIG_HOME, so without this foundryup lands
+          # in ~/.config/.foundry/bin and the $HOME/.foundry path check never hits.
+          export FOUNDRY_DIR="$HOME/.foundry"
+          ok=0
+          for i in 1 2 3 4; do
+            curl -fL https://foundry.paradigm.xyz | bash || true
+            if [ -x "$FOUNDRY_DIR/bin/foundryup" ] && "$FOUNDRY_DIR/bin/foundryup" -i v1.7.1; then
+              ok=1; break
+            fi
+            echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
+            sleep 15
+          done
+          [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
+          echo "$FOUNDRY_DIR/bin" >> "$GITHUB_PATH"
+          "$FOUNDRY_DIR/bin/forge" --version
+
+      - name: Install forge dependencies
+        working-directory: smartcontracts/contracts
+        run: |
+          forge install --no-git foundry-rs/forge-std
+          forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1
+
+      - name: Forge build
+        working-directory: smartcontracts/contracts
+        run: forge build
+
+      - name: Forge test
+        working-directory: smartcontracts/contracts
+        run: forge test -vvv
+
+      - name: Verify Gas Snapshot
+        working-directory: smartcontracts/contracts
+        # --tolerance absorbs the small per-test gas-metering drift between the
+        # forge version that generated .gas-snapshot and the one CI installs;
+        # real regressions (logic changes) move gas well beyond 1% and still fail.
+        # The snapshot itself is deterministic given the pinned solc (0.8.28) and
+        # the pinned fuzz seed in foundry.toml.
+        run: forge snapshot --check --tolerance 1
+
+  # ── Real-Chipotle TEE job (best-effort, OFF the PR path) ───────────────────
+  # Builds the upstream LIT-Protocol/chipotle image, which compiles lit-api-core
+  # (Rust) → pulls the git dependency `LIT-Protocol/zerossl` at a pinned revision.
+  # That repo is PRIVATE (404 for external CI; pinned rev f91b84e2 unreachable on
+  # every public Chipotle ref incl. tag v1.1.7), so the image cannot be built
+  # without LIT-Protocol credentials — outside this repo's control.
+  # Per the Chipotle README, the supported way to use the REAL service is the
+  # hosted REST API (api.chipotle.litprotocol.com, account + API key) — "no
+  # servers to run"; building the image is a LIT-Protocol-internal dev path that
+  # needs the private zerossl. So: schedule/dispatch only + continue-on-error
+  # (best-effort upstream build). The PR path instead runs the mock-TEE gating
+  # E2E (e2e-lit-integration below) plus the hermetic unit tests (lit-acc-eval,
+  # chipotle-drm, course-read, lit-pricing) in the `test` job — full gating
+  # coverage, no private dep. Real hosted-API coverage runs in devnet-e2e
+  # (needs CHIPOTLE_API_KEY / funded account secrets).
+  chipotle-real-integration:
+    name: Real Chipotle TEE Integration (docker)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Checkout Chipotle Repo
+        uses: actions/checkout@v5
+        with:
+          repository: LIT-Protocol/chipotle
+          path: GitHub/chipotle
+          ref: next
+
+      - name: Patch Chipotle Dockerfile to include git
+        run: |
+          sed -i 's/libclang-dev \\/libclang-dev \\\n    git \\/' GitHub/chipotle/Dockerfile
+          mkdir -p GitHub/chipotle/lit-api-server/static
+
+      - name: Checkout dstack Repo
+        uses: actions/checkout@v5
+        with:
+          repository: Dstack-TEE/dstack
+          path: GitHub/dstack
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            GitHub/chipotle -> target
+            GitHub/dstack -> target
+
+      - name: Build dstack simulator
+        working-directory: GitHub/dstack/sdk/simulator
+        run: |
+          cargo build --release -p dstack-guest-agent-simulator
+          cp ../../target/release/dstack-simulator .
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Build & Launch Real Chipotle Stack
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile local-real-chipotle up -d --wait
+
+      - name: Healthcheck and Sanity verification
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://localhost:8000/core/v1/version; then
+              echo "Real Chipotle is healthy and responding!"
+              exit 0
+            fi
+            echo "Waiting for Real Chipotle..."
+            sleep 2
+          done
+          echo "ERROR: Real Chipotle failed to respond in time."
+          docker compose -f smartcontracts/docker-compose.yml --profile local-real-chipotle logs
+          exit 1
+
+      - name: Teardown
+        if: always()
+        env:
+          CHIPOTLE_DIR: ${{ github.workspace }}/GitHub/chipotle
+          SIMULATOR_DIR: ${{ github.workspace }}/GitHub/dstack/sdk/simulator
+        run: |
+          docker compose -f smartcontracts/docker-compose.yml \
+            --profile local-real-chipotle down --remove-orphans -v
+
+  # Lit-Protocol gating E2E on the PR path — runs against the Chipotle MOCK
+  # (REST-compatible: encrypt/decrypt/wrap_for_buyer + ACC enforcement), NOT the
+  # upstream chipotle-real image. The real image compiles lit-api-core, which
+  # depends on the PRIVATE repo LIT-Protocol/zerossl (404 for any external CI —
+  # pinned rev f91b84e2 is unreachable), so it CANNOT be built here. The mock
+  # exercises the same gating flow: purchase → wrap_for_buyer → setEncryptedKey →
+  # decrypt (allowed) → Eve denied → double-wrap blocked → expiry enforced.
+  # Real-TEE coverage lives in the nightly chipotle-real-integration job.
+  e2e-lit-integration:
+    name: E2E Lit Protocol Gating Integration (mock TEE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      # Two-step orchestration (not `up --abort-on-container-exit`): the one-shot
+      # `deploy` exits 0 and would otherwise trip abort-on-exit, racing the
+      # long-running chipotle-mock to a SIGKILL (137) before the e2e runner
+      # starts. Instead: bring deps + deploy up detached, wait for deploy, then
+      # run the e2e one-shot and use ITS exit code as the gate (mirrors the
+      # proven ui-e2e-synpress pattern).
+      - name: Bring up stack (Anvil + mock Chipotle + mock SP) + deploy
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile devnet-pa up -d --build \
+            anvil chipotle-mock mock-sp-devnet deploy
+          echo "Waiting for one-shot deploy…"
+          code="$(docker wait daskibo-deploy)"
+          docker logs daskibo-deploy
+          [ "$code" = "0" ] || { echo "::error::contract deploy failed (exit $code)"; exit 1; }
+
+      - name: Run P-A Lit gating E2E
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile devnet-pa run --rm devnet-pa-e2e
+
+      - name: Teardown
+        if: always()
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile devnet-pa down --remove-orphans -v
+
+  integration-test:
+    name: Integration (Docker) Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run Integration Tests
+        run: npm run test:integration
+
+  devnet-e2e:
+    name: Devnet E2E (Flow C, Real networks)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run Devnet E2E Tests
+        env:
+          GREENFIELD_TESTNET_PRIVATE_KEY: ${{ secrets.GREENFIELD_TESTNET_PRIVATE_KEY }}
+          GREENFIELD_TESTNET_ADDRESS: ${{ secrets.GREENFIELD_TESTNET_ADDRESS }}
+        run: |
+          if [ -n "$GREENFIELD_TESTNET_PRIVATE_KEY" ]; then
+            node smartcontracts/e2e/run-e2e.mjs
+          else
+            echo "⏭️ Skipping Devnet E2E tests: GREENFIELD_TESTNET_PRIVATE_KEY secret is not set."
+          fi
+
+  ui-e2e-synpress:
+    name: Full UI E2E (Synpress + MetaMask, docker local-full)
+    # Heavy headed-browser job: real MetaMask 13.24.0 driven over CDP against the
+    # full local stack. Runs on PRs touching smartcontracts/**, nightly, and on demand.
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: smartcontracts/e2e-synpress
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # v11 to match the local toolchain — pnpm 9 rejects e2e-synpress's
+          # pnpm-workspace.yaml ("packages field missing or empty"); 10/11 tolerate it.
+          version: 11
+
+      # foundryup installer + binary download flake intermittently (504 / hash
+      # mismatch / tar); retry the whole install so this job doesn't die before
+      # the stack even comes up.
+      - name: Install Foundry (v1.7.1, with retry)
+        run: |
+          # Pin FOUNDRY_DIR — the installer's base is ${XDG_CONFIG_HOME:-$HOME},
+          # and GitHub runners set XDG_CONFIG_HOME, so without this foundryup lands
+          # in ~/.config/.foundry/bin and the $HOME/.foundry path check never hits.
+          export FOUNDRY_DIR="$HOME/.foundry"
+          ok=0
+          for i in 1 2 3 4; do
+            curl -fL https://foundry.paradigm.xyz | bash || true
+            if [ -x "$FOUNDRY_DIR/bin/foundryup" ] && "$FOUNDRY_DIR/bin/foundryup" -i v1.7.1; then
+              ok=1; break
+            fi
+            echo "::warning::foundry install attempt $i failed (transient); retrying in 15s"
+            sleep 15
+          done
+          [ "$ok" = 1 ] || { echo "::error::foundry install failed after retries"; exit 1; }
+          echo "$FOUNDRY_DIR/bin" >> "$GITHUB_PATH"
+          "$FOUNDRY_DIR/bin/forge" --version
+
+      # The deploy container mounts ./contracts and runs `forge build`; it
+      # auto-installs forge-std but expects openzeppelin-contracts to already be
+      # in lib/ (both are gitignored). Populate lib/ on the runner first.
+      - name: Install forge dependencies
+        working-directory: smartcontracts/contracts
+        run: |
+          forge install --no-git foundry-rs/forge-std
+          forge install --no-git OpenZeppelin/openzeppelin-contracts@v5.6.1
+
+      # ── Local stack: Anvil (31337) + deterministic deploy + frontend (8085) + chipotle-mock (8000) ──
+      - name: Bring up local-full stack
+        working-directory: smartcontracts
+        run: |
+          docker compose -f docker-compose.yml --profile local-full up -d \
+            anvil frontend chipotle-mock deploy
+          echo "Waiting for one-shot deploy to finish…"
+          code="$(docker wait daskibo-deploy)"
+          docker logs daskibo-deploy | tail -25
+          [ "$code" = "0" ] || { echo "::error::contract deploy failed (exit $code)"; exit 1; }
+
+      - name: Wait for endpoints (Anvil / frontend / chipotle-mock)
+        working-directory: smartcontracts
+        run: |
+          ok() { curl -sf -m 4 "$@" >/dev/null; }
+          for i in $(seq 1 30); do
+            if ok -X POST http://localhost:9545 -H 'content-type: application/json' \
+                  --data '{"jsonrpc":"2.0","method":"eth_chainId","id":1}' \
+               && ok http://localhost:8085/course-demo.html \
+               && ok http://localhost:8000/core/v1/version; then
+              echo "All endpoints healthy."; exit 0
+            fi
+            echo "waiting for stack… ($i)"; sleep 2
+          done
+          echo "::error::stack did not become healthy"; docker compose -f docker-compose.yml ps; exit 1
+
+      # course-demo.html fetches ./demo/addresses.json (deployed contract addrs +
+      # chain config). It is gitignored and normally written by the demo-deploy
+      # service; the local-full `deploy` doesn't emit it, so without this the page
+      # 404s and every test fails on an empty #net-line. The deploy logs print the
+      # same address lines demo-deploy greps, so derive it from there. rpcUrl must
+      # be the host port (9545) — the page's read provider runs on the runner host.
+      # The frontend's bind mount is live, so a file written now is served at once.
+      - name: Generate demo/addresses.json for the frontend
+        working-directory: smartcontracts
+        run: |
+          LOG="$(docker logs daskibo-deploy 2>&1)"
+          pick() { printf '%s' "$LOG" | grep -i "$1" | grep -oiE '0x[0-9a-f]{40}' | tail -1; }
+          TREASURY="$(pick 'Treasury ')"
+          ACCESSPASS="$(pick 'AccessPass ')"
+          MARKETPLACE="$(pick 'CourseMarketplace')"
+          if [ -z "$TREASURY" ] || [ -z "$ACCESSPASS" ] || [ -z "$MARKETPLACE" ]; then
+            echo "::error::could not parse deployed addresses from deploy logs"; printf '%s\n' "$LOG" | tail -40; exit 1
+          fi
+          mkdir -p demo
+          cat > demo/addresses.json <<JSON
+          {
+            "chainId": 31337,
+            "chainIdHex": "0x7a69",
+            "chainName": "Daskibo Anvil (local)",
+            "rpcUrl": "http://127.0.0.1:9545",
+            "treasury": "$TREASURY",
+            "accessPass": "$ACCESSPASS",
+            "marketplace": "$MARKETPLACE"
+          }
+          JSON
+          cat demo/addresses.json
+          echo "→ verifying it is served…"
+          curl -sf -m 5 http://localhost:8085/demo/addresses.json | grep -q "$MARKETPLACE" \
+            || { echo "::error::addresses.json not served by frontend"; exit 1; }
+
+      # ── Headed-browser prerequisites (not committed — fetched fresh) ──
+      - name: Install MetaMask 13.24.0 extension
+        run: |
+          curl -fsSL -o /tmp/mm.zip \
+            https://github.com/MetaMask/metamask-extension/releases/download/v13.24.0/metamask-chrome-13.24.0.zip
+          mkdir -p /tmp/metamask-13.24.0
+          unzip -q /tmp/mm.zip -d /tmp/metamask-13.24.0
+          test -f /tmp/metamask-13.24.0/manifest.json
+          echo "METAMASK_EXT_PATH=/tmp/metamask-13.24.0" >> "$GITHUB_ENV"
+
+      - name: Install Chrome-for-Testing 130 (honours --load-extension; Chrome 137+ blocks it)
+        run: |
+          npx -y @puppeteer/browsers install chrome@130 --path "$HOME/cft" | tee /tmp/cft.txt
+          CHROME_BIN="$(awk 'END{print $NF}' /tmp/cft.txt)"
+          test -x "$CHROME_BIN"
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          "$CHROME_BIN" --version
+
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Install e2e deps + browser libs + apply MetaMask 13.24.0 patches
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install-deps chromium
+          node patch-synpress.mjs
+
+      # ── Build the Synpress wallet cache fresh (it is keyed to the extension id,
+      #    so it must be rebuilt in CI rather than shipped) and run the suite. ──
+      - name: Build Synpress wallet cache (headed under Xvfb)
+        run: xvfb-run -a node build-cache.mjs --force
+
+      - name: Run UI E2E suite (marketplace specs 01-05)
+        run: xvfb-run -a npx playwright test --grep-invert @content --reporter=line --timeout=70000 --global-timeout=900000
+
+      # DRM content-unlock journey (spec 06, @content): seed course #1 + its
+      # manifest on a fresh Anvil (so Bob is genuinely denied before buying),
+      # then run the @content tests in isolation. Kept separate from 01-05 because
+      # it needs a clean chain (otherwise Bob already owns the course).
+      - name: Run UI E2E content-unlock journey (spec 06, @content)
+        run: |
+          bash seed-content.sh
+          xvfb-run -a npx playwright test --grep @content --reporter=line --timeout=90000 --global-timeout=400000
+
+      - name: Upload Playwright report + traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synpress-ui-report
+          path: |
+            smartcontracts/e2e-synpress/playwright-report/
+            smartcontracts/e2e-synpress/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stack logs on failure
+        if: failure()
+        working-directory: smartcontracts
+        run: docker compose -f docker-compose.yml --profile local-full logs --tail=120
+
+      - name: Teardown
+        if: always()
+        working-directory: smartcontracts
+        run: docker compose -f docker-compose.yml --profile local-full down --remove-orphans -v
