@@ -1,4 +1,12 @@
 /**
+ * ⛔ DEPRECATED (2026-07-06): this writer targets Lit datil-dev/datil-test —
+ * the datil P2P networks were SHUT DOWN 2026-02-25 (Naga sunset 2026-04-01),
+ * so it cannot work against live Lit anymore. Kept for reference only.
+ * Use the shared Chipotle pipeline instead:
+ *   node write-devnet.mjs    (testnet target — `testnets` compose profile)
+ *   node write-mainnet.mjs   (mainnet target — `prod` compose profile)
+ * FORCE_DATIL=1 bypasses the guard below (archival/debug only).
+ *
  * Publish a course to Greenfield testnet WITH Lit Protocol access control.
  *
  * Differences from write-testnet.mjs:
@@ -24,6 +32,15 @@
  *   Or directly (requires npm install first):
  *   cd smartcontracts/greenfield-testnet && npm install && node write-testnet-lit.mjs
  */
+
+if (process.env.FORCE_DATIL !== '1') {
+  console.error(
+    'DEPRECATED: write-testnet-lit.mjs targets Lit datil, which was shut down 2026-02-25.\n' +
+      'Use write-devnet.mjs (testnets) / write-mainnet.mjs (prod) — Chipotle pipeline.\n' +
+      'Set FORCE_DATIL=1 to run anyway (will fail against live Lit).',
+  );
+  process.exit(2);
+}
 
 import { createRequire } from 'node:module';
 const _require = createRequire(import.meta.url);

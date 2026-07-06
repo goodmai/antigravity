@@ -1,5 +1,5 @@
-# Unified BNB Greenfield & Lit Protocol 4-Profile Orchestration Stack.
-# Supports 4 distinct profiles representing the complete product lifecycle:
+# Unified BNB Greenfield & Lit Protocol Orchestration Stack.
+# Profiles representing the complete product lifecycle:
 #
 # 1. local-mock (Local runs with mocks):
 #    docker compose --profile local-mock up -d
@@ -7,19 +7,39 @@
 # 2. local (Local Private Chain with clean state):
 #    docker compose --profile local up -d
 #
-# 3. testnet (Real BNB Greenfield Testnet + Lit datil-test/datil-dev):
+# 3. testnet (legacy alias — Greenfield testnet writer via local chipotle-mock):
 #    docker compose --profile testnet run --rm testnet-writer
 #
-# 4. mainnet (Real BNB Greenfield Mainnet + Lit datil network + Capacity Credits):
+# 4. TESTNETS — full testnet lifecycle:
+#    contracts → BSC testnet 97 + opBNB testnet 5611, storage → Greenfield 5600,
+#    DRM → REAL Chipotle (Lit has NO testnet; Chipotle prod on Base 8453),
+#    artifacts mirrored to IPFS via Pinata.
+#    docker compose --profile testnets up
+#    .env: GREENFIELD_TESTNET_PRIVATE_KEY/_ADDRESS, CHIPOTLE_API_KEY (Stripe-
+#    funded), PINATA_JWT (or PINATA_API_KEY+PINATA_API_SECRET), PINATA_GATEWAY
+#
+# 5. PROD — full mainnet lifecycle:
+#    contracts → BSC 56 + opBNB 204, storage → Greenfield mainnet 1017,
+#    DRM → REAL Chipotle (Base 8453), artifacts mirrored to IPFS via Pinata.
+#    docker compose --profile prod up
+#    .env: GREENFIELD_MAINNET_PRIVATE_KEY/_ADDRESS, PROD_DEPLOYER_KEY/_ADDR,
+#    CHIPOTLE_API_KEY, PINATA_JWT, PINATA_GATEWAY
+#
+# 6. mainnet (legacy alias for the prod writer only):
 #    docker compose --profile mainnet run --rm mainnet-writer
 #
-# 5. devnet-pa (Devnet P-A scheme — Anvil + chipotle-mock + mock-sp, no real net):
+# 7. devnet-pa (Devnet P-A scheme — Anvil + chipotle-mock + mock-sp, no real net):
 #    docker compose --profile devnet-pa up --abort-on-container-exit --exit-code-from devnet-pa-e2e
 #
-# 6. local-full (Full local stack — Anvil + chipotle-mock + local Greenfield):
+# 8. local-full (Full local stack — Anvil + chipotle-mock + local Greenfield):
 #    ./run_local_full.sh          ← patches SDK first, then runs compose
 #    or manually:
 #    docker compose --profile local-full up --abort-on-container-exit --exit-code-from local-full-e2e
+#
+# NOTE (Lit): datil/naga P2P networks are DEAD (datil shut down 2026-02-25,
+# Naga sunset 2026-04-01). The only live Lit network is Chipotle (v3, REST,
+# Base mainnet) — so BOTH testnets and prod profiles use the real
+# api.chipotle.litprotocol.com; only local profiles use chipotle-mock.
 #
 # Static frontend Nginx is served on port 8085 across all profiles to preserve
 # complete backward compatibility with vitest integration tests.
@@ -220,6 +240,9 @@ services:
       - local-full
 
 
+  # Legacy alias: Greenfield-testnet writer against the LOCAL chipotle-mock.
+  # (write-testnet-lit.mjs is deprecated — datil is dead — so this now runs the
+  # shared Chipotle pipeline with an NFT/marketplace gate you provide via env.)
   testnet-writer:
     image: node:22-bookworm
     working_dir: /app/smartcontracts/greenfield-testnet
@@ -229,17 +252,20 @@ services:
       - GREENFIELD_TESTNET_PRIVATE_KEY
       - GREENFIELD_TESTNET_ADDRESS
       - GF_BUCKET
-      - LIT_ALLOWED_ADDRESS
-      - LIT_CAPACITY_DELEGATION_AUTH_SIG
+      - MARKETPLACE_ADDR
+      - COURSE_ID
+      - NFT_GATING_CONTRACT
+      - NFT_GATING_CHAIN
       - CHIPOTLE_URL=http://chipotle-mock:8000
       - CHIPOTLE_PKP_KEY
     depends_on:
       chipotle-mock:
         condition: service_healthy
-    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-testnet-lit.mjs"]
+    command: ["sh", "-c", "npm install --no-audit --no-fund && node write-devnet.mjs"]
     profiles:
       - testnet
 
+  # Legacy alias for the prod writer (no deploy step) — prefer `--profile prod`.
   mainnet-writer:
     image: node:22-bookworm
     working_dir: /app/smartcontracts/greenfield-testnet
@@ -249,11 +275,181 @@ services:
       - GREENFIELD_MAINNET_PRIVATE_KEY
       - GREENFIELD_MAINNET_ADDRESS
       - GF_BUCKET
-      - LIT_ALLOWED_ADDRESS
-      - LIT_CAPACITY_DELEGATION_AUTH_SIG
+      - MARKETPLACE_ADDR
+      - COURSE_ID
+      - NFT_GATING_CONTRACT
+      - NFT_GATING_CHAIN
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - CHIPOTLE_API_KEY
+      - PIN_TO_IPFS
+      - PINATA_JWT
+      - PINATA_API_KEY
+      - PINATA_API_SECRET
+      - PINATA_GATEWAY
+      - PINATA_GATEWAY_KEY
     command: ["sh", "-c", "npm install --no-audit --no-fund && node write-mainnet.mjs"]
     profiles:
       - mainnet
+
+  # ─── TESTNETS / PROD PROFILES (real chains + real Chipotle + Pinata IPFS) ───
+  #
+  # Same shape for both: a one-shot multichain `deploy` (BSC + opBNB) writing
+  # <profile>-addresses.env into a shared volume + demo/addresses.json for the
+  # frontend, then a one-shot `writer` publishing the encrypted course to
+  # Greenfield with the master key wrapped by the REAL Chipotle and all
+  # artifacts pinned to IPFS via Pinata. `frontend` (nginx :8099) is the
+  # long-running reader UI.
+
+  deploy-testnets:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-testnets-deploy
+    user: root
+    working_dir: /work
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - DEPLOY_CHAINS=${DEPLOY_CHAINS:-bsc,opbnb}
+      - BSC_CHAIN_ID=97
+      - BSC_RPC=${BSC_TESTNET_RPC:-https://data-seed-prebsc-1-s1.binance.org:8545}
+      - OPBNB_CHAIN_ID=5611
+      - OPBNB_RPC=${OPBNB_TESTNET_RPC:-https://opbnb-testnet-rpc.bnbchain.org}
+      - COURSE_PRICE=${COURSE_PRICE:-1000000000000000}
+      - ADDR_FILE=testnets-addresses.env
+      - EXPLORER=https://testnet.bscscan.com
+      - CHAIN_NAME=BNB Smart Chain Testnet
+    volumes:
+      - ./contracts:/work
+      - net-shared:/shared
+      - ./demo:/host-demo
+      - ./scripts/deploy-multichain.sh:/usr/local/bin/deploy-multichain.sh:ro
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        export PRIVATE_KEY="$${DEVNET_DEPLOYER_KEY:-$${GREENFIELD_TESTNET_PRIVATE_KEY:-}}"
+        export DEPLOYER_ADDR="$${DEVNET_DEPLOYER_ADDR:-$${GREENFIELD_TESTNET_ADDRESS:-}}"
+        exec bash /usr/local/bin/deploy-multichain.sh
+    profiles:
+      - testnets
+
+  writer-testnets:
+    image: node:22-bookworm
+    container_name: daskibo-testnets-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      deploy-testnets:
+        condition: service_completed_successfully
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      # DRM — REAL Chipotle (prod; Lit has no testnet). CHIPOTLE_API_KEY comes
+      # from .env and MUST be Stripe-funded (billing/balance > 0).
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bscTestnet}
+      - GF_BUCKET=${GF_BUCKET:-}
+      - PIN_TO_IPFS=${PIN_TO_IPFS:-1}
+    volumes:
+      - ../:/app
+      - net-shared:/shared:ro
+      - ./demo:/host-demo
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/testnets-addresses.env &&
+        echo "→ Publishing to Greenfield TESTNET, gate=hasCourseAccess($$MARKETPLACE_ADDR, $$COURSE_ID) @ $$NFT_GATING_CHAIN, DRM=REAL Chipotle, IPFS=Pinata" &&
+        BUCKET=$$(MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-devnet.mjs | tee /dev/stderr | grep -oE 'daskibo-[a-z0-9]+' | tail -1) &&
+        if [ -n "$$BUCKET" ]; then
+          node -e "const fs=require('fs');const p='/host-demo/addresses.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.bucket='$$BUCKET';j.bucketOwner=process.env.GREENFIELD_TESTNET_ADDRESS;fs.writeFileSync(p,JSON.stringify(j,null,2));console.log('  → patched addresses.json with bucket='+j.bucket);"
+        fi
+    profiles:
+      - testnets
+
+  deploy-prod:
+    image: ghcr.io/foundry-rs/foundry:latest
+    container_name: daskibo-prod-deploy
+    user: root
+    working_dir: /work
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - DEPLOY_CHAINS=${DEPLOY_CHAINS:-bsc,opbnb}
+      - BSC_CHAIN_ID=56
+      - BSC_RPC=${BSC_RPC:-https://bsc-dataseed.bnbchain.org}
+      - OPBNB_CHAIN_ID=204
+      - OPBNB_RPC=${OPBNB_RPC:-https://opbnb-mainnet-rpc.bnbchain.org}
+      - COURSE_PRICE=${COURSE_PRICE:-1000000000000000}
+      - ADDR_FILE=prod-addresses.env
+      - EXPLORER=https://bscscan.com
+      - CHAIN_NAME=BNB Smart Chain
+      - REQUIRE_REAL_KEY=1
+    volumes:
+      - ./contracts:/work
+      - net-shared:/shared
+      - ./demo:/host-demo
+      - ./scripts/deploy-multichain.sh:/usr/local/bin/deploy-multichain.sh:ro
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        export PRIVATE_KEY="$${PROD_DEPLOYER_KEY:-}"
+        export DEPLOYER_ADDR="$${PROD_DEPLOYER_ADDR:-}"
+        exec bash /usr/local/bin/deploy-multichain.sh
+    profiles:
+      - prod
+
+  writer-prod:
+    image: node:22-bookworm
+    container_name: daskibo-prod-writer
+    working_dir: /app/smartcontracts/greenfield-testnet
+    depends_on:
+      deploy-prod:
+        condition: service_completed_successfully
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      - CHIPOTLE_URL=${CHIPOTLE_URL:-https://api.chipotle.litprotocol.com}
+      - NFT_GATING_CHAIN=${NFT_GATING_CHAIN:-bsc}
+      - GF_BUCKET=${GF_BUCKET:-}
+      - PIN_TO_IPFS=${PIN_TO_IPFS:-1}
+    volumes:
+      - ../:/app
+      - net-shared:/shared:ro
+      - ./demo:/host-demo
+    command:
+      - "sh"
+      - "-c"
+      - >
+        npm install --no-audit --no-fund &&
+        . /shared/prod-addresses.env &&
+        echo "→ Publishing to Greenfield MAINNET, gate=hasCourseAccess($$MARKETPLACE_ADDR, $$COURSE_ID) @ $$NFT_GATING_CHAIN, DRM=REAL Chipotle, IPFS=Pinata" &&
+        BUCKET=$$(MARKETPLACE_ADDR=$$MARKETPLACE_ADDR COURSE_ID=$$COURSE_ID node write-mainnet.mjs | tee /dev/stderr | grep -oE 'daskibo-[a-z0-9]+' | tail -1) &&
+        if [ -n "$$BUCKET" ]; then
+          node -e "const fs=require('fs');const p='/host-demo/addresses.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.bucket='$$BUCKET';j.bucketOwner=process.env.GREENFIELD_MAINNET_ADDRESS;fs.writeFileSync(p,JSON.stringify(j,null,2));console.log('  → patched addresses.json with bucket='+j.bucket);"
+        fi
+    profiles:
+      - prod
+
+  frontend-net:
+    image: nginx:1.27-alpine
+    container_name: daskibo-net-frontend
+    ports:
+      - "8099:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/bucket-reader.html"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - testnets
+      - prod
 
   test-local-runner:
     image: node:22-bookworm
@@ -575,4 +771,5 @@ services:
 volumes:
   dstack-shared:
   chipotle-config:
+  net-shared:
 

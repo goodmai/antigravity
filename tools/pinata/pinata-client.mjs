@@ -112,6 +112,7 @@ export async function pinFile(opts, deps = {}) {
     apiSecret,
     gateway,
     gatewayToken,
+    uploadUrl = PINATA_UPLOAD_URL,
   } = opts ?? {};
 
   const fetchImpl = deps.fetch ?? globalThis.fetch;
@@ -133,7 +134,7 @@ export async function pinFile(opts, deps = {}) {
   form.append('network', network);
   form.append('name', name);
 
-  const res = await fetchImpl(PINATA_UPLOAD_URL, { method: 'POST', headers, body: form });
+  const res = await fetchImpl(uploadUrl, { method: 'POST', headers, body: form });
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw pinataError(`upload failed (HTTP ${res.status}) ${detail}`.trim(), 'PINATA_UPLOAD_FAILED');

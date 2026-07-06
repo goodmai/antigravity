@@ -138,4 +138,17 @@ describe('rpcForChain', () => {
     expect(rpcForChain('nope')).toBeNull();
     expect(rpcForChain('bsc', { bsc: 'http://x' })).toBe('http://x');
   });
+
+  it('maps opBNB (mainnet + testnet) and Base', () => {
+    expect(rpcForChain('opbnb')).toMatch(/opbnb-mainnet/);
+    expect(rpcForChain('opbnbTestnet')).toMatch(/opbnb-testnet/);
+    expect(rpcForChain('base')).toMatch(/^https?:\/\//);
+  });
+
+  it('resolves numeric EIP-155 chain ids via aliases', () => {
+    expect(rpcForChain(204)).toBe(rpcForChain('opbnb'));
+    expect(rpcForChain('5611')).toBe(rpcForChain('opbnbTestnet'));
+    expect(rpcForChain(56)).toBe(rpcForChain('bsc'));
+    expect(rpcForChain(31337)).toBeNull();
+  });
 });

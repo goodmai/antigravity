@@ -127,16 +127,30 @@ export async function evaluateAcc({ accessControlConditions, userAddress, nowTs,
 
 /** Known chain identifier → public JSON-RPC endpoint (for browser readers). */
 export const CHAIN_RPCS = {
-  ethereum:   'https://ethereum-rpc.publicnode.com',
-  bsc:        'https://bsc-rpc.publicnode.com',
-  bscTestnet: 'https://bsc-testnet-rpc.publicnode.com',
+  ethereum:     'https://ethereum-rpc.publicnode.com',
+  bsc:          'https://bsc-rpc.publicnode.com',
+  bscTestnet:   'https://bsc-testnet-rpc.publicnode.com',
+  opbnb:        'https://opbnb-mainnet-rpc.bnbchain.org',
+  opbnbTestnet: 'https://opbnb-testnet-rpc.bnbchain.org',
+  base:         'https://base-rpc.publicnode.com',
+};
+
+/** Numeric chain id (EIP-155) → chain identifier, for manifests that carry ids. */
+export const CHAIN_ID_ALIASES = {
+  1: 'ethereum',
+  56: 'bsc',
+  97: 'bscTestnet',
+  204: 'opbnb',
+  5611: 'opbnbTestnet',
+  8453: 'base',
 };
 
 /** Resolve a Lit `chain` identifier (or numeric id) to an RPC URL, or null. */
 export function rpcForChain(chain, overrides = {}) {
   if (!chain) return null;
   const map = { ...CHAIN_RPCS, ...overrides };
-  return map[chain] || map[String(chain)] || null;
+  const alias = CHAIN_ID_ALIASES[chain] ?? CHAIN_ID_ALIASES[Number(chain)];
+  return map[chain] || map[String(chain)] || (alias ? map[alias] : null) || null;
 }
 
 /**

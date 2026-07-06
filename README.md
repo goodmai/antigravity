@@ -155,6 +155,17 @@ run_workflow securcheck
 
 ---
 
+## 🏛 Платформа Daskibo (Web3-курсы, NFT-доступ, DRM)
+
+Полное описание платформы — акторы, флоу «публикация → покупка → NFT-доступ →
+client-side расшифровка», роль Pinata/IPFS, docker-профили `prod`/`testnets`,
+гайд добавления новых EVM-сетей (`smartcontracts/scripts/add-evm-chain.sh`) и
+протокол интеграции не-EVM сетей (Waves, Canton) — в
+**[smartcontracts/README.md → «Платформа целиком»](smartcontracts/README.md#платформа-целиком-акторы-флоу-абстракции-мультичейн)**.
+Аудит готовности и таблица фондирования — в [review.md](review.md).
+
+---
+
 ## 🧪 Testing — Greenfield Smart Contracts (branch `claude/greenfield-smartcontracts-setup-2HS95`)
 
 This branch adds the **Greenfield bucket console + Lit-gated encrypted

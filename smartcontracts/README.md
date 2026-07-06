@@ -381,3 +381,173 @@ Never commit private keys. Use a `.env` file (gitignored).
 | static-web-server | `~/.local/bin/static-web-server` | Serve HTML files locally |
 | Chipotle repo | `~/GitHub/chipotle` | Reference implementation + local Lit node |
 | dstack repo | `~/GitHub/dstack` | TEE simulator source |
+
+---
+
+# Платформа целиком: акторы, флоу, абстракции, мультичейн
+
+> Этот раздел — каноническое описание продукта: децентрализованная платформа
+> обучения с продажей курсов, NFT-доступом и client-side расшифровкой DRM.
+> (RU — рабочий язык владельца; технические термины оставлены как есть.)
+
+## Акторы
+
+| Актор | Кошелёк/роль | Что делает |
+|---|---|---|
+| **Владелец платформы** | деплоер контрактов; identity-кошелёк Chipotle-аккаунта | Деплоит `Treasury`/`AccessPass`/`CourseMarketplace` + NFT-фабрики, владеет Chipotle-аккаунтом (Stripe-кредиты) и Pinata-аккаунтом |
+| **Автор курса** | `AuthorNft` (soulbound) | Готовит контент (`lessons/`, `academy/courses/*`), публикует через writer-пайплайн, регистрирует курс в `CourseMarketplace` (цена, hash) |
+| **Клиент (студент)** | MetaMask; после покупки — `AccessPass` (soulbound) | `purchase(courseId)` → платёж делится Treasury/автор → минт soulbound `AccessPass` → `hasCourseAccess == true` → расшифровка курса в браузере |
+| **Ева (без доступа)** | MetaMask без NFT | Негативный сценарий: подпись не помогает — ACC не выполнен, DRM не отдаёт ключ |
+| **Chipotle (Lit v3)** | TEE-нода (Base mainnet) | Хранит PKP, шифрует/выдаёт master key по подписанному proof; замена ему в dev — `chipotle-mock` |
+| **Greenfield SP** | BNB Greenfield (1017/5600) | Хранит зашифрованные объекты курса + манифест |
+| **Pinata / IPFS** | pinning-сервис | Контент-адресуемое зеркало зашифрованных артефактов (см. ниже) |
+| **Сертификат** | soulbound NFT (`ClientNft`/`AccessPass` с expiry=0) | Доказательство прохождения/доступа; выдаётся минтом (P3 — через Lit Action `claim-signer` по EIP-712 Claim) |
+
+## Полный флоу (от создания платформы до чтения курса)
+
+```
+0. ПЛАТФОРМА   deploy-multichain.sh (profiles prod/testnets):
+               Treasury → AccessPass → CourseMarketplace + ClientNft/AuthorNft
+               на каждую цепь (BSC + opBNB); адреса → shared volume + demo/addresses.json
+1. ПУБЛИКАЦИЯ  writer (write-mainnet.mjs / write-devnet.mjs → publish-course-run.mjs):
+               a. create_wallet у Chipotle → PKP
+               b. ACC = hasCourseAccess(:userAddress, courseId) @ gate-chain
+               c. planCoursePublish: AES-256-GCM per-lesson DEK → master key
+                  → master key шифруется Chipotle под ACC (manifest.lit)
+               d. PIN_TO_IPFS=1: все шифрованные объекты → Pinata (CID map
+                  внедряется в manifest.ipfsMirror), затем пин самого манифеста
+               e. createBucket + saveObject → Greenfield; round-trip проверка
+2. ПРОДАЖА     клиент в course-demo.html: MetaMask → purchase(courseId) c msg.value
+               → сплит Treasury/автор → минт soulbound AccessPass (expiry)
+3. ДОСТУП      bucket-reader/course-view: подпись nonce (personal_sign)
+               → Chipotle decrypt: ACC-eval (двухпроходный: timestamp AND,
+               address/contract OR; RPC gate-chain) → master key
+4. ЧТЕНИЕ      в браузере: master → DEK → AES-GCM расшифровка уроков client-side;
+               плейнтекст никогда не покидает вкладку
+```
+
+## Паттерны и абстракции (что где менять)
+
+| Абстракция | Файл | Контракт интерфейса |
+|---|---|---|
+| **LitClient** (DRM) | `buckets/lit-sdk-chipotle.js` (реализация), `buckets/lit-access.js` (обёртка) | `encrypt({acc, dataToEncrypt})` / `decrypt({...}, authContext)` — сменный DRM-бэкенд |
+| **ACC-evaluator** (единственный источник истины) | `buckets/lit-acc-eval.js` | `evaluateAcc(acc, user, {ethCall})` — используется mock'ом, адаптером, reader'ом и view; on-chain чтение через инъецируемый `ethCall` |
+| **GreenfieldBackend** (storage tx) | `greenfield-testnet/sdk-backend.mjs` (real) / `integration/sp-emulation-backend.js` (тесты) | `createBucket`/`saveObject` — сменный storage-бэкенд |
+| **Publish pipeline** | `greenfield-testnet/publish-course-run.mjs` | `resolvePublishEnv(env, target)` + `runPublish(cfg, deps)`; таргеты `testnet`/`mainnet` |
+| **IPFS mirror** | `greenfield-testnet/ipfs-mirror.mjs` + `tools/pinata/pinata-client.mjs` | `mirrorPlanObjects` / `pinManifest` с инъецируемым `pin` |
+| **Транспорт** | везде | инъецируемый `fetch`-transport → всё тестируется без сети |
+
+## Роль Pinata / IPFS
+
+Pinata пинит **только шифротекст** (мастер-ключ существует лишь в
+Chipotle-обёртке внутри манифеста), поэтому публичный IPFS не расширяет
+границу доверия DRM. Зачем зеркало:
+
+1. **Отказоустойчивость**: курс читается даже при недоступности Greenfield SP
+   (`manifest.ipfsMirror.items[key] → https://<gateway>/ipfs/<cid>`).
+2. **Контент-адресация**: CID = криптографический хеш → неизменяемость
+   опубликованной версии курса, дешёвая проверка целостности.
+3. **Lit Actions**: `tools/pinata/pin.mjs --lit-actions` пинит
+   `claim-signer.action.js`; PKP привязывается к IPFS CID кода — подписать
+   клейм сертификата может только этот код (P3).
+4. **Секреты**: gateway-токен не попадает в артефакты — в манифест пишутся
+   token-less URL, читатель добавляет `?pinataGatewayToken` из env.
+
+Env: `PINATA_JWT` (или `PINATA_API_KEY`+`PINATA_API_SECRET`), `PINATA_GATEWAY`,
+опц. `PINATA_GATEWAY_KEY`; включение — `PIN_TO_IPFS=1` (в профилях
+`prod`/`testnets` включено по умолчанию).
+
+## Ограничения (честный список)
+
+- **Chipotle без тестнета**: единственная живая Lit-сеть — прод на Base
+  mainnet; тестнет-профиль всё равно ходит в прод-Chipotle (Stripe-кредиты).
+- **ACC enforced app-side**: у Chipotle нет `checkConditions` — timestamp/NFT
+  проверяет канонический evaluator на стороне приложения (и mock-сервера).
+  Компрометация клиента = компрометация только его собственного доступа.
+- **Один gate-chain на курс**: ACC гейтится на одной цепи
+  (`NFT_GATING_CHAIN`); мультичейн-покупки требуют per-condition RPC в
+  evaluator (задел: `CHAIN_ID_ALIASES`).
+- **Клиентская расшифровка**: купивший может сохранить плейнтекст себе — DRM
+  защищает дистрибуцию, не скриншоты (фундаментально для client-side E2E).
+- **ChainSecured TODO**: управляющие вызовы Chipotle пока через usage
+  `X-Api-Key`, а не `*_with_signature` (см. skills/lit §7.4).
+
+## Добавление новой EVM-сети (NFT + маркетплейс)
+
+Автоматизировано скриптом:
+
+```bash
+export PRIVATE_KEY=0x…   DEPLOYER_ADDR=0x…       # funded на новой цепи
+smartcontracts/scripts/add-evm-chain.sh polygon 137 https://polygon-rpc.com https://polygonscan.com
+```
+
+Скрипт: проверит chain-id/баланс → `forge script DeployAccessNfts` (фабрика
+soulbound NFT) → `forge script Deploy` (Treasury/AccessPass/Marketplace) →
+минт ClientNft деплоеру → `registerCourse` → напечатает чек-лист доводки:
+
+1. `buckets/lit-acc-eval.js`: добавить сеть в `CHAIN_RPCS` + `CHAIN_ID_ALIASES`
+   (это единственное место, где reader узнаёт RPC для ACC-проверки);
+2. публикация с гейтом на новой цепи: `NFT_GATING_CHAIN=<chainKey>`;
+3. `demo/addresses.json` → `chains[]` для фронтенда (MetaMask `ensureChain()`
+   переключит сеть сам);
+4. (опц.) внести цепь в `scripts/deploy-multichain.sh` (case-блок), чтобы она
+   деплоилась профилями `prod`/`testnets`.
+
+Требование к сети: EVM с `eth_call`+EIP-155, поддержка `personal_sign` в
+кошельке. Ничего в контрактах менять не нужно — они chain-agnostic.
+
+## Протокол добавления не-EVM сетей (Waves, Canton, …)
+
+Не-EVM цепь не может использовать `eth_call`/EIP-712, поэтому интеграция —
+это реализация трёх абстракций (контракты и evaluator расширяются, ядро
+пайплайна не меняется):
+
+1. **Идентичность/подпись (authContext).** Сейчас proof = `personal_sign`
+   нонса + `ethers.verifyMessage`. Для новой VM нужен адаптер
+   `verifyProof(chainNamespace, message, signature) → address/publicKey`:
+   - *Waves*: подпись Keeper/WavesKit (curve25519), верификация
+     `crypto.verifySignature(pubKey, msg, sig)`, адрес = base58.
+   - *Canton*: party-based identity; proof = подписанный command/JWT от
+     participant node, «адрес» = party id.
+   Точка расширения: `authContext` в `lit-sdk-chipotle.js.decrypt()` и
+   `signedProof` в reader'ах — добавить поле `chainNamespace`.
+2. **Гейт-предикат (ACC-условие).** Добавить в `lit-acc-eval.js` новый
+   `conditionType` (сейчас: `evmBasic` timestamp/address/contract):
+   - *Waves*: `assetBalance(address, assetId) >= 1` через Node REST
+     (`/assets/balance/{addr}/{assetId}`) — NFT Waves = asset с quantity 1;
+   - *Canton*: наличие активного контракта-сертификата у party через
+     JSON Ledger API (`/v1/query` по template id).
+   Инъекция I/O — как `ethCall`: чистый evaluator + `makeFetchAssetCall`.
+   Двухпроходная семантика (timestamp AND / owner OR) сохраняется.
+3. **Продажа/минт на стороне цепи.** Порт контрактов:
+   - *Waves*: Ride dApp (`purchase` → transfer + issue NFT; soulbound =
+     запрет transfer в dApp-скрипте);
+   - *Canton*: Daml-шаблоны `Course`, `AccessPass` (signatory = платформа,
+     observer = клиент; soulbound естественно — контракты непередаваемы).
+
+Чек-лист интеграции: адаптер подписи → conditionType в evaluator + юнит-тесты
+(`tests/lit-acc-eval.test.js`) → Ride/Daml-контракты + их тесты → писатель
+передаёт `chain: '<namespace>:<net>'` в ACC → reader выбирает
+верификатор по namespace → интеграционный тест по образцу
+`tests/publish-pipeline.integration.test.js` с mock-нодой цепи.
+
+Ограничение: Chipotle шифрует/хранит PKP независимо от цепи (он не читает
+чужие сети — ACC проверяется app-side), поэтому не-EVM поддержка не требует
+изменений на стороне Lit.
+
+## Профили prod / testnets (итоговая шпаргалка)
+
+```bash
+# ТЕСТНЕТЫ: BSC 97 + opBNB 5611 (контракты) · GF 5600 (сторадж)
+#           REAL Chipotle (DRM) · Pinata (IPFS-зеркало)
+docker compose -f smartcontracts/docker-compose.yml --profile testnets up
+
+# ПРОД:     BSC 56 + opBNB 204 · GF mainnet 1017 · REAL Chipotle · Pinata
+docker compose -f smartcontracts/docker-compose.yml --profile prod up
+
+# только BSC (без opBNB): DEPLOY_CHAINS=bsc docker compose --profile prod up
+```
+
+`.env`: `GREENFIELD_TESTNET_*` / `GREENFIELD_MAINNET_*` + `PROD_DEPLOYER_KEY/_ADDR`,
+`CHIPOTLE_API_KEY` (Stripe-funded!), `PINATA_JWT`, `PINATA_GATEWAY`.
+Балансы и что пополнять — см. `review.md` §3 (аудит 2026-07-06).
